@@ -1,0 +1,37 @@
+# OS junk
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor/IDE folders
+.vscode/
+.idea/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+.tmp/
+.temp/
+
+# Archives
+*.zip
+*.rar
+*.7z
+*.tar
+*.gz
+
+# Large raw media working folders
+/raw-media/
+/exports/
+/renders/
+/temp/
+
+# Dependency folders
+node_modules/
