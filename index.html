@@ -45,11 +45,11 @@
         </div>
 
         <div class="transport-fake" aria-hidden="true">
-          <button>⟲</button>
-          <button>◁</button>
-          <button class="play-dot">▶</button>
-          <button>▷</button>
-          <button>∞</button>
+          <button tabindex="-1">⟲</button>
+          <button tabindex="-1">◁</button>
+          <button tabindex="-1" class="play-dot">▶</button>
+          <button tabindex="-1">▷</button>
+          <button tabindex="-1">∞</button>
         </div>
       </div>
 
@@ -313,7 +313,7 @@
           <p>Send a short brief, references, and the type of audio/video/portfolio work you need delivered.</p>
         </div>
 
-        <form action="mailto:hello@sunstrucksynapse.com" method="post" enctype="text/plain">
+        <form action="mailto:hello@sunstrucksynapse.com" method="get">
           <label>Name <input name="name" required autocomplete="name" /></label>
           <label>Email <input name="email" type="email" required autocomplete="email" /></label>
           <label>Project type
