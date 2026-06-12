@@ -33,5 +33,11 @@ logs/
 /renders/
 /temp/
 
+# Docs source artefacts (zip downloads, extracted folders, reference images)
+docs/*.jpg
+docs/*.png
+docs/*.zip
+docs/sunstrucksynapse_media_app*/
+
 # Dependency folders
 node_modules/
