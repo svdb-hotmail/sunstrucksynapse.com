@@ -12,10 +12,6 @@
 <body>
   <div class="app-shell">
     <aside class="player-panel" aria-label="Featured media player">
-      <button class="icon-button menu-button" aria-label="Open navigation">
-        <span></span><span></span><span></span>
-      </button>
-
       <div class="brand-orb" aria-hidden="true">
         <span>SS</span>
       </div>
@@ -26,30 +22,30 @@
 
       <div class="now-playing">
         <p class="kicker">Now playing</p>
-        <h1>Sunstruck Synapse - Signal Bloom</h1>
-        <p class="subtitle">Audio visual concept reel</p>
+        <h1>Sunstruck Synapse - Solar Nerve</h1>
+        <p class="subtitle">Music direction study</p>
 
-        <div class="media-mode-tabs" role="tablist" aria-label="Media type">
-          <button class="active" data-mode="audio">Audio</button>
-          <button data-mode="video">Video</button>
+        <div class="media-mode-tabs" aria-label="Media type">
+          <button type="button" class="active" data-mode="audio" aria-pressed="true">Audio</button>
+          <button type="button" data-mode="video" aria-pressed="false">Video</button>
         </div>
 
         <div class="protected-player">
-          <audio id="audioPlayer" class="protected-media" controls controlsList="nodownload noplaybackrate" preload="none" oncontextmenu="return false">
-            <source src="assets/sample-audio.mp3" type="audio/mpeg" />
+          <audio id="audioPlayer" class="protected-media" controls controlsList="nodownload noplaybackrate" preload="none">
+            <source src="assets/audio/sample-audio.mp3" type="audio/mpeg" />
           </audio>
 
-          <video id="videoPlayer" class="protected-media hidden" controls controlsList="nodownload noplaybackrate" preload="metadata" poster="assets/video-poster.svg" oncontextmenu="return false" disablepictureinpicture>
-            <source src="assets/sample-video.mp4" type="video/mp4" />
+          <video id="videoPlayer" class="protected-media hidden" controls controlsList="nodownload noplaybackrate" preload="metadata" poster="assets/posters/video-poster.svg" disablepictureinpicture>
+            <source src="assets/video/sample-video.mp4" type="video/mp4" />
           </video>
         </div>
 
         <div class="transport-fake" aria-hidden="true">
-          <button tabindex="-1">⟲</button>
-          <button tabindex="-1">◁</button>
-          <button tabindex="-1" class="play-dot">▶</button>
-          <button tabindex="-1">▷</button>
-          <button tabindex="-1">∞</button>
+          <span>⟲</span>
+          <span>◁</span>
+          <span class="play-dot">▶</span>
+          <span>▷</span>
+          <span>∞</span>
         </div>
       </div>
 
@@ -109,54 +105,54 @@
         </div>
 
         <div class="media-row">
-          <article class="media-card" data-title="Signal Bloom" data-subtitle="Audio visual concept reel" data-type="video">
-            <img src="assets/thumb-01.svg" alt="Signal Bloom project thumbnail" draggable="false" />
+          <article class="media-card" data-title="Signal Bloom" data-subtitle="Audio visual concept reel" data-type="video" role="button" tabindex="0" aria-label="Select Signal Bloom">
+            <img src="assets/thumbs/thumb-01.svg" alt="Signal Bloom project thumbnail" draggable="false" />
             <div class="media-card-body">
               <h3>Signal Bloom</h3>
               <p>Audio visual concept reel</p>
               <div class="card-actions">
-                <button>Queue</button>
-                <button>Play</button>
-                <button>Share</button>
+                <span>Queue</span>
+                <span>Play</span>
+                <span>Share</span>
               </div>
             </div>
           </article>
 
-          <article class="media-card" data-title="Solar Nerve" data-subtitle="Music direction study" data-type="audio">
-            <img src="assets/thumb-02.svg" alt="Solar Nerve project thumbnail" draggable="false" />
+          <article class="media-card" data-title="Solar Nerve" data-subtitle="Music direction study" data-type="audio" role="button" tabindex="0" aria-label="Select Solar Nerve">
+            <img src="assets/thumbs/thumb-02.svg" alt="Solar Nerve project thumbnail" draggable="false" />
             <div class="media-card-body">
               <h3>Solar Nerve</h3>
               <p>Music direction study</p>
               <div class="card-actions">
-                <button>Queue</button>
-                <button>Play</button>
-                <button>Share</button>
+                <span>Queue</span>
+                <span>Play</span>
+                <span>Share</span>
               </div>
             </div>
           </article>
 
-          <article class="media-card" data-title="Neon Weather" data-subtitle="AI video prompt system" data-type="video">
-            <img src="assets/thumb-03.svg" alt="Neon Weather project thumbnail" draggable="false" />
+          <article class="media-card" data-title="Neon Weather" data-subtitle="AI video prompt system" data-type="video" role="button" tabindex="0" aria-label="Select Neon Weather">
+            <img src="assets/thumbs/thumb-03.svg" alt="Neon Weather project thumbnail" draggable="false" />
             <div class="media-card-body">
               <h3>Neon Weather</h3>
               <p>AI video prompt system</p>
               <div class="card-actions">
-                <button>Queue</button>
-                <button>Play</button>
-                <button>Share</button>
+                <span>Queue</span>
+                <span>Play</span>
+                <span>Share</span>
               </div>
             </div>
           </article>
 
-          <article class="media-card" data-title="Memory Static" data-subtitle="Spoken-word atmosphere" data-type="audio">
-            <img src="assets/thumb-04.svg" alt="Memory Static project thumbnail" draggable="false" />
+          <article class="media-card" data-title="Memory Static" data-subtitle="Spoken-word atmosphere" data-type="audio" role="button" tabindex="0" aria-label="Select Memory Static">
+            <img src="assets/thumbs/thumb-04.svg" alt="Memory Static project thumbnail" draggable="false" />
             <div class="media-card-body">
               <h3>Memory Static</h3>
               <p>Spoken-word atmosphere</p>
               <div class="card-actions">
-                <button>Queue</button>
-                <button>Play</button>
-                <button>Share</button>
+                <span>Queue</span>
+                <span>Play</span>
+                <span>Share</span>
               </div>
             </div>
           </article>
@@ -170,46 +166,46 @@
         </div>
 
         <div class="media-row">
-          <article class="media-card" data-title="Morning Voltage" data-subtitle="Sonic identity package" data-type="audio">
-            <img src="assets/thumb-05.svg" alt="Morning Voltage audio thumbnail" draggable="false" />
+          <article class="media-card" data-title="Morning Voltage" data-subtitle="Sonic identity package" data-type="audio" role="button" tabindex="0" aria-label="Select Morning Voltage">
+            <img src="assets/thumbs/thumb-05.svg" alt="Morning Voltage audio thumbnail" draggable="false" />
             <div class="media-card-body">
               <h3>Morning Voltage</h3>
               <p>Sonic identity package</p>
               <div class="card-actions">
-                <button>Queue</button><button>Play</button><button>Share</button>
+                <span>Queue</span><span>Play</span><span>Share</span>
               </div>
             </div>
           </article>
 
-          <article class="media-card" data-title="Quiet Machines" data-subtitle="Ambient concept work" data-type="audio">
-            <img src="assets/thumb-06.svg" alt="Quiet Machines audio thumbnail" draggable="false" />
+          <article class="media-card" data-title="Quiet Machines" data-subtitle="Ambient concept work" data-type="audio" role="button" tabindex="0" aria-label="Select Quiet Machines">
+            <img src="assets/thumbs/thumb-06.svg" alt="Quiet Machines audio thumbnail" draggable="false" />
             <div class="media-card-body">
               <h3>Quiet Machines</h3>
               <p>Ambient concept work</p>
               <div class="card-actions">
-                <button>Queue</button><button>Play</button><button>Share</button>
+                <span>Queue</span><span>Play</span><span>Share</span>
               </div>
             </div>
           </article>
 
-          <article class="media-card" data-title="Sunlit Debris" data-subtitle="Spoken-word track world" data-type="audio">
-            <img src="assets/thumb-07.svg" alt="Sunlit Debris audio thumbnail" draggable="false" />
+          <article class="media-card" data-title="Sunlit Debris" data-subtitle="Spoken-word track world" data-type="audio" role="button" tabindex="0" aria-label="Select Sunlit Debris">
+            <img src="assets/thumbs/thumb-07.svg" alt="Sunlit Debris audio thumbnail" draggable="false" />
             <div class="media-card-body">
               <h3>Sunlit Debris</h3>
               <p>Spoken-word track world</p>
               <div class="card-actions">
-                <button>Queue</button><button>Play</button><button>Share</button>
+                <span>Queue</span><span>Play</span><span>Share</span>
               </div>
             </div>
           </article>
 
-          <article class="media-card" data-title="Glass Orchard" data-subtitle="Release moodboard" data-type="audio">
-            <img src="assets/thumb-08.svg" alt="Glass Orchard audio thumbnail" draggable="false" />
+          <article class="media-card" data-title="Glass Orchard" data-subtitle="Release moodboard" data-type="audio" role="button" tabindex="0" aria-label="Select Glass Orchard">
+            <img src="assets/thumbs/thumb-08.svg" alt="Glass Orchard audio thumbnail" draggable="false" />
             <div class="media-card-body">
               <h3>Glass Orchard</h3>
               <p>Release moodboard</p>
               <div class="card-actions">
-                <button>Queue</button><button>Play</button><button>Share</button>
+                <span>Queue</span><span>Play</span><span>Share</span>
               </div>
             </div>
           </article>
@@ -223,46 +219,46 @@
         </div>
 
         <div class="media-row">
-          <article class="media-card" data-title="Synapse Drift" data-subtitle="Keyframe video experiment" data-type="video">
-            <img src="assets/thumb-09.svg" alt="Synapse Drift video thumbnail" draggable="false" />
+          <article class="media-card" data-title="Synapse Drift" data-subtitle="Keyframe video experiment" data-type="video" role="button" tabindex="0" aria-label="Select Synapse Drift">
+            <img src="assets/thumbs/thumb-09.svg" alt="Synapse Drift video thumbnail" draggable="false" />
             <div class="media-card-body">
               <h3>Synapse Drift</h3>
               <p>Keyframe video experiment</p>
               <div class="card-actions">
-                <button>Queue</button><button>Play</button><button>Share</button>
+                <span>Queue</span><span>Play</span><span>Share</span>
               </div>
             </div>
           </article>
 
-          <article class="media-card" data-title="Soft Collision" data-subtitle="Music video treatment" data-type="video">
-            <img src="assets/thumb-10.svg" alt="Soft Collision video thumbnail" draggable="false" />
+          <article class="media-card" data-title="Soft Collision" data-subtitle="Music video treatment" data-type="video" role="button" tabindex="0" aria-label="Select Soft Collision">
+            <img src="assets/thumbs/thumb-10.svg" alt="Soft Collision video thumbnail" draggable="false" />
             <div class="media-card-body">
               <h3>Soft Collision</h3>
               <p>Music video treatment</p>
               <div class="card-actions">
-                <button>Queue</button><button>Play</button><button>Share</button>
+                <span>Queue</span><span>Play</span><span>Share</span>
               </div>
             </div>
           </article>
 
-          <article class="media-card" data-title="Infrared Room" data-subtitle="Visual loop direction" data-type="video">
-            <img src="assets/thumb-11.svg" alt="Infrared Room video thumbnail" draggable="false" />
+          <article class="media-card" data-title="Infrared Room" data-subtitle="Visual loop direction" data-type="video" role="button" tabindex="0" aria-label="Select Infrared Room">
+            <img src="assets/thumbs/thumb-11.svg" alt="Infrared Room video thumbnail" draggable="false" />
             <div class="media-card-body">
               <h3>Infrared Room</h3>
               <p>Visual loop direction</p>
               <div class="card-actions">
-                <button>Queue</button><button>Play</button><button>Share</button>
+                <span>Queue</span><span>Play</span><span>Share</span>
               </div>
             </div>
           </article>
 
-          <article class="media-card" data-title="Horizon Teeth" data-subtitle="Cinematic AI reel" data-type="video">
-            <img src="assets/thumb-12.svg" alt="Horizon Teeth video thumbnail" draggable="false" />
+          <article class="media-card" data-title="Horizon Teeth" data-subtitle="Cinematic AI reel" data-type="video" role="button" tabindex="0" aria-label="Select Horizon Teeth">
+            <img src="assets/thumbs/thumb-12.svg" alt="Horizon Teeth video thumbnail" draggable="false" />
             <div class="media-card-body">
               <h3>Horizon Teeth</h3>
               <p>Cinematic AI reel</p>
               <div class="card-actions">
-                <button>Queue</button><button>Play</button><button>Share</button>
+                <span>Queue</span><span>Play</span><span>Share</span>
               </div>
             </div>
           </article>
