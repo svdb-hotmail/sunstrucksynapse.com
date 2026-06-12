@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360">
+  <defs>
+    <linearGradient id="bg" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#082c3a"/>
+      <stop offset="1" stop-color="#45aeb8"/>
+    </linearGradient>
+    <radialGradient id="orb" cx="46%" cy="42%" r="55%">
+      <stop offset="0" stop-color="#fff7d2"/>
+      <stop offset=".42" stop-color="#78ffcb"/>
+      <stop offset="1" stop-color="#11111a"/>
+    </radialGradient>
+  </defs>
+  <rect width="640" height="360" fill="url(#bg)"/>
+  <circle cx="320" cy="180" r="95" fill="url(#orb)" opacity=".9"/>
+  <circle cx="320" cy="180" r="70" fill="none" stroke="#ffffff" stroke-width="5" opacity=".82"/>
+  <text x="320" y="193" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="42" font-weight="900" letter-spacing="-6">SS</text>
+  <text x="28" y="318" fill="#ffffff" font-family="Arial, sans-serif" font-size="24" font-weight="700">Morning Voltage</text>
+  <text x="28" y="344" fill="#d9d5e9" font-family="Arial, sans-serif" font-size="14" font-weight="700" letter-spacing="4">AUDIO</text>
+  <path d="M0 260 C120 210 180 315 310 270 S505 210 640 270 V360 H0 Z" fill="#000000" opacity=".22"/>
+</svg>
