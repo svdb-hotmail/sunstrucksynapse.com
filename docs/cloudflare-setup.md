@@ -9,38 +9,38 @@ This guide documents the recommended Cloudflare settings for **sunstrucksynapse.
 | Setting | Path | Why | Impact |
 |---------|------|-----|--------|
 | **Always Use HTTPS** | SSL/TLS → Overview | Forces all traffic over HTTPS | Required for browser security and protection headers |
-| **Automatic HTTPS Rewrites** | SSL/TLS → Edge Certificates | Rewrites `http://` references to `https://` | Eliminates mixed-content warnings on contact form |
+| **Automatic HTTPS Rewrites** | SSL/TLS → Edge Certificates | Rewrites legacy `http://` asset references to `https://` | Helps prevent mixed-content warnings if old absolute asset URLs are introduced |
 | **HTTP/3 (QUIC)** | Network → HTTP/3 | Faster connection protocol | Improves page load speed; no security downside |
 | **Brotli Compression** | Speed → Optimization → Brotli | Compresses text/CSS/JS smaller than gzip | Reduces bandwidth; especially good for CSS/JS payloads |
 | **Early Hints** | Speed → Optimization → Early Hints | Preloads critical resources | Marginal perf gain; safe for static sites |
-| **Minify (HTML, CSS, JS)** | Speed → Optimization → Auto Minify | Removes whitespace from code | Saves ~10-15% bandwidth on first load |
+| **Minify (HTML, CSS)** | Speed → Optimization → Auto Minify | Removes whitespace from markup and styles | Saves bandwidth on first load; enable JS minify only after testing site interactivity |
 
-### Hotlink Protection (Enable if serving media URLs directly)
+### Hotlink Protection (Images Only)
 
 | Setting | Path | Why | Impact |
 |---------|------|-----|--------|
-| **Hotlink Protection** | Speed → Caching → Hotlink Protection | Blocks image/media requests from external sites | If media is public, prevents others' sites from embedding your content |
-| **Hotlink Protection Whitelist** | _(same)_ | Allow specific referrers (e.g., your own domains) | Optional; only if you want to allow cross-domain embeds |
+| **Hotlink Protection** | Scrape Shield → Hotlink Protection | Blocks supported image requests from external sites | Helps protect public image assets such as thumbnails and posters |
+| **Hotlink Protection Whitelist** | _(same)_ | Allow specific referrers (e.g., your own domains) | Optional; only if you want to allow cross-domain image embeds |
 
-*Note: Once you move to private R2 + Workers for media delivery, hotlink protection is less critical since URLs are short-lived and signed.*
+*Note: Cloudflare Hotlink Protection is for common image formats such as GIF, ICO, JPG, JPEG, and PNG. It does not protect public MP3/MP4 URLs. Before uploading real audio or video, use private storage plus signed URLs, Workers, Stream, or custom WAF logic for media delivery.*
 
 ### Cache & TTL (Recommended)
 
 | Setting | Path | Why | Impact |
 |---------|------|-----|--------|
 | **Browser Cache TTL** | Caching → Browser Cache TTL | Set to `30 minutes` | Static portfolio doesn't change frequently |
-| **Cache Level** | Caching → Cache Level | Set to `Cache Everything` | Safe for static sites; aggressive caching improves speed |
-| **Page Rules** | Rules → Page Rules | Cache /index.html with `Cache on Cookie` if future login added | Prevents accidental caching of personalized content |
+| **Cache Everything for HTML** | Caching → Cache Rules | Create a rule for `sunstrucksynapse.com/*` and set cache eligibility to eligible/cache everything | Safe for static pages; aggressive edge caching improves speed |
+| **Authenticated Content Rule** | Rules → Page Rules or Caching → Cache Rules | Bypass cache for authenticated paths if future login is added | Prevents accidental caching of personalized content |
 
 ### Security Headers (Recommended)
 
 | Setting | Path | Why | Impact |
 |---------|------|-----|--------|
-| **Strict Transport Security (HSTS)** | SSL/TLS → HSTS | Enable with 6-month max-age | Forces browsers to always use HTTPS; protects against downgrade attacks |
-| **X-Content-Type-Options** | _(auto)_ | Should be `nosniff` (default) | Prevents MIME-type sniffing attacks |
-| **X-Frame-Options** | _(via WAF Rules)_ | Set to `DENY` if no iframe embedding intended | Prevents clickjacking if you don't embed on other sites |
+| **Strict Transport Security (HSTS)** | SSL/TLS → Edge Certificates → HSTS | Enable with 6-month max-age after HTTPS is confirmed | Forces browsers to always use HTTPS; protects against downgrade attacks |
+| **X-Content-Type-Options** | Rules → Transform Rules → Modify Response Header, or origin headers | Set to `nosniff` | Prevents MIME-type sniffing attacks |
+| **X-Frame-Options** | Rules → Transform Rules → Modify Response Header, or origin headers | Set to `DENY` if no iframe embedding intended | Prevents clickjacking if you don't embed on other sites |
 
-*Note: These are often set by default or via WAF rules; verify they are active.*
+*Note: Cloudflare WAF rules do not add response headers. Configure response header modifications with Transform Rules or set headers at the origin, then verify them in browser dev tools.*
 
 ### Do NOT Enable (unless you have a specific reason)
 
@@ -51,7 +51,7 @@ This guide documents the recommended Cloudflare settings for **sunstrucksynapse.
 | **Rate Limiting Rules** | Not needed for static content; use only if you add a contact API endpoint later |
 | **Rocket Loader** | Can break dynamic JS on portfolio (e.g., your media card selection); not recommended |
 | **Mirage** | Image optimization; can interfere with thumbnails; keep off unless needed |
-| **Rocket Loader, Auto Minify (JS only)** | May break your `script.js` interactivity; test first if enabling |
+| **Auto Minify (JS only)** | May break your `script.js` interactivity; enable only after testing the media toggle, card selection, and player updates |
 
 ---
 
@@ -67,7 +67,8 @@ This guide documents the recommended Cloudflare settings for **sunstrucksynapse.
 
 - [ ] Go to Speed → Optimization
   - [ ] Enable "Brotli"
-  - [ ] Enable "Auto Minify" → Check HTML, CSS, JS
+  - [ ] Enable "Auto Minify" → Check HTML and CSS
+  - [ ] Enable JS minify only after confirming the media controls still work
   - [ ] Enable "Early Hints"
 
 - [ ] Go to Network
@@ -75,17 +76,22 @@ This guide documents the recommended Cloudflare settings for **sunstrucksynapse.
 
 ### Phase 2: Caching (After Phase 1)
 
-- [ ] Go to Caching → Cache Level
-  - [ ] Set to "Cache Everything"
+- [ ] Go to Caching → Cache Rules
+  - [ ] Create a rule for `sunstrucksynapse.com/*`
+  - [ ] Set cache eligibility to eligible/cache everything for static HTML
 
 - [ ] Go to Caching → Browser Cache TTL
   - [ ] Set to "30 minutes"
 
-### Phase 3: Media Protection (If serving media URLs publicly)
+### Phase 3: Media Protection
 
-- [ ] Go to Speed → Caching → Hotlink Protection
-  - [ ] Enable "Hotlink Protection"
-  - [ ] Optionally whitelist your own domain/subdomain
+- [ ] Go to Scrape Shield → Hotlink Protection
+  - [ ] Enable "Hotlink Protection" for public image thumbnails/posters
+  - [ ] Optionally whitelist your own domain/subdomain for image embeds
+
+- [ ] Before uploading real audio or video
+  - [ ] Use private storage plus signed URLs, Workers, Stream, or custom WAF logic
+  - [ ] Do not rely on Hotlink Protection for MP3/MP4 files
 
 ### Phase 4: Future (When adding APIs or authentication)
 
@@ -97,7 +103,7 @@ This guide documents the recommended Cloudflare settings for **sunstrucksynapse.
 
 ## Notes
 
-1. **Contact Form**: The current `mailto:` form will show a mixed-content warning on HTTPS. This is harmless but unprofessional. Replace with a proper API endpoint (e.g., Cloudflare Workers + Resend/SendGrid) in a future update.
+1. **Contact Form**: The current `mailto:` form is not mixed content, but it depends on the visitor's local email client and can fail or feel awkward. Replace it with a proper API endpoint (e.g., Cloudflare Workers + Resend/SendGrid) in a future update.
 
 2. **Media Delivery**: Current placeholders (`assets/audio/` and `assets/video/`) are served from Pages and are public. Before uploading real media, implement private R2 + signed URLs (see `media-protection.md` for details).
 
