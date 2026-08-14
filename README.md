@@ -30,7 +30,9 @@ These are planned capabilities, not descriptions of the current prototype. The M
 
 Later phases may evaluate broader creator workflows, richer provenance integrations, additional presentation formats, or capabilities associated with LEMM. These are possibilities rather than commitments. The Sunstruck Synapse Radio MVP will not depend technically on future LEMM infrastructure, and this repository does not contain LEMM functionality.
 
-## Repository structure
+## Repository structure overview
+
+This simplified tree is representative, not exhaustive; asset directories contain additional artwork, thumbnails, posters, and placeholder files.
 
 ```text
 sunstrucksynapse.com/
@@ -42,6 +44,7 @@ sunstrucksynapse.com/
 |-- .gitignore
 |-- assets/
 |   |-- favicon.svg
+|   |-- hero-art.svg
 |   |-- thumbs/
 |   |-- posters/
 |   |-- audio/
