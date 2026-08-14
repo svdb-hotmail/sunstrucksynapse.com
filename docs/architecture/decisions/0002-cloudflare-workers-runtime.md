@@ -53,6 +53,6 @@ This was considered because containers provide a familiar, portable, general-pur
 ## Related tickets and ADRs
 
 - [Architecture issue #11](https://github.com/svdb-hotmail/sunstrucksynapse.com/issues/11)
-- [ADR 0001: React Router 7 and TypeScript](0001-react-router-typescript.md)
+- [ADR 0001: React Router 8 and TypeScript](0001-react-router-typescript.md)
 - [ADR 0004: Cloudflare R2 media storage and controlled delivery](0004-r2-media-storage-delivery.md)
 - [ADR 0008: No Kubernetes dependency](0008-no-kubernetes.md)

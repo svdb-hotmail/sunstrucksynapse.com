@@ -55,5 +55,5 @@ This was considered because it provides the smallest privacy and implementation 
 ## Related tickets and ADRs
 
 - [Architecture issue #11](https://github.com/svdb-hotmail/sunstrucksynapse.com/issues/11)
-- [ADR 0001: React Router 7 and TypeScript](0001-react-router-typescript.md)
+- [ADR 0001: React Router 8 and TypeScript](0001-react-router-typescript.md)
 - [ADR 0002: Cloudflare Workers runtime and deployment](0002-cloudflare-workers-runtime.md)

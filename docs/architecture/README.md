@@ -4,7 +4,7 @@ This document describes the intended production architecture for the Sunstruck S
 
 The accepted architecture decisions are:
 
-1. [React Router 7 and TypeScript](decisions/0001-react-router-typescript.md)
+1. [React Router 8 and TypeScript](decisions/0001-react-router-typescript.md)
 2. [Cloudflare Workers runtime and deployment](decisions/0002-cloudflare-workers-runtime.md)
 3. [Neon PostgreSQL and Drizzle](decisions/0003-neon-postgresql-drizzle.md)
 4. [Cloudflare R2 media storage and controlled delivery](decisions/0004-r2-media-storage-delivery.md)
