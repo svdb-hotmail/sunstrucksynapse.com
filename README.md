@@ -50,6 +50,9 @@ sunstrucksynapse.com/
 |   |-- audio/
 |   `-- video/
 `-- docs/
+    |-- architecture/
+    |   |-- README.md
+    |   `-- decisions/
     |-- product-scope.md
     |-- deployment.md
     |-- media-protection.md
@@ -70,6 +73,7 @@ Then open `http://localhost:8080`.
 ## Documentation
 
 - [Product scope, terminology, and non-goals](docs/product-scope.md)
+- [MVP architecture and accepted decisions](docs/architecture/README.md)
 - [Deployment guidance](docs/deployment.md)
 - [Content integration guide](docs/content-guide.md)
 - [Media protection notes](docs/media-protection.md)
