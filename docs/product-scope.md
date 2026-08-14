@@ -35,7 +35,7 @@ These terms describe product and editorial concepts. They do not select a techni
 
 ## Intended MVP capabilities
 
-The following capabilities define the intended MVP. They are not claims about the current static prototype:
+The following capabilities define the intended MVP. They are product targets, not claims that the implemented application foundation already provides them:
 
 - A curated music catalogue.
 - Real continuous audio playback.
@@ -101,6 +101,6 @@ Measurement should be basic and privacy-conscious, collecting only what is neede
 
 ## Current state and future possibilities
 
-The repository currently provides a static portfolio-style prototype with placeholder content and client-side interactions. It does not yet implement the MVP capabilities described above.
+The repository now provides a React Router 8 framework-mode application with strict TypeScript, a componentized responsive application and player shell, typed temporary catalogue fixtures, and a Cloudflare Worker and Vite foundation. It does not yet provide the persistent curated catalogue, real continuous playback and queue, artist/release/track routes, editorial collections, search, curator administration, structured submissions and declarations, listener analytics, or production deployment required for the MVP described above.
 
 Future phases may consider deeper creator workflows, richer provenance integrations, additional presentation formats, or selected capabilities currently outside the MVP. Such possibilities require separate product and technical decisions. They do not broaden this MVP, create a dependency on LEMM, or imply that future functionality already exists.
