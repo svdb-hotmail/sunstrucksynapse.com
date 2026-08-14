@@ -1,6 +1,10 @@
 # MVP architecture
 
-This document describes the intended production architecture for the Sunstruck Synapse Radio MVP. The repository is still a static HTML, CSS, and JavaScript prototype: none of the application services, data stores, authentication, email, analytics, or controlled media delivery described here has been implemented.
+This document describes the intended production architecture for the Sunstruck Synapse Radio MVP.
+
+Phase 0 issue #15 implements the application foundation: React Router 8 framework mode, strict TypeScript, reusable responsive components, a persistent application and player shell, typed temporary catalogue fixtures, a Cloudflare Worker entry, and Cloudflare Vite configuration for development, builds, and local production preview.
+
+Neon and Drizzle, a persistent catalogue, R2 media storage and controlled delivery, authentication and curator tooling, submissions and transactional email, analytics, and production deployment automation remain deferred. The current fixtures and visual player shell do not implement those services.
 
 The accepted architecture decisions are:
 
@@ -29,7 +33,7 @@ flowchart LR
     Events --> Worker
 ```
 
-The Cloudflare Worker is the production application boundary: it serves or supports the public application, exposes application APIs, authorizes curator and media requests, records semantic playback events, and integrates with managed data, object storage, and email services. The diagram is deliberately compact; it is a target architecture, not a claim about the current prototype.
+The Cloudflare Worker is the production application boundary: it serves or supports the public application, exposes application APIs, authorizes curator and media requests, records semantic playback events, and integrates with managed data, object storage, and email services. The diagram is deliberately compact and represents the target production architecture; only the application and Worker runtime foundation described above is currently implemented, not every depicted service or integration.
 
 ## Trust boundaries
 
