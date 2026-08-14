@@ -11,7 +11,16 @@ const requestHandler = createRequestHandler(
 
 export default {
   fetch(request, env, ctx) {
-    const validatedEnv = validateDatabaseEnv(env);
+    let validatedEnv;
+    try {
+      validatedEnv = validateDatabaseEnv(env);
+    } catch {
+      return new Response("Server configuration error.", {
+        status: 500,
+        statusText: "Internal Server Error",
+      });
+    }
+
     const context = new RouterContextProvider();
     context.set(cloudflareContext, {
       db: createDatabase(validatedEnv),

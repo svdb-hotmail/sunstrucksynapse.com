@@ -1,17 +1,16 @@
 import { drizzle } from "drizzle-orm/postgres-js";
+import { migrate } from "drizzle-orm/postgres-js/migrator";
 import postgres from "postgres";
 
 import { validateDatabaseEnv } from "../app/config/env.server";
-import * as schema from "../app/db/schema";
-import { seedDatabase } from "./seed-data";
 
 const env = validateDatabaseEnv(process.env);
 const client = postgres(env.DATABASE_URL, { max: 1 });
-const db = drizzle(client, { schema });
+const db = drizzle(client);
 
 try {
-  await seedDatabase(db);
-  console.log("Database seed is present.");
+  await migrate(db, { migrationsFolder: "./drizzle" });
+  console.log("Committed database migrations are applied.");
 } finally {
   await client.end();
 }

@@ -59,6 +59,9 @@ export const rightsDeclarations = pgTable(
     uniqueIndex("rights_declarations_track_version_unique")
       .on(table.trackId, table.version)
       .where(sql`${table.trackId} is not null`),
+    uniqueIndex("rights_declarations_supersedes_unique")
+      .on(table.supersedesId)
+      .where(sql`${table.supersedesId} is not null`),
     index("rights_declarations_submission_id_idx").on(table.submissionId),
     index("rights_declarations_release_id_idx").on(table.releaseId),
     index("rights_declarations_track_id_idx").on(table.trackId),
@@ -120,6 +123,9 @@ export const creativeProcessDisclosures = pgTable(
     uniqueIndex("creative_process_disclosures_track_version_unique")
       .on(table.trackId, table.version)
       .where(sql`${table.trackId} is not null`),
+    uniqueIndex("creative_process_disclosures_supersedes_unique")
+      .on(table.supersedesId)
+      .where(sql`${table.supersedesId} is not null`),
     index("creative_process_disclosures_submission_id_idx").on(table.submissionId),
     index("creative_process_disclosures_release_id_idx").on(table.releaseId),
     index("creative_process_disclosures_track_id_idx").on(table.trackId),
@@ -184,6 +190,9 @@ export const provenanceRecords = pgTable(
     uniqueIndex("provenance_records_track_version_unique")
       .on(table.trackId, table.version)
       .where(sql`${table.trackId} is not null`),
+    uniqueIndex("provenance_records_supersedes_unique")
+      .on(table.supersedesId)
+      .where(sql`${table.supersedesId} is not null`),
     index("provenance_records_submission_id_idx").on(table.submissionId),
     index("provenance_records_release_id_idx").on(table.releaseId),
     index("provenance_records_track_id_idx").on(table.trackId),

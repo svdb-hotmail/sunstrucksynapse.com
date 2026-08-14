@@ -7,7 +7,8 @@
   "observability": {
     "enabled": true
   },
-  "upload_source_maps": true
-  // DATABASE_URL is a required secret. Configure it with `wrangler secret put`;
-  // Wrangler does not declare plain Worker secret names in this file.
+  "upload_source_maps": true,
+  "secrets": {
+    "required": ["DATABASE_URL"]
+  }
 }
