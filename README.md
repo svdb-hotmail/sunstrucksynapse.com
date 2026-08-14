@@ -38,7 +38,9 @@ This simplified tree is representative, not exhaustive; asset directories contai
 sunstrucksynapse.com/
 |-- app/
 |   |-- components/
+|   |-- config/
 |   |-- data/
+|   |-- db/
 |   |-- routes/
 |   |-- styles/
 |   |-- types/
@@ -46,6 +48,9 @@ sunstrucksynapse.com/
 |   `-- routes.ts
 |-- workers/
 |   `-- app.ts
+|-- drizzle/
+|-- scripts/
+|   `-- seed.ts
 |-- public/
 |   `-- assets/
 |-- package.json
@@ -113,6 +118,7 @@ No deployment script or Cloudflare account configuration is included in this pha
 - [Content integration guide](docs/content-guide.md)
 - [Media protection notes](docs/media-protection.md)
 - [Cloudflare configuration guide](docs/cloudflare-setup.md)
+- [Database setup, migrations, seeding, and recovery](docs/database.md)
 
 ## Media warning
 

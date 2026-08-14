@@ -42,6 +42,14 @@ docs/sunstrucksynapse_media_app*/
 # Dependency folders
 node_modules/
 
+# Local secrets and environment overrides
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+
 # Framework and build output
 .react-router/
 build/

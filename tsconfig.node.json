@@ -1,6 +1,13 @@
 {
   "extends": "./tsconfig.json",
-  "include": ["react-router.config.ts", "vite.config.ts"],
+  "include": [
+    "react-router.config.ts",
+    "vite.config.ts",
+    "drizzle.config.ts",
+    "scripts/**/*",
+    "app/config/env.server.ts",
+    "app/db/schema/**/*"
+  ],
   "compilerOptions": {
     "composite": true,
     "types": ["node"],

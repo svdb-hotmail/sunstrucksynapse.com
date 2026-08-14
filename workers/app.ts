@@ -1,4 +1,8 @@
-import { createRequestHandler } from "react-router";
+import { createRequestHandler, RouterContextProvider } from "react-router";
+
+import { cloudflareContext } from "../app/config/cloudflare-context.server";
+import { validateDatabaseEnv } from "../app/config/env.server";
+import { createDatabase } from "../app/db/client.server";
 
 const requestHandler = createRequestHandler(
   () => import("virtual:react-router/server-build"),
@@ -6,7 +10,15 @@ const requestHandler = createRequestHandler(
 );
 
 export default {
-  fetch(request) {
-    return requestHandler(request);
+  fetch(request, env, ctx) {
+    const validatedEnv = validateDatabaseEnv(env);
+    const context = new RouterContextProvider();
+    context.set(cloudflareContext, {
+      db: createDatabase(validatedEnv),
+      env: validatedEnv,
+      ctx,
+    });
+
+    return requestHandler(request, context);
   },
 } satisfies ExportedHandler<Env>;
