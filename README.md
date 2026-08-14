@@ -8,9 +8,9 @@ Music quality, deliberate human selection, and clear creative-process context de
 
 ## Current repository state
 
-This repository currently contains a static HTML, CSS, and JavaScript prototype inherited from an earlier audio-and-video portfolio concept. It demonstrates a streaming-style layout with placeholder catalogue entries and client-side interactions.
+This repository contains a React Router 8 framework-mode application written in strict TypeScript and running on the Cloudflare Workers runtime through the Cloudflare Vite plugin. It preserves the earlier audio-and-video portfolio prototype as a componentized, responsive application shell with temporary typed catalogue fixtures and client-side presentation interactions.
 
-It is not yet the intended product. In particular, the repository does not currently provide a real music catalogue, continuous playback, artist submissions, curator administration, rights or provenance records, search, analytics, or other platform services. The prototype remains deployable as a static site with no framework, build pipeline, package manager, or application backend.
+It is not yet the intended product. In particular, the repository does not currently provide a real music catalogue, continuous playback, artist submissions, curator administration, rights or provenance records, search, analytics, or other platform services. Media controls are deliberately source-free until later catalogue and streaming work supplies real media.
 
 ## Intended product
 
@@ -36,19 +36,26 @@ This simplified tree is representative, not exhaustive; asset directories contai
 
 ```text
 sunstrucksynapse.com/
-|-- index.html
-|-- styles.css
-|-- script.js
+|-- app/
+|   |-- components/
+|   |-- data/
+|   |-- routes/
+|   |-- styles/
+|   |-- types/
+|   |-- root.tsx
+|   `-- routes.ts
+|-- workers/
+|   `-- app.ts
+|-- public/
+|   `-- assets/
+|-- package.json
+|-- package-lock.json
+|-- react-router.config.ts
+|-- vite.config.ts
+|-- wrangler.jsonc
 |-- README.md
 |-- LICENSE
 |-- .gitignore
-|-- assets/
-|   |-- favicon.svg
-|   |-- hero-art.svg
-|   |-- thumbs/
-|   |-- posters/
-|   |-- audio/
-|   `-- video/
 `-- docs/
     |-- architecture/
     |   |-- README.md
@@ -60,15 +67,43 @@ sunstrucksynapse.com/
     `-- cloudflare-setup.md
 ```
 
-## Local preview
+## Local development
 
-From the repository root, use any simple static server. For example, with Python 3:
+Node.js 22.22 or later and npm are required. Install the lockfile-controlled dependency graph:
 
 ```bash
-python3 -m http.server 8080
+npm ci
 ```
 
-Then open `http://localhost:8080`.
+Start the Cloudflare-aware development server:
+
+```bash
+npm run dev
+```
+
+The Cloudflare Vite plugin runs server code inside the Workers runtime during development.
+
+## Type checking and builds
+
+Generate Worker and React Router types, then run strict TypeScript checking:
+
+```bash
+npm run typecheck
+```
+
+Create the production Worker and client bundles:
+
+```bash
+npm run build
+```
+
+Preview that production build locally in the Workers runtime:
+
+```bash
+npm run preview
+```
+
+No deployment script or Cloudflare account configuration is included in this phase.
 
 ## Documentation
 

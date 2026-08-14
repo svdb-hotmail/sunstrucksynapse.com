@@ -1,43 +1,18 @@
 # Deployment
 
-This is a static website project for **sunstrucksynapse.com**.
+The application targets Cloudflare Workers through React Router framework mode and the Cloudflare Vite plugin, as recorded in [ADR 0002](architecture/decisions/0002-cloudflare-workers-runtime.md).
 
-## Recommended production domain
+Production deployment, account setup, custom-domain changes, and secrets are intentionally outside the current application migration. The repository contains no Cloudflare account or resource identifiers.
 
-Use **sunstrucksynapse.com** as the primary production domain.
+## Build boundary
 
-## Cloudflare Pages
+Use Node.js 22.22 or later:
 
-1. Connect the GitHub repository in Cloudflare Pages.
-2. Set framework/build preset to **None** (static site).
-3. Build command: leave empty.
-4. Output directory: `.` (repository root for direct static files).
-5. Configure custom domain: `sunstrucksynapse.com`.
-6. Enable HTTPS and enforce redirects as needed.
+```bash
+npm ci
+npm run typecheck
+npm run build
+npm run preview
+```
 
-## Netlify
-
-1. Create a new site from Git in Netlify.
-2. Build command: leave empty.
-3. Publish directory: `.` (repository root; or leave blank for static files).
-4. Configure custom domain: `sunstrucksynapse.com`.
-5. Enable HTTPS and set any redirect rules if required.
-
-## Vercel
-
-1. Import the GitHub repository into Vercel.
-2. Framework preset: **Other** (no framework).
-3. Build command: leave empty.
-4. Output directory: `.` (repository root for static files).
-5. Add custom domain: `sunstrucksynapse.com`.
-6. Confirm SSL and domain verification.
-
-## Generic static hosting
-
-For any static host:
-
-1. Upload repository root contents (`index.html`, `styles.css`, `script.js`, and `assets/`).
-2. Set document root to where `index.html` lives.
-3. Configure the custom domain to `sunstrucksynapse.com`.
-4. Ensure HTTPS is enabled.
-5. Add caching headers and compression if available.
+`wrangler.jsonc` declares the source Worker entry without account-specific values. The Cloudflare Vite plugin produces the deployable client and Worker output under `build/`, including the generated Worker build configuration. A later deployment change must define the production workflow and verify the final domain separately.

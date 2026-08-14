@@ -41,3 +41,9 @@ docs/sunstrucksynapse_media_app*/
 
 # Dependency folders
 node_modules/
+
+# Framework and build output
+.react-router/
+build/
+.wrangler/
+*.tsbuildinfo
