@@ -11,7 +11,8 @@
     "app/config/env.server.ts",
     "app/data/catalogue.ts",
     "app/db/schema/**/*",
-    "app/types/catalogue.ts"
+    "app/types/catalogue.ts",
+    "app/utils/queue.ts"
   ],
   "compilerOptions": {
     "composite": true,

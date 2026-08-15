@@ -5,14 +5,24 @@ interface CatalogueSectionProps {
   section: CatalogueSectionModel;
   selectedItemId: string;
   onSelect: (item: CatalogueItem) => void;
+  onQueue: (item: CatalogueItem) => void;
+  onPlay: (item: CatalogueItem) => void;
 }
 
-export function CatalogueSection({ section, selectedItemId, onSelect }: CatalogueSectionProps) {
+export function CatalogueSection({
+  section,
+  selectedItemId,
+  onSelect,
+  onQueue,
+  onPlay,
+}: CatalogueSectionProps) {
   return (
     <section id={section.id} className="media-section">
       <div className="section-title">
         <h2>
-          <span className="section-icon">{section.icon}</span>
+          <span className="section-icon" aria-hidden="true">
+            {section.icon}
+          </span>
           {section.title}
         </h2>
         <a href="#contact">View all</a>
@@ -24,6 +34,8 @@ export function CatalogueSection({ section, selectedItemId, onSelect }: Catalogu
             item={item}
             isSelected={item.id === selectedItemId}
             onSelect={onSelect}
+            onQueue={onQueue}
+            onPlay={onPlay}
             key={item.id}
           />
         ))}

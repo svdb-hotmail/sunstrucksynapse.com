@@ -1,16 +1,10 @@
-import type {
-  CatalogueItem,
-  CatalogueSection,
-  Creator,
-  Offering,
-  QueueEntry,
-} from "~/types/catalogue";
+import type { CatalogueItem, CatalogueSection, Creator, Offering } from "~/types/catalogue";
 
 // Temporary presentation fixtures pending the persistent catalogue work in #12.
 const sunstruckSynapse: Creator = {
   id: "sunstruck-synapse",
   name: "Sunstruck Synapse",
-  role: "Creative studio",
+  role: "Human curator",
 };
 
 export const catalogueItems: CatalogueItem[] = [
@@ -20,11 +14,11 @@ export const catalogueItems: CatalogueItem[] = [
     mediaKind: "video",
     artwork: {
       src: "/assets/thumbs/thumb-01.svg",
-      alt: "Signal Bloom project thumbnail",
+      alt: "Signal Bloom visual artwork",
     },
     description: {
       title: "Signal Bloom",
-      subtitle: "Audio visual concept reel",
+      subtitle: "A luminous visual transmission shaped around rhythm and motion.",
     },
   },
   {
@@ -34,11 +28,11 @@ export const catalogueItems: CatalogueItem[] = [
     artwork: {
       src: "/assets/thumbs/thumb-02.svg",
       playerSrc: "/assets/hero-art.svg",
-      alt: "Solar Nerve project artwork",
+      alt: "Solar Nerve cover artwork",
     },
     description: {
       title: "Solar Nerve",
-      subtitle: "Music direction study",
+      subtitle: "A bright, restless transmission built for close listening.",
     },
   },
   {
@@ -47,11 +41,11 @@ export const catalogueItems: CatalogueItem[] = [
     mediaKind: "video",
     artwork: {
       src: "/assets/thumbs/thumb-03.svg",
-      alt: "Neon Weather project thumbnail",
+      alt: "Neon Weather visual artwork",
     },
     description: {
       title: "Neon Weather",
-      subtitle: "AI video prompt system",
+      subtitle: "Synthetic weather patterns moving through colour and light.",
     },
   },
   {
@@ -60,11 +54,11 @@ export const catalogueItems: CatalogueItem[] = [
     mediaKind: "audio",
     artwork: {
       src: "/assets/thumbs/thumb-04.svg",
-      alt: "Memory Static project thumbnail",
+      alt: "Memory Static cover artwork",
     },
     description: {
       title: "Memory Static",
-      subtitle: "Spoken-word atmosphere",
+      subtitle: "Spoken fragments suspended in a slow electronic atmosphere.",
     },
   },
   {
@@ -77,7 +71,7 @@ export const catalogueItems: CatalogueItem[] = [
     },
     description: {
       title: "Morning Voltage",
-      subtitle: "Sonic identity package",
+      subtitle: "Early light, charged textures and a steady forward pulse.",
     },
   },
   {
@@ -90,7 +84,7 @@ export const catalogueItems: CatalogueItem[] = [
     },
     description: {
       title: "Quiet Machines",
-      subtitle: "Ambient concept work",
+      subtitle: "An ambient transmission for the spaces between machines.",
     },
   },
   {
@@ -103,7 +97,7 @@ export const catalogueItems: CatalogueItem[] = [
     },
     description: {
       title: "Sunlit Debris",
-      subtitle: "Spoken-word track world",
+      subtitle: "Voice, dust and melody drifting through a sunlit signal.",
     },
   },
   {
@@ -116,7 +110,7 @@ export const catalogueItems: CatalogueItem[] = [
     },
     description: {
       title: "Glass Orchard",
-      subtitle: "Release moodboard",
+      subtitle: "Glass-bright tones growing into an unfamiliar landscape.",
     },
   },
   {
@@ -129,7 +123,7 @@ export const catalogueItems: CatalogueItem[] = [
     },
     description: {
       title: "Synapse Drift",
-      subtitle: "Keyframe video experiment",
+      subtitle: "A slow visual drift through the station's imagined signal path.",
     },
   },
   {
@@ -142,7 +136,7 @@ export const catalogueItems: CatalogueItem[] = [
     },
     description: {
       title: "Soft Collision",
-      subtitle: "Music video treatment",
+      subtitle: "Soft forms collide in a visual counterpart to the music.",
     },
   },
   {
@@ -155,7 +149,7 @@ export const catalogueItems: CatalogueItem[] = [
     },
     description: {
       title: "Infrared Room",
-      subtitle: "Visual loop direction",
+      subtitle: "A contained visual loop glowing beyond the visible spectrum.",
     },
   },
   {
@@ -168,7 +162,7 @@ export const catalogueItems: CatalogueItem[] = [
     },
     description: {
       title: "Horizon Teeth",
-      subtitle: "Cinematic AI reel",
+      subtitle: "A cinematic transmission balancing unease, scale and stillness.",
     },
   },
 ];
@@ -188,7 +182,7 @@ export const initialCatalogueItem = getCatalogueItem("solar-nerve");
 export const catalogueSections: CatalogueSection[] = [
   {
     id: "latest",
-    title: "Latest uploads",
+    title: "Latest transmissions",
     icon: "\u2726",
     items: [
       getCatalogueItem("signal-bloom"),
@@ -199,7 +193,7 @@ export const catalogueSections: CatalogueSection[] = [
   },
   {
     id: "audio",
-    title: "Audio portfolio",
+    title: "Listen",
     icon: "\u273a",
     items: [
       getCatalogueItem("morning-voltage"),
@@ -210,7 +204,7 @@ export const catalogueSections: CatalogueSection[] = [
   },
   {
     id: "video",
-    title: "Video portfolio",
+    title: "Watch",
     icon: "\u2739",
     items: [
       getCatalogueItem("synapse-drift"),
@@ -221,41 +215,33 @@ export const catalogueSections: CatalogueSection[] = [
   },
 ];
 
-export const initialQueue: QueueEntry[] = [
-  { id: "queue-1", itemId: "solar-nerve", title: "Solar Nerve", subtitle: "AI video teaser" },
-  { id: "queue-2", itemId: "neon-weather", title: "Neon Weather", subtitle: "Audio identity" },
-  { id: "queue-3", itemId: "memory-static", title: "Memory Static", subtitle: "Portfolio cut" },
-  { id: "queue-4", itemId: "synapse-drift", title: "Synapse Drift", subtitle: "Visual loop" },
-  { id: "queue-5", itemId: "morning-voltage", title: "Morning Voltage", subtitle: "Music concept" },
-];
-
 export const offerings: Offering[] = [
   {
-    id: "audio-identity",
+    id: "human-curation",
     number: "01",
-    title: "Audio Identity",
+    title: "Human curation",
     description:
-      "Sound palette, music references, spoken-word direction, track concepting, and release framing.",
+      "Every transmission is selected and sequenced by people, with taste and context leading the signal.",
   },
   {
-    id: "video-direction",
+    id: "ai-instrument",
     number: "02",
-    title: "Video Direction",
+    title: "AI as an instrument",
     description:
-      "Shot lists, prompts, scene logic, keyframe planning, and AI-video continuity systems.",
+      "AI-assisted tools can shape sound and image, but they remain instruments in a directed process.",
   },
   {
-    id: "media-portfolio",
+    id: "intentional-authorship",
     number: "03",
-    title: "Media Portfolio",
+    title: "Intentional authorship",
     description:
-      "A browser-ready portfolio experience for audio, video, visuals, and client case studies.",
+      "Direction, decisions and responsibility stay with the people making and presenting the work.",
   },
   {
-    id: "creative-systems",
+    id: "listening-first",
     number: "04",
-    title: "Creative Systems",
+    title: "Listening first",
     description:
-      "Repeatable workflows for prompts, assets, tooling, delivery, and production documentation.",
+      "The radio is designed around attentive listening and the visual counterparts that deepen it.",
   },
 ];

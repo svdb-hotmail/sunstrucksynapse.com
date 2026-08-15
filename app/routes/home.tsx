@@ -19,7 +19,8 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export default function Home() {
-  const { selectedItemId, selectItem } = useOutletContext<PlayerOutletContext>();
+  const { selectedItemId, selectItem, queueItem, playItem } =
+    useOutletContext<PlayerOutletContext>();
 
   return (
     <>
@@ -29,18 +30,12 @@ export default function Home() {
           section={section}
           selectedItemId={selectedItemId}
           onSelect={selectItem}
+          onQueue={queueItem}
+          onPlay={playItem}
           key={section.id}
         />
       ))}
       <Offerings offerings={offerings} />
-      <section className="protection-note">
-        <h2>Media protection</h2>
-        <p>
-          Players hide download controls and block casual right-click saving. For stronger
-          protection, use private object storage plus signed streaming URLs, HLS/DASH delivery, or
-          DRM.
-        </p>
-      </section>
       <Contact />
     </>
   );

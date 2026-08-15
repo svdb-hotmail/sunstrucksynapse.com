@@ -24,6 +24,15 @@ describe("catalogue fixtures", () => {
     expect(initialCatalogueItem.mediaKind).toBe("audio");
   });
 
+  it("exposes the radio structure without service or portfolio language", () => {
+    expect(catalogueSections.map((section) => section.title)).toEqual([
+      "Latest transmissions",
+      "Listen",
+      "Watch",
+    ]);
+    expect(JSON.stringify(catalogueSections)).not.toMatch(/portfolio|client work|service/i);
+  });
+
   it("fails loudly for an unknown fixture identifier", () => {
     expect(() => getCatalogueItem("missing-item")).toThrow(
       "Unknown catalogue fixture: missing-item",

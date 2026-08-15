@@ -3,26 +3,28 @@ import type { Ref } from "react";
 import { Header } from "~/components/Header";
 import { MobileNav } from "~/components/MobileNav";
 import { PlayerPanel } from "~/components/PlayerPanel";
-import type { CatalogueItem, MediaKind, QueueEntry } from "~/types/catalogue";
+import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
 
 interface ApplicationShellProps {
   children: React.ReactNode;
   item: CatalogueItem;
-  mode: MediaKind;
   queue: QueueEntry[];
   playerPanelRef: Ref<HTMLElement>;
-  onModeChange: (mode: MediaKind) => void;
+  playbackRequest: { itemId: string; sequence: number } | null;
   onClearQueue: () => void;
+  onSelectQueueEntry: (entry: QueueEntry) => void;
+  onMediaEnded: () => void;
 }
 
 export function ApplicationShell({
   children,
   item,
-  mode,
   queue,
   playerPanelRef,
-  onModeChange,
+  playbackRequest,
   onClearQueue,
+  onSelectQueueEntry,
+  onMediaEnded,
 }: ApplicationShellProps) {
   return (
     <>
@@ -30,10 +32,11 @@ export function ApplicationShell({
         <PlayerPanel
           ref={playerPanelRef}
           item={item}
-          mode={mode}
           queue={queue}
-          onModeChange={onModeChange}
+          playbackRequest={playbackRequest}
           onClearQueue={onClearQueue}
+          onSelectQueueEntry={onSelectQueueEntry}
+          onMediaEnded={onMediaEnded}
         />
         <main className="content-panel">
           <Header />
