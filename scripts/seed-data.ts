@@ -1,3 +1,4 @@
+import { and, eq } from "drizzle-orm";
 import type { PgDatabase } from "drizzle-orm/pg-core";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core/session";
 
@@ -247,30 +248,58 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         id: seedIds.rightsOne,
         submissionId: seedIds.submission,
         version: 1,
-        status: "superseded",
+        status: "draft",
         authorityBasis: "original_author",
         containsThirdPartyMaterial: false,
         restrictions: "Development data only.",
-        attestation: "Synthetic version-one rights attestation.",
-        attestedAt: versionOneFinalizedAt,
       })
       .onConflictDoNothing();
 
     await tx
-      .insert(rightsDeclarations)
-      .values({
+      .update(rightsDeclarations)
+      .set({
+        status: "attested",
+        attestation: "Synthetic version-one rights attestation.",
+        attestedAt: versionOneFinalizedAt,
+      })
+      .where(
+        and(
+          eq(rightsDeclarations.id, seedIds.rightsOne),
+          eq(rightsDeclarations.status, "draft"),
+        ),
+      );
+
+    const existingRightsTwo = await tx
+      .select({ id: rightsDeclarations.id })
+      .from(rightsDeclarations)
+      .where(eq(rightsDeclarations.id, seedIds.rightsTwo))
+      .limit(1);
+    if (existingRightsTwo.length === 0) {
+      await tx.insert(rightsDeclarations).values({
         id: seedIds.rightsTwo,
         submissionId: seedIds.submission,
         version: 2,
         supersedesId: seedIds.rightsOne,
-        status: "attested",
+        status: "draft",
         authorityBasis: "original_author",
         containsThirdPartyMaterial: false,
         restrictions: "Development data only; no real-world rights are asserted.",
+      });
+    }
+
+    await tx
+      .update(rightsDeclarations)
+      .set({
+        status: "attested",
         attestation: "Synthetic version-two rights attestation.",
         attestedAt: versionTwoFinalizedAt,
       })
-      .onConflictDoNothing();
+      .where(
+        and(
+          eq(rightsDeclarations.id, seedIds.rightsTwo),
+          eq(rightsDeclarations.status, "draft"),
+        ),
+      );
 
     await tx
       .insert(creativeProcessDisclosures)
@@ -278,25 +307,41 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         id: seedIds.disclosureOne,
         submissionId: seedIds.submission,
         version: 1,
-        status: "superseded",
+        status: "draft",
         aiUsed: true,
         aiUseDescription: "A fictional generative sketch informed arrangement experiments.",
         meaningfulHumanContribution: "Human composition, arrangement, performance, and editing.",
         toolsAndSystems: ["Fictional Sketch Model"],
         sourceMaterialContext: "No third-party source recording was used.",
         artistSummary: "An early fictional disclosure retained for revision history.",
-        finalizedAt: versionOneFinalizedAt,
       })
       .onConflictDoNothing();
 
     await tx
-      .insert(creativeProcessDisclosures)
-      .values({
+      .update(creativeProcessDisclosures)
+      .set({
+        status: "finalized",
+        finalizedAt: versionOneFinalizedAt,
+      })
+      .where(
+        and(
+          eq(creativeProcessDisclosures.id, seedIds.disclosureOne),
+          eq(creativeProcessDisclosures.status, "draft"),
+        ),
+      );
+
+    const existingDisclosureTwo = await tx
+      .select({ id: creativeProcessDisclosures.id })
+      .from(creativeProcessDisclosures)
+      .where(eq(creativeProcessDisclosures.id, seedIds.disclosureTwo))
+      .limit(1);
+    if (existingDisclosureTwo.length === 0) {
+      await tx.insert(creativeProcessDisclosures).values({
         id: seedIds.disclosureTwo,
         submissionId: seedIds.submission,
         version: 2,
         supersedesId: seedIds.disclosureOne,
-        status: "finalized",
+        status: "draft",
         aiUsed: true,
         aiUseDescription: "A fictional generative sketch was used for ideation only.",
         meaningfulHumanContribution:
@@ -304,9 +349,21 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         toolsAndSystems: ["Fictional Sketch Model", "Digital Audio Workstation"],
         sourceMaterialContext: "No third-party source recording was used.",
         artistSummary: "AI supported ideation; the artist directed and completed the music.",
+      });
+    }
+
+    await tx
+      .update(creativeProcessDisclosures)
+      .set({
+        status: "finalized",
         finalizedAt: versionTwoFinalizedAt,
       })
-      .onConflictDoNothing();
+      .where(
+        and(
+          eq(creativeProcessDisclosures.id, seedIds.disclosureTwo),
+          eq(creativeProcessDisclosures.status, "draft"),
+        ),
+      );
 
     await tx
       .insert(provenanceRecords)
@@ -314,51 +371,54 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         id: seedIds.provenanceOne,
         submissionId: seedIds.submission,
         version: 1,
-        status: "superseded",
+        status: "draft",
         summary: "Initial fictional process record.",
-        finalizedAt: versionOneFinalizedAt,
       })
       .onConflictDoNothing();
 
     await tx
-      .insert(provenanceRecords)
-      .values({
+      .update(provenanceRecords)
+      .set({
+        status: "finalized",
+        finalizedAt: versionOneFinalizedAt,
+      })
+      .where(
+        and(
+          eq(provenanceRecords.id, seedIds.provenanceOne),
+          eq(provenanceRecords.status, "draft"),
+        ),
+      );
+
+    const existingProvenanceTwo = await tx
+      .select({ id: provenanceRecords.id })
+      .from(provenanceRecords)
+      .where(eq(provenanceRecords.id, seedIds.provenanceTwo))
+      .limit(1);
+    if (existingProvenanceTwo.length === 0) {
+      await tx.insert(provenanceRecords).values({
         id: seedIds.provenanceTwo,
         submissionId: seedIds.submission,
         version: 2,
         supersedesId: seedIds.provenanceOne,
-        status: "finalized",
+        status: "draft",
         summary: "Revised fictional process and source record with private evidence metadata.",
-        finalizedAt: versionTwoFinalizedAt,
-      })
-      .onConflictDoNothing();
-
-    await tx
-      .insert(provenanceSteps)
-      .values({
+      });
+      await tx.insert(provenanceSteps).values({
         id: seedIds.provenanceStep,
         provenanceRecordId: seedIds.provenanceTwo,
         position: 1,
         processType: "arrangement",
         description: "The artist selected a sketch and rebuilt the arrangement.",
-      })
-      .onConflictDoNothing();
-
-    await tx
-      .insert(provenanceSources)
-      .values({
+      });
+      await tx.insert(provenanceSources).values({
         id: seedIds.provenanceSource,
         provenanceRecordId: seedIds.provenanceTwo,
         position: 1,
         sourceType: "generated_material",
         reference: "Internal sketch reference seed-sketch-001",
         rightsContext: "Synthetic development data with no external rights claim.",
-      })
-      .onConflictDoNothing();
-
-    await tx
-      .insert(provenanceEvidence)
-      .values({
+      });
+      await tx.insert(provenanceEvidence).values({
         id: seedIds.provenanceEvidence,
         provenanceRecordId: seedIds.provenanceTwo,
         storageProvider: "private-r2",
@@ -366,8 +426,21 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         mimeType: "text/plain",
         checksumSha256: "4".repeat(64),
         byteSize: 512,
+      });
+    }
+
+    await tx
+      .update(provenanceRecords)
+      .set({
+        status: "finalized",
+        finalizedAt: versionTwoFinalizedAt,
       })
-      .onConflictDoNothing();
+      .where(
+        and(
+          eq(provenanceRecords.id, seedIds.provenanceTwo),
+          eq(provenanceRecords.status, "draft"),
+        ),
+      );
   });
 
 }

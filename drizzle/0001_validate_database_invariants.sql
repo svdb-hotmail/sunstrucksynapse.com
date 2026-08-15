@@ -4,6 +4,7 @@ CREATE UNIQUE INDEX "rights_declarations_supersedes_unique" ON "rights_declarati
 DO $$
 DECLARE
 	table_name text;
+	final_status text;
 	invalid_count bigint;
 BEGIN
 	FOREACH table_name IN ARRAY ARRAY[
@@ -11,6 +12,11 @@ BEGIN
 		'creative_process_disclosures',
 		'provenance_records'
 	] LOOP
+		final_status := CASE
+			WHEN table_name = 'rights_declarations' THEN 'attested'
+			ELSE 'finalized'
+		END;
+
 		EXECUTE format(
 			'SELECT count(*)
 			 FROM %1$I current_record
@@ -23,8 +29,32 @@ BEGIN
 					OR predecessor.submission_id IS DISTINCT FROM current_record.submission_id
 					OR predecessor.release_id IS DISTINCT FROM current_record.release_id
 					OR predecessor.track_id IS DISTINCT FROM current_record.track_id
-				))',
-			table_name
+					OR (current_record.status::text = ''draft'' AND predecessor.status::text <> %2$L)
+					OR (
+						current_record.status::text <> ''draft''
+						AND predecessor.status::text <> ''superseded''
+					)
+				))
+				OR (
+					current_record.status::text = %2$L
+					AND EXISTS (
+						SELECT 1
+						FROM %1$I successor
+						WHERE successor.supersedes_id = current_record.id
+						  AND successor.status::text <> ''draft''
+					)
+				)
+				OR (
+					current_record.status::text = ''superseded''
+					AND NOT EXISTS (
+						SELECT 1
+						FROM %1$I successor
+						WHERE successor.supersedes_id = current_record.id
+						  AND successor.status::text <> ''draft''
+					)
+				)',
+			table_name,
+			final_status
 		) INTO invalid_count;
 
 		IF invalid_count > 0 THEN
@@ -67,14 +97,21 @@ LANGUAGE plpgsql
 AS $$
 DECLARE
 	predecessor record;
+	final_status text;
+	updated_count integer;
 BEGIN
+	final_status := CASE
+		WHEN TG_TABLE_NAME = 'rights_declarations' THEN 'attested'
+		ELSE 'finalized'
+	END;
+
 	IF TG_OP = 'DELETE' THEN
 		RAISE EXCEPTION 'versioned governance records cannot be deleted'
 			USING ERRCODE = '23514';
 	END IF;
 
-	IF TG_OP = 'UPDATE' AND OLD.status::text <> 'draft' THEN
-		RAISE EXCEPTION 'finalized governance records cannot be changed'
+	IF TG_OP = 'INSERT' AND NEW.status::text <> 'draft' THEN
+		RAISE EXCEPTION 'new governance versions must begin as draft'
 			USING ERRCODE = '23514';
 	END IF;
 
@@ -89,40 +126,88 @@ BEGIN
 			USING ERRCODE = '23514';
 	END IF;
 
+	IF TG_OP = 'UPDATE' AND OLD.status::text = 'superseded' THEN
+		RAISE EXCEPTION 'superseded governance records cannot be changed'
+			USING ERRCODE = '23514';
+	END IF;
+
+	IF TG_OP = 'UPDATE' AND OLD.status::text = final_status THEN
+		IF pg_trigger_depth() > 1
+			AND NEW.status::text = 'superseded'
+			AND (to_jsonb(NEW) - 'status' - 'updated_at')
+				= (to_jsonb(OLD) - 'status' - 'updated_at')
+		THEN
+			RETURN NEW;
+		END IF;
+
+		RAISE EXCEPTION 'finalized governance records cannot be changed directly'
+			USING ERRCODE = '23514';
+	END IF;
+
+	IF TG_OP = 'UPDATE'
+		AND OLD.status::text = 'draft'
+		AND NEW.status::text NOT IN ('draft', final_status)
+	THEN
+		RAISE EXCEPTION 'draft governance records can only become %', final_status
+			USING ERRCODE = '23514';
+	END IF;
+
 	IF NEW.version = 1 THEN
 		IF NEW.supersedes_id IS NOT NULL THEN
 			RAISE EXCEPTION 'version 1 cannot supersede another record'
 				USING ERRCODE = '23514';
 		END IF;
-		RETURN NEW;
+	ELSE
+		IF NEW.supersedes_id IS NULL THEN
+			RAISE EXCEPTION 'version % requires its version % predecessor', NEW.version, NEW.version - 1
+				USING ERRCODE = '23514';
+		END IF;
+
+		EXECUTE format(
+			'SELECT id, submission_id, release_id, track_id, version, status::text AS status
+			 FROM %I WHERE id = $1',
+			TG_TABLE_NAME
+		) INTO predecessor USING NEW.supersedes_id;
+
+		IF predecessor.id IS NULL THEN
+			RAISE EXCEPTION 'superseded record does not exist'
+				USING ERRCODE = '23514';
+		END IF;
+
+		IF predecessor.version <> NEW.version - 1 THEN
+			RAISE EXCEPTION 'version % must supersede version %', NEW.version, NEW.version - 1
+				USING ERRCODE = '23514';
+		END IF;
+
+		IF predecessor.submission_id IS DISTINCT FROM NEW.submission_id
+			OR predecessor.release_id IS DISTINCT FROM NEW.release_id
+			OR predecessor.track_id IS DISTINCT FROM NEW.track_id
+		THEN
+			RAISE EXCEPTION 'superseded record must have the same parent'
+				USING ERRCODE = '23514';
+		END IF;
+
+		IF predecessor.status <> final_status THEN
+			RAISE EXCEPTION 'predecessor version must be % before creating a successor', final_status
+				USING ERRCODE = '23514';
+		END IF;
 	END IF;
 
-	IF NEW.supersedes_id IS NULL THEN
-		RAISE EXCEPTION 'version % requires its version % predecessor', NEW.version, NEW.version - 1
-			USING ERRCODE = '23514';
-	END IF;
-
-	EXECUTE format(
-		'SELECT id, submission_id, release_id, track_id, version FROM %I WHERE id = $1',
-		TG_TABLE_NAME
-	) INTO predecessor USING NEW.supersedes_id;
-
-	IF predecessor.id IS NULL THEN
-		RAISE EXCEPTION 'superseded record does not exist'
-			USING ERRCODE = '23514';
-	END IF;
-
-	IF predecessor.version <> NEW.version - 1 THEN
-		RAISE EXCEPTION 'version % must supersede version %', NEW.version, NEW.version - 1
-			USING ERRCODE = '23514';
-	END IF;
-
-	IF predecessor.submission_id IS DISTINCT FROM NEW.submission_id
-		OR predecessor.release_id IS DISTINCT FROM NEW.release_id
-		OR predecessor.track_id IS DISTINCT FROM NEW.track_id
+	IF TG_OP = 'UPDATE'
+		AND OLD.status::text = 'draft'
+		AND NEW.status::text = final_status
+		AND NEW.supersedes_id IS NOT NULL
 	THEN
-		RAISE EXCEPTION 'superseded record must have the same parent'
-			USING ERRCODE = '23514';
+		EXECUTE format(
+			'UPDATE %I SET status = ''superseded'' WHERE id = $1 AND status::text = $2',
+			TG_TABLE_NAME
+		) USING NEW.supersedes_id, final_status;
+		GET DIAGNOSTICS updated_count = ROW_COUNT;
+
+		IF updated_count <> 1 THEN
+			RAISE EXCEPTION 'predecessor version could not be superseded atomically'
+				USING ERRCODE = '23514';
+		END IF;
 	END IF;
 
 	RETURN NEW;
@@ -137,6 +222,70 @@ FOR EACH ROW EXECUTE FUNCTION "enforce_version_supersession"();--> statement-bre
 CREATE TRIGGER "provenance_records_enforce_supersession"
 BEFORE INSERT OR UPDATE OR DELETE ON "provenance_records"
 FOR EACH ROW EXECUTE FUNCTION "enforce_version_supersession"();--> statement-breakpoint
+CREATE FUNCTION "enforce_provenance_details_draft"() RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+DECLARE
+	locked_count integer;
+	non_draft_count integer;
+	expected_count integer;
+BEGIN
+	IF TG_OP = 'INSERT' THEN
+		SELECT count(*), count(*) FILTER (WHERE status <> 'draft')
+		INTO locked_count, non_draft_count
+		FROM (
+			SELECT status
+			FROM provenance_records
+			WHERE id = NEW.provenance_record_id
+			FOR SHARE
+		) locked_parents;
+		expected_count := 1;
+	ELSIF TG_OP = 'DELETE' THEN
+		SELECT count(*), count(*) FILTER (WHERE status <> 'draft')
+		INTO locked_count, non_draft_count
+		FROM (
+			SELECT status
+			FROM provenance_records
+			WHERE id = OLD.provenance_record_id
+			FOR SHARE
+		) locked_parents;
+		expected_count := 1;
+	ELSE
+		SELECT count(*), count(*) FILTER (WHERE status <> 'draft')
+		INTO locked_count, non_draft_count
+		FROM (
+			SELECT status
+			FROM provenance_records
+			WHERE id IN (OLD.provenance_record_id, NEW.provenance_record_id)
+			ORDER BY id
+			FOR SHARE
+		) locked_parents;
+		expected_count := CASE
+			WHEN OLD.provenance_record_id = NEW.provenance_record_id THEN 1
+			ELSE 2
+		END;
+	END IF;
+
+	IF locked_count <> expected_count OR non_draft_count > 0 THEN
+		RAISE EXCEPTION 'provenance details can only change while their record is draft'
+			USING ERRCODE = '23514';
+	END IF;
+
+	IF TG_OP = 'DELETE' THEN
+		RETURN OLD;
+	END IF;
+	RETURN NEW;
+END;
+$$;--> statement-breakpoint
+CREATE TRIGGER "provenance_steps_require_draft"
+BEFORE INSERT OR UPDATE OR DELETE ON "provenance_steps"
+FOR EACH ROW EXECUTE FUNCTION "enforce_provenance_details_draft"();--> statement-breakpoint
+CREATE TRIGGER "provenance_sources_require_draft"
+BEFORE INSERT OR UPDATE OR DELETE ON "provenance_sources"
+FOR EACH ROW EXECUTE FUNCTION "enforce_provenance_details_draft"();--> statement-breakpoint
+CREATE TRIGGER "provenance_evidence_require_draft"
+BEFORE INSERT OR UPDATE OR DELETE ON "provenance_evidence"
+FOR EACH ROW EXECUTE FUNCTION "enforce_provenance_details_draft"();--> statement-breakpoint
 CREATE OR REPLACE FUNCTION "check_release_has_artist_credit"() RETURNS trigger
 LANGUAGE plpgsql
 AS $$

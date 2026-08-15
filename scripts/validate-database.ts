@@ -76,6 +76,9 @@ const requiredTriggers = [
   "rights_declarations_enforce_supersession",
   "creative_process_disclosures_enforce_supersession",
   "provenance_records_enforce_supersession",
+  "provenance_steps_require_draft",
+  "provenance_sources_require_draft",
+  "provenance_evidence_require_draft",
   "releases_require_artist_credit",
   "release_artist_credits_preserve_credit",
 ] as const;
@@ -219,17 +222,29 @@ async function verifySeedRelations(
 
   const [rightsVersions, disclosureVersions, provenanceVersions] = await Promise.all([
     db
-      .select({ version: rightsDeclarations.version })
+      .select({
+        version: rightsDeclarations.version,
+        status: rightsDeclarations.status,
+        supersedesId: rightsDeclarations.supersedesId,
+      })
       .from(rightsDeclarations)
       .where(eq(rightsDeclarations.submissionId, seedIds.submission))
       .orderBy(asc(rightsDeclarations.version)),
     db
-      .select({ version: creativeProcessDisclosures.version })
+      .select({
+        version: creativeProcessDisclosures.version,
+        status: creativeProcessDisclosures.status,
+        supersedesId: creativeProcessDisclosures.supersedesId,
+      })
       .from(creativeProcessDisclosures)
       .where(eq(creativeProcessDisclosures.submissionId, seedIds.submission))
       .orderBy(asc(creativeProcessDisclosures.version)),
     db
-      .select({ version: provenanceRecords.version })
+      .select({
+        version: provenanceRecords.version,
+        status: provenanceRecords.status,
+        supersedesId: provenanceRecords.supersedesId,
+      })
       .from(provenanceRecords)
       .where(eq(provenanceRecords.submissionId, seedIds.submission))
       .orderBy(asc(provenanceRecords.version)),
@@ -242,6 +257,17 @@ async function verifySeedRelations(
     assert(
       versions.map(({ version }) => version).join(",") === "1,2",
       `${name} version history is incomplete or unordered`,
+    );
+    assert(
+      versions[0]?.status === "superseded" &&
+        (versions[1]?.status === "attested" || versions[1]?.status === "finalized") &&
+        versions[1]?.supersedesId ===
+          (name === "rights"
+            ? seedIds.rightsOne
+            : name === "disclosure"
+              ? seedIds.disclosureOne
+              : seedIds.provenanceOne),
+      `${name} seed did not exercise the finalized successor lifecycle`,
     );
   }
 
@@ -260,6 +286,181 @@ async function verifySeedRelations(
     new Date(after.rows[0]!.updated_at).getTime() >
       new Date(before.rows[0]!.updated_at).getTime(),
     "updated_at did not advance on a direct update",
+  );
+}
+
+async function verifyGovernanceLifecycles(client: PGlite) {
+  const cases = [
+    {
+      name: "rights declaration",
+      table: "rights_declarations",
+      submissionId: "70000000-0000-4000-8000-000000000003",
+      versionOneId: "80000000-0000-4000-8000-000000000100",
+      versionTwoId: "80000000-0000-4000-8000-000000000101",
+      finalStatus: "attested",
+      insertVersionOne: `insert into rights_declarations (
+        id, submission_id, version, status, authority_basis, contains_third_party_material
+      ) values ($1, $2, 1, 'draft', 'original_author', false)`,
+      insertVersionTwo: `insert into rights_declarations (
+        id, submission_id, version, supersedes_id, status, authority_basis,
+        contains_third_party_material
+      ) values ($1, $2, 2, $3, 'draft', 'original_author', false)`,
+      finalizeVersion: `update rights_declarations
+        set status = 'attested', attestation = 'Lifecycle test attestation',
+            attested_at = clock_timestamp()
+        where id = $1`,
+      supersedeDraft: `update rights_declarations
+        set status = 'superseded', attestation = 'Premature',
+            attested_at = clock_timestamp()
+        where id = $1`,
+      mutateFinalized: `update rights_declarations
+        set restrictions = 'Rewritten finalized content'
+        where id = $1`,
+    },
+    {
+      name: "creative-process disclosure",
+      table: "creative_process_disclosures",
+      submissionId: "70000000-0000-4000-8000-000000000004",
+      versionOneId: "90000000-0000-4000-8000-000000000100",
+      versionTwoId: "90000000-0000-4000-8000-000000000101",
+      finalStatus: "finalized",
+      insertVersionOne: `insert into creative_process_disclosures (
+        id, submission_id, version, status, ai_used, meaningful_human_contribution,
+        tools_and_systems, artist_summary
+      ) values ($1, $2, 1, 'draft', false, 'Human lifecycle contribution',
+        '{}', 'Lifecycle disclosure')`,
+      insertVersionTwo: `insert into creative_process_disclosures (
+        id, submission_id, version, supersedes_id, status, ai_used,
+        meaningful_human_contribution, tools_and_systems, artist_summary
+      ) values ($1, $2, 2, $3, 'draft', false, 'Human lifecycle contribution',
+        '{}', 'Lifecycle disclosure revision')`,
+      finalizeVersion: `update creative_process_disclosures
+        set status = 'finalized', finalized_at = clock_timestamp()
+        where id = $1`,
+      supersedeDraft: `update creative_process_disclosures
+        set status = 'superseded', finalized_at = clock_timestamp()
+        where id = $1`,
+      mutateFinalized: `update creative_process_disclosures
+        set artist_summary = 'Rewritten finalized content'
+        where id = $1`,
+    },
+    {
+      name: "provenance record",
+      table: "provenance_records",
+      submissionId: "70000000-0000-4000-8000-000000000005",
+      versionOneId: "a0000000-0000-4000-8000-000000000100",
+      versionTwoId: "a0000000-0000-4000-8000-000000000101",
+      finalStatus: "finalized",
+      insertVersionOne: `insert into provenance_records (
+        id, submission_id, version, status, summary
+      ) values ($1, $2, 1, 'draft', 'Lifecycle provenance')`,
+      insertVersionTwo: `insert into provenance_records (
+        id, submission_id, version, supersedes_id, status, summary
+      ) values ($1, $2, 2, $3, 'draft', 'Lifecycle provenance revision')`,
+      finalizeVersion: `update provenance_records
+        set status = 'finalized', finalized_at = clock_timestamp()
+        where id = $1`,
+      supersedeDraft: `update provenance_records
+        set status = 'superseded', finalized_at = clock_timestamp()
+        where id = $1`,
+      mutateFinalized: `update provenance_records
+        set summary = 'Rewritten finalized content'
+        where id = $1`,
+    },
+  ] as const;
+
+  for (const lifecycle of cases) {
+    await client.query(
+      `insert into submissions (
+         id, invitation_reference, submitter_name, submitter_email, title, status
+       ) values ($1, $2, 'Lifecycle Artist', 'lifecycle@example.invalid',
+         'Lifecycle Test', 'draft')`,
+      [lifecycle.submissionId, `lifecycle-${lifecycle.name}`],
+    );
+    await client.query(lifecycle.insertVersionOne, [
+      lifecycle.versionOneId,
+      lifecycle.submissionId,
+    ]);
+    await expectRejection(`${lifecycle.name} direct draft supersession`, () =>
+      client.query(lifecycle.supersedeDraft, [lifecycle.versionOneId]),
+    );
+    await expectRejection(`${lifecycle.name} successor from draft predecessor`, () =>
+      client.query(lifecycle.insertVersionTwo, [
+        lifecycle.versionTwoId,
+        lifecycle.submissionId,
+        lifecycle.versionOneId,
+      ]),
+    );
+
+    await client.query(lifecycle.finalizeVersion, [lifecycle.versionOneId]);
+    const finalizedOne = await client.query<{ status: string }>(
+      `select status::text as status from "${lifecycle.table}" where id = $1`,
+      [lifecycle.versionOneId],
+    );
+    assert(
+      finalizedOne.rows[0]?.status === lifecycle.finalStatus,
+      `${lifecycle.name} version 1 did not finalize`,
+    );
+
+    await client.query(lifecycle.insertVersionTwo, [
+      lifecycle.versionTwoId,
+      lifecycle.submissionId,
+      lifecycle.versionOneId,
+    ]);
+    const draftSuccessor = await client.query<{ id: string; status: string }>(
+      `select id, status::text as status
+       from "${lifecycle.table}"
+       where id in ($1, $2)
+       order by version`,
+      [lifecycle.versionOneId, lifecycle.versionTwoId],
+    );
+    assert(
+      draftSuccessor.rows[0]?.status === lifecycle.finalStatus &&
+        draftSuccessor.rows[1]?.status === "draft",
+      `${lifecycle.name} draft successor changed its current predecessor`,
+    );
+
+    await client.query(lifecycle.finalizeVersion, [lifecycle.versionTwoId]);
+    const finalizedSuccessor = await client.query<{ id: string; status: string }>(
+      `select id, status::text as status
+       from "${lifecycle.table}"
+       where id in ($1, $2)
+       order by version`,
+      [lifecycle.versionOneId, lifecycle.versionTwoId],
+    );
+    assert(
+      finalizedSuccessor.rows[0]?.status === "superseded" &&
+        finalizedSuccessor.rows[1]?.status === lifecycle.finalStatus,
+      `${lifecycle.name} finalization did not atomically supersede its predecessor`,
+    );
+    await expectRejection(`${lifecycle.name} finalized content mutation`, () =>
+      client.query(lifecycle.mutateFinalized, [lifecycle.versionTwoId]),
+    );
+    await expectRejection(`${lifecycle.name} deletion`, () =>
+      client.query(`delete from "${lifecycle.table}" where id = $1`, [
+        lifecycle.versionTwoId,
+      ]),
+    );
+  }
+
+  await expectRejection("finalized provenance step insertion", () =>
+    client.query(
+      `insert into provenance_steps (
+         provenance_record_id, position, process_type, description
+       ) values ($1, 2, 'rewrite', 'Post-finalization rewrite')`,
+      [seedIds.provenanceTwo],
+    ),
+  );
+  await expectRejection("finalized provenance source update", () =>
+    client.query(
+      "update provenance_sources set reference = 'Rewritten source' where id = $1",
+      [seedIds.provenanceSource],
+    ),
+  );
+  await expectRejection("finalized provenance evidence deletion", () =>
+    client.query("delete from provenance_evidence where id = $1", [
+      seedIds.provenanceEvidence,
+    ]),
   );
 }
 
@@ -444,6 +645,7 @@ async function validateFirstDatabase() {
       "running the shared seed twice changed row counts",
     );
     await verifySeedRelations(db, client);
+    await verifyGovernanceLifecycles(client);
     await verifyConstraintRejections(client);
     return firstCounts;
   } finally {
@@ -481,15 +683,28 @@ async function validateExistingHistoryGuard() {
     );
     await client.query(
       `insert into rights_declarations (
-         submission_id, version, status, authority_basis, contains_third_party_material
-       ) values ('70000000-0000-4000-8000-000000000099', 2, 'draft',
+         id, submission_id, version, status, authority_basis,
+         contains_third_party_material
+       ) values ('80000000-0000-4000-8000-000000000199',
+         '70000000-0000-4000-8000-000000000099', 1, 'draft',
          'original_author', false)`,
     );
-    await expectRejection("forward migration over invalid existing history", async () => {
+    await client.query(
+      `insert into rights_declarations (
+         submission_id, version, supersedes_id, status, authority_basis,
+         contains_third_party_material, attestation, attested_at
+       ) values ('70000000-0000-4000-8000-000000000099', 2,
+         '80000000-0000-4000-8000-000000000199', 'attested',
+         'original_author', false, 'Invalid lifecycle history', clock_timestamp())`,
+    );
+    await expectRejection(
+      "forward migration over finalized successor with draft predecessor",
+      async () => {
       for (const statement of migrations[1]!.sql) {
         await client.exec(statement);
       }
-    });
+      },
+    );
   } finally {
     await client.close();
   }
@@ -500,7 +715,7 @@ try {
   const expectedCounts = await validateFirstDatabase();
   await validateFreshReset(expectedCounts);
   console.log(
-    "Local PGlite validation passed: migration, schema objects, shared seed idempotence, relations, ordering, constraints, timestamps, and fresh reset.",
+    "Local PGlite validation passed: migrations, schema objects, shared seed idempotence, all three governance lifecycles, relations, ordering, constraints, timestamps, and fresh reset.",
   );
 } catch (error) {
   const message = error instanceof Error ? error.message : "unknown validation failure";
