@@ -14,7 +14,9 @@ export function Header() {
         <a href="#contact">Contact</a>
       </nav>
 
-      <a className="subscribe" href="#contact">Book / inquire</a>
+      <a className="subscribe" href="#contact">
+        Book / inquire
+      </a>
     </header>
   );
 }

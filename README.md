@@ -110,6 +110,43 @@ npm run preview
 
 No deployment script or Cloudflare account configuration is included in this phase.
 
+## Quality gates
+
+Run the complete local quality gate after installing dependencies:
+
+```bash
+npm run ci
+```
+
+The aggregate runs Prettier, ESLint, strict TypeScript, Vitest unit coverage, the
+PGlite database validation, the production build, and the Playwright Chromium smoke
+test in that order. The browser test starts the built application with `vite preview`
+through the Cloudflare Vite plugin, so it exercises the production Worker preview
+rather than a Node-only development server. It uses a fake, syntactically valid
+`DATABASE_URL` and does not contact an external database.
+
+Individual gates are available as:
+
+```bash
+npm run format:check
+npm run lint
+npm run typecheck
+npm run test:unit
+npm run db:validate:local
+npm run build
+npm run test:e2e
+```
+
+Build the application before running `npm run test:e2e` by itself. Install the
+Playwright Chromium browser once per environment with
+`npx playwright install chromium`.
+
+The GitHub Actions workflow exposes the stable required-check name
+`CI / quality-gate`. Future branch protection should require that exact check, but
+protection must not be enabled until the workflow has run and stabilized on pull
+requests and `main`. A deliberate failing test is deferred and is not included in
+this change.
+
 ## Documentation
 
 - [Product scope, terminology, and non-goals](docs/product-scope.md)

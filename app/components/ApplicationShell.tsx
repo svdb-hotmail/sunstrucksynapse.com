@@ -3,11 +3,7 @@ import type { Ref } from "react";
 import { Header } from "~/components/Header";
 import { MobileNav } from "~/components/MobileNav";
 import { PlayerPanel } from "~/components/PlayerPanel";
-import type {
-  CatalogueItem,
-  MediaKind,
-  QueueEntry,
-} from "~/types/catalogue";
+import type { CatalogueItem, MediaKind, QueueEntry } from "~/types/catalogue";
 
 interface ApplicationShellProps {
   children: React.ReactNode;

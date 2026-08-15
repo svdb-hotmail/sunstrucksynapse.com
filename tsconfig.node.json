@@ -3,10 +3,15 @@
   "include": [
     "react-router.config.ts",
     "vite.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts",
     "drizzle.config.ts",
     "scripts/**/*",
+    "tests/**/*",
     "app/config/env.server.ts",
-    "app/db/schema/**/*"
+    "app/data/catalogue.ts",
+    "app/db/schema/**/*",
+    "app/types/catalogue.ts"
   ],
   "compilerOptions": {
     "composite": true,
@@ -14,6 +19,10 @@
     "lib": ["ES2022"],
     "target": "ES2022",
     "module": "ES2022",
-    "moduleResolution": "bundler"
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "~/*": ["./app/*"]
+    }
   }
 }

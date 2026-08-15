@@ -7,15 +7,14 @@ interface CatalogueSectionProps {
   onSelect: (item: CatalogueItem) => void;
 }
 
-export function CatalogueSection({
-  section,
-  selectedItemId,
-  onSelect,
-}: CatalogueSectionProps) {
+export function CatalogueSection({ section, selectedItemId, onSelect }: CatalogueSectionProps) {
   return (
     <section id={section.id} className="media-section">
       <div className="section-title">
-        <h2><span className="section-icon">{section.icon}</span>{section.title}</h2>
+        <h2>
+          <span className="section-icon">{section.icon}</span>
+          {section.title}
+        </h2>
         <a href="#contact">View all</a>
       </div>
 

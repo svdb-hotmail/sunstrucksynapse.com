@@ -9,17 +9,8 @@ import {
 } from "react-router";
 
 import { ApplicationShell } from "~/components/ApplicationShell";
-import {
-  getCatalogueItem,
-  initialCatalogueItem,
-  initialQueue,
-} from "~/data/catalogue";
-import type {
-  CatalogueItem,
-  MediaKind,
-  PlayerOutletContext,
-  PlayerState,
-} from "~/types/catalogue";
+import { getCatalogueItem, initialCatalogueItem, initialQueue } from "~/data/catalogue";
+import type { CatalogueItem, MediaKind, PlayerOutletContext, PlayerState } from "~/types/catalogue";
 
 import type { Route } from "./+types/root";
 import "./styles/global.css";

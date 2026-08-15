@@ -8,17 +8,9 @@ export const catalogueLifecycle = pgEnum("catalogue_lifecycle", [
   "archived",
 ]);
 
-export const assetScope = pgEnum("asset_scope", [
-  "private_master",
-  "publishable_derivative",
-]);
+export const assetScope = pgEnum("asset_scope", ["private_master", "publishable_derivative"]);
 
-export const artworkRole = pgEnum("artwork_role", [
-  "primary",
-  "gallery",
-  "avatar",
-  "banner",
-]);
+export const artworkRole = pgEnum("artwork_role", ["primary", "gallery", "avatar", "banner"]);
 
 export const submissionStatus = pgEnum("submission_status", [
   "draft",
@@ -37,11 +29,7 @@ export const authorityBasis = pgEnum("authority_basis", [
   "other",
 ]);
 
-export const attestationStatus = pgEnum("attestation_status", [
-  "draft",
-  "attested",
-  "superseded",
-]);
+export const attestationStatus = pgEnum("attestation_status", ["draft", "attested", "superseded"]);
 
 export const versionedRecordStatus = pgEnum("versioned_record_status", [
   "draft",

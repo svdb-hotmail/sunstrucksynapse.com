@@ -10,7 +10,9 @@ export function Queue({ entries, onClear }: QueueProps) {
     <section className="queue">
       <div className="queue-head">
         <h2>Next in queue</h2>
-        <button type="button" onClick={onClear} disabled={entries.length === 0}>Clear all</button>
+        <button type="button" onClick={onClear} disabled={entries.length === 0}>
+          Clear all
+        </button>
       </div>
       {entries.length > 0 ? (
         <ol>

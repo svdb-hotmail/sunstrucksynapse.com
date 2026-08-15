@@ -3,7 +3,6 @@ import {
   bigint,
   boolean,
   check,
-  foreignKey,
   index,
   integer,
   pgTable,
@@ -17,7 +16,12 @@ import {
 import { artworkRole, assetScope, catalogueLifecycle } from "./enums";
 import { timestamps } from "./helpers";
 
-const lifecycleCheck = (status: unknown, scheduledFor: unknown, publishedAt: unknown, archivedAt: unknown) =>
+const lifecycleCheck = (
+  status: unknown,
+  scheduledFor: unknown,
+  publishedAt: unknown,
+  archivedAt: unknown,
+) =>
   sql`(
     (${status} in ('draft', 'in_review') and ${scheduledFor} is null and ${publishedAt} is null and ${archivedAt} is null)
     or (${status} = 'scheduled' and ${scheduledFor} is not null and ${publishedAt} is null and ${archivedAt} is null)
@@ -69,7 +73,12 @@ export const artists = pgTable(
     check("artists_slug_check", sql`${table.slug} ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'`),
     check(
       "artists_lifecycle_check",
-      lifecycleCheck(table.lifecycleStatus, table.scheduledFor, table.publishedAt, table.archivedAt),
+      lifecycleCheck(
+        table.lifecycleStatus,
+        table.scheduledFor,
+        table.publishedAt,
+        table.archivedAt,
+      ),
     ),
     check(
       "artists_publication_order_check",
@@ -95,7 +104,11 @@ export const artistArtworkAssets = pgTable(
   },
   (table) => [
     unique("artist_artwork_assets_position_unique").on(table.artistId, table.role, table.position),
-    unique("artist_artwork_assets_asset_unique").on(table.artistId, table.artworkAssetId, table.role),
+    unique("artist_artwork_assets_asset_unique").on(
+      table.artistId,
+      table.artworkAssetId,
+      table.role,
+    ),
     index("artist_artwork_assets_artist_id_idx").on(table.artistId),
     index("artist_artwork_assets_artwork_asset_id_idx").on(table.artworkAssetId),
     check("artist_artwork_assets_position_check", sql`${table.position} > 0`),
@@ -121,7 +134,12 @@ export const releases = pgTable(
     check("releases_slug_check", sql`${table.slug} ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'`),
     check(
       "releases_lifecycle_check",
-      lifecycleCheck(table.lifecycleStatus, table.scheduledFor, table.publishedAt, table.archivedAt),
+      lifecycleCheck(
+        table.lifecycleStatus,
+        table.scheduledFor,
+        table.publishedAt,
+        table.archivedAt,
+      ),
     ),
     check(
       "releases_publication_order_check",
@@ -169,8 +187,16 @@ export const releaseArtworkAssets = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
-    unique("release_artwork_assets_position_unique").on(table.releaseId, table.role, table.position),
-    unique("release_artwork_assets_asset_unique").on(table.releaseId, table.artworkAssetId, table.role),
+    unique("release_artwork_assets_position_unique").on(
+      table.releaseId,
+      table.role,
+      table.position,
+    ),
+    unique("release_artwork_assets_asset_unique").on(
+      table.releaseId,
+      table.artworkAssetId,
+      table.role,
+    ),
     index("release_artwork_assets_release_id_idx").on(table.releaseId),
     index("release_artwork_assets_artwork_asset_id_idx").on(table.artworkAssetId),
     check("release_artwork_assets_position_check", sql`${table.position} > 0`),
@@ -205,7 +231,12 @@ export const tracks = pgTable(
     check("tracks_order_check", sql`${table.discNumber} > 0 and ${table.position} > 0`),
     check(
       "tracks_lifecycle_check",
-      lifecycleCheck(table.lifecycleStatus, table.scheduledFor, table.publishedAt, table.archivedAt),
+      lifecycleCheck(
+        table.lifecycleStatus,
+        table.scheduledFor,
+        table.publishedAt,
+        table.archivedAt,
+      ),
     ),
     check(
       "tracks_publication_order_check",

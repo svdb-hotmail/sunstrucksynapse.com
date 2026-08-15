@@ -8,7 +8,9 @@ export function Offerings({ offerings }: OfferingsProps) {
   return (
     <section id="offerings" className="offerings">
       <div className="section-title">
-        <h2><span className="section-icon">{"\u2600"}</span>Offerings</h2>
+        <h2>
+          <span className="section-icon">{"\u2600"}</span>Offerings
+        </h2>
       </div>
 
       <div className="offer-grid">

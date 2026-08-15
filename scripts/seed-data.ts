@@ -263,10 +263,7 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         attestedAt: versionOneFinalizedAt,
       })
       .where(
-        and(
-          eq(rightsDeclarations.id, seedIds.rightsOne),
-          eq(rightsDeclarations.status, "draft"),
-        ),
+        and(eq(rightsDeclarations.id, seedIds.rightsOne), eq(rightsDeclarations.status, "draft")),
       );
 
     const existingRightsTwo = await tx
@@ -295,10 +292,7 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         attestedAt: versionTwoFinalizedAt,
       })
       .where(
-        and(
-          eq(rightsDeclarations.id, seedIds.rightsTwo),
-          eq(rightsDeclarations.status, "draft"),
-        ),
+        and(eq(rightsDeclarations.id, seedIds.rightsTwo), eq(rightsDeclarations.status, "draft")),
       );
 
     await tx
@@ -383,10 +377,7 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         finalizedAt: versionOneFinalizedAt,
       })
       .where(
-        and(
-          eq(provenanceRecords.id, seedIds.provenanceOne),
-          eq(provenanceRecords.status, "draft"),
-        ),
+        and(eq(provenanceRecords.id, seedIds.provenanceOne), eq(provenanceRecords.status, "draft")),
       );
 
     const existingProvenanceTwo = await tx
@@ -436,11 +427,7 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         finalizedAt: versionTwoFinalizedAt,
       })
       .where(
-        and(
-          eq(provenanceRecords.id, seedIds.provenanceTwo),
-          eq(provenanceRecords.status, "draft"),
-        ),
+        and(eq(provenanceRecords.id, seedIds.provenanceTwo), eq(provenanceRecords.status, "draft")),
       );
   });
-
 }

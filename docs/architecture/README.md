@@ -37,30 +37,30 @@ The Cloudflare Worker is the production application boundary: it serves or suppo
 
 ## Trust boundaries
 
-| Boundary | Trust and access expectation |
-| --- | --- |
-| Public listener | Untrusted internet client. May browse published catalogue data and request controlled public derivative media, but receives no database, master-media, evidence, or curator credentials. |
-| Curator | Identified staff user admitted to the initial curator workspace through Cloudflare Access. Curator identity does not grant direct database or storage credentials. |
-| App and API | Cloudflare Worker validates input, applies authorization, limits exposed fields, and mediates database, R2, email, and analytics operations. Browser input and forwarded identity claims remain untrusted until validated. |
-| Database | Private service boundary holding catalogue, editorial, lifecycle, rights, provenance, and asset-reference records. It is never accessed directly by a browser. |
-| Public derivative media | Publishable artwork and listening derivatives use controlled delivery and cache policy. They are distributable media, not confidential masters. |
-| Private master and evidence media | Original masters and submission evidence use separate private scopes and credentials. They are never exposed through a public route. Evidence receives at least the protections applied to masters. |
-| Third-party email | Postmark receives only the recipient and transactional content required to deliver a message. It is not an analytics, marketing, identity, or source-of-record boundary. |
+| Boundary                          | Trust and access expectation                                                                                                                                                                                               |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public listener                   | Untrusted internet client. May browse published catalogue data and request controlled public derivative media, but receives no database, master-media, evidence, or curator credentials.                                   |
+| Curator                           | Identified staff user admitted to the initial curator workspace through Cloudflare Access. Curator identity does not grant direct database or storage credentials.                                                         |
+| App and API                       | Cloudflare Worker validates input, applies authorization, limits exposed fields, and mediates database, R2, email, and analytics operations. Browser input and forwarded identity claims remain untrusted until validated. |
+| Database                          | Private service boundary holding catalogue, editorial, lifecycle, rights, provenance, and asset-reference records. It is never accessed directly by a browser.                                                             |
+| Public derivative media           | Publishable artwork and listening derivatives use controlled delivery and cache policy. They are distributable media, not confidential masters.                                                                            |
+| Private master and evidence media | Original masters and submission evidence use separate private scopes and credentials. They are never exposed through a public route. Evidence receives at least the protections applied to masters.                        |
+| Third-party email                 | Postmark receives only the recipient and transactional content required to deliver a message. It is not an analytics, marketing, identity, or source-of-record boundary.                                                   |
 
 ## Local and production separation
 
 Local development must be useful without weakening production boundaries.
 
-| Concern | Local or non-production | Production |
-| --- | --- | --- |
-| Database | Separate credentials and a Neon development branch or equivalent isolated database. Docker PostgreSQL may be used for offline work, using the same migrations. | Dedicated Neon production project or branch and production-only credentials. |
-| Application runtime | Wrangler's local Worker runtime, with explicit local bindings and environment-variable validation. | Cloudflare Workers with production bindings and validated required configuration. |
-| Object storage | R2 emulation or a non-production bucket containing disposable fixtures. | Separate R2 scopes or buckets and credentials for derivatives, masters, and evidence. |
-| Email | Postmark test mode or an explicit non-delivering adapter. | Postmark server token restricted to transactional application email. |
-| Curator identity | An explicit local curator identity simulation may stand in for Cloudflare Access during development. That bypass must be impossible to enable in production. | Verified Cloudflare Access identity at the curator workspace boundary. |
-| Analytics | No-op collection or structured local logging. | First-party semantic events sent through the application boundary. |
-| Secrets | Developer-specific environment values outside source control. Production values are not required for ordinary local work. | Secrets and credentials supplied through the deployment environment; no production secrets in source. |
-| Private media | Synthetic fixtures by default. Developers do not download production masters or evidence for routine local work. | Private assets remain in their restricted storage scopes. |
+| Concern             | Local or non-production                                                                                                                                        | Production                                                                                            |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| Database            | Separate credentials and a Neon development branch or equivalent isolated database. Docker PostgreSQL may be used for offline work, using the same migrations. | Dedicated Neon production project or branch and production-only credentials.                          |
+| Application runtime | Wrangler's local Worker runtime, with explicit local bindings and environment-variable validation.                                                             | Cloudflare Workers with production bindings and validated required configuration.                     |
+| Object storage      | R2 emulation or a non-production bucket containing disposable fixtures.                                                                                        | Separate R2 scopes or buckets and credentials for derivatives, masters, and evidence.                 |
+| Email               | Postmark test mode or an explicit non-delivering adapter.                                                                                                      | Postmark server token restricted to transactional application email.                                  |
+| Curator identity    | An explicit local curator identity simulation may stand in for Cloudflare Access during development. That bypass must be impossible to enable in production.   | Verified Cloudflare Access identity at the curator workspace boundary.                                |
+| Analytics           | No-op collection or structured local logging.                                                                                                                  | First-party semantic events sent through the application boundary.                                    |
+| Secrets             | Developer-specific environment values outside source control. Production values are not required for ordinary local work.                                      | Secrets and credentials supplied through the deployment environment; no production secrets in source. |
+| Private media       | Synthetic fixtures by default. Developers do not download production masters or evidence for routine local work.                                               | Private assets remain in their restricted storage scopes.                                             |
 
 Configuration must fail clearly when required environment variables or bindings are missing. A local default must never silently select a production database, bucket, email sender, identity bypass, or analytics destination.
 

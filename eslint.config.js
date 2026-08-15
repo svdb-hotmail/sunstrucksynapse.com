@@ -24,6 +24,14 @@ export default tseslint.config(
         ...globals.node,
       },
     },
+    rules: {
+      "@typescript-eslint/no-unused-vars": [
+        "error",
+        {
+          argsIgnorePattern: "^_",
+        },
+      ],
+    },
   },
   {
     files: ["app/**/*.{ts,tsx}"],

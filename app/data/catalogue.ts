@@ -234,24 +234,28 @@ export const offerings: Offering[] = [
     id: "audio-identity",
     number: "01",
     title: "Audio Identity",
-    description: "Sound palette, music references, spoken-word direction, track concepting, and release framing.",
+    description:
+      "Sound palette, music references, spoken-word direction, track concepting, and release framing.",
   },
   {
     id: "video-direction",
     number: "02",
     title: "Video Direction",
-    description: "Shot lists, prompts, scene logic, keyframe planning, and AI-video continuity systems.",
+    description:
+      "Shot lists, prompts, scene logic, keyframe planning, and AI-video continuity systems.",
   },
   {
     id: "media-portfolio",
     number: "03",
     title: "Media Portfolio",
-    description: "A browser-ready portfolio experience for audio, video, visuals, and client case studies.",
+    description:
+      "A browser-ready portfolio experience for audio, video, visuals, and client case studies.",
   },
   {
     id: "creative-systems",
     number: "04",
     title: "Creative Systems",
-    description: "Repeatable workflows for prompts, assets, tooling, delivery, and production documentation.",
+    description:
+      "Repeatable workflows for prompts, assets, tooling, delivery, and production documentation.",
   },
 ];

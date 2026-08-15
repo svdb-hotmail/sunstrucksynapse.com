@@ -38,10 +38,7 @@ export const editorialCollections = pgTable(
       table.lifecycleStatus,
       table.scheduledFor,
     ),
-    check(
-      "editorial_collections_slug_check",
-      sql`${table.slug} ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'`,
-    ),
+    check("editorial_collections_slug_check", sql`${table.slug} ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'`),
     check(
       "editorial_collections_lifecycle_check",
       sql`(

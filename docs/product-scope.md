@@ -80,12 +80,12 @@ The Sunstruck Synapse Radio MVP may express compatible principles, especially tr
 
 Initial measurement should answer four product questions:
 
-| Question | Initial measurements |
-| --- | --- |
-| Will visitors start listening? | Visitor-to-play conversion. |
+| Question                                      | Initial measurements                                                   |
+| --------------------------------------------- | ---------------------------------------------------------------------- |
+| Will visitors start listening?                | Visitor-to-play conversion.                                            |
 | Will listeners engage with the selected work? | Successful playback starts, 30-second listens, completions, and skips. |
-| Will listeners return? | Seven-day returning-listener rate. |
-| Does editorial curation help discovery? | Sustained listens originating from editorial collections. |
+| Will listeners return?                        | Seven-day returning-listener rate.                                     |
+| Does editorial curation help discovery?       | Sustained listens originating from editorial collections.              |
 
 Measurement should be basic and privacy-conscious, collecting only what is needed to answer these questions. Raw play count alone is not the primary success measure: meaningful listening, return behaviour, and editorially assisted discovery matter more.
 

@@ -211,10 +211,7 @@ export const provenanceRecords = pgTable(
       "provenance_records_finalized_check",
       sql`(${table.status} = 'draft' and ${table.finalizedAt} is null) or (${table.status} in ('finalized', 'superseded') and ${table.finalizedAt} is not null)`,
     ),
-    check(
-      "provenance_records_summary_check",
-      sql`nullif(btrim(${table.summary}), '') is not null`,
-    ),
+    check("provenance_records_summary_check", sql`nullif(btrim(${table.summary}), '') is not null`),
   ],
 );
 
@@ -232,10 +229,7 @@ export const provenanceSteps = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("provenance_steps_position_unique").on(
-      table.provenanceRecordId,
-      table.position,
-    ),
+    uniqueIndex("provenance_steps_position_unique").on(table.provenanceRecordId, table.position),
     index("provenance_steps_record_order_idx").on(table.provenanceRecordId, table.position),
     check("provenance_steps_position_check", sql`${table.position} > 0`),
   ],
@@ -255,14 +249,8 @@ export const provenanceSources = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("provenance_sources_position_unique").on(
-      table.provenanceRecordId,
-      table.position,
-    ),
-    index("provenance_sources_record_order_idx").on(
-      table.provenanceRecordId,
-      table.position,
-    ),
+    uniqueIndex("provenance_sources_position_unique").on(table.provenanceRecordId, table.position),
+    index("provenance_sources_record_order_idx").on(table.provenanceRecordId, table.position),
     check(
       "provenance_sources_reference_check",
       sql`nullif(btrim(${table.reference}), '') is not null`,

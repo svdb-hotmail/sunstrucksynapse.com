@@ -139,9 +139,7 @@ async function verifySchemaObjects(client: PGlite) {
      from pg_constraint
      where connamespace = 'public'::regnamespace`,
   );
-  const constraints = new Map(
-    constraintResult.rows.map(({ name, type }) => [name, type]),
-  );
+  const constraints = new Map(constraintResult.rows.map(({ name, type }) => [name, type]));
   for (const checkName of requiredChecks) {
     assert(constraints.get(checkName) === "c", `required check ${checkName} is missing`);
   }
@@ -160,10 +158,7 @@ async function verifySchemaObjects(client: PGlite) {
   }
 }
 
-async function verifySeedRelations(
-  db: ReturnType<typeof drizzle<typeof schema>>,
-  client: PGlite,
-) {
+async function verifySeedRelations(db: ReturnType<typeof drizzle<typeof schema>>, client: PGlite) {
   const tracksWithCredits = await db
     .select({
       title: tracks.title,
@@ -191,10 +186,7 @@ async function verifySeedRelations(
       releaseId: collectionItems.releaseId,
     })
     .from(collectionItems)
-    .innerJoin(
-      editorialCollections,
-      eq(editorialCollections.id, collectionItems.collectionId),
-    )
+    .innerJoin(editorialCollections, eq(editorialCollections.id, collectionItems.collectionId))
     .where(eq(editorialCollections.id, seedIds.collection))
     .orderBy(asc(collectionItems.position));
   assert(
@@ -283,8 +275,7 @@ async function verifySeedRelations(
     [seedIds.artist],
   );
   assert(
-    new Date(after.rows[0]!.updated_at).getTime() >
-      new Date(before.rows[0]!.updated_at).getTime(),
+    new Date(after.rows[0]!.updated_at).getTime() > new Date(before.rows[0]!.updated_at).getTime(),
     "updated_at did not advance on a direct update",
   );
 }
@@ -437,9 +428,7 @@ async function verifyGovernanceLifecycles(client: PGlite) {
       client.query(lifecycle.mutateFinalized, [lifecycle.versionTwoId]),
     );
     await expectRejection(`${lifecycle.name} deletion`, () =>
-      client.query(`delete from "${lifecycle.table}" where id = $1`, [
-        lifecycle.versionTwoId,
-      ]),
+      client.query(`delete from "${lifecycle.table}" where id = $1`, [lifecycle.versionTwoId]),
     );
   }
 
@@ -452,15 +441,12 @@ async function verifyGovernanceLifecycles(client: PGlite) {
     ),
   );
   await expectRejection("finalized provenance source update", () =>
-    client.query(
-      "update provenance_sources set reference = 'Rewritten source' where id = $1",
-      [seedIds.provenanceSource],
-    ),
+    client.query("update provenance_sources set reference = 'Rewritten source' where id = $1", [
+      seedIds.provenanceSource,
+    ]),
   );
   await expectRejection("finalized provenance evidence deletion", () =>
-    client.query("delete from provenance_evidence where id = $1", [
-      seedIds.provenanceEvidence,
-    ]),
+    client.query("delete from provenance_evidence where id = $1", [seedIds.provenanceEvidence]),
   );
 }
 
@@ -488,10 +474,9 @@ async function verifyConstraintRejections(client: PGlite) {
     ),
   );
   await expectRejection("collection item with no target", () =>
-    client.query(
-      "insert into collection_items (collection_id, position) values ($1, 10)",
-      [seedIds.collection],
-    ),
+    client.query("insert into collection_items (collection_id, position) values ($1, 10)", [
+      seedIds.collection,
+    ]),
   );
   await expectRejection("collection item with two targets", () =>
     client.query(
@@ -614,19 +599,16 @@ async function verifyConstraintRejections(client: PGlite) {
     client.query("delete from rights_declarations where id = $1", [seedIds.rightsTwo]),
   );
   await expectRejection("changing finalized governance history", () =>
-    client.query(
-      "update rights_declarations set restrictions = 'Rewritten.' where id = $1",
-      [seedIds.rightsTwo],
-    ),
+    client.query("update rights_declarations set restrictions = 'Rewritten.' where id = $1", [
+      seedIds.rightsTwo,
+    ]),
   );
   await client.query(
     "update rights_declarations set restrictions = 'Draft update.' where id = $1",
     [rightsB1],
   );
   await expectRejection("removing the final release artist credit", () =>
-    client.query("delete from release_artist_credits where release_id = $1", [
-      seedIds.release,
-    ]),
+    client.query("delete from release_artist_credits where release_id = $1", [seedIds.release]),
   );
 }
 
@@ -700,9 +682,9 @@ async function validateExistingHistoryGuard() {
     await expectRejection(
       "forward migration over finalized successor with draft predecessor",
       async () => {
-      for (const statement of migrations[1]!.sql) {
-        await client.exec(statement);
-      }
+        for (const statement of migrations[1]!.sql) {
+          await client.exec(statement);
+        }
       },
     );
   } finally {
