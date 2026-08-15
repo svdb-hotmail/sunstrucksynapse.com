@@ -10,11 +10,11 @@ import type { PlayerOutletContext } from "~/types/catalogue";
 import type { Route } from "./+types/home";
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Sunstruck Synapse | Audio + Video Portfolio" },
+  { title: "Sunstruck Synapse Radio" },
   {
     name: "description",
     content:
-      "Sunstruck Synapse audio and video portfolio with a streaming-style media player, work collections, and offerings.",
+      "Sunstruck Synapse Radio is a human-curated listening destination for intentional AI-assisted music.",
   },
 ];
 

@@ -56,7 +56,7 @@ export const submissions = pgTable(
     ),
     check(
       "submissions_resulting_catalogue_check",
-      sql`(num_nonnulls(${table.resultingReleaseId}, ${table.resultingTrackId}) = 0) or (${table.status} = 'accepted')`,
+      sql`num_nonnulls(${table.resultingReleaseId}, ${table.resultingTrackId}) <= 1 and (num_nonnulls(${table.resultingReleaseId}, ${table.resultingTrackId}) = 0 or ${table.status} = 'accepted')`,
     ),
   ],
 );

@@ -54,12 +54,14 @@ const requiredIndexes = [
 ] as const;
 
 const requiredChecks = [
+  "artwork_assets_dimensions_check",
   "collection_items_exactly_one_target_check",
   "rights_declarations_parent_check",
   "rights_declarations_version_check",
   "rights_declarations_self_supersession_check",
   "creative_process_disclosures_parent_check",
   "provenance_records_parent_check",
+  "submissions_resulting_catalogue_check",
 ] as const;
 
 const requiredTriggers = [
@@ -80,6 +82,7 @@ const requiredTriggers = [
   "provenance_sources_require_draft",
   "provenance_evidence_require_draft",
   "releases_require_artist_credit",
+  "release_artist_credits_lock_release",
   "release_artist_credits_preserve_credit",
 ] as const;
 
@@ -156,6 +159,28 @@ async function verifySchemaObjects(client: PGlite) {
   for (const triggerName of requiredTriggers) {
     assert(triggerNames.has(triggerName), `required trigger ${triggerName} is missing`);
   }
+
+  const creditLockTrigger = await client.query<{ definition: string }>(
+    `select pg_get_triggerdef(oid) as definition
+     from pg_trigger
+     where tgname = 'release_artist_credits_lock_release'`,
+  );
+  const creditLockDefinition = creditLockTrigger.rows[0]?.definition ?? "";
+  assert(
+    creditLockDefinition.includes("BEFORE") &&
+      creditLockDefinition.includes("UPDATE") &&
+      creditLockDefinition.includes("DELETE") &&
+      creditLockDefinition.includes("FOR EACH ROW"),
+    "release artist credit mutations are not locked before each row change",
+  );
+  const creditLockFunction = await client.query<{ definition: string }>(
+    `select pg_get_functiondef('lock_release_artist_credit_mutation()'::regprocedure)
+       as definition`,
+  );
+  assert(
+    creditLockFunction.rows[0]?.definition.includes("FOR UPDATE"),
+    "release artist credit mutation trigger does not lock its parent release",
+  );
 }
 
 async function verifySeedRelations(db: ReturnType<typeof drizzle<typeof schema>>, client: PGlite) {
@@ -473,6 +498,30 @@ async function verifyConstraintRejections(client: PGlite) {
       "insert into artists (slug, display_name) values ('synthetic-dawn-ensemble', 'Duplicate')",
     ),
   );
+  await client.query(
+    `insert into artwork_assets (
+       object_key, scope, mime_type, checksum_sha256, byte_size, width, height
+     ) values ('artwork/test/no-dimensions.webp', 'publishable_derivative', 'image/webp',
+       repeat('a', 64), 100, null, null),
+       ('artwork/test/positive-dimensions.webp', 'publishable_derivative', 'image/webp',
+       repeat('b', 64), 100, 320, 180)`,
+  );
+  await expectRejection("artwork with width but no height", () =>
+    client.query(
+      `insert into artwork_assets (
+         object_key, scope, mime_type, checksum_sha256, byte_size, width
+       ) values ('artwork/test/missing-height.webp', 'publishable_derivative', 'image/webp',
+         repeat('c', 64), 100, 320)`,
+    ),
+  );
+  await expectRejection("artwork with non-positive dimensions", () =>
+    client.query(
+      `insert into artwork_assets (
+         object_key, scope, mime_type, checksum_sha256, byte_size, width, height
+       ) values ('artwork/test/zero-width.webp', 'publishable_derivative', 'image/webp',
+         repeat('d', 64), 100, 0, 180)`,
+    ),
+  );
   await expectRejection("collection item with no target", () =>
     client.query("insert into collection_items (collection_id, position) values ($1, 10)", [
       seedIds.collection,
@@ -607,6 +656,49 @@ async function verifyConstraintRejections(client: PGlite) {
     "update rights_declarations set restrictions = 'Draft update.' where id = $1",
     [rightsB1],
   );
+  await client.query(
+    `insert into submissions (
+       invitation_reference, submitter_name, submitter_email, title, status,
+       submitted_at, reviewed_at, accepted_at
+     ) values ('accepted-without-target', 'Accepted Artist', 'accepted@example.invalid',
+       'Accepted without target', 'accepted', clock_timestamp(), clock_timestamp(),
+       clock_timestamp())`,
+  );
+  await expectRejection("accepted submission with both catalogue targets", () =>
+    client.query(
+      `insert into submissions (
+         invitation_reference, submitter_name, submitter_email, title, status,
+         submitted_at, reviewed_at, accepted_at, resulting_release_id, resulting_track_id
+       ) values ('ambiguous-target', 'Ambiguous Artist', 'ambiguous@example.invalid',
+         'Ambiguous target', 'accepted', clock_timestamp(), clock_timestamp(),
+         clock_timestamp(), $1, $2)`,
+      [seedIds.release, seedIds.trackOne],
+    ),
+  );
+  await expectRejection("non-accepted submission with a catalogue target", () =>
+    client.query(
+      `insert into submissions (
+         invitation_reference, submitter_name, submitter_email, title, status,
+         submitted_at, resulting_release_id
+       ) values ('draft-with-target', 'Draft Artist', 'draft@example.invalid',
+         'Draft target', 'submitted', clock_timestamp(), $1)`,
+      [seedIds.release],
+    ),
+  );
+  await client.query(
+    `insert into artists (id, slug, display_name)
+     values ('20000000-0000-4000-8000-000000000002', 'second-credit', 'Second Credit')`,
+  );
+  await client.query(
+    `insert into release_artist_credits (release_id, artist_id, position)
+     values ($1, '20000000-0000-4000-8000-000000000002', 2)`,
+    [seedIds.release],
+  );
+  await client.query(
+    `delete from release_artist_credits
+     where release_id = $1 and artist_id = '20000000-0000-4000-8000-000000000002'`,
+    [seedIds.release],
+  );
   await expectRejection("removing the final release artist credit", () =>
     client.query("delete from release_artist_credits where release_id = $1", [seedIds.release]),
   );
@@ -653,7 +745,7 @@ async function validateExistingHistoryGuard() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 2, "expected the original and forward migrations");
+    assert(migrations.length === 3, "expected the original and two forward migrations");
     for (const statement of migrations[0]!.sql) {
       await client.exec(statement);
     }

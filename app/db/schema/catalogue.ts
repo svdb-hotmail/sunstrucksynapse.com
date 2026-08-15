@@ -49,7 +49,7 @@ export const artworkAssets = pgTable(
     check("artwork_assets_byte_size_check", sql`${table.byteSize} > 0`),
     check(
       "artwork_assets_dimensions_check",
-      sql`(${table.width} is null and ${table.height} is null) or (${table.width} > 0 and ${table.height} > 0)`,
+      sql`(${table.width} is null and ${table.height} is null) or (${table.width} is not null and ${table.height} is not null and ${table.width} > 0 and ${table.height} > 0)`,
     ),
   ],
 );

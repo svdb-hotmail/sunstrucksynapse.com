@@ -118,7 +118,7 @@ Run the complete local quality gate after installing dependencies:
 npm run ci
 ```
 
-The aggregate runs Prettier, ESLint, strict TypeScript, Vitest unit coverage, the
+The aggregate runs Prettier, ESLint, strict TypeScript, Vitest unit tests, the
 PGlite database validation, the production build, and the Playwright Chromium smoke
 test in that order. The browser test starts the built application with `vite preview`
 through the Cloudflare Vite plugin, so it exercises the production Worker preview

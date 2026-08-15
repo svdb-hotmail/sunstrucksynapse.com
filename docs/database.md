@@ -58,13 +58,17 @@ Run the complete ephemeral validation harness without Docker, WSL, PostgreSQL to
 npm run db:validate:local
 ```
 
-The harness uses Drizzle's official PGlite adapter to apply the committed migration to a fresh in-memory database. It inspects tables, indexes, foreign keys, checks, and custom triggers; runs the shared seed twice and compares all table counts; reads catalogue, editorial, submission, and governance relations in order; verifies `updated_at` advances; rejects invalid uniqueness, collection target, release credit, and version-supersession writes; then repeats migration and seed in a second fresh database.
+The harness uses Drizzle's official PGlite adapter to apply the committed migrations to a fresh in-memory database. It inspects tables, indexes, foreign keys, checks, and custom triggers; runs the shared seed twice and compares all table counts; reads catalogue, editorial, submission, and governance relations in order; verifies `updated_at` advances; rejects incomplete artwork dimensions, ambiguous submission outcomes, invalid uniqueness, collection targets, release credits, and version-supersession writes; then repeats migration and seed in a second fresh database.
 
 PGlite executes PostgreSQL semantics in-process and reports its own `select version()` value. It is not a network connection and is not evidence that a particular PostgreSQL server or Neon version was tested. Live Neon compatibility remains a separate isolated-environment check.
 
 ## Database-managed invariants
 
 The forward invariant migration installs `set_updated_at()` triggers on every primary table that uses the shared timestamp columns, so direct SQL updates advance `updated_at` without application cooperation.
+
+Artwork dimensions must be absent as a pair or present as positive width and height. A submission may reference at most one resulting release or track, and any resulting target requires accepted status.
+
+Release artist-credit updates and deletes lock their parent release rows before mutation. This serializes concurrent removals for each release before the deferred constraint trigger verifies that a surviving credit remains.
 
 Rights declarations, creative-process disclosures, and provenance records use a shared lifecycle trigger plus unique predecessor indexes. The forward migration first rejects any pre-existing invalid history. Every version begins as a draft; version 1 has no predecessor, and every later draft points to the immediately preceding attested/finalized version for the exact same submission, release, or track. Creating a draft successor leaves its predecessor current. Attesting or finalizing that successor atomically marks the predecessor superseded. Direct or premature supersession, draft predecessors, gaps, branches, cross-parent links, identity changes, finalized-content changes, and deletion are rejected. Provenance steps, sources, and private evidence references can change only while their parent provenance record is draft. Revisions therefore follow one append-only lifecycle across all three governance record types.
 
