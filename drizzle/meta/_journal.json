@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1786738550620,
+      "tag": "0000_initial_database_foundation",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1786744409626,
+      "tag": "0001_validate_database_invariants",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1786824374610,
+      "tag": "0002_harden_catalogue_invariants",
+      "breakpoints": true
+    }
+  ]
+}

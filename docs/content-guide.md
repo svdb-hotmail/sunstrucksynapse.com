@@ -4,8 +4,9 @@ Use this guide when replacing placeholder website content.
 
 ## Replace placeholder media references
 
-- Replace placeholder thumbnails in `assets/` with your final optimized thumbnails.
-- Replace placeholder audio/video paths in `index.html` so they point to your actual public files.
+- Replace placeholder thumbnails in `public/assets/` with final optimized thumbnails while preserving public URLs.
+- Update temporary catalogue records in `app/data/catalogue.ts`; page components must not contain catalogue item literals.
+- Keep the visual player source-free until the catalogue and streaming work in #12 provides real media URLs.
 
 ## Keep preview media separate from master files
 
@@ -13,10 +14,10 @@ Keep optimized public preview media in this repository, and store large original
 
 ## Suggested folders
 
-Use these folders under `assets/`:
+Use these folders under `public/assets/`:
 
-- `assets/images/`
-- `assets/thumbs/`
-- `assets/posters/`
-- `assets/audio/`
-- `assets/video/`
+- `public/assets/images/`
+- `public/assets/thumbs/`
+- `public/assets/posters/`
+- `public/assets/audio/`
+- `public/assets/video/`
