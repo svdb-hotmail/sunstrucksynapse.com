@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { createE2eCuratorRepository } from "../../app/repositories/curator-fixture.server";
 import type { CuratorEntity, CuratorRepository } from "../../app/repositories/curator.server";
-import { CuratorService } from "../../app/services/curator.server";
+import { CuratorService, curatorHttpStatus } from "../../app/services/curator.server";
 
 const actor = { id: "access-subject-7", email: "curator@example.test" };
 
@@ -298,5 +298,185 @@ describe("publication lifecycle", () => {
       reason: "Scheduled publication",
       occurredAt: new Date("2026-08-17T12:00:00Z"),
     });
+  });
+});
+
+describe("slug conflict scoping", () => {
+  let repository: CuratorRepository;
+  let service: CuratorService;
+
+  beforeEach(() => {
+    repository = createE2eCuratorRepository();
+    service = new CuratorService(repository, () => new Date("2026-08-16T08:00:00Z"));
+  });
+
+  it("enforces global slug uniqueness for artists, releases, and collections", async () => {
+    const artist = await service.create("artist", {
+      slug: "shared-artist-slug",
+      title: "First Artist",
+    });
+    expect(artist.ok).toBe(true);
+
+    const duplicateArtist = await service.create("artist", {
+      slug: "shared-artist-slug",
+      title: "Second Artist",
+    });
+    expect(duplicateArtist).toEqual({
+      ok: false,
+      error: { code: "conflict", message: "The artist slug is already in use." },
+    });
+
+    const secondArtist = await service.create("artist", {
+      slug: "unique-artist-slug",
+      title: "Second Artist",
+    });
+    expect(secondArtist.ok).toBe(true);
+
+    const updateArtistConflict = await service.update("artist", (secondArtist as { ok: true; value: CuratorEntity }).value.id, {
+      slug: "shared-artist-slug",
+    });
+    expect(updateArtistConflict).toEqual({
+      ok: false,
+      error: { code: "conflict", message: "The artist slug is already in use." },
+    });
+
+    const release1 = await service.create("release", {
+      slug: "shared-release-slug",
+      title: "Release 1",
+      artistId: (artist as { ok: true; value: CuratorEntity }).value.id,
+    });
+    expect(release1.ok).toBe(true);
+
+    const duplicateRelease = await service.create("release", {
+      slug: "shared-release-slug",
+      title: "Release 2",
+      artistId: (secondArtist as { ok: true; value: CuratorEntity }).value.id,
+    });
+    expect(duplicateRelease).toEqual({
+      ok: false,
+      error: { code: "conflict", message: "The release slug is already in use." },
+    });
+
+    const collection1 = await service.create("collection", {
+      slug: "shared-collection-slug",
+      title: "Collection 1",
+    });
+    expect(collection1.ok).toBe(true);
+
+    const duplicateCollection = await service.create("collection", {
+      slug: "shared-collection-slug",
+      title: "Collection 2",
+    });
+    expect(duplicateCollection).toEqual({
+      ok: false,
+      error: { code: "conflict", message: "The collection slug is already in use." },
+    });
+  });
+
+  it("scopes track slug uniqueness to releaseId for create and update", async () => {
+    const artist = await service.create("artist", {
+      slug: "main-artist",
+      title: "Main Artist",
+    });
+    const artistId = (artist as { ok: true; value: CuratorEntity }).value.id;
+
+    const releaseA = await service.create("release", {
+      slug: "album-a",
+      title: "Album A",
+      artistId,
+    });
+    const releaseB = await service.create("release", {
+      slug: "album-b",
+      title: "Album B",
+      artistId,
+    });
+    const releaseAId = (releaseA as { ok: true; value: CuratorEntity }).value.id;
+    const releaseBId = (releaseB as { ok: true; value: CuratorEntity }).value.id;
+
+    const trackA1 = await service.create("track", {
+      slug: "track-one",
+      title: "Track One in Album A",
+      artistId,
+      releaseId: releaseAId,
+      position: 1,
+    });
+    expect(trackA1.ok).toBe(true);
+
+    // Same slug across different releases is allowed
+    const trackB1 = await service.create("track", {
+      slug: "track-one",
+      title: "Track One in Album B",
+      artistId,
+      releaseId: releaseBId,
+      position: 1,
+    });
+    expect(trackB1.ok).toBe(true);
+
+    // Duplicate slug within the same release is rejected
+    const trackADuplicate = await service.create("track", {
+      slug: "track-one",
+      title: "Duplicate Track in Album A",
+      artistId,
+      releaseId: releaseAId,
+      position: 2,
+    });
+    expect(trackADuplicate).toEqual({
+      ok: false,
+      error: { code: "conflict", message: "The track slug is already in use." },
+    });
+
+    // Create a second track in release A
+    const trackA2 = await service.create("track", {
+      slug: "track-two",
+      title: "Track Two in Album A",
+      artistId,
+      releaseId: releaseAId,
+      position: 2,
+    });
+    expect(trackA2.ok).toBe(true);
+
+    const trackA2Id = (trackA2 as { ok: true; value: CuratorEntity }).value.id;
+
+    // Updating track with its own slug is allowed
+    const updateSelf = await service.update("track", trackA2Id, {
+      slug: "track-two",
+      title: "Track Two Updated",
+    });
+    expect(updateSelf.ok).toBe(true);
+
+    // Updating track in Release A to conflict with another track in Release A is rejected
+    const updateConflictSameRelease = await service.update("track", trackA2Id, {
+      slug: "track-one",
+    });
+    expect(updateConflictSameRelease).toEqual({
+      ok: false,
+      error: { code: "conflict", message: "The track slug is already in use." },
+    });
+
+    // Create track-three in release B
+    const trackB2 = await service.create("track", {
+      slug: "track-three",
+      title: "Track Three in Album B",
+      artistId,
+      releaseId: releaseBId,
+      position: 2,
+    });
+    expect(trackB2.ok).toBe(true);
+
+    // Updating track in Release A to use a slug that only exists in Release B is allowed
+    const updateCrossReleaseAllowed = await service.update("track", trackA2Id, {
+      slug: "track-three",
+    });
+    expect(updateCrossReleaseAllowed.ok).toBe(true);
+  });
+});
+
+describe("curator status helper", () => {
+  it("maps error codes to standard HTTP status codes consistently", () => {
+    expect(curatorHttpStatus("invalid")).toBe(400);
+    expect(curatorHttpStatus("not_found")).toBe(404);
+    expect(curatorHttpStatus("conflict")).toBe(409);
+    expect(curatorHttpStatus("referenced")).toBe(409);
+    expect(curatorHttpStatus("transition_conflict")).toBe(409);
   });
 });

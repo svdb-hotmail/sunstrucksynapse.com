@@ -18,7 +18,7 @@ import type {
   Lifecycle,
 } from "~/repositories/curator.server";
 import { requireCuratorIdentity } from "~/services/access-auth.server";
-import { CuratorService } from "~/services/curator.server";
+import { CuratorService, curatorHttpStatus } from "~/services/curator.server";
 import { validateCatalogueForm, validateReason, validateUuid } from "~/services/curator-validation";
 
 const entityTypes = ["artist", "release", "track", "collection"] as const;
@@ -96,7 +96,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
         typeof form.get("releaseId") === "string" ? String(form.get("releaseId")) : undefined,
       position: Number.isSafeInteger(position) ? position : undefined,
     });
-    return result.ok ? redirect("/curator?created=1") : error(result.error.message, 409);
+    return result.ok
+      ? redirect("/curator?created=1")
+      : error(result.error.message, curatorHttpStatus(result.error.code));
   }
 
   const idResult = validateUuid(form.get("entityId"));
@@ -107,11 +109,15 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const validated = validateCatalogueForm(form);
     if (!validated.ok) return error(Object.values(validated.fieldErrors)[0] ?? "Invalid form.");
     const result = await service.update(type, id, validated.value);
-    return result.ok ? redirect("/curator?updated=1") : error(result.error.message, 409);
+    return result.ok
+      ? redirect("/curator?updated=1")
+      : error(result.error.message, curatorHttpStatus(result.error.code));
   }
   if (intent === "delete") {
     const result = await service.delete(type, id);
-    return result.ok ? redirect("/curator?deleted=1") : error(result.error.message, 409);
+    return result.ok
+      ? redirect("/curator?deleted=1")
+      : error(result.error.message, curatorHttpStatus(result.error.code));
   }
   if (intent === "transition") {
     const to = form.get("to");
@@ -131,7 +137,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
       scheduledFor:
         typeof scheduledValue === "string" && scheduledValue ? new Date(scheduledValue) : undefined,
     });
-    return result.ok ? redirect("/curator?transitioned=1") : error(result.error.message, 409);
+    return result.ok
+      ? redirect("/curator?transitioned=1")
+      : error(result.error.message, curatorHttpStatus(result.error.code));
   }
   if (type === "collection" && intent === "configure-homepage") {
     const show = form.get("showOnHomepage") === "on";
@@ -149,7 +157,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const trackId = validateUuid(form.get("trackId"), "trackId");
     if (!trackId.ok) return error(trackId.fieldErrors.trackId);
     const result = await service.addCollectionItem(id, { trackId: trackId.value });
-    return result.ok ? redirect("/curator?item-added=1") : error(result.error.message, 409);
+    return result.ok
+      ? redirect("/curator?item-added=1")
+      : error(result.error.message, curatorHttpStatus(result.error.code));
   }
   if (type === "collection" && intent === "move-item") {
     const itemResult = validateUuid(form.get("itemId"), "itemId");
@@ -164,7 +174,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const itemIds = items.map((item) => item.id);
     [itemIds[index], itemIds[nextIndex]] = [itemIds[nextIndex], itemIds[index]];
     const result = await service.reorderCollection(id, itemIds);
-    return result.ok ? redirect("/curator?reordered=1") : error(result.error.message, 409);
+    return result.ok
+      ? redirect("/curator?reordered=1")
+      : error(result.error.message, curatorHttpStatus(result.error.code));
   }
   if (type === "collection" && intent === "remove-item") {
     const itemResult = validateUuid(form.get("itemId"), "itemId");

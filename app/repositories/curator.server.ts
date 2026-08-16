@@ -26,6 +26,8 @@ export interface CuratorEntity {
   scheduledFor: Date | null;
   showOnHomepage?: boolean;
   homepagePosition?: number | null;
+  releaseId?: string;
+  artistId?: string;
 }
 
 export interface CreateEntityInput {
@@ -70,7 +72,11 @@ export interface CuratorCollectionItem {
 export interface CuratorRepository {
   list(type: CuratorEntityType): Promise<CuratorEntity[]>;
   find(type: CuratorEntityType, id: string): Promise<CuratorEntity | null>;
-  findBySlug(type: CuratorEntityType, slug: string): Promise<CuratorEntity | null>;
+  findBySlug(
+    type: CuratorEntityType,
+    slug: string,
+    releaseId?: string,
+  ): Promise<CuratorEntity | null>;
   create(type: CuratorEntityType, input: CreateEntityInput): Promise<CuratorEntity>;
   update(
     type: CuratorEntityType,
@@ -124,6 +130,7 @@ const trackSelection = {
   title: tracks.title,
   lifecycleStatus: tracks.lifecycleStatus,
   scheduledFor: tracks.scheduledFor,
+  releaseId: tracks.releaseId,
 };
 const collectionSelection = {
   id: editorialCollections.id,
@@ -168,9 +175,32 @@ export function createCuratorRepository(db: Database): CuratorRepository {
     return rows[0] ?? null;
   }
 
-  async function findBySlug(type: CuratorEntityType, slug: string): Promise<CuratorEntity | null> {
-    const all = await list(type);
-    return all.find((entity) => entity.slug === slug) ?? null;
+  async function findBySlug(
+    type: CuratorEntityType,
+    slug: string,
+    releaseId?: string,
+  ): Promise<CuratorEntity | null> {
+    if (type === "track" && releaseId) {
+      const rows = await db
+        .select(trackSelection)
+        .from(tracks)
+        .where(and(eq(tracks.slug, slug), eq(tracks.releaseId, releaseId)))
+        .limit(1);
+      return rows[0] ?? null;
+    }
+    const rows =
+      type === "artist"
+        ? await db.select(artistSelection).from(artists).where(eq(artists.slug, slug)).limit(1)
+        : type === "release"
+          ? await db.select(releaseSelection).from(releases).where(eq(releases.slug, slug)).limit(1)
+          : type === "track"
+            ? await db.select(trackSelection).from(tracks).where(eq(tracks.slug, slug)).limit(1)
+            : await db
+                .select(collectionSelection)
+                .from(editorialCollections)
+                .where(eq(editorialCollections.slug, slug))
+                .limit(1);
+    return rows[0] ?? null;
   }
 
   async function create(type: CuratorEntityType, input: CreateEntityInput): Promise<CuratorEntity> {

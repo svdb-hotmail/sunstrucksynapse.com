@@ -7,7 +7,7 @@ import {
   type Lifecycle,
 } from "~/repositories/curator.server";
 import { requireCuratorIdentity } from "~/services/access-auth.server";
-import { CuratorService } from "~/services/curator.server";
+import { CuratorService, curatorHttpStatus } from "~/services/curator.server";
 
 const entityTypes = new Set<CuratorEntityType>(["artist", "release", "track", "collection"]);
 const lifecycles = new Set<Lifecycle>(["draft", "in_review", "scheduled", "published", "archived"]);
@@ -28,8 +28,10 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
   const { runtime, auth } = await authorized(request, context);
   if (!auth.ok) return auth.response;
   const type = typeFrom(params);
-  if (!type || !runtime.db) return Response.json({ error: "Not found." }, { status: 404 });
-  const service = new CuratorService(createCuratorRepository(runtime.db));
+  const repository =
+    runtime.curatorRepository ?? (runtime.db ? createCuratorRepository(runtime.db) : null);
+  if (!type || !repository) return Response.json({ error: "Not found." }, { status: 404 });
+  const service = new CuratorService(repository);
   return Response.json(await service.list(type));
 }
 
@@ -37,8 +39,10 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
   const { runtime, auth } = await authorized(request, context);
   if (!auth.ok) return auth.response;
   const type = typeFrom(params);
-  if (!type || !runtime.db) return Response.json({ error: "Not found." }, { status: 404 });
-  const service = new CuratorService(createCuratorRepository(runtime.db));
+  const repository =
+    runtime.curatorRepository ?? (runtime.db ? createCuratorRepository(runtime.db) : null);
+  if (!type || !repository) return Response.json({ error: "Not found." }, { status: 404 });
+  const service = new CuratorService(repository);
   const payload: unknown = await request.json();
   if (typeof payload !== "object" || payload === null) {
     return Response.json({ error: "Invalid request." }, { status: 400 });
@@ -118,11 +122,6 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
   }
   if (result.ok)
     return Response.json(result.value, { status: request.method === "POST" ? 201 : 200 });
-  const status =
-    result.error.code === "not_found"
-      ? 404
-      : result.error.code === "conflict" || result.error.code === "transition_conflict"
-        ? 409
-        : 400;
+  const status = curatorHttpStatus(result.error.code);
   return Response.json({ error: result.error.message, code: result.error.code }, { status });
 }

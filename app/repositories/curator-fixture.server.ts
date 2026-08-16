@@ -46,8 +46,16 @@ export function createE2eCuratorRepository(): CuratorRepository {
       return [...entities.get(type)!];
     },
     find,
-    async findBySlug(type, slug) {
-      return entities.get(type)!.find((entity) => entity.slug === slug) ?? null;
+    async findBySlug(type, slug, releaseId) {
+      return (
+        entities
+          .get(type)!
+          .find(
+            (entity) =>
+              entity.slug === slug &&
+              (type !== "track" || !releaseId || entity.releaseId === releaseId),
+          ) ?? null
+      );
     },
     async create(type, input: CreateEntityInput) {
       const entity: StoredEntity = {

@@ -20,6 +20,20 @@ export type CuratorResult<T> =
   | { ok: true; value: T }
   | { ok: false; error: { code: CuratorErrorCode; message: string } };
 
+export function curatorHttpStatus(code: CuratorErrorCode): number {
+  switch (code) {
+    case "not_found":
+      return 404;
+    case "conflict":
+    case "referenced":
+    case "transition_conflict":
+      return 409;
+    case "invalid":
+    default:
+      return 400;
+  }
+}
+
 const transitions: Readonly<Record<Lifecycle, readonly Lifecycle[]>> = {
   draft: ["in_review"],
   in_review: ["scheduled"],
@@ -48,12 +62,6 @@ export class CuratorService {
         error: { code: "invalid", message: "A valid slug and title are required." },
       };
     }
-    if (await this.repository.findBySlug(type, input.slug)) {
-      return {
-        ok: false,
-        error: { code: "conflict", message: `The ${type} slug is already in use.` },
-      };
-    }
     if (type === "track") {
       if (!input.releaseId || !input.artistId || !input.position || input.position < 1) {
         return {
@@ -68,6 +76,19 @@ export class CuratorService {
         return {
           ok: false,
           error: { code: "not_found", message: "The selected release no longer exists." },
+        };
+      }
+      if (await this.repository.findBySlug("track", input.slug, input.releaseId)) {
+        return {
+          ok: false,
+          error: { code: "conflict", message: "The track slug is already in use." },
+        };
+      }
+    } else {
+      if (await this.repository.findBySlug(type, input.slug)) {
+        return {
+          ok: false,
+          error: { code: "conflict", message: `The ${type} slug is already in use.` },
         };
       }
     }
@@ -110,8 +131,18 @@ export class CuratorService {
         error: { code: "invalid", message: "A title is required." },
       };
     }
+    const current = await this.repository.find(type, id);
+    if (!current) {
+      return {
+        ok: false,
+        error: { code: "not_found", message: `The ${type} no longer exists.` },
+      };
+    }
     if (input.slug) {
-      const duplicate = await this.repository.findBySlug(type, input.slug);
+      const duplicate =
+        type === "track" && current.releaseId
+          ? await this.repository.findBySlug(type, input.slug, current.releaseId)
+          : await this.repository.findBySlug(type, input.slug);
       if (duplicate && duplicate.id !== id) {
         return {
           ok: false,
