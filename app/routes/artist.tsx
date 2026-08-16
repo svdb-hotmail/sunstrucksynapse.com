@@ -3,6 +3,7 @@ import { Link, useOutletContext } from "react-router";
 import { EntityTrackList } from "~/components/EntityTrackList";
 import { ShareButton } from "~/components/ShareButton";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
+import { artistSeo } from "~/services/seo.server";
 import type { PlayerOutletContext } from "~/types/catalogue";
 
 import type { Route } from "./+types/artist";
@@ -13,8 +14,9 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
   if (!artist) {
     throw new Response("Artist not found.", { status: 404, statusText: "Artist not found" });
   }
-  const canonicalUrl = new URL(artist.href, request.url).href;
-  return { artist, canonicalUrl };
+  const seo = artistSeo(artist);
+  const canonicalUrl = new URL(seo.canonicalPath, request.url).href;
+  return { artist, canonicalUrl, seo };
 }
 
 export const meta: Route.MetaFunction = ({ loaderData }) => {
@@ -45,6 +47,10 @@ export default function ArtistRoute({ loaderData }: Route.ComponentProps) {
 
   return (
     <article className="entity-page">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(loaderData.seo.jsonLd) }}
+      />
       <p className="eyebrow">Artist</p>
       <div className="entity-hero">
         <img src={artist.artwork.src} alt={artist.artwork.alt} />

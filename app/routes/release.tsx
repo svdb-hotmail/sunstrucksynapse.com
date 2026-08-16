@@ -3,6 +3,7 @@ import { Link, useOutletContext } from "react-router";
 import { EntityTrackList } from "~/components/EntityTrackList";
 import { ShareButton } from "~/components/ShareButton";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
+import { releaseSeo } from "~/services/seo.server";
 import type { PlayerOutletContext } from "~/types/catalogue";
 
 import type { Route } from "./+types/release";
@@ -13,8 +14,9 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
   if (!release) {
     throw new Response("Release not found.", { status: 404, statusText: "Release not found" });
   }
-  const canonicalUrl = new URL(release.href, request.url).href;
-  return { release, canonicalUrl };
+  const seo = releaseSeo(release);
+  const canonicalUrl = new URL(seo.canonicalPath, request.url).href;
+  return { release, canonicalUrl, seo };
 }
 
 export const meta: Route.MetaFunction = ({ loaderData }) => {
@@ -45,6 +47,10 @@ export default function ReleaseRoute({ loaderData }: Route.ComponentProps) {
 
   return (
     <article className="entity-page">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(loaderData.seo.jsonLd) }}
+      />
       <p className="eyebrow">Release</p>
       <div className="entity-hero">
         <img src={release.artwork.src} alt={release.artwork.alt} />

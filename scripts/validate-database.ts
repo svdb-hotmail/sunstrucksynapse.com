@@ -31,6 +31,7 @@ const expectedTables = [
   "provenance_records",
   "provenance_sources",
   "provenance_steps",
+  "publication_audit",
   "release_artist_credits",
   "release_artwork_assets",
   "releases",
@@ -39,6 +40,7 @@ const expectedTables = [
   "track_artist_credits",
   "track_artwork_assets",
   "tracks",
+  "upload_sessions",
   "video_assets",
 ] as const;
 
@@ -54,19 +56,24 @@ const requiredIndexes = [
   "rights_declarations_submission_version_unique",
   "rights_declarations_supersedes_unique",
   "creative_process_disclosures_supersedes_unique",
+  "publication_audit_entity_history_idx",
   "provenance_records_supersedes_unique",
+  "upload_sessions_cleanup_idx",
 ] as const;
 
 const requiredChecks = [
   "artwork_assets_dimensions_check",
   "audio_assets_mime_type_check",
   "collection_items_exactly_one_target_check",
+  "editorial_collections_homepage_config_check",
   "rights_declarations_parent_check",
   "rights_declarations_version_check",
   "rights_declarations_self_supersession_check",
   "creative_process_disclosures_parent_check",
   "provenance_records_parent_check",
   "submissions_resulting_catalogue_check",
+  "upload_sessions_metadata_check",
+  "upload_sessions_state_check",
   "video_assets_mime_type_check",
 ] as const;
 
@@ -768,7 +775,7 @@ async function validateExistingHistoryGuard() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 5, "expected the original and four forward migrations");
+    assert(migrations.length === 6, "expected the original and five forward migrations");
     for (const statement of migrations[0]!.sql) {
       await client.exec(statement);
     }
@@ -811,7 +818,7 @@ async function validateVideoAssetForwardMigration() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 5, "expected the original and four forward migrations");
+    assert(migrations.length === 6, "expected the original and five forward migrations");
     for (const migration of migrations.slice(0, 4)) {
       for (const statement of migration.sql) {
         await client.exec(statement);

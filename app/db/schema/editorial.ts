@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   check,
+  boolean,
   index,
   integer,
   pgTable,
@@ -25,6 +26,8 @@ export const editorialCollections = pgTable(
     artworkAssetId: uuid("artwork_asset_id").references(() => artworkAssets.id, {
       onDelete: "restrict",
     }),
+    showOnHomepage: boolean("show_on_homepage").default(false).notNull(),
+    homepagePosition: integer("homepage_position"),
     lifecycleStatus: catalogueLifecycle("lifecycle_status").default("draft").notNull(),
     scheduledFor: timestamp("scheduled_for", { withTimezone: true }),
     publishedAt: timestamp("published_at", { withTimezone: true }),
@@ -38,6 +41,9 @@ export const editorialCollections = pgTable(
       table.lifecycleStatus,
       table.scheduledFor,
     ),
+    uniqueIndex("editorial_collections_homepage_position_unique")
+      .on(table.homepagePosition)
+      .where(sql`${table.showOnHomepage}`),
     check("editorial_collections_slug_check", sql`${table.slug} ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$'`),
     check(
       "editorial_collections_lifecycle_check",
@@ -51,6 +57,10 @@ export const editorialCollections = pgTable(
     check(
       "editorial_collections_publication_order_check",
       sql`${table.publishedAt} is null or ${table.scheduledFor} is null or ${table.publishedAt} >= ${table.scheduledFor}`,
+    ),
+    check(
+      "editorial_collections_homepage_config_check",
+      sql`(${table.showOnHomepage} and ${table.homepagePosition} > 0) or (not ${table.showOnHomepage} and ${table.homepagePosition} is null)`,
     ),
   ],
 );

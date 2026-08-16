@@ -12,6 +12,19 @@ export const assetScope = pgEnum("asset_scope", ["private_master", "publishable_
 
 export const artworkRole = pgEnum("artwork_role", ["primary", "gallery", "avatar", "banner"]);
 
+export const storageProvider = pgEnum("storage_provider", ["static", "r2"]);
+
+export const managedAssetStatus = pgEnum("managed_asset_status", ["ready", "deleted"]);
+
+export const uploadSessionStatus = pgEnum("upload_session_status", [
+  "pending",
+  "completed",
+  "abandoned",
+  "failed",
+]);
+
+export const uploadAssetKind = pgEnum("upload_asset_kind", ["artwork", "audio"]);
+
 export const submissionStatus = pgEnum("submission_status", [
   "draft",
   "submitted",

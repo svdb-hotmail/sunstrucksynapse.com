@@ -12,6 +12,7 @@
     "app/db/schema/**/*",
     "app/repositories/catalogue.server.ts",
     "app/services/catalogue.ts",
+    "app/services/media-signing.ts",
     "app/types/catalogue.ts",
     "app/utils/player-storage.ts",
     "app/utils/queue.ts"

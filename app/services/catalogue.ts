@@ -23,31 +23,30 @@ export function catalogueStateCopy(state: Exclude<CatalogueLoadResult, { status:
 }
 
 export function buildCatalogueSections(
-  items: CatalogueItem[],
+  _items: CatalogueItem[],
   collections: PublicEditorialCollection[],
 ): CatalogueSection[] {
-  const latest = collections.find((collection) => collection.slug === "latest-transmissions");
-
-  return [
-    {
-      id: "latest",
-      title: "Latest transmissions",
-      icon: "✦",
-      items: latest?.items ?? [],
-    },
-    {
-      id: "audio",
-      title: "Listen",
-      icon: "✺",
-      items: items.filter((item) => item.mediaKind === "audio"),
-    },
-    {
-      id: "video",
-      title: "Watch",
-      icon: "✹",
-      items: items.filter((item) => item.mediaKind === "video"),
-    },
-  ];
+  return collections.map((collection) => ({
+    id:
+      collection.slug === "latest-transmissions"
+        ? "latest"
+        : collection.slug === "listen"
+          ? "audio"
+          : collection.slug === "watch"
+            ? "video"
+            : `collection-${collection.slug}`,
+    title: collection.name,
+    icon:
+      collection.slug === "latest-transmissions"
+        ? "✦"
+        : collection.slug === "listen"
+          ? "✺"
+          : collection.slug === "watch"
+            ? "✹"
+            : "◆",
+    href: `/collections/${collection.slug}`,
+    items: collection.items,
+  }));
 }
 
 export function findCatalogueItem(

@@ -64,6 +64,9 @@ describe("catalogue service", () => {
       async listPublishedCollections() {
         return [];
       },
+      async findPublishedCollection() {
+        return null;
+      },
       async findPublishedArtist() {
         return null;
       },

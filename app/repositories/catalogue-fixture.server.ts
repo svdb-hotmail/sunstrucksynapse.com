@@ -118,5 +118,19 @@ export function createE2eCatalogueRepository() {
       description: "The newest published transmissions selected for the radio.",
       items: items.slice(0, 4),
     },
+    {
+      id: "60000000-0000-4000-8000-000000000102",
+      slug: "listen",
+      name: "Listen",
+      description: "Published audio transmissions.",
+      items: items.filter((entry) => entry.mediaKind === "audio"),
+    },
+    {
+      id: "60000000-0000-4000-8000-000000000103",
+      slug: "watch",
+      name: "Watch",
+      description: "Published audiovisual transmissions.",
+      items: items.filter((entry) => entry.mediaKind === "video"),
+    },
   ]);
 }

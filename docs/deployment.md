@@ -4,6 +4,18 @@ The application targets Cloudflare Workers through React Router framework mode a
 
 Production deployment, account setup, custom-domain changes, and secrets are intentionally outside the current application migration. The repository contains no Cloudflare account or resource identifiers.
 
+## Manual Phase 2 prerequisites
+
+Before deployment, an operator must:
+
+1. Create production and preview R2 buckets and replace the example names in `wrangler.jsonc`.
+2. Create a Cloudflare Access application covering `/curator/*`, then replace `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `CURATOR_EMAILS`.
+3. Set `DATABASE_URL` and a high-entropy `MEDIA_DELIVERY_SIGNING_SECRET` with `wrangler secret put`.
+4. Apply migrations, including `0005_shallow_professor_monster.sql`, before deploying.
+5. Verify Access rejection and signed media byte-range delivery.
+
+The configuration declares bindings only. It does not create Access policies, buckets, DNS, or secrets.
+
 ## Build boundary
 
 Use Node.js 22.22 or later:

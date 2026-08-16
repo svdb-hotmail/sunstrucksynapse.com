@@ -13,7 +13,13 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { artworkRole, assetScope, catalogueLifecycle } from "./enums";
+import {
+  artworkRole,
+  assetScope,
+  catalogueLifecycle,
+  managedAssetStatus,
+  storageProvider,
+} from "./enums";
 import { timestamps } from "./helpers";
 
 const lifecycleCheck = (
@@ -34,6 +40,8 @@ export const artworkAssets = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     objectKey: text("object_key").notNull(),
+    storageProvider: storageProvider("storage_provider").default("static").notNull(),
+    status: managedAssetStatus("status").default("ready").notNull(),
     scope: assetScope("scope").notNull(),
     mimeType: text("mime_type").notNull(),
     checksumSha256: text("checksum_sha256").notNull(),
@@ -45,6 +53,7 @@ export const artworkAssets = pgTable(
   (table) => [
     uniqueIndex("artwork_assets_object_key_unique").on(table.objectKey),
     index("artwork_assets_scope_idx").on(table.scope),
+    index("artwork_assets_delivery_idx").on(table.storageProvider, table.status, table.scope),
     check("artwork_assets_checksum_sha256_check", sql`${table.checksumSha256} ~ '^[0-9a-f]{64}$'`),
     check("artwork_assets_byte_size_check", sql`${table.byteSize} > 0`),
     check(
@@ -300,6 +309,8 @@ export const audioAssets = pgTable(
       .notNull()
       .references(() => tracks.id, { onDelete: "restrict" }),
     objectKey: text("object_key").notNull(),
+    storageProvider: storageProvider("storage_provider").default("static").notNull(),
+    status: managedAssetStatus("status").default("ready").notNull(),
     scope: assetScope("scope").notNull(),
     mimeType: text("mime_type").notNull(),
     checksumSha256: text("checksum_sha256").notNull(),
@@ -316,6 +327,7 @@ export const audioAssets = pgTable(
       .where(sql`${table.isPrimary}`),
     index("audio_assets_track_id_idx").on(table.trackId),
     index("audio_assets_scope_idx").on(table.scope),
+    index("audio_assets_delivery_idx").on(table.storageProvider, table.status, table.scope),
     check("audio_assets_checksum_sha256_check", sql`${table.checksumSha256} ~ '^[0-9a-f]{64}$'`),
     check("audio_assets_byte_size_check", sql`${table.byteSize} > 0`),
     check("audio_assets_duration_check", sql`${table.durationMs} > 0`),
@@ -331,6 +343,8 @@ export const videoAssets = pgTable(
       .notNull()
       .references(() => tracks.id, { onDelete: "restrict" }),
     objectKey: text("object_key").notNull(),
+    storageProvider: storageProvider("storage_provider").default("static").notNull(),
+    status: managedAssetStatus("status").default("ready").notNull(),
     scope: assetScope("scope").notNull(),
     mimeType: text("mime_type").notNull(),
     checksumSha256: text("checksum_sha256").notNull(),
@@ -347,6 +361,7 @@ export const videoAssets = pgTable(
       .where(sql`${table.isPrimary}`),
     index("video_assets_track_id_idx").on(table.trackId),
     index("video_assets_scope_idx").on(table.scope),
+    index("video_assets_delivery_idx").on(table.storageProvider, table.status, table.scope),
     check("video_assets_checksum_sha256_check", sql`${table.checksumSha256} ~ '^[0-9a-f]{64}$'`),
     check("video_assets_byte_size_check", sql`${table.byteSize} > 0`),
     check("video_assets_duration_check", sql`${table.durationMs} > 0`),
