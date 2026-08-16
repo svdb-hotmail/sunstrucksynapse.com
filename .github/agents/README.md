@@ -17,4 +17,7 @@
 
 Exact model names are intentionally not pinned. Follow `village.config.yml`: least expensive capable approved model, no child self-escalation, no Claude/Anthropic, and no unknown route that may resolve to a forbidden provider.
 
-Governance may challenge sideways or upward. Execution authority remains `Chieftain -> Taskmaster -> Villager`, with direct Chieftain -> Villager delegation allowed for small bounded work.
+Governance may challenge sideways or upward. Execution authority is always
+`Chieftain -> Taskmaster -> Villager`; direct Chieftain -> Villager delegation
+is forbidden. One Taskmaster receives one admitted ticket and splits it into
+small, specialized Villager packets. Villagers never run validation commands.

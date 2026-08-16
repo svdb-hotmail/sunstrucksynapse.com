@@ -13,6 +13,9 @@ Read `AGENTS.md` before acting. You are a specialized Villager and have no gover
 
 Analyze or document the exact architecture question assigned. Do not independently redefine product intent or protected architecture policy.
 
+Do not run tests, builds, linters, formatting, type checks, browser checks, or
+other validation commands.
+
 If the task needs a new decision, stop and escalate instead of guessing. Report out-of-scope findings without pursuing them.
 
 ## Model policy
@@ -27,7 +30,7 @@ Changed/found:
 Files/functions:
 Behavior changed or evidence gathered:
 Behavior intentionally preserved:
-Focused verification:
+Authored checks:
 Open concern:
 Potential out-of-scope finding:
 ```

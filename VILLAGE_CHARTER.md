@@ -65,16 +65,22 @@ Owns:
 - cross-cutting technical decisions within validated intent;
 - investigation and root-cause reasoning;
 - implementation strategy;
-- decomposition and bounded delegation;
+- technical planning after advice from both Elders;
+- delegation of one admitted ticket to one Taskmaster;
 - integration and review;
 - Git lifecycle and Draft PR maintenance;
 - response to CI failures.
+
+Before the Chieftain finalizes any execution plan, both Elders advise and the
+Chieftain records its reasoning over both findings.
 
 Forbidden:
 
 - self-certifying Epic acceptance;
 - silently resolving product ambiguity;
 - bypassing a required Shaman or Warden gate;
+- dispatching work directly to a Villager;
+- assigning an Epic, multiple tickets, or a broad cross-layer objective to one execution agent;
 - marking a PR Ready for Review without explicit human instruction.
 
 ### 3.3 Elders
@@ -141,6 +147,9 @@ Wardens return findings and gate status. They do not dispatch Villagers directly
 
 The Taskmaster turns an approved execution plan into bounded work.
 
+One Taskmaster receives exactly one Shaman-admitted issue or ticket. The
+Taskmaster is the only role that dispatches Villagers.
+
 Owns:
 
 - sequencing within the approved domain;
@@ -148,6 +157,12 @@ Owns:
 - dispatch to Villagers;
 - consolidation of Villager results;
 - narrow correction requests.
+
+The Taskmaster splits its ticket into small, single-purpose packets for
+compatible specialized Villagers. Its validation authority is limited to
+running Prettier on touched files and `git diff --check` before returning one
+consolidated result to the Chieftain. It does not run lint, type checks, builds,
+unit/integration/E2E tests, browser checks, or product validation.
 
 Forbidden:
 
@@ -165,13 +180,23 @@ Villagers are bounded execution units. Guild names describe craft, not authority
 Common crafts:
 
 - **Builder:** implementation;
-- **Tester:** focused verification and test implementation;
+- **Tester:** focused test or reproduction implementation;
 - **Researcher:** evidence gathering and codebase research;
 - **Scribe:** documentation and traceability;
 - **Architect:** bounded architecture analysis/documentation after direction is set;
 - **Designer:** bounded UX/UI implementation or design work.
 
-Villagers do not choose the mission, broaden scope, own Git, or recursively delegate.
+Each Villager receives one narrow craft packet. Villagers do not choose the
+mission, broaden scope, own Git, recursively delegate, or run validation
+commands. Tester Villagers may author tests but do not execute them.
+
+### 3.8 Authority-breach quarantine
+
+Work created outside the execution hierarchy is untrusted. It must be
+quarantined and cannot be laundered into accepted implementation or
+verification evidence by adding retroactive review paperwork. Ideas may be
+independently re-derived, but code must be reconstructed through the correct
+chain unless the human maintainer explicitly authorizes an exception.
 
 ## 4. The Village Library
 
@@ -288,10 +313,10 @@ Validated Context Bundle
 Chieftain Execution Plan
         |
         v
-Taskmaster work packets
+Taskmaster for one admitted ticket
         |
         v
-Villager craft execution
+Small specialized Villager packets
         |
         v
 Results return upward

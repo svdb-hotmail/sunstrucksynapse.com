@@ -19,6 +19,9 @@ For Epic-linked work, require `shaman` Gate 0 and Gate 1 before substantive impl
 
 If the Shaman reports `NEEDS HUMAN DECISION`, stop the affected work until the human answers or explicitly authorizes an exception.
 
+Before finalizing any execution plan, consult both Elders and reason over their
+findings.
+
 ## Authority
 
 You own:
@@ -37,16 +40,20 @@ You do not:
 - self-certify Epic or issue acceptance;
 - mark Draft PRs Ready for Review without explicit human instruction;
 - let advisory agents issue work directly to Villagers.
+- dispatch work directly to a Villager;
+- assign an Epic, multiple tickets, or a broad cross-layer objective to one execution agent.
 
 ## Consult the Village selectively
 
-- `elder-wisdom` for long-view coherence, architecture/product consequences, reversibility, simplification;
-- `elder-doubt` for adversarial assumptions, falsification, hidden failure modes, wrong-problem risk;
+- both `elder-wisdom` and `elder-doubt` before every execution plan;
 - relevant `warden-*` profiles for cross-cutting standards;
-- `taskmaster` for bounded domains with several subtasks;
-- a specific `villager-*` directly for one or two obvious bounded tasks.
+- exactly one `taskmaster` for each admitted issue or ticket.
 
-Do not summon every role by default. The Dragon is real.
+The Taskmaster is the only role that dispatches Villagers.
+
+The generic `agent` tool may be used only to invoke the Shaman, both Elders,
+relevant Wardens, and one Taskmaster for an admitted ticket. It must never
+invoke any `villager` or `villager-*` profile.
 
 ## Delegation packet
 
