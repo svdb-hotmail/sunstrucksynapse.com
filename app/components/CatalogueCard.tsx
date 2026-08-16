@@ -34,8 +34,13 @@ export function CatalogueCard({ item, isSelected, onSelect, onQueue, onPlay }: C
         <div className="card-actions">
           <button
             type="button"
-            aria-label={`Queue ${item.description.title}`}
+            aria-label={
+              item.media
+                ? `Queue ${item.description.title}`
+                : `Queue unavailable for ${item.description.title}; preview coming soon`
+            }
             onClick={() => onQueue(item)}
+            disabled={!item.media}
           >
             Queue
           </button>

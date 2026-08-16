@@ -17,6 +17,12 @@ describe("queue operations", () => {
     expect(second.map((entry) => entry.itemId)).toEqual(["solar-nerve", "neon-weather"]);
   });
 
+  it("rejects unavailable items", () => {
+    const entries = addQueueItem([], getCatalogueItem("quiet-machines"));
+
+    expect(entries).toEqual([]);
+  });
+
   it("removes only the selected queue item", () => {
     const entries = [
       ...addQueueItem([], getCatalogueItem("solar-nerve")),
@@ -41,7 +47,12 @@ describe("queue operations", () => {
         mimeType: "video/mp4",
       },
     };
-    const entries = addQueueItem(addQueueItem([], unavailable), playable);
+    const unavailableEntry = {
+      itemId: unavailable.id,
+      title: unavailable.description.title,
+      subtitle: unavailable.description.subtitle,
+    };
+    const entries = [unavailableEntry, ...addQueueItem([], playable)];
     const items = new Map([
       [unavailable.id, unavailable],
       [playable.id, playable],

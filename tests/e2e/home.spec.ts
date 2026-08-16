@@ -36,6 +36,15 @@ test("renders the radio copy and updates the featured selection", async ({ page 
 test("queues unique items in order, consumes an entry, and clears the queue", async ({ page }) => {
   await page.goto("/");
 
+  const unavailablePlay = page.getByRole("button", {
+    name: "Quiet Machines preview coming soon",
+  });
+  const unavailableQueue = page.getByRole("button", {
+    name: "Queue unavailable for Quiet Machines; preview coming soon",
+  });
+  await expect(unavailablePlay).toBeDisabled();
+  await expect(unavailableQueue).toBeDisabled();
+
   await page
     .getByRole("button", {
       name: "Queue Sunstruck Synapse (Revolution will be televised)",
@@ -50,6 +59,7 @@ test("queues unique items in order, consumes an entry, and clears the queue", as
   await expect(page.getByRole("heading", { name: /Revolution will be televised/ })).toBeVisible();
 
   const queue = page.getByRole("heading", { name: "Next in queue" }).locator("..").locator("..");
+  await unavailableQueue.dispatchEvent("click");
   await expect(queue.getByRole("listitem")).toHaveCount(2);
   await expect(queue.getByRole("listitem").nth(0)).toContainText("Revolution will be televised");
   await expect(queue.getByRole("listitem").nth(1)).toContainText("AI Pop-Slop 202607190035");
@@ -72,6 +82,11 @@ test("play switches real audio and video sources without stale media", async ({ 
   await page
     .getByRole("button", { name: "Play Sunstruck Synapse (Revolution will be televised)" })
     .click();
+  await expect(
+    page.getByRole("button", {
+      name: "Play Sunstruck Synapse (Revolution will be televised)",
+    }),
+  ).toBeEnabled();
   const firstAudio = page.getByLabel(
     "Sunstruck Synapse (Revolution will be televised) audio player",
   );
@@ -104,4 +119,55 @@ test("play switches real audio and video sources without stale media", async ({ 
     .poll(() => secondAudio.evaluate((element: { readyState: number }) => element.readyState))
     .toBeGreaterThan(0);
   await expect(page.locator("video.protected-media")).toHaveCount(0);
+});
+
+test("automatic queue advancement starts next media without scrolling or focusing", async ({
+  page,
+}) => {
+  await page.addInitScript({
+    content: `
+      globalThis.__playerScrollCalls = 0;
+      globalThis.__playerFocusCalls = 0;
+      Element.prototype.scrollIntoView = function () {
+        globalThis.__playerScrollCalls += 1;
+      };
+      const originalFocus = HTMLElement.prototype.focus;
+      HTMLElement.prototype.focus = function (...args) {
+        globalThis.__playerFocusCalls += 1;
+        return originalFocus.apply(this, args);
+      };
+    `,
+  });
+  await page.goto("/");
+
+  await page.getByRole("button", { name: "Queue AI Pop-Slop 202607190035" }).click();
+  await page
+    .getByRole("button", { name: "Play Sunstruck Synapse (Revolution will be televised)" })
+    .click();
+  await page.evaluate(() => {
+    const counters = globalThis as typeof globalThis & {
+      __playerScrollCalls: number;
+      __playerFocusCalls: number;
+    };
+    counters.__playerScrollCalls = 0;
+    counters.__playerFocusCalls = 0;
+  });
+
+  await page
+    .getByLabel("Sunstruck Synapse (Revolution will be televised) audio player")
+    .dispatchEvent("ended");
+
+  await expect(page.getByLabel("AI Pop-Slop 202607190035 video player")).toBeVisible();
+  const counters = await page.evaluate(() => {
+    const state = globalThis as typeof globalThis & {
+      __playerScrollCalls: number;
+      __playerFocusCalls: number;
+    };
+    return {
+      scroll: state.__playerScrollCalls,
+      focus: state.__playerFocusCalls,
+    };
+  });
+  expect(counters).toEqual({ scroll: 0, focus: 0 });
+  await expect(page.getByText("Queue is clear.")).toBeVisible();
 });

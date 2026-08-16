@@ -62,10 +62,14 @@ export default function App() {
     setPlaybackRequest(null);
   }, []);
 
-  const requestPlayback = useCallback((item: CatalogueItem) => {
+  const requestPlayback = useCallback((item: CatalogueItem, moveFocus = true) => {
     setPlayer({ selectedItemId: item.id });
     playbackSequence.current += 1;
     setPlaybackRequest({ itemId: item.id, sequence: playbackSequence.current });
+
+    if (!moveFocus) {
+      return;
+    }
 
     window.requestAnimationFrame(() => {
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -97,7 +101,7 @@ export default function App() {
     }
 
     setQueue((current) => removeQueueItem(current, nextPlayable.itemId));
-    requestPlayback(getCatalogueItem(nextPlayable.itemId));
+    requestPlayback(getCatalogueItem(nextPlayable.itemId), false);
   }, [queue, requestPlayback]);
 
   const outletContext: PlayerOutletContext = {

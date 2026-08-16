@@ -1,7 +1,7 @@
 import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
 
 export function addQueueItem(entries: QueueEntry[], item: CatalogueItem): QueueEntry[] {
-  if (entries.some((entry) => entry.itemId === item.id)) {
+  if (!item.media || entries.some((entry) => entry.itemId === item.id)) {
     return entries;
   }
 
