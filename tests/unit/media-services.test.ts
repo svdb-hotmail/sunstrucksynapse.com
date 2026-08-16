@@ -1,6 +1,26 @@
-import { describe, expect, it, vi } from "vitest";
+import { PGlite } from "@electric-sql/pglite";
+import { and, eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/pglite";
+import { migrate } from "drizzle-orm/pglite/migrator";
+import type { LoaderFunctionArgs } from "react-router";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { cloudflareContext } from "../../app/config/cloudflare-context.server";
+import type { WorkerEnv } from "../../app/config/env.server";
+import {
+  artistArtworkAssets,
+  artists,
+  artworkAssets,
+  audioAssets,
+  editorialCollections,
+  releaseArtworkAssets,
+  releases,
+  trackArtworkAssets,
+  tracks,
+  uploadSessions,
+} from "../../app/db/schema";
+import * as schema from "../../app/db/schema";
+import { createCatalogueRepository } from "../../app/repositories/catalogue.server";
 import { loader as mediaLoader } from "../../app/routes/media";
 import {
   createMediaDeliveryUrl,
@@ -9,14 +29,132 @@ import {
   resolveFreshPlaybackUrl,
   verifyMediaSignature,
 } from "../../app/services/media-signing";
-import { parseUploadDeclaration, validateUploadDeclaration } from "../../app/services/media.server";
+import {
+  MediaService,
+  parseUploadDeclaration,
+  validateUploadDeclaration,
+} from "../../app/services/media.server";
 import { serializeJsonLd } from "../../app/utils/json-ld";
-import type { LoaderFunctionArgs } from "react-router";
+import { computeBlobSha256, IncrementalSha256 } from "../../app/utils/sha256";
+import { seedDatabase } from "../../scripts/seed-data";
 
 const checksum = "a".repeat(64);
+const actor = { id: "curator-1", email: "curator@example.test" };
+
+interface MockR2Item {
+  body: Uint8Array;
+  size: number;
+  customMetadata?: Record<string, string>;
+  httpMetadata?: Record<string, string>;
+}
+
+function createMockMediaBucket(): R2Bucket {
+  const storage = new Map<string, MockR2Item>();
+
+  const bucket: Partial<R2Bucket> = {
+    async put(key: string, value: unknown, options?: R2PutOptions): Promise<R2Object> {
+      let bytes: Uint8Array;
+      if (value instanceof Uint8Array) {
+        bytes = value;
+      } else if (typeof value === "string") {
+        bytes = new TextEncoder().encode(value);
+      } else if (value && typeof (value as ReadableStream<Uint8Array>).getReader === "function") {
+        const reader = (value as ReadableStream<Uint8Array>).getReader();
+        const chunks: Uint8Array[] = [];
+        let total = 0;
+        while (true) {
+          const { done, value: chunk } = await reader.read();
+          if (done) break;
+          if (chunk) {
+            chunks.push(chunk);
+            total += chunk.byteLength;
+          }
+        }
+        bytes = new Uint8Array(total);
+        let offset = 0;
+        for (const chunk of chunks) {
+          bytes.set(chunk, offset);
+          offset += chunk.byteLength;
+        }
+      } else {
+        bytes = new Uint8Array(0);
+      }
+
+      const item: MockR2Item = {
+        body: bytes,
+        size: bytes.byteLength,
+        customMetadata: options?.customMetadata,
+        httpMetadata: options?.httpMetadata as Record<string, string> | undefined,
+      };
+      storage.set(key, item);
+
+      return {
+        key,
+        version: "v1",
+        size: bytes.byteLength,
+        etag: "mock-etag",
+        httpEtag: '"mock-etag"',
+        checksums: {},
+        uploaded: new Date(),
+        customMetadata: options?.customMetadata,
+        httpMetadata: options?.httpMetadata,
+        writeHttpMetadata: (_headers: Headers) => {},
+      } as R2Object;
+    },
+    async head(key: string): Promise<R2Object | null> {
+      const item = storage.get(key);
+      if (!item) return null;
+      return {
+        key,
+        version: "v1",
+        size: item.size,
+        etag: "mock-etag",
+        httpEtag: '"mock-etag"',
+        checksums: {},
+        uploaded: new Date(),
+        customMetadata: item.customMetadata,
+        writeHttpMetadata: (_headers: Headers) => {},
+      } as R2Object;
+    },
+    async get(key: string): Promise<R2ObjectBody | null> {
+      const item = storage.get(key);
+      if (!item) return null;
+      return {
+        key,
+        version: "v1",
+        size: item.size,
+        etag: "mock-etag",
+        httpEtag: '"mock-etag"',
+        checksums: {},
+        uploaded: new Date(),
+        body: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(item.body);
+            controller.close();
+          },
+        }),
+        bodyUsed: false,
+        arrayBuffer: async () => item.body.buffer,
+        text: async () => new TextDecoder().decode(item.body),
+        json: async () => JSON.parse(new TextDecoder().decode(item.body)),
+        blob: async () => new Blob([item.body]),
+        customMetadata: item.customMetadata,
+        writeHttpMetadata: (_headers: Headers) => {},
+      } as R2ObjectBody;
+    },
+    async delete(key: string | string[]): Promise<void> {
+      const keys = Array.isArray(key) ? key : [key];
+      for (const k of keys) {
+        storage.delete(k);
+      }
+    },
+  };
+
+  return bucket as R2Bucket;
+}
 
 describe("managed media declarations", () => {
-  it("accepts complete artwork and audio declarations in separate scopes", () => {
+  it("accepts complete artwork and audio declarations in separate scopes and target entities", () => {
     expect(
       validateUploadDeclaration({
         kind: "artwork",
@@ -26,6 +164,21 @@ describe("managed media declarations", () => {
         byteSize: 1024,
         width: 1200,
         height: 1200,
+        targetEntityType: "artist",
+        targetEntityId: crypto.randomUUID(),
+      }),
+    ).toMatchObject({ ok: true });
+    expect(
+      validateUploadDeclaration({
+        kind: "artwork",
+        scope: "publishable_derivative",
+        mimeType: "image/webp",
+        checksumSha256: checksum,
+        byteSize: 1024,
+        width: 1200,
+        height: 1200,
+        targetEntityType: "collection",
+        targetEntityId: crypto.randomUUID(),
       }),
     ).toMatchObject({ ok: true });
     expect(
@@ -35,6 +188,7 @@ describe("managed media declarations", () => {
         mimeType: "audio/flac",
         checksumSha256: checksum,
         byteSize: 4096,
+        targetEntityType: "track",
         targetEntityId: crypto.randomUUID(),
         durationMs: 180_000,
         codec: "flac",
@@ -42,7 +196,7 @@ describe("managed media declarations", () => {
     ).toMatchObject({ ok: true });
   });
 
-  it("rejects unsafe types, sizes, checksums, and missing metadata", () => {
+  it("rejects unsafe types, sizes, checksums, and missing metadata or targets", () => {
     expect(
       parseUploadDeclaration({
         kind: "artwork",
@@ -52,6 +206,46 @@ describe("managed media declarations", () => {
         byteSize: 1024,
         width: 1200,
         height: 1200,
+        targetEntityType: "artist",
+        targetEntityId: crypto.randomUUID(),
+      }),
+    ).toMatchObject({ ok: false, status: 400 });
+    expect(
+      parseUploadDeclaration({
+        kind: "artwork",
+        scope: "publishable_derivative",
+        mimeType: "image/webp",
+        checksumSha256: checksum,
+        byteSize: 1024,
+        width: 1200,
+        height: 1200,
+        targetEntityType: "artist",
+        targetEntityId: "",
+      }),
+    ).toMatchObject({ ok: false, status: 400 });
+    expect(
+      parseUploadDeclaration({
+        kind: "artwork",
+        scope: "publishable_derivative",
+        mimeType: "image/webp",
+        checksumSha256: checksum,
+        byteSize: 1024,
+        width: 1200,
+        height: 1200,
+        targetEntityType: "unknown_entity",
+        targetEntityId: crypto.randomUUID(),
+      }),
+    ).toMatchObject({ ok: false, status: 400 });
+    expect(
+      parseUploadDeclaration({
+        kind: "artwork",
+        scope: "publishable_derivative",
+        mimeType: "image/webp",
+        checksumSha256: checksum,
+        byteSize: 1024,
+        width: 1200,
+        height: 1200,
+        targetEntityId: crypto.randomUUID(),
       }),
     ).toMatchObject({ ok: false, status: 400 });
     expect(
@@ -61,8 +255,412 @@ describe("managed media declarations", () => {
         mimeType: "audio/flac",
         checksumSha256: "invalid",
         byteSize: 501 * 1024 * 1024,
+        targetEntityType: "track",
+        targetEntityId: crypto.randomUUID(),
       }),
     ).toMatchObject({ ok: false });
+    expect(
+      parseUploadDeclaration({
+        kind: "audio",
+        scope: "private_master",
+        mimeType: "audio/flac",
+        checksumSha256: checksum,
+        byteSize: 1024,
+        targetEntityType: "artist",
+        targetEntityId: crypto.randomUUID(),
+        durationMs: 1000,
+        codec: "flac",
+      }),
+    ).toMatchObject({ ok: false, status: 400 });
+  });
+});
+
+describe("incremental sha256 hashing", () => {
+  it("matches standard test vectors across single and multi-chunk inputs", async () => {
+    const emptyHasher = new IncrementalSha256();
+    expect(emptyHasher.digestHex()).toBe(
+      "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    );
+
+    const abcHasher = new IncrementalSha256();
+    abcHasher.update(new TextEncoder().encode("abc"));
+    expect(abcHasher.digestHex()).toBe(
+      "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    );
+
+    const fox = "The quick brown fox jumps over the lazy dog";
+    const foxHasher = new IncrementalSha256();
+    const foxBytes = new TextEncoder().encode(fox);
+    foxHasher.update(foxBytes.subarray(0, 10));
+    foxHasher.update(foxBytes.subarray(10, 25));
+    foxHasher.update(foxBytes.subarray(25));
+    expect(foxHasher.digestHex()).toBe(
+      "d7a8fbb307d7809469ca9abb6b00ab019d1d30f48459ba29a0c59f505238a573",
+    );
+
+    const blob = new Blob([foxBytes]);
+    await expect(computeBlobSha256(blob, 8)).resolves.toBe(
+      "d7a8fbb307d7809469ca9abb6b00ab019d1d30f48459ba29a0c59f505238a573",
+    );
+  });
+});
+
+describe("media service upload targeting, expiration, and streaming", () => {
+  let client: PGlite;
+  let db: ReturnType<typeof drizzle<typeof schema>>;
+  let mockBucket: R2Bucket;
+  let env: WorkerEnv;
+
+  beforeAll(async () => {
+    client = new PGlite();
+    db = drizzle(client, { schema });
+    await migrate(db, { migrationsFolder: "./drizzle" });
+    await seedDatabase(db);
+    mockBucket = createMockMediaBucket();
+    env = {
+      MEDIA_BUCKET: mockBucket,
+      MEDIA_DELIVERY_SIGNING_SECRET: "test-signing-secret",
+    } as WorkerEnv;
+  }, 30_000);
+
+  afterAll(async () => {
+    await client.close();
+  });
+
+  it("Gap #3: persists target artwork relationships for artist, release, track, and editorial collection", async () => {
+    const [artist] = await db.select({ id: artists.id, slug: artists.slug }).from(artists).limit(1);
+    const [release] = await db.select({ id: releases.id, slug: releases.slug }).from(releases).limit(1);
+    const [track] = await db.select({ id: tracks.id, slug: tracks.slug, releaseId: tracks.releaseId }).from(tracks).limit(1);
+    const [collection] = await db.select({ id: editorialCollections.id, slug: editorialCollections.slug }).from(editorialCollections).limit(1);
+
+    const targets = [
+      { type: "artist" as const, id: artist.id },
+      { type: "release" as const, id: release.id },
+      { type: "track" as const, id: track.id },
+      { type: "collection" as const, id: collection.id },
+    ];
+
+    const testContent = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+    const hasher = new IncrementalSha256();
+    hasher.update(testContent);
+    const validChecksum = hasher.digestHex();
+
+    const service = new MediaService(db, env, () => new Date("2026-08-16T12:00:00Z"));
+
+    const missingTarget = await service.createSession(
+      {
+        kind: "artwork",
+        scope: "publishable_derivative",
+        mimeType: "image/webp",
+        checksumSha256: validChecksum,
+        byteSize: testContent.byteLength,
+        width: 800,
+        height: 800,
+        targetEntityType: "artist",
+        targetEntityId: crypto.randomUUID(),
+      },
+      actor,
+    );
+    expect(missingTarget).toEqual({
+      ok: false,
+      status: 404,
+      message: "Target artist not found.",
+    });
+
+    for (const target of targets) {
+      const created = await service.createSession(
+        {
+          kind: "artwork",
+          scope: "publishable_derivative",
+          mimeType: "image/webp",
+          checksumSha256: validChecksum,
+          byteSize: testContent.byteLength,
+          width: 800,
+          height: 800,
+          targetEntityType: target.type,
+          targetEntityId: target.id,
+        },
+        actor,
+      );
+      expect(created.ok).toBe(true);
+      if (!created.ok) return;
+
+      const request = new Request("https://example.test/upload", {
+        method: "PUT",
+        headers: { "content-type": "image/webp" },
+        body: testContent,
+      });
+      const uploaded = await service.upload(created.value.id, request);
+      expect(uploaded.ok).toBe(true);
+
+      const completed = await service.complete(created.value.id);
+      expect(completed.ok).toBe(true);
+      if (!completed.ok) return;
+
+      if (target.type === "artist") {
+        const rows = await db
+          .select()
+          .from(artistArtworkAssets)
+          .where(and(eq(artistArtworkAssets.artistId, target.id), eq(artistArtworkAssets.role, "avatar")));
+        expect(rows).toHaveLength(1);
+        expect(rows[0].artworkAssetId).toBe(completed.value.assetId);
+      } else if (target.type === "release") {
+        const rows = await db
+          .select()
+          .from(releaseArtworkAssets)
+          .where(and(eq(releaseArtworkAssets.releaseId, target.id), eq(releaseArtworkAssets.role, "primary")));
+        expect(rows).toHaveLength(1);
+        expect(rows[0].artworkAssetId).toBe(completed.value.assetId);
+      } else if (target.type === "track") {
+        const rows = await db
+          .select()
+          .from(trackArtworkAssets)
+          .where(and(eq(trackArtworkAssets.trackId, target.id), eq(trackArtworkAssets.role, "primary")));
+        expect(rows).toHaveLength(1);
+        expect(rows[0].artworkAssetId).toBe(completed.value.assetId);
+      } else if (target.type === "collection") {
+        const [colRow] = await db
+          .select()
+          .from(editorialCollections)
+          .where(eq(editorialCollections.id, target.id));
+        expect(colRow.artworkAssetId).toBe(completed.value.assetId);
+      }
+    }
+
+    const catalogueRepo = createCatalogueRepository(db, { signingSecret: env.MEDIA_DELIVERY_SIGNING_SECRET });
+
+    const publishedArtist = await catalogueRepo.findPublishedArtist(artist.slug);
+    expect(publishedArtist?.artwork.src).toContain("/media/artwork/");
+
+    const publishedRelease = await catalogueRepo.findPublishedRelease(release.slug);
+    expect(publishedRelease?.artwork.src).toContain("/media/artwork/");
+
+    const publishedTrack = await catalogueRepo.findPublishedTrack(release.slug, track.slug);
+    expect(publishedTrack?.item.artwork.src).toContain("/media/artwork/");
+
+    const publishedTracks = await catalogueRepo.listPublishedTracks();
+    const trackItem = publishedTracks.find((item) => item.id === track.id);
+    expect(trackItem?.artwork.src).toContain("/media/artwork/");
+
+    const publishedCollection = await catalogueRepo.findPublishedCollection(collection.slug);
+    expect(publishedCollection?.artwork?.src).toContain("/media/artwork/");
+
+    const publishedCollections = await catalogueRepo.listPublishedCollections(publishedTracks);
+    const collectionItem = publishedCollections.find((col) => col.id === collection.id);
+    expect(collectionItem?.artwork?.src).toContain("/media/artwork/");
+  });
+
+  it("Gap #3: private master artwork remains hidden across all public catalogue surfaces", async () => {
+    const [artist] = await db.select({ id: artists.id, slug: artists.slug }).from(artists).limit(1);
+    const [release] = await db.select({ id: releases.id, slug: releases.slug }).from(releases).limit(1);
+    const [track] = await db.select({ id: tracks.id, slug: tracks.slug }).from(tracks).limit(1);
+    const [collection] = await db.select({ id: editorialCollections.id, slug: editorialCollections.slug }).from(editorialCollections).limit(1);
+
+    const testContent = new Uint8Array([10, 20, 30, 40]);
+    const hasher = new IncrementalSha256();
+    hasher.update(testContent);
+    const validChecksum = hasher.digestHex();
+
+    const service = new MediaService(db, env, () => new Date("2026-08-16T12:00:00Z"));
+
+    for (const target of [
+      { type: "artist" as const, id: artist.id },
+      { type: "release" as const, id: release.id },
+      { type: "track" as const, id: track.id },
+      { type: "collection" as const, id: collection.id },
+    ]) {
+      const created = await service.createSession(
+        {
+          kind: "artwork",
+          scope: "private_master",
+          mimeType: "image/webp",
+          checksumSha256: validChecksum,
+          byteSize: testContent.byteLength,
+          width: 1000,
+          height: 1000,
+          targetEntityType: target.type,
+          targetEntityId: target.id,
+        },
+        actor,
+      );
+      expect(created.ok).toBe(true);
+      if (!created.ok) return;
+
+      await service.upload(
+        created.value.id,
+        new Request("https://example.test/upload", {
+          method: "PUT",
+          headers: { "content-type": "image/webp" },
+          body: testContent,
+        }),
+      );
+      await service.complete(created.value.id);
+    }
+
+    const catalogueRepo = createCatalogueRepository(db, { signingSecret: env.MEDIA_DELIVERY_SIGNING_SECRET });
+
+    const publishedArtist = await catalogueRepo.findPublishedArtist(artist.slug);
+    expect(publishedArtist?.artwork.src).toBe("/assets/favicon.svg");
+
+    const publishedRelease = await catalogueRepo.findPublishedRelease(release.slug);
+    expect(publishedRelease?.artwork.src).toBe("/assets/favicon.svg");
+
+    const publishedTrack = await catalogueRepo.findPublishedTrack(release.slug, track.slug);
+    expect(publishedTrack?.item.artwork.src).toBe("/assets/favicon.svg");
+
+    const publishedCollection = await catalogueRepo.findPublishedCollection(collection.slug);
+    expect(publishedCollection?.artwork).toBeUndefined();
+  });
+
+  it("Gap #7: complete() rejects expiresAt in past, creates no asset rows, and cleanup handles abandoned session", async () => {
+    let now = new Date("2026-08-16T12:00:00Z");
+    const service = new MediaService(db, env, () => now);
+    const testContent = new Uint8Array([99, 98, 97, 96]);
+    const hasher = new IncrementalSha256();
+    hasher.update(testContent);
+    const validChecksum = hasher.digestHex();
+
+    const created = await service.createSession(
+      {
+        kind: "artwork",
+        scope: "publishable_derivative",
+        mimeType: "image/webp",
+        checksumSha256: validChecksum,
+        byteSize: testContent.byteLength,
+        width: 400,
+        height: 400,
+      },
+      actor,
+    );
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    const uploaded = await service.upload(
+      created.value.id,
+      new Request("https://example.test/upload", {
+        method: "PUT",
+        headers: { "content-type": "image/webp" },
+        body: testContent,
+      }),
+    );
+    expect(uploaded.ok).toBe(true);
+
+    const artworkCountBefore = (await db.select().from(artworkAssets)).length;
+
+    now = new Date(new Date(created.value.expiresAt).getTime() + 10_000);
+
+    const completed = await service.complete(created.value.id);
+    expect(completed).toEqual({
+      ok: false,
+      status: 409,
+      message: "Upload session has expired.",
+    });
+
+    const artworkCountAfter = (await db.select().from(artworkAssets)).length;
+    expect(artworkCountAfter).toBe(artworkCountBefore);
+
+    const cleanedCount = await service.cleanupAbandoned();
+    expect(cleanedCount).toBeGreaterThanOrEqual(1);
+
+    const [sessionRow] = await db
+      .select()
+      .from(uploadSessions)
+      .where(eq(uploadSessions.id, created.value.id));
+    expect(sessionRow.status).toBe("abandoned");
+    expect(sessionRow.failureReason).toBe("Expired before completion");
+  });
+
+  it("Gap #8: streams bounded-memory chunks and verifies checksums and byte sizes", async () => {
+    const chunk1 = new Uint8Array([1, 2, 3, 4]);
+    const chunk2 = new Uint8Array([5, 6, 7, 8]);
+    const chunk3 = new Uint8Array([9, 10, 11, 12]);
+    const totalBytes = chunk1.byteLength + chunk2.byteLength + chunk3.byteLength;
+
+    const hasher = new IncrementalSha256();
+    hasher.update(chunk1);
+    hasher.update(chunk2);
+    hasher.update(chunk3);
+    const validChecksum = hasher.digestHex();
+
+    const service = new MediaService(db, env, () => new Date("2026-08-16T12:00:00Z"));
+    const created = await service.createSession(
+      {
+        kind: "artwork",
+        scope: "publishable_derivative",
+        mimeType: "image/webp",
+        checksumSha256: validChecksum,
+        byteSize: totalBytes,
+        width: 600,
+        height: 600,
+      },
+      actor,
+    );
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(chunk1);
+        controller.enqueue(chunk2);
+        controller.enqueue(chunk3);
+        controller.close();
+      },
+    });
+
+    const uploadRequest = new Request("https://example.test/upload", {
+      method: "PUT",
+      headers: { "content-type": "image/webp" },
+      body: stream,
+      duplex: "half",
+    } as RequestInit);
+
+    const uploaded = await service.upload(created.value.id, uploadRequest);
+    expect(uploaded.ok).toBe(true);
+
+    const createdMismatch = await service.createSession(
+      {
+        kind: "artwork",
+        scope: "publishable_derivative",
+        mimeType: "image/webp",
+        checksumSha256: "f".repeat(64),
+        byteSize: totalBytes,
+        width: 600,
+        height: 600,
+      },
+      actor,
+    );
+    expect(createdMismatch.ok).toBe(true);
+    if (!createdMismatch.ok) return;
+
+    const mismatchStream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(chunk1);
+        controller.enqueue(chunk2);
+        controller.enqueue(chunk3);
+        controller.close();
+      },
+    });
+
+    const mismatchRequest = new Request("https://example.test/upload", {
+      method: "PUT",
+      headers: { "content-type": "image/webp" },
+      body: mismatchStream,
+      duplex: "half",
+    } as RequestInit);
+
+    const mismatchUpload = await service.upload(createdMismatch.value.id, mismatchRequest);
+    expect(mismatchUpload).toEqual({
+      ok: false,
+      status: 400,
+      message: "Checksum does not match the declaration.",
+    });
+
+    const [failedSession] = await db
+      .select()
+      .from(uploadSessions)
+      .where(eq(uploadSessions.id, createdMismatch.value.id));
+    expect(failedSession.status).toBe("failed");
+    expect(failedSession.failureReason).toBe("Checksum mismatch");
   });
 });
 

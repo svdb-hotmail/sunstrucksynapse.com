@@ -50,7 +50,10 @@ export const uploadSessions = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     assetKind: uploadAssetKind("asset_kind").notNull(),
-    targetEntityId: uuid("target_entity_id"),
+    targetEntityType: text("target_entity_type")
+      .$type<"artist" | "release" | "track" | "collection">()
+      .notNull(),
+    targetEntityId: uuid("target_entity_id").notNull(),
     objectKey: text("object_key").notNull(),
     scope: assetScope("scope").notNull(),
     status: uploadSessionStatus("status").default("pending").notNull(),
@@ -78,9 +81,9 @@ export const uploadSessions = pgTable(
     check(
       "upload_sessions_metadata_check",
       sql`(
-        (${table.assetKind} = 'artwork' and ${table.width} > 0 and ${table.height} > 0 and ${table.durationMs} is null and ${table.codec} is null and ${table.mimeType} ~ '^image/')
+        (${table.assetKind} = 'artwork' and ${table.targetEntityType} in ('artist', 'release', 'track', 'collection') and ${table.width} > 0 and ${table.height} > 0 and ${table.durationMs} is null and ${table.codec} is null and ${table.mimeType} ~ '^image/')
         or
-        (${table.assetKind} = 'audio' and ${table.width} is null and ${table.height} is null and ${table.durationMs} > 0 and nullif(btrim(${table.codec}), '') is not null and ${table.mimeType} ~ '^audio/')
+        (${table.assetKind} = 'audio' and ${table.targetEntityType} = 'track' and ${table.width} is null and ${table.height} is null and ${table.durationMs} > 0 and nullif(btrim(${table.codec}), '') is not null and ${table.mimeType} ~ '^audio/')
       )`,
     ),
     check(

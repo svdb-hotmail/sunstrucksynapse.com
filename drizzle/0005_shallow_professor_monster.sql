@@ -19,7 +19,8 @@ CREATE TABLE "publication_audit" (
 CREATE TABLE "upload_sessions" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"asset_kind" "upload_asset_kind" NOT NULL,
-	"target_entity_id" uuid,
+	"target_entity_type" text NOT NULL,
+	"target_entity_id" uuid NOT NULL,
 	"object_key" text NOT NULL,
 	"scope" "asset_scope" NOT NULL,
 	"status" "upload_session_status" DEFAULT 'pending' NOT NULL,
@@ -40,9 +41,9 @@ CREATE TABLE "upload_sessions" (
 	CONSTRAINT "upload_sessions_checksum_check" CHECK ("upload_sessions"."checksum_sha256" ~ '^[0-9a-f]{64}$'),
 	CONSTRAINT "upload_sessions_byte_size_check" CHECK ("upload_sessions"."byte_size" > 0),
 	CONSTRAINT "upload_sessions_metadata_check" CHECK ((
-        ("upload_sessions"."asset_kind" = 'artwork' and "upload_sessions"."width" > 0 and "upload_sessions"."height" > 0 and "upload_sessions"."duration_ms" is null and "upload_sessions"."codec" is null and "upload_sessions"."mime_type" ~ '^image/')
+        ("upload_sessions"."asset_kind" = 'artwork' and "upload_sessions"."target_entity_type" in ('artist', 'release', 'track', 'collection') and "upload_sessions"."width" > 0 and "upload_sessions"."height" > 0 and "upload_sessions"."duration_ms" is null and "upload_sessions"."codec" is null and "upload_sessions"."mime_type" ~ '^image/')
         or
-        ("upload_sessions"."asset_kind" = 'audio' and "upload_sessions"."width" is null and "upload_sessions"."height" is null and "upload_sessions"."duration_ms" > 0 and nullif(btrim("upload_sessions"."codec"), '') is not null and "upload_sessions"."mime_type" ~ '^audio/')
+        ("upload_sessions"."asset_kind" = 'audio' and "upload_sessions"."target_entity_type" = 'track' and "upload_sessions"."width" is null and "upload_sessions"."height" is null and "upload_sessions"."duration_ms" > 0 and nullif(btrim("upload_sessions"."codec"), '') is not null and "upload_sessions"."mime_type" ~ '^audio/')
       )),
 	CONSTRAINT "upload_sessions_state_check" CHECK ((
         ("upload_sessions"."status" = 'pending' and "upload_sessions"."completed_at" is null and "upload_sessions"."failure_reason" is null)

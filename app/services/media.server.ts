@@ -1,16 +1,26 @@
-import { and, eq, inArray, lt } from "drizzle-orm";
+import { and, eq, inArray, lt, sql } from "drizzle-orm";
+import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 
 import type { WorkerEnv } from "~/config/env.server";
-import type { Database } from "~/db/client.server";
-import { artworkAssets, audioAssets, uploadSessions } from "~/db/schema";
+import {
+  artists,
+  editorialCollections,
+  releases,
+  tracks,
+  uploadSessions,
+} from "~/db/schema";
+import * as schema from "~/db/schema";
 import type { CuratorIdentity } from "~/types/curator";
+import { IncrementalSha256 } from "~/utils/sha256";
 
 export type UploadKind = "artwork" | "audio";
 export type AssetScope = "private_master" | "publishable_derivative";
+export type TargetEntityType = "artist" | "release" | "track" | "collection";
 
 export interface UploadDeclaration {
   kind: UploadKind;
-  targetEntityId?: string;
+  targetEntityType: TargetEntityType;
+  targetEntityId: string;
   scope: AssetScope;
   mimeType: string;
   checksumSha256: string;
@@ -33,11 +43,31 @@ const allowedMimeTypes: Readonly<Record<UploadKind, ReadonlySet<string>>> = {
   artwork: new Set(["image/jpeg", "image/png", "image/webp", "image/avif"]),
   audio: new Set(["audio/mpeg", "audio/mp4", "audio/ogg", "audio/webm", "audio/flac", "audio/wav"]),
 };
+const validTargetEntityTypes = new Set<string>(["artist", "release", "track", "collection"]);
+const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export function isTargetEntityType(value: unknown): value is TargetEntityType {
+  return (
+    typeof value === "string" &&
+    (value === "artist" || value === "release" || value === "track" || value === "collection")
+  );
+}
+
+function createFixedLengthStream(
+  expectedSize: number,
+): { readable: ReadableStream<Uint8Array>; writable: WritableStream<Uint8Array> } {
+  const globalClass = Reflect.get(globalThis, "FixedLengthStream");
+  if (typeof globalClass === "function") {
+    return new globalClass(expectedSize);
+  }
+  const ts = new TransformStream<Uint8Array, Uint8Array>();
+  return { readable: ts.readable, writable: ts.writable };
+}
 
 export function validateUploadDeclaration(
   input: UploadDeclaration,
 ): MediaResult<UploadDeclaration> {
-  if (!allowedMimeTypes[input.kind].has(input.mimeType)) {
+  if (!allowedMimeTypes[input.kind]?.has(input.mimeType)) {
     return { ok: false, status: 400, message: `Unsupported ${input.kind} MIME type.` };
   }
   if (!Number.isSafeInteger(input.byteSize) || input.byteSize < 1) {
@@ -48,6 +78,12 @@ export function validateUploadDeclaration(
   }
   if (!/^[0-9a-f]{64}$/.test(input.checksumSha256)) {
     return { ok: false, status: 400, message: "A lowercase SHA-256 checksum is required." };
+  }
+  if (!input.targetEntityType || !validTargetEntityTypes.has(input.targetEntityType)) {
+    return { ok: false, status: 400, message: "A valid target entity type is required." };
+  }
+  if (!input.targetEntityId || !uuidRegex.test(input.targetEntityId)) {
+    return { ok: false, status: 400, message: "A valid target entity ID is required." };
   }
   if (
     input.kind === "artwork" &&
@@ -60,7 +96,7 @@ export function validateUploadDeclaration(
   }
   if (
     input.kind === "audio" &&
-    (!input.targetEntityId ||
+    (input.targetEntityType !== "track" ||
       !Number.isSafeInteger(input.durationMs) ||
       (input.durationMs ?? 0) < 1 ||
       !input.codec?.trim())
@@ -96,13 +132,32 @@ export function parseUploadDeclaration(input: unknown): MediaResult<UploadDeclar
     const value = Reflect.get(input, name);
     return typeof value === "number" ? value : undefined;
   };
+  const targetEntityTypeRaw =
+    optionalString("targetEntityType") ??
+    optionalString("targetType") ??
+    optionalString("entityType") ??
+    (kind === "audio" ? "track" : undefined);
+
+  if (!isTargetEntityType(targetEntityTypeRaw)) {
+    return { ok: false, status: 400, message: "A valid target entity type is required." };
+  }
+
+  const targetEntityId =
+    optionalString("targetEntityId") ??
+    (kind === "audio" ? optionalString("trackId") : undefined);
+
+  if (!targetEntityId || !uuidRegex.test(targetEntityId)) {
+    return { ok: false, status: 400, message: "A valid target entity ID is required." };
+  }
+
   return validateUploadDeclaration({
     kind,
     scope,
     mimeType,
     checksumSha256,
     byteSize,
-    targetEntityId: optionalString("targetEntityId"),
+    targetEntityType: targetEntityTypeRaw,
+    targetEntityId,
     width: optionalNumber("width"),
     height: optionalNumber("height"),
     durationMs: optionalNumber("durationMs"),
@@ -110,12 +165,51 @@ export function parseUploadDeclaration(input: unknown): MediaResult<UploadDeclar
   });
 }
 
-export class MediaService {
+export class MediaService<TQueryResult extends PgQueryResultHKT = PgQueryResultHKT> {
   constructor(
-    private readonly db: Database,
+    private readonly db: PgDatabase<TQueryResult, typeof schema>,
     private readonly env: WorkerEnv,
     private readonly clock: () => Date = () => new Date(),
   ) {}
+
+  private async targetExists(
+    targetEntityType: TargetEntityType,
+    targetEntityId: string,
+  ): Promise<boolean> {
+    if (targetEntityType === "artist") {
+      const [row] = await this.db
+        .select({ id: artists.id })
+        .from(artists)
+        .where(eq(artists.id, targetEntityId))
+        .limit(1);
+      return Boolean(row);
+    }
+    if (targetEntityType === "release") {
+      const [row] = await this.db
+        .select({ id: releases.id })
+        .from(releases)
+        .where(eq(releases.id, targetEntityId))
+        .limit(1);
+      return Boolean(row);
+    }
+    if (targetEntityType === "track") {
+      const [row] = await this.db
+        .select({ id: tracks.id })
+        .from(tracks)
+        .where(eq(tracks.id, targetEntityId))
+        .limit(1);
+      return Boolean(row);
+    }
+    if (targetEntityType === "collection") {
+      const [row] = await this.db
+        .select({ id: editorialCollections.id })
+        .from(editorialCollections)
+        .where(eq(editorialCollections.id, targetEntityId))
+        .limit(1);
+      return Boolean(row);
+    }
+    return false;
+  }
 
   async createSession(
     declaration: UploadDeclaration,
@@ -123,6 +217,17 @@ export class MediaService {
   ): Promise<MediaResult<{ id: string; expiresAt: string }>> {
     const validated = validateUploadDeclaration(declaration);
     if (!validated.ok) return validated;
+    const targetFound = await this.targetExists(
+      declaration.targetEntityType,
+      declaration.targetEntityId,
+    );
+    if (!targetFound) {
+      return {
+        ok: false,
+        status: 404,
+        message: `Target ${declaration.targetEntityType} not found.`,
+      };
+    }
     const now = this.clock();
     const expiresAt = new Date(now.getTime() + 60 * 60 * 1000);
     const prefix = declaration.scope === "private_master" ? "private" : "publishable";
@@ -131,6 +236,7 @@ export class MediaService {
       .insert(uploadSessions)
       .values({
         assetKind: declaration.kind,
+        targetEntityType: declaration.targetEntityType,
         targetEntityId: declaration.targetEntityId,
         objectKey,
         scope: declaration.scope,
@@ -169,9 +275,37 @@ export class MediaService {
     if (!request.body) {
       return { ok: false, status: 400, message: "Upload body is required." };
     }
+
+    const { readable, writable } = createFixedLengthStream(session.byteSize);
+    const sha256Hasher = new IncrementalSha256();
+    let streamedByteCount = 0;
+    let pumpError: Error | null = null;
+
+    const pumpPromise = (async () => {
+      const reader = request.body!.getReader();
+      const writer = writable.getWriter();
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value) {
+            streamedByteCount += value.byteLength;
+            sha256Hasher.update(value);
+            await writer.write(value);
+          }
+        }
+        await writer.close();
+      } catch (err) {
+        pumpError = err instanceof Error ? err : new Error(String(err));
+        await writer.abort(pumpError);
+      } finally {
+        reader.releaseLock();
+      }
+    })();
+
     let stored;
     try {
-      stored = await this.env.MEDIA_BUCKET.put(session.objectKey, request.body, {
+      const putPromise = this.env.MEDIA_BUCKET.put(session.objectKey, readable, {
         httpMetadata: { contentType: session.mimeType },
         customMetadata: {
           checksumSha256: session.checksumSha256,
@@ -179,6 +313,9 @@ export class MediaService {
         },
         sha256: session.checksumSha256,
       });
+
+      const [putResult] = await Promise.all([putPromise, pumpPromise]);
+      stored = putResult;
     } catch (error) {
       if (!(error instanceof Error) || !/checksum|sha-?256/i.test(error.message)) {
         throw error;
@@ -189,10 +326,27 @@ export class MediaService {
         .where(and(eq(uploadSessions.id, sessionId), eq(uploadSessions.status, "pending")));
       return { ok: false, status: 400, message: "Checksum does not match the declaration." };
     }
-    if (stored.size !== session.byteSize) {
+
+    if (pumpError) {
+      await this.env.MEDIA_BUCKET.delete(session.objectKey);
+      return { ok: false, status: 400, message: "Upload streaming failed." };
+    }
+
+    const computedChecksum = sha256Hasher.digestHex();
+    if (computedChecksum !== session.checksumSha256) {
+      await this.env.MEDIA_BUCKET.delete(session.objectKey);
+      await this.db
+        .update(uploadSessions)
+        .set({ status: "failed", failureReason: "Checksum mismatch", updatedAt: this.clock() })
+        .where(and(eq(uploadSessions.id, sessionId), eq(uploadSessions.status, "pending")));
+      return { ok: false, status: 400, message: "Checksum does not match the declaration." };
+    }
+
+    if (streamedByteCount !== session.byteSize || (stored && stored.size !== session.byteSize)) {
       await this.env.MEDIA_BUCKET.delete(session.objectKey);
       return { ok: false, status: 400, message: "Byte size does not match the declaration." };
     }
+
     return { ok: true, value: null };
   }
 
@@ -206,6 +360,9 @@ export class MediaService {
     if (session.status !== "pending") {
       return { ok: false, status: 409, message: "Upload session has already been finalized." };
     }
+    if (session.expiresAt <= this.clock()) {
+      return { ok: false, status: 409, message: "Upload session has expired." };
+    }
     const object = await this.env.MEDIA_BUCKET.head(session.objectKey);
     if (
       !object ||
@@ -214,77 +371,184 @@ export class MediaService {
     ) {
       return { ok: false, status: 409, message: "Uploaded object is incomplete." };
     }
-    const assetRows =
-      session.assetKind === "artwork"
-        ? await this.db
-            .insert(artworkAssets)
-            .values({
-              objectKey: session.objectKey,
-              storageProvider: "r2",
-              status: "ready",
-              scope: session.scope,
-              mimeType: session.mimeType,
-              checksumSha256: session.checksumSha256,
-              byteSize: session.byteSize,
-              width: session.width,
-              height: session.height,
-            })
-            .returning({ id: artworkAssets.id })
-        : await (async () => {
-            const isPrimary = session.scope === "publishable_derivative";
-            if (isPrimary) {
-              const [, rows] = await this.db.batch([
-                this.db
-                  .update(audioAssets)
-                  .set({ isPrimary: false, updatedAt: this.clock() })
-                  .where(
-                    and(
-                      eq(audioAssets.trackId, session.targetEntityId!),
-                      eq(audioAssets.scope, "publishable_derivative"),
-                      eq(audioAssets.isPrimary, true),
-                    ),
-                  ),
-                this.db
-                  .insert(audioAssets)
-                  .values({
-                    trackId: session.targetEntityId!,
-                    objectKey: session.objectKey,
-                    storageProvider: "r2",
-                    status: "ready",
-                    scope: session.scope,
-                    mimeType: session.mimeType,
-                    checksumSha256: session.checksumSha256,
-                    byteSize: session.byteSize,
-                    durationMs: session.durationMs!,
-                    codec: session.codec!,
-                    isPrimary: true,
-                  })
-                  .returning({ id: audioAssets.id }),
-              ]);
-              return rows;
-            }
-            return this.db
-              .insert(audioAssets)
-              .values({
-                trackId: session.targetEntityId!,
-                objectKey: session.objectKey,
-                storageProvider: "r2",
-                status: "ready",
-                scope: session.scope,
-                mimeType: session.mimeType,
-                checksumSha256: session.checksumSha256,
-                byteSize: session.byteSize,
-                durationMs: session.durationMs!,
-                codec: session.codec!,
-                isPrimary: false,
-              })
-              .returning({ id: audioAssets.id });
-          })();
-    await this.db
-      .update(uploadSessions)
-      .set({ status: "completed", completedAt: this.clock(), updatedAt: this.clock() })
-      .where(and(eq(uploadSessions.id, sessionId), eq(uploadSessions.status, "pending")));
-    return { ok: true, value: { assetId: assetRows[0].id } };
+
+    const targetEntityType = session.targetEntityType;
+    const targetEntityId = session.targetEntityId;
+    const targetExists = await this.targetExists(targetEntityType, targetEntityId);
+    if (!targetExists) {
+      return { ok: false, status: 404, message: `Target ${targetEntityType} not found.` };
+    }
+
+    const assetId = crypto.randomUUID();
+    const now = this.clock();
+
+    if (session.assetKind === "artwork") {
+      if (targetEntityType === "artist") {
+        await this.db.execute(sql`
+          WITH ins_asset AS (
+            INSERT INTO artwork_assets (
+              id, object_key, storage_provider, status, scope, mime_type, checksum_sha256, byte_size, width, height, created_at, updated_at
+            ) VALUES (
+              ${assetId}, ${session.objectKey}, 'r2', 'ready', ${session.scope}, ${session.mimeType}, ${session.checksumSha256}, ${session.byteSize}, ${session.width}, ${session.height}, ${now}, ${now}
+            )
+            RETURNING id
+          ),
+          del_old AS (
+            DELETE FROM artist_artwork_assets
+            WHERE artist_id = ${targetEntityId} AND role = 'avatar' AND position = 1
+            RETURNING id
+          ),
+          ins_rel AS (
+            INSERT INTO artist_artwork_assets (
+              artist_id, artwork_asset_id, role, position, created_at
+            ) VALUES (
+              ${targetEntityId}, ${assetId}, 'avatar', 1, ${now}
+            )
+            RETURNING id
+          ),
+          upd_session AS (
+            UPDATE upload_sessions
+            SET status = 'completed', completed_at = ${now}, updated_at = ${now}
+            WHERE id = ${sessionId} AND status = 'pending'
+            RETURNING id
+          )
+          SELECT id FROM ins_asset
+        `);
+      } else if (targetEntityType === "release") {
+        await this.db.execute(sql`
+          WITH ins_asset AS (
+            INSERT INTO artwork_assets (
+              id, object_key, storage_provider, status, scope, mime_type, checksum_sha256, byte_size, width, height, created_at, updated_at
+            ) VALUES (
+              ${assetId}, ${session.objectKey}, 'r2', 'ready', ${session.scope}, ${session.mimeType}, ${session.checksumSha256}, ${session.byteSize}, ${session.width}, ${session.height}, ${now}, ${now}
+            )
+            RETURNING id
+          ),
+          del_old AS (
+            DELETE FROM release_artwork_assets
+            WHERE release_id = ${targetEntityId} AND role = 'primary' AND position = 1
+            RETURNING id
+          ),
+          ins_rel AS (
+            INSERT INTO release_artwork_assets (
+              release_id, artwork_asset_id, role, position, created_at
+            ) VALUES (
+              ${targetEntityId}, ${assetId}, 'primary', 1, ${now}
+            )
+            RETURNING id
+          ),
+          upd_session AS (
+            UPDATE upload_sessions
+            SET status = 'completed', completed_at = ${now}, updated_at = ${now}
+            WHERE id = ${sessionId} AND status = 'pending'
+            RETURNING id
+          )
+          SELECT id FROM ins_asset
+        `);
+      } else if (targetEntityType === "track") {
+        await this.db.execute(sql`
+          WITH ins_asset AS (
+            INSERT INTO artwork_assets (
+              id, object_key, storage_provider, status, scope, mime_type, checksum_sha256, byte_size, width, height, created_at, updated_at
+            ) VALUES (
+              ${assetId}, ${session.objectKey}, 'r2', 'ready', ${session.scope}, ${session.mimeType}, ${session.checksumSha256}, ${session.byteSize}, ${session.width}, ${session.height}, ${now}, ${now}
+            )
+            RETURNING id
+          ),
+          del_old AS (
+            DELETE FROM track_artwork_assets
+            WHERE track_id = ${targetEntityId} AND role = 'primary' AND position = 1
+            RETURNING id
+          ),
+          ins_rel AS (
+            INSERT INTO track_artwork_assets (
+              track_id, artwork_asset_id, role, position, created_at
+            ) VALUES (
+              ${targetEntityId}, ${assetId}, 'primary', 1, ${now}
+            )
+            RETURNING id
+          ),
+          upd_session AS (
+            UPDATE upload_sessions
+            SET status = 'completed', completed_at = ${now}, updated_at = ${now}
+            WHERE id = ${sessionId} AND status = 'pending'
+            RETURNING id
+          )
+          SELECT id FROM ins_asset
+        `);
+      } else if (targetEntityType === "collection") {
+        await this.db.execute(sql`
+          WITH ins_asset AS (
+            INSERT INTO artwork_assets (
+              id, object_key, storage_provider, status, scope, mime_type, checksum_sha256, byte_size, width, height, created_at, updated_at
+            ) VALUES (
+              ${assetId}, ${session.objectKey}, 'r2', 'ready', ${session.scope}, ${session.mimeType}, ${session.checksumSha256}, ${session.byteSize}, ${session.width}, ${session.height}, ${now}, ${now}
+            )
+            RETURNING id
+          ),
+          upd_coll AS (
+            UPDATE editorial_collections
+            SET artwork_asset_id = ${assetId}, updated_at = ${now}
+            WHERE id = ${targetEntityId}
+            RETURNING id
+          ),
+          upd_session AS (
+            UPDATE upload_sessions
+            SET status = 'completed', completed_at = ${now}, updated_at = ${now}
+            WHERE id = ${sessionId} AND status = 'pending'
+            RETURNING id
+          )
+          SELECT id FROM ins_asset
+        `);
+      }
+    } else {
+      const isPrimary = session.scope === "publishable_derivative";
+      if (isPrimary) {
+        await this.db.execute(sql`
+          WITH unset_primary AS (
+            UPDATE audio_assets
+            SET is_primary = false, updated_at = ${now}
+            WHERE track_id = ${targetEntityId} AND scope = 'publishable_derivative' AND is_primary = true
+            RETURNING id
+          ),
+          ins_audio AS (
+            INSERT INTO audio_assets (
+              id, track_id, object_key, storage_provider, status, scope, mime_type, checksum_sha256, byte_size, duration_ms, codec, is_primary, created_at, updated_at
+            ) VALUES (
+              ${assetId}, ${targetEntityId}, ${session.objectKey}, 'r2', 'ready', ${session.scope}, ${session.mimeType}, ${session.checksumSha256}, ${session.byteSize}, ${session.durationMs}, ${session.codec}, true, ${now}, ${now}
+            )
+            RETURNING id
+          ),
+          upd_session AS (
+            UPDATE upload_sessions
+            SET status = 'completed', completed_at = ${now}, updated_at = ${now}
+            WHERE id = ${sessionId} AND status = 'pending'
+            RETURNING id
+          )
+          SELECT id FROM ins_audio
+        `);
+      } else {
+        await this.db.execute(sql`
+          WITH ins_audio AS (
+            INSERT INTO audio_assets (
+              id, track_id, object_key, storage_provider, status, scope, mime_type, checksum_sha256, byte_size, duration_ms, codec, is_primary, created_at, updated_at
+            ) VALUES (
+              ${assetId}, ${targetEntityId}, ${session.objectKey}, 'r2', 'ready', ${session.scope}, ${session.mimeType}, ${session.checksumSha256}, ${session.byteSize}, ${session.durationMs}, ${session.codec}, false, ${now}, ${now}
+            )
+            RETURNING id
+          ),
+          upd_session AS (
+            UPDATE upload_sessions
+            SET status = 'completed', completed_at = ${now}, updated_at = ${now}
+            WHERE id = ${sessionId} AND status = 'pending'
+            RETURNING id
+          )
+          SELECT id FROM ins_audio
+        `);
+      }
+    }
+
+    return { ok: true, value: { assetId } };
   }
 
   async cleanupAbandoned(): Promise<number> {

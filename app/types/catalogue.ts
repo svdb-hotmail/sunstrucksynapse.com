@@ -59,6 +59,7 @@ export interface PublicEditorialCollection {
   slug: string;
   name: string;
   description: string | null;
+  artwork?: Artwork;
   items: CatalogueItem[];
 }
 

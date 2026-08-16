@@ -355,11 +355,22 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         collectionSlug: editorialCollections.slug,
         collectionName: editorialCollections.name,
         collectionDescription: editorialCollections.description,
+        artworkAssetId: artworkAssets.id,
+        artworkObjectKey: artworkAssets.objectKey,
+        artworkStorageProvider: artworkAssets.storageProvider,
         position: collectionItems.position,
         trackId: collectionItems.trackId,
         releaseId: collectionItems.releaseId,
       })
       .from(editorialCollections)
+      .leftJoin(
+        artworkAssets,
+        and(
+          eq(artworkAssets.id, editorialCollections.artworkAssetId),
+          eq(artworkAssets.scope, "publishable_derivative"),
+          eq(artworkAssets.status, "ready"),
+        ),
+      )
       .innerJoin(collectionItems, eq(collectionItems.collectionId, editorialCollections.id))
       .where(
         and(
@@ -373,7 +384,14 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         asc(collectionItems.position),
       );
     const itemsById = new Map(items.map((item) => [item.id, item]));
-    const collections = new Map<string, PublicEditorialCollection>();
+    const collections = new Map<
+      string,
+      PublicEditorialCollection & {
+        artworkAssetId: string | null;
+        artworkObjectKey: string | null;
+        artworkStorageProvider: "static" | "r2" | null;
+      }
+    >();
 
     for (const row of rows) {
       const collection = collections.get(row.collectionId) ?? {
@@ -381,6 +399,9 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         slug: row.collectionSlug,
         name: row.collectionName,
         description: row.collectionDescription,
+        artworkAssetId: row.artworkAssetId,
+        artworkObjectKey: row.artworkObjectKey,
+        artworkStorageProvider: row.artworkStorageProvider,
         items: [],
       };
       const targetItems = row.trackId
@@ -394,7 +415,32 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
       collections.set(row.collectionId, collection);
     }
 
-    return [...collections.values()].filter((collection) => collection.items.length > 0);
+    const result = await Promise.all(
+      [...collections.values()]
+        .filter((collection) => collection.items.length > 0)
+        .map(async (collection) => {
+          const artworkSrc = await artworkPath(
+            collection.artworkAssetId,
+            collection.artworkObjectKey,
+            collection.artworkStorageProvider,
+          );
+          return {
+            id: collection.id,
+            slug: collection.slug,
+            name: collection.name,
+            description: collection.description,
+            artwork: artworkSrc
+              ? {
+                  src: artworkSrc,
+                  alt: `${collection.name} artwork`,
+                }
+              : undefined,
+            items: collection.items,
+          };
+        }),
+    );
+
+    return result;
   }
 
   return {
@@ -408,8 +454,19 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
           slug: editorialCollections.slug,
           name: editorialCollections.name,
           description: editorialCollections.description,
+          artworkAssetId: artworkAssets.id,
+          artworkObjectKey: artworkAssets.objectKey,
+          artworkStorageProvider: artworkAssets.storageProvider,
         })
         .from(editorialCollections)
+        .leftJoin(
+          artworkAssets,
+          and(
+            eq(artworkAssets.id, editorialCollections.artworkAssetId),
+            eq(artworkAssets.scope, "publishable_derivative"),
+            eq(artworkAssets.status, "ready"),
+          ),
+        )
         .where(
           and(
             eq(editorialCollections.slug, slug),
@@ -437,7 +494,24 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
           if (!selected.some(({ id }) => id === item.id)) selected.push(item);
         }
       }
-      return { ...collection, items: selected };
+      const artworkSrc = await artworkPath(
+        collection.artworkAssetId,
+        collection.artworkObjectKey,
+        collection.artworkStorageProvider,
+      );
+      return {
+        id: collection.id,
+        slug: collection.slug,
+        name: collection.name,
+        description: collection.description,
+        artwork: artworkSrc
+          ? {
+              src: artworkSrc,
+              alt: `${collection.name} artwork`,
+            }
+          : undefined,
+        items: selected,
+      };
     },
     async findPublishedArtist(slug) {
       const [artist] = await db

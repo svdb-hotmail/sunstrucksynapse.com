@@ -20,6 +20,7 @@ import type {
 import { requireCuratorIdentity } from "~/services/access-auth.server";
 import { CuratorService, curatorHttpStatus } from "~/services/curator.server";
 import { validateCatalogueForm, validateReason, validateUuid } from "~/services/curator-validation";
+import { computeBlobSha256 } from "~/utils/sha256";
 
 const entityTypes = ["artist", "release", "track", "collection"] as const;
 const lifecycleTransitions: Readonly<Record<Lifecycle, readonly Lifecycle[]>> = {
@@ -324,8 +325,22 @@ async function responseError(response: Response, fallback: string) {
     : fallback;
 }
 
-function MediaUpload({ tracks }: { tracks: CuratorEntity[] }) {
+function MediaUpload({
+  artists,
+  releases,
+  tracks,
+  collections,
+}: {
+  artists: CuratorEntity[];
+  releases: CuratorEntity[];
+  tracks: CuratorEntity[];
+  collections: CuratorEntity[];
+}) {
   const [status, setStatus] = useState("");
+  const [kind, setKind] = useState<"artwork" | "audio">("artwork");
+  const [artworkTargetType, setArtworkTargetType] = useState<
+    "artist" | "release" | "track" | "collection"
+  >("artist");
 
   async function upload(form: HTMLFormElement) {
     const values = new FormData(form);
@@ -335,23 +350,28 @@ function MediaUpload({ tracks }: { tracks: CuratorEntity[] }) {
       return;
     }
     setStatus("Preparing upload…");
-    const bytes = await file.arrayBuffer();
-    const digest = await crypto.subtle.digest("SHA-256", bytes);
-    const checksumSha256 = [...new Uint8Array(digest)]
-      .map((value) => value.toString(16).padStart(2, "0"))
-      .join("");
-    const kind = String(values.get("kind"));
+    const checksumSha256 = await computeBlobSha256(file);
+    const uploadKind = String(values.get("kind"));
+
+    const targetEntityType =
+      uploadKind === "audio" ? "track" : String(values.get("artworkTargetType") || "");
+    const targetEntityId =
+      uploadKind === "audio"
+        ? String(values.get("trackId") || "")
+        : String(values.get("artworkTargetId") || "");
+
     const declaration = {
-      kind,
+      kind: uploadKind,
       scope: String(values.get("scope")),
       mimeType: file.type,
       byteSize: file.size,
       checksumSha256,
-      targetEntityId: kind === "audio" ? String(values.get("trackId")) : undefined,
-      width: kind === "artwork" ? Number(values.get("width")) : undefined,
-      height: kind === "artwork" ? Number(values.get("height")) : undefined,
-      durationMs: kind === "audio" ? Number(values.get("durationMs")) : undefined,
-      codec: kind === "audio" ? String(values.get("codec")) : undefined,
+      targetEntityType,
+      targetEntityId,
+      width: uploadKind === "artwork" ? Number(values.get("width")) : undefined,
+      height: uploadKind === "artwork" ? Number(values.get("height")) : undefined,
+      durationMs: uploadKind === "audio" ? Number(values.get("durationMs")) : undefined,
+      codec: uploadKind === "audio" ? String(values.get("codec")) : undefined,
     };
     const created = await fetch("/curator/api/uploads", {
       method: "POST",
@@ -366,7 +386,7 @@ function MediaUpload({ tracks }: { tracks: CuratorEntity[] }) {
     const stored = await fetch(`/curator/api/uploads/${session.id}`, {
       method: "PUT",
       headers: { "content-type": file.type },
-      body: bytes,
+      body: file,
     });
     if (!stored.ok) {
       setStatus(await responseError(stored, "Upload failed."));
@@ -386,7 +406,11 @@ function MediaUpload({ tracks }: { tracks: CuratorEntity[] }) {
     >
       <label>
         Asset kind
-        <select name="kind">
+        <select
+          name="kind"
+          value={kind}
+          onChange={(event) => setKind(event.target.value as "artwork" | "audio")}
+        >
           <option value="artwork">Artwork</option>
           <option value="audio">Prepared audio</option>
         </select>
@@ -398,33 +422,96 @@ function MediaUpload({ tracks }: { tracks: CuratorEntity[] }) {
           <option value="private_master">Private master</option>
         </select>
       </label>
-      <label>
-        Track (audio)
-        <select name="trackId" defaultValue="">
-          <option value="">Not applicable</option>
-          {tracks.map((track) => (
-            <option value={track.id} key={track.id}>
-              {track.title}
+      {kind === "audio" ? (
+        <label>
+          Track (audio)
+          <select name="trackId" defaultValue="" required>
+            <option value="" disabled>
+              Select track
             </option>
-          ))}
-        </select>
-      </label>
-      <label>
-        Width (artwork)
-        <input name="width" type="number" min={1} />
-      </label>
-      <label>
-        Height (artwork)
-        <input name="height" type="number" min={1} />
-      </label>
-      <label>
-        Duration ms (audio)
-        <input name="durationMs" type="number" min={1} />
-      </label>
-      <label>
-        Codec (audio)
-        <input name="codec" />
-      </label>
+            {tracks.map((track) => (
+              <option value={track.id} key={track.id}>
+                {track.title}
+              </option>
+            ))}
+          </select>
+        </label>
+      ) : (
+        <>
+          <label>
+            Target entity type (artwork)
+            <select
+              name="artworkTargetType"
+              value={artworkTargetType}
+              onChange={(event) =>
+                setArtworkTargetType(
+                  event.target.value as "artist" | "release" | "track" | "collection",
+                )
+              }
+              required
+            >
+              <option value="artist">Artist</option>
+              <option value="release">Release</option>
+              <option value="track">Track</option>
+              <option value="collection">Editorial shelf</option>
+            </select>
+          </label>
+          <label>
+            Target {artworkTargetType}
+            <select name="artworkTargetId" defaultValue="" required>
+              <option value="" disabled>
+                Select {artworkTargetType}
+              </option>
+              {artworkTargetType === "artist"
+                ? artists.map((artist) => (
+                    <option value={artist.id} key={artist.id}>
+                      {artist.title}
+                    </option>
+                  ))
+                : artworkTargetType === "release"
+                  ? releases.map((release) => (
+                      <option value={release.id} key={release.id}>
+                        {release.title}
+                      </option>
+                    ))
+                  : artworkTargetType === "track"
+                    ? tracks.map((track) => (
+                        <option value={track.id} key={track.id}>
+                          {track.title}
+                        </option>
+                      ))
+                    : collections.map((collection) => (
+                        <option value={collection.id} key={collection.id}>
+                          {collection.title}
+                        </option>
+                      ))}
+            </select>
+          </label>
+        </>
+      )}
+      {kind === "artwork" ? (
+        <>
+          <label>
+            Width (artwork)
+            <input name="width" type="number" min={1} required />
+          </label>
+          <label>
+            Height (artwork)
+            <input name="height" type="number" min={1} required />
+          </label>
+        </>
+      ) : (
+        <>
+          <label>
+            Duration ms (audio)
+            <input name="durationMs" type="number" min={1} required />
+          </label>
+          <label>
+            Codec (audio)
+            <input name="codec" required />
+          </label>
+        </>
+      )}
       <label>
         File
         <input name="file" type="file" required />
@@ -568,7 +655,12 @@ export default function CuratorWorkspace() {
 
       <section className="curator-section">
         <h2>Managed media</h2>
-        <MediaUpload tracks={data.tracks} />
+        <MediaUpload
+          artists={data.artists}
+          releases={data.releases}
+          tracks={data.tracks}
+          collections={data.collections}
+        />
       </section>
 
       <section className="curator-section">

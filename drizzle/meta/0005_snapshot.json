@@ -1948,11 +1948,17 @@
           "primaryKey": false,
           "notNull": true
         },
+        "target_entity_type": {
+          "name": "target_entity_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
         "target_entity_id": {
           "name": "target_entity_id",
           "type": "uuid",
           "primaryKey": false,
-          "notNull": false
+          "notNull": true
         },
         "object_key": {
           "name": "object_key",
@@ -2136,7 +2142,7 @@
         },
         "upload_sessions_metadata_check": {
           "name": "upload_sessions_metadata_check",
-          "value": "(\n        (\"upload_sessions\".\"asset_kind\" = 'artwork' and \"upload_sessions\".\"width\" > 0 and \"upload_sessions\".\"height\" > 0 and \"upload_sessions\".\"duration_ms\" is null and \"upload_sessions\".\"codec\" is null and \"upload_sessions\".\"mime_type\" ~ '^image/')\n        or\n        (\"upload_sessions\".\"asset_kind\" = 'audio' and \"upload_sessions\".\"width\" is null and \"upload_sessions\".\"height\" is null and \"upload_sessions\".\"duration_ms\" > 0 and nullif(btrim(\"upload_sessions\".\"codec\"), '') is not null and \"upload_sessions\".\"mime_type\" ~ '^audio/')\n      )"
+          "value": "(\n        (\"upload_sessions\".\"asset_kind\" = 'artwork' and \"upload_sessions\".\"target_entity_type\" in ('artist', 'release', 'track', 'collection') and \"upload_sessions\".\"width\" > 0 and \"upload_sessions\".\"height\" > 0 and \"upload_sessions\".\"duration_ms\" is null and \"upload_sessions\".\"codec\" is null and \"upload_sessions\".\"mime_type\" ~ '^image/')\n        or\n        (\"upload_sessions\".\"asset_kind\" = 'audio' and \"upload_sessions\".\"target_entity_type\" = 'track' and \"upload_sessions\".\"width\" is null and \"upload_sessions\".\"height\" is null and \"upload_sessions\".\"duration_ms\" > 0 and nullif(btrim(\"upload_sessions\".\"codec\"), '') is not null and \"upload_sessions\".\"mime_type\" ~ '^audio/')\n      )"
         },
         "upload_sessions_state_check": {
           "name": "upload_sessions_state_check",
