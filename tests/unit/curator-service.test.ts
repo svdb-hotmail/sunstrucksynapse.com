@@ -237,4 +237,66 @@ describe("publication lifecycle", () => {
       error: { message: "Choose a future publication time." },
     });
   });
+
+  it("publishes due records automatically while keeping future records scheduled without duplicate audits", async () => {
+    const repository = createE2eCuratorRepository();
+    const t0 = new Date("2026-08-16T08:00:00Z");
+    const service = new CuratorService(repository, () => t0);
+
+    const artist = await service.create("artist", {
+      slug: "due-artist",
+      title: "Due Artist",
+    });
+    const release = await service.create("release", {
+      slug: "future-release",
+      title: "Future Release",
+      artistId: (artist as { ok: true; value: CuratorEntity }).value.id,
+    });
+
+    const artistId = (artist as { ok: true; value: CuratorEntity }).value.id;
+    const releaseId = (release as { ok: true; value: CuratorEntity }).value.id;
+
+    await service.transition("artist", artistId, "in_review", actor);
+    await service.transition("artist", artistId, "scheduled", actor, {
+      scheduledFor: new Date("2026-08-17T00:00:00Z"),
+    });
+
+    await service.transition("release", releaseId, "in_review", actor);
+    await service.transition("release", releaseId, "scheduled", actor, {
+      scheduledFor: new Date("2026-08-19T00:00:00Z"),
+    });
+
+    const schedulerAtT1 = new CuratorService(repository, () => new Date("2026-08-17T12:00:00Z"));
+    const firstRunPublished = await schedulerAtT1.publishScheduled();
+    expect(firstRunPublished).toBe(1);
+
+    const publishedArtist = await repository.find("artist", artistId);
+    expect(publishedArtist?.lifecycleStatus).toBe("published");
+    expect(publishedArtist?.scheduledFor).toBeNull();
+
+    const futureRelease = await repository.find("release", releaseId);
+    expect(futureRelease?.lifecycleStatus).toBe("scheduled");
+    expect(futureRelease?.scheduledFor).toEqual(new Date("2026-08-19T00:00:00Z"));
+
+    const secondRunPublished = await schedulerAtT1.publishScheduled();
+    expect(secondRunPublished).toBe(0);
+
+    const audit = await repository.listAudit();
+    const scheduledAudits = audit.filter(
+      (entry) =>
+        entry.entityId === artistId &&
+        entry.fromLifecycle === "scheduled" &&
+        entry.toLifecycle === "published",
+    );
+    expect(scheduledAudits).toHaveLength(1);
+    expect(scheduledAudits[0]).toMatchObject({
+      entityType: "artist",
+      entityId: artistId,
+      fromLifecycle: "scheduled",
+      toLifecycle: "published",
+      actorEmail: "system@sunstrucksynapse.com",
+      reason: "Scheduled publication",
+      occurredAt: new Date("2026-08-17T12:00:00Z"),
+    });
+  });
 });

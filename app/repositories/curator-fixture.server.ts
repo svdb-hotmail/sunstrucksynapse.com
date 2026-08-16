@@ -162,25 +162,27 @@ export function createE2eCuratorRepository(): CuratorRepository {
     },
     async publishScheduled(now) {
       let published = 0;
+      const system = { id: "scheduled-publication", email: "system@sunstrucksynapse.com" };
       for (const [type, values] of entities) {
-        for (const entity of values) {
-          if (
+        const due = values.filter(
+          (entity) =>
             entity.lifecycleStatus === "scheduled" &&
             entity.scheduledFor &&
-            entity.scheduledFor <= now
+            entity.scheduledFor <= now,
+        );
+        for (const entity of due) {
+          if (
+            await setLifecycle(
+              type,
+              entity.id,
+              "scheduled",
+              "published",
+              now,
+              null,
+              system,
+              "Scheduled publication",
+            )
           ) {
-            entity.lifecycleStatus = "published";
-            entity.scheduledFor = null;
-            audit.unshift({
-              id: crypto.randomUUID(),
-              entityType: type,
-              entityId: entity.id,
-              fromLifecycle: "scheduled" as Lifecycle,
-              toLifecycle: "published",
-              actorEmail: "system@sunstrucksynapse.com",
-              reason: "Scheduled publication",
-              occurredAt: now,
-            });
             published += 1;
           }
         }

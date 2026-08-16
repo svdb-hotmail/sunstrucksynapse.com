@@ -326,54 +326,56 @@ export function createCuratorRepository(db: Database): CuratorRepository {
     actor: CuratorIdentity,
     reason: string | null,
   ): Promise<boolean> {
-    const lifecycle = {
-      lifecycleStatus: to,
-      scheduledFor: to === "scheduled" ? scheduledFor : null,
-      publishedAt: to === "published" ? now : null,
-      archivedAt: to === "archived" ? now : null,
-      updatedAt: now,
-    };
-    const rows =
+    const table =
       type === "artist"
-        ? await db
-            .update(artists)
-            .set(lifecycle)
-            .where(and(eq(artists.id, id), eq(artists.lifecycleStatus, from)))
-            .returning({ id: artists.id })
+        ? artists
         : type === "release"
-          ? await db
-              .update(releases)
-              .set(lifecycle)
-              .where(and(eq(releases.id, id), eq(releases.lifecycleStatus, from)))
-              .returning({ id: releases.id })
+          ? releases
           : type === "track"
-            ? await db
-                .update(tracks)
-                .set(lifecycle)
-                .where(and(eq(tracks.id, id), eq(tracks.lifecycleStatus, from)))
-                .returning({ id: tracks.id })
-            : await db
-                .update(editorialCollections)
-                .set(lifecycle)
-                .where(
-                  and(
-                    eq(editorialCollections.id, id),
-                    eq(editorialCollections.lifecycleStatus, from),
-                  ),
-                )
-                .returning({ id: editorialCollections.id });
-    if (!rows[0]) return false;
-    await db.insert(publicationAudit).values({
-      entityType: type,
-      entityId: id,
-      fromLifecycle: from,
-      toLifecycle: to,
-      actorEmail: actor.email,
-      actorId: actor.id,
-      reason,
-      occurredAt: now,
-    });
-    return true;
+            ? tracks
+            : editorialCollections;
+
+    const scheduledForValue = to === "scheduled" ? scheduledFor : null;
+    const publishedAtValue = to === "published" ? now : null;
+    const archivedAtValue = to === "archived" ? now : null;
+
+    const result = await db.execute<{ id: string }>(sql`
+      with updated as (
+        update ${table}
+        set
+          lifecycle_status = ${to},
+          scheduled_for = ${scheduledForValue},
+          published_at = ${publishedAtValue},
+          archived_at = ${archivedAtValue},
+          updated_at = ${now}
+        where ${table.id} = ${id} and ${table.lifecycleStatus} = ${from}
+        returning ${table.id} as id
+      )
+      insert into ${publicationAudit} (
+        entity_type,
+        entity_id,
+        from_lifecycle,
+        to_lifecycle,
+        actor_email,
+        actor_id,
+        reason,
+        occurred_at
+      )
+      select
+        ${type},
+        updated.id,
+        ${from},
+        ${to},
+        ${actor.email},
+        ${actor.id},
+        ${reason},
+        ${now}
+      from updated
+      returning ${publicationAudit.id} as id
+    `);
+
+    const rows = (result as { rows?: unknown[] }).rows ?? (Array.isArray(result) ? result : []);
+    return rows.length > 0;
   }
 
   async function addCollectionItem(collectionId: string, target: CollectionTarget): Promise<void> {

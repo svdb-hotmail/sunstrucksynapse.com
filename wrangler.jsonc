@@ -20,6 +20,9 @@
       "preview_bucket_name": "sunstruck-synapse-media-preview",
     },
   ],
+  "triggers": {
+    "crons": ["* * * * *"],
+  },
   "secrets": {
     "required": ["DATABASE_URL", "MEDIA_DELIVERY_SIGNING_SECRET"],
   },

@@ -12,7 +12,7 @@ const requestHandler = createRequestHandler(
   () => import("virtual:react-router/server-build"),
   import.meta.env.MODE,
 );
-const e2eCuratorRepository = createE2eCuratorRepository();
+export const e2eCuratorRepository = createE2eCuratorRepository();
 
 export default {
   fetch(request, env, ctx) {
@@ -48,5 +48,18 @@ export default {
     });
 
     return requestHandler(request, context);
+  },
+  async scheduled(controller, env, _ctx) {
+    if (import.meta.env.MODE === "test") {
+      const now = controller?.scheduledTime ? new Date(controller.scheduledTime) : new Date();
+      await e2eCuratorRepository.publishScheduled(now);
+      return;
+    }
+
+    const validatedEnv = validateWorkerEnv(env);
+    const db = createDatabase(validatedEnv);
+    const curatorRepository = createCuratorRepository(db);
+    const now = controller?.scheduledTime ? new Date(controller.scheduledTime) : new Date();
+    await curatorRepository.publishScheduled(now);
   },
 } satisfies ExportedHandler<Env>;
