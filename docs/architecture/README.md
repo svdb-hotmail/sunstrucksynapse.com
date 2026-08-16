@@ -2,9 +2,9 @@
 
 This document describes the intended production architecture for the Sunstruck Synapse Radio MVP.
 
-Phase 0 issue #15 implements the application foundation: React Router 8 framework mode, strict TypeScript, reusable responsive components, a persistent application and player shell, typed temporary catalogue fixtures, a Cloudflare Worker entry, and Cloudflare Vite configuration for development, builds, and local production preview.
+Phase 0 issue #15 implemented the application foundation: React Router 8 framework mode, strict TypeScript, reusable responsive components, a persistent application and player shell, a Cloudflare Worker entry, and Cloudflare Vite configuration for development, builds, and local production preview.
 
-Neon and Drizzle, a persistent catalogue, R2 media storage and controlled delivery, authentication and curator tooling, submissions and transactional email, analytics, and production deployment automation remain deferred. The current fixtures and visual player shell do not implement those services.
+Phase 1 issue #5 adds the Neon/Drizzle catalogue repository, publishable catalogue seed, persistent global playback and queue state, and public artist, release, and track routes. R2 media storage and controlled delivery, authentication and curator tooling, transactional email, analytics, and production deployment automation remain deferred.
 
 The accepted architecture decisions are:
 
@@ -33,7 +33,7 @@ flowchart LR
     Events --> Worker
 ```
 
-The Cloudflare Worker is the production application boundary: it serves or supports the public application, exposes application APIs, authorizes curator and media requests, records semantic playback events, and integrates with managed data, object storage, and email services. The diagram is deliberately compact and represents the target production architecture; only the application and Worker runtime foundation described above is currently implemented, not every depicted service or integration.
+The Cloudflare Worker is the production application boundary: it serves the public application, reads publishable catalogue data from Neon, and will later authorize curator and controlled-media requests, record semantic playback events, and integrate with managed object storage and email services. The diagram is deliberately compact and includes deferred integrations.
 
 ## Trust boundaries
 

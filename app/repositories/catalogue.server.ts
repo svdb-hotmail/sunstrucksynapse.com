@@ -1,0 +1,438 @@
+import { and, asc, eq } from "drizzle-orm";
+import type { PgDatabase } from "drizzle-orm/pg-core";
+import type { PgQueryResultHKT } from "drizzle-orm/pg-core/session";
+
+import {
+  artistArtworkAssets,
+  artists,
+  artworkAssets,
+  audioAssets,
+  releaseArtistCredits,
+  releaseArtworkAssets,
+  releases,
+  trackArtistCredits,
+  trackArtworkAssets,
+  tracks,
+} from "~/db/schema";
+import * as schema from "~/db/schema";
+import type {
+  Artwork,
+  CatalogueItem,
+  CatalogueLoadResult,
+  PublicArtist,
+  PublicRelease,
+  PublicTrack,
+} from "~/types/catalogue";
+
+export interface CatalogueRepository {
+  listPublishedTracks(): Promise<CatalogueItem[]>;
+  findPublishedArtist(slug: string): Promise<PublicArtist | null>;
+  findPublishedRelease(slug: string): Promise<PublicRelease | null>;
+  findPublishedTrack(releaseSlug: string, trackSlug: string): Promise<PublicTrack | null>;
+}
+
+interface PublishedTrackRow {
+  trackId: string;
+  trackSlug: string;
+  trackTitle: string;
+  trackPosition: number;
+  releaseId: string;
+  releaseSlug: string;
+  releaseTitle: string;
+  releaseDate: Date | null;
+  artistId: string;
+  artistSlug: string;
+  artistName: string;
+  artistBiography: string | null;
+  artistPosition: number;
+  artworkObjectKey: string | null;
+  artworkAltText: string | null;
+  mediaObjectKey: string | null;
+  mediaMimeType: string | null;
+}
+
+function publicAssetPath(objectKey: string): string {
+  return `/${objectKey.replace(/^\/+/, "")}`;
+}
+
+function artworkForRow(row: PublishedTrackRow): Artwork {
+  return {
+    src: row.artworkObjectKey ? publicAssetPath(row.artworkObjectKey) : "/assets/favicon.svg",
+    alt: row.artworkAltText ?? `Artwork for ${row.releaseTitle}`,
+  };
+}
+
+export function mapPublishedTracks(rows: PublishedTrackRow[]): CatalogueItem[] {
+  const items = new Map<string, CatalogueItem>();
+
+  for (const row of rows) {
+    if (items.has(row.trackId)) {
+      continue;
+    }
+
+    const artwork = artworkForRow(row);
+    const mediaKind = row.mediaMimeType?.startsWith("video/") ? "video" : "audio";
+    const media =
+      row.mediaObjectKey && row.mediaMimeType
+        ? {
+            src: publicAssetPath(row.mediaObjectKey),
+            mimeType: row.mediaMimeType,
+          }
+        : undefined;
+    const creator = {
+      id: row.artistId,
+      slug: row.artistSlug,
+      name: row.artistName,
+      role: "Artist",
+      href: `/artists/${row.artistSlug}`,
+    };
+    const release = {
+      id: row.releaseId,
+      slug: row.releaseSlug,
+      title: row.releaseTitle,
+      href: `/releases/${row.releaseSlug}`,
+    };
+    const base = {
+      id: row.trackId,
+      slug: row.trackSlug,
+      creator,
+      release,
+      href: `/tracks/${row.releaseSlug}/${row.trackSlug}`,
+      artwork,
+      description: {
+        title: row.trackTitle,
+        subtitle: `${row.releaseTitle} · ${row.artistName}`,
+      },
+    };
+
+    items.set(
+      row.trackId,
+      mediaKind === "video"
+        ? {
+            ...base,
+            mediaKind,
+            media: media
+              ? {
+                  src: media.src,
+                  mimeType: media.mimeType as `video/${string}`,
+                }
+              : undefined,
+          }
+        : {
+            ...base,
+            mediaKind,
+            media: media
+              ? {
+                  src: media.src,
+                  mimeType: media.mimeType as `audio/${string}`,
+                }
+              : undefined,
+          },
+    );
+  }
+
+  return [...items.values()];
+}
+
+function artistFromItems(items: CatalogueItem[], slug: string): PublicArtist | null {
+  const tracksForArtist = items.filter((item) => item.creator.slug === slug);
+  const first = tracksForArtist[0];
+  if (!first) {
+    return null;
+  }
+
+  return {
+    id: first.creator.id,
+    slug,
+    name: first.creator.name,
+    biography: null,
+    href: first.creator.href,
+    artwork: first.artwork,
+    tracks: tracksForArtist,
+  };
+}
+
+function releaseFromItems(
+  items: CatalogueItem[],
+  slug: string,
+  releaseDate: string | null = null,
+): PublicRelease | null {
+  const releaseTracks = items.filter((item) => item.release.slug === slug);
+  const first = releaseTracks[0];
+  if (!first) {
+    return null;
+  }
+
+  const artistsById = new Map(releaseTracks.map((item) => [item.creator.id, item.creator]));
+  return {
+    id: first.release.id,
+    slug,
+    title: first.release.title,
+    releaseDate,
+    href: first.release.href,
+    artwork: first.artwork,
+    artists: [...artistsById.values()],
+    tracks: releaseTracks,
+  };
+}
+
+export function createStaticCatalogueRepository(items: CatalogueItem[]): CatalogueRepository {
+  return {
+    async listPublishedTracks() {
+      return items;
+    },
+    async findPublishedArtist(slug) {
+      return artistFromItems(items, slug);
+    },
+    async findPublishedRelease(slug) {
+      return releaseFromItems(items, slug);
+    },
+    async findPublishedTrack(releaseSlug, trackSlug) {
+      const item =
+        items.find(
+          (candidate) => candidate.release.slug === releaseSlug && candidate.slug === trackSlug,
+        ) ?? null;
+      if (!item) {
+        return null;
+      }
+
+      const artist = artistFromItems(items, item.creator.slug);
+      const release = releaseFromItems(items, item.release.slug);
+      if (!artist || !release) {
+        return null;
+      }
+      return { item, artist, release };
+    },
+  };
+}
+
+export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>(
+  db: PgDatabase<TQueryResult, typeof schema>,
+): CatalogueRepository {
+  async function readPublishedRows(): Promise<PublishedTrackRow[]> {
+    return db
+      .select({
+        trackId: tracks.id,
+        trackSlug: tracks.slug,
+        trackTitle: tracks.title,
+        trackPosition: tracks.position,
+        releaseId: releases.id,
+        releaseSlug: releases.slug,
+        releaseTitle: releases.title,
+        releaseDate: releases.releaseDate,
+        artistId: artists.id,
+        artistSlug: artists.slug,
+        artistName: artists.displayName,
+        artistBiography: artists.biography,
+        artistPosition: trackArtistCredits.position,
+        artworkObjectKey: artworkAssets.objectKey,
+        artworkAltText: trackArtworkAssets.altText,
+        mediaObjectKey: audioAssets.objectKey,
+        mediaMimeType: audioAssets.mimeType,
+      })
+      .from(tracks)
+      .innerJoin(releases, eq(releases.id, tracks.releaseId))
+      .innerJoin(trackArtistCredits, eq(trackArtistCredits.trackId, tracks.id))
+      .innerJoin(artists, eq(artists.id, trackArtistCredits.artistId))
+      .leftJoin(
+        trackArtworkAssets,
+        and(
+          eq(trackArtworkAssets.trackId, tracks.id),
+          eq(trackArtworkAssets.role, "primary"),
+          eq(trackArtworkAssets.position, 1),
+        ),
+      )
+      .leftJoin(
+        artworkAssets,
+        and(
+          eq(artworkAssets.id, trackArtworkAssets.artworkAssetId),
+          eq(artworkAssets.scope, "publishable_derivative"),
+        ),
+      )
+      .leftJoin(
+        audioAssets,
+        and(
+          eq(audioAssets.trackId, tracks.id),
+          eq(audioAssets.scope, "publishable_derivative"),
+          eq(audioAssets.isPrimary, true),
+        ),
+      )
+      .where(
+        and(
+          eq(artists.lifecycleStatus, "published"),
+          eq(releases.lifecycleStatus, "published"),
+          eq(tracks.lifecycleStatus, "published"),
+        ),
+      )
+      .orderBy(
+        asc(releases.releaseDate),
+        asc(tracks.discNumber),
+        asc(tracks.position),
+        asc(trackArtistCredits.position),
+      );
+  }
+
+  async function listPublishedTracks() {
+    return mapPublishedTracks(await readPublishedRows());
+  }
+
+  return {
+    listPublishedTracks,
+    async findPublishedArtist(slug) {
+      const [artist] = await db
+        .select({
+          id: artists.id,
+          slug: artists.slug,
+          name: artists.displayName,
+          biography: artists.biography,
+          artworkObjectKey: artworkAssets.objectKey,
+          artworkAltText: artistArtworkAssets.altText,
+        })
+        .from(artists)
+        .leftJoin(
+          artistArtworkAssets,
+          and(
+            eq(artistArtworkAssets.artistId, artists.id),
+            eq(artistArtworkAssets.role, "avatar"),
+            eq(artistArtworkAssets.position, 1),
+          ),
+        )
+        .leftJoin(
+          artworkAssets,
+          and(
+            eq(artworkAssets.id, artistArtworkAssets.artworkAssetId),
+            eq(artworkAssets.scope, "publishable_derivative"),
+          ),
+        )
+        .where(and(eq(artists.slug, slug), eq(artists.lifecycleStatus, "published")))
+        .limit(1);
+      if (!artist) {
+        return null;
+      }
+
+      const items = mapPublishedTracks(await readPublishedRows()).filter(
+        (item) => item.creator.id === artist.id,
+      );
+      return {
+        id: artist.id,
+        slug: artist.slug,
+        name: artist.name,
+        biography: artist.biography,
+        href: `/artists/${artist.slug}`,
+        artwork: {
+          src: artist.artworkObjectKey
+            ? publicAssetPath(artist.artworkObjectKey)
+            : "/assets/favicon.svg",
+          alt: artist.artworkAltText ?? `${artist.name} artwork`,
+        },
+        tracks: items,
+      };
+    },
+    async findPublishedRelease(slug) {
+      const releaseRows = await db
+        .select({
+          id: releases.id,
+          slug: releases.slug,
+          title: releases.title,
+          releaseDate: releases.releaseDate,
+          artworkObjectKey: artworkAssets.objectKey,
+          artworkAltText: releaseArtworkAssets.altText,
+          artistId: artists.id,
+          artistSlug: artists.slug,
+          artistName: artists.displayName,
+          creditedAs: releaseArtistCredits.creditedAs,
+        })
+        .from(releases)
+        .innerJoin(releaseArtistCredits, eq(releaseArtistCredits.releaseId, releases.id))
+        .innerJoin(artists, eq(artists.id, releaseArtistCredits.artistId))
+        .leftJoin(
+          releaseArtworkAssets,
+          and(
+            eq(releaseArtworkAssets.releaseId, releases.id),
+            eq(releaseArtworkAssets.role, "primary"),
+            eq(releaseArtworkAssets.position, 1),
+          ),
+        )
+        .leftJoin(
+          artworkAssets,
+          and(
+            eq(artworkAssets.id, releaseArtworkAssets.artworkAssetId),
+            eq(artworkAssets.scope, "publishable_derivative"),
+          ),
+        )
+        .where(
+          and(
+            eq(releases.slug, slug),
+            eq(releases.lifecycleStatus, "published"),
+            eq(artists.lifecycleStatus, "published"),
+          ),
+        )
+        .orderBy(asc(releaseArtistCredits.position));
+      const release = releaseRows[0];
+      if (!release) {
+        return null;
+      }
+
+      const items = mapPublishedTracks(await readPublishedRows()).filter(
+        (item) => item.release.id === release.id,
+      );
+      return {
+        id: release.id,
+        slug: release.slug,
+        title: release.title,
+        releaseDate: release.releaseDate?.toISOString() ?? null,
+        href: `/releases/${release.slug}`,
+        artwork: {
+          src: release.artworkObjectKey
+            ? publicAssetPath(release.artworkObjectKey)
+            : "/assets/favicon.svg",
+          alt: release.artworkAltText ?? `Artwork for ${release.title}`,
+        },
+        artists: releaseRows.map((row) => ({
+          id: row.artistId,
+          slug: row.artistSlug,
+          name: row.creditedAs ?? row.artistName,
+          role: "Artist",
+          href: `/artists/${row.artistSlug}`,
+        })),
+        tracks: items,
+      };
+    },
+    async findPublishedTrack(releaseSlug, trackSlug) {
+      const rows = await readPublishedRows();
+      const items = mapPublishedTracks(rows);
+      const item =
+        items.find(
+          (candidate) => candidate.release.slug === releaseSlug && candidate.slug === trackSlug,
+        ) ?? null;
+      if (!item) {
+        return null;
+      }
+
+      const artist = artistFromItems(items, item.creator.slug);
+      const releaseDate =
+        rows.find((row) => row.releaseSlug === releaseSlug)?.releaseDate?.toISOString() ?? null;
+      const release = releaseFromItems(items, releaseSlug, releaseDate);
+      if (!artist || !release) {
+        return null;
+      }
+      return { item, artist, release };
+    },
+  };
+}
+
+export async function loadPublicCatalogue(
+  repository: CatalogueRepository,
+): Promise<CatalogueLoadResult> {
+  try {
+    const items = await repository.listPublishedTracks();
+    return items.length > 0 ? { status: "ready", items } : { status: "empty", items: [] };
+  } catch (error) {
+    console.error("Public catalogue query failed.", error);
+    return {
+      status: "error",
+      items: [],
+      message: "The catalogue is temporarily unavailable. Please try again shortly.",
+    };
+  }
+}

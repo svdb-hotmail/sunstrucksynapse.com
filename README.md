@@ -8,9 +8,9 @@ Music quality, deliberate human selection, and clear creative-process context de
 
 ## Current repository state
 
-This repository contains a React Router 8 framework-mode application written in strict TypeScript and running on the Cloudflare Workers runtime through the Cloudflare Vite plugin. It preserves the earlier audio-and-video portfolio prototype as a componentized, responsive application shell with temporary typed catalogue fixtures and client-side presentation interactions.
+This repository contains a React Router 8 framework-mode application written in strict TypeScript and running on the Cloudflare Workers runtime through the Cloudflare Vite plugin. It provides a responsive public listening experience backed by the PostgreSQL catalogue, with a persistent global media player, queue and transport controls, and stable artist, release, and track routes.
 
-It is not yet the intended product. In particular, the repository does not currently provide a real music catalogue, continuous playback, artist submissions, curator administration, rights or provenance records, search, analytics, or other platform services. Media controls are deliberately source-free until later catalogue and streaming work supplies real media.
+The first five rights-cleared listener tracks and their publishable media metadata are seeded through Drizzle. Public repository queries exclude non-published records and private assets. Curator administration, open submissions, search, analytics, controlled R2 delivery, and the remaining platform services are still future work.
 
 ## Intended product
 
@@ -24,7 +24,7 @@ See the [product scope, terminology, and non-goals](docs/product-scope.md) for t
 
 The intended MVP centres on a curated catalogue, real continuous audio playback, queue and playback controls, artist/release/track pages, editorial collections, search and filtering, curator administration, structured submissions, rights and creative-process declarations, basic privacy-conscious analytics, and a responsive, accessible web experience.
 
-These are planned capabilities, not descriptions of the current prototype. The MVP excludes open self-publishing, royalty accounting, advertising, native mobile applications, algorithmic recommendation feeds, social features, automated AI-quality scoring, DRM, payments, and a public video catalogue.
+Phase 1 now implements the catalogue, playback, queue, and public entity-page portion of that boundary. The MVP excludes open self-publishing, royalty accounting, advertising, native mobile applications, algorithmic recommendation feeds, social features, automated AI-quality scoring, DRM, and payments.
 
 ## Future possibilities
 

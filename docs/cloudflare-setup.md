@@ -107,7 +107,7 @@ _Note: Cloudflare WAF rules do not add response headers. Configure response head
 
 1. **Contact Form**: The current `mailto:` form is not mixed content, but it depends on the visitor's local email client and can fail or feel awkward. Replace it with a proper API endpoint (e.g., Cloudflare Workers + Resend/SendGrid) in a future update.
 
-2. **Media Delivery**: The player is intentionally source-free. Public presentation assets live in `public/assets/`; before adding real media, implement the later catalogue and private-delivery work described in `media-protection.md`.
+2. **Media Delivery**: Phase 1 media derivatives currently live in `public/assets/` and are referenced by publishable database asset records. Migrating delivery to private R2 and signed application URLs remains separate work described in `media-protection.md`.
 
 3. **Testing**: After enabling settings, test in an incognito window to verify:
    - [ ] No mixed-content warnings

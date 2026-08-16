@@ -268,6 +268,30 @@ export const trackArtistCredits = pgTable(
   ],
 );
 
+export const trackArtworkAssets = pgTable(
+  "track_artwork_assets",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => tracks.id, { onDelete: "cascade" }),
+    artworkAssetId: uuid("artwork_asset_id")
+      .notNull()
+      .references(() => artworkAssets.id, { onDelete: "restrict" }),
+    role: artworkRole("role").default("gallery").notNull(),
+    position: integer("position").default(1).notNull(),
+    altText: text("alt_text"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique("track_artwork_assets_position_unique").on(table.trackId, table.role, table.position),
+    unique("track_artwork_assets_asset_unique").on(table.trackId, table.artworkAssetId, table.role),
+    index("track_artwork_assets_track_id_idx").on(table.trackId),
+    index("track_artwork_assets_artwork_asset_id_idx").on(table.artworkAssetId),
+    check("track_artwork_assets_position_check", sql`${table.position} > 0`),
+  ],
+);
+
 export const audioAssets = pgTable(
   "audio_assets",
   {

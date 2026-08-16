@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   isRouteErrorResponse,
   Links,
@@ -6,17 +6,30 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useLoaderData,
 } from "react-router";
 
 import { ApplicationShell } from "~/components/ApplicationShell";
-import { getCatalogueItem, initialCatalogueItem } from "~/data/catalogue";
+import { cloudflareContext } from "~/config/cloudflare-context.server";
+import { loadPublicCatalogue } from "~/repositories/catalogue.server";
+import { catalogueLoadingMessage, findCatalogueItem } from "~/services/catalogue";
 import type {
   CatalogueItem,
   PlayerOutletContext,
   PlayerState,
   QueueEntry,
 } from "~/types/catalogue";
-import { addQueueItem, findNextPlayableQueueEntry, removeQueueItem } from "~/utils/queue";
+import {
+  PLAYER_STORAGE_KEY,
+  restorePlayerState,
+  serializePlayerState,
+} from "~/utils/player-storage";
+import {
+  addQueueItem,
+  findAdjacentPlayableItem,
+  findNextPlayableQueueEntry,
+  removeQueueItem,
+} from "~/utils/queue";
 
 import type { Route } from "./+types/root";
 import "./styles/global.css";
@@ -24,6 +37,11 @@ import "./styles/global.css";
 export const links: Route.LinksFunction = () => [
   { rel: "icon", href: "/assets/favicon.svg", type: "image/svg+xml" },
 ];
+
+export async function loader({ context }: Route.LoaderArgs) {
+  const { catalogueRepository } = context.get(cloudflareContext);
+  return loadPublicCatalogue(catalogueRepository);
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -45,17 +63,48 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const catalogue = useLoaderData<typeof loader>();
+  const catalogueItems = catalogue.items;
+  const itemsById = useMemo(
+    () => new Map(catalogueItems.map((item) => [item.id, item])),
+    [catalogueItems],
+  );
+  const defaultItem = catalogueItems.find((item) => item.media) ?? catalogueItems[0] ?? null;
   const playerPanelRef = useRef<HTMLElement>(null);
   const playbackSequence = useRef(0);
+  const [hasRestoredPlayer, setHasRestoredPlayer] = useState(false);
   const [player, setPlayer] = useState<PlayerState>({
-    selectedItemId: initialCatalogueItem.id,
+    selectedItemId: defaultItem?.id ?? null,
   });
   const [playbackRequest, setPlaybackRequest] = useState<{
     itemId: string;
     sequence: number;
   } | null>(null);
   const [queue, setQueue] = useState<QueueEntry[]>([]);
-  const selectedItem = getCatalogueItem(player.selectedItemId);
+  const selectedItem = player.selectedItemId
+    ? findCatalogueItem(catalogueItems, player.selectedItemId)
+    : undefined;
+
+  useEffect(() => {
+    const restored = restorePlayerState(
+      window.localStorage.getItem(PLAYER_STORAGE_KEY),
+      catalogueItems,
+      defaultItem?.id ?? null,
+    );
+    setPlayer({ selectedItemId: restored.selectedItemId });
+    setQueue(restored.queue);
+    setHasRestoredPlayer(true);
+  }, [catalogueItems, defaultItem?.id]);
+
+  useEffect(() => {
+    if (!hasRestoredPlayer) {
+      return;
+    }
+    window.localStorage.setItem(
+      PLAYER_STORAGE_KEY,
+      serializePlayerState(player.selectedItemId, queue),
+    );
+  }, [hasRestoredPlayer, player.selectedItemId, queue]);
 
   const selectItem = useCallback((item: CatalogueItem) => {
     setPlayer({ selectedItemId: item.id });
@@ -64,6 +113,10 @@ export default function App() {
 
   const requestPlayback = useCallback((item: CatalogueItem, moveFocus = true) => {
     setPlayer({ selectedItemId: item.id });
+    if (!item.media) {
+      setPlaybackRequest(null);
+      return;
+    }
     playbackSequence.current += 1;
     setPlaybackRequest({ itemId: item.id, sequence: playbackSequence.current });
 
@@ -83,29 +136,60 @@ export default function App() {
 
   const selectQueueEntry = useCallback(
     (entry: QueueEntry) => {
-      const item = getCatalogueItem(entry.itemId);
+      const item = itemsById.get(entry.itemId);
       setQueue((current) => removeQueueItem(current, entry.itemId));
-      if (item.media) {
+      if (item?.media) {
         requestPlayback(item);
-      } else {
+      } else if (item) {
         selectItem(item);
       }
     },
-    [requestPlayback, selectItem],
+    [itemsById, requestPlayback, selectItem],
   );
 
-  const advanceQueue = useCallback(() => {
-    const nextPlayable = findNextPlayableQueueEntry(queue, getCatalogueItem);
-    if (!nextPlayable) {
+  const advancePlayback = useCallback(
+    (moveFocus = false) => {
+      const nextQueued = findNextPlayableQueueEntry(queue, (itemId) => itemsById.get(itemId));
+      if (nextQueued) {
+        const queuedItem = itemsById.get(nextQueued.itemId);
+        setQueue((current) => removeQueueItem(current, nextQueued.itemId));
+        if (queuedItem) {
+          requestPlayback(queuedItem, moveFocus);
+        }
+        return;
+      }
+
+      if (!selectedItem) {
+        return;
+      }
+      const nextItem = findAdjacentPlayableItem(catalogueItems, selectedItem.id, 1);
+      if (nextItem) {
+        requestPlayback(nextItem, moveFocus);
+      }
+    },
+    [catalogueItems, itemsById, queue, requestPlayback, selectedItem],
+  );
+
+  const playPrevious = useCallback(() => {
+    if (!selectedItem) {
       return;
     }
+    const previousItem = findAdjacentPlayableItem(catalogueItems, selectedItem.id, -1);
+    if (previousItem) {
+      requestPlayback(previousItem, false);
+    }
+  }, [catalogueItems, requestPlayback, selectedItem]);
 
-    setQueue((current) => removeQueueItem(current, nextPlayable.itemId));
-    requestPlayback(getCatalogueItem(nextPlayable.itemId), false);
-  }, [queue, requestPlayback]);
+  const hasPrevious = selectedItem
+    ? Boolean(findAdjacentPlayableItem(catalogueItems, selectedItem.id, -1))
+    : false;
+  const hasNext =
+    queue.length > 0 ||
+    (selectedItem ? Boolean(findAdjacentPlayableItem(catalogueItems, selectedItem.id, 1)) : false);
 
   const outletContext: PlayerOutletContext = {
-    selectedItemId: selectedItem.id,
+    selectedItemId: selectedItem?.id ?? null,
+    catalogue,
     selectItem,
     queueItem: (item) => setQueue((current) => addQueueItem(current, item)),
     playItem: requestPlayback,
@@ -113,16 +197,29 @@ export default function App() {
 
   return (
     <ApplicationShell
-      item={selectedItem}
+      item={selectedItem ?? null}
       queue={queue}
       playerPanelRef={playerPanelRef}
       playbackRequest={playbackRequest}
       onClearQueue={() => setQueue([])}
       onSelectQueueEntry={selectQueueEntry}
-      onMediaEnded={advanceQueue}
+      onRemoveQueueEntry={(itemId) => setQueue((current) => removeQueueItem(current, itemId))}
+      onPrevious={playPrevious}
+      onNext={() => advancePlayback(false)}
+      canPrevious={hasPrevious}
+      canNext={hasNext}
+      onMediaEnded={() => advancePlayback(false)}
     >
       <Outlet context={outletContext} />
     </ApplicationShell>
+  );
+}
+
+export function HydrateFallback() {
+  return (
+    <main className="catalogue-state" aria-live="polite">
+      <p>{catalogueLoadingMessage}</p>
+    </main>
   );
 }
 

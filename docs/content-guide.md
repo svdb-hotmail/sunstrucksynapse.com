@@ -1,12 +1,12 @@
 # Content Integration Guide
 
-Use this guide when replacing placeholder website content.
+Use this guide when adding or replacing catalogue content.
 
-## Replace placeholder media references
+## Add catalogue media references
 
-- Replace placeholder thumbnails in `public/assets/` with final optimized thumbnails while preserving public URLs.
-- Update temporary catalogue records in `app/data/catalogue.ts`; page components must not contain catalogue item literals.
-- Keep the visual player source-free until the catalogue and streaming work in #12 provides real media URLs.
+- Add optimized publishable derivatives under `public/assets/` while preserving stable public URLs.
+- Add artist, release, track, artwork, and publishable media metadata through the database seed or curator workflow. Page components must not contain production catalogue item literals.
+- Keep private masters out of public paths. Public repository queries expose only `publishable_derivative` asset records.
 
 ## Keep preview media separate from master files
 

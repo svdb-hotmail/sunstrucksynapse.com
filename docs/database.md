@@ -46,7 +46,7 @@ npm run db:migrate
 npm run db:seed
 ```
 
-The seed is deterministic, synthetic, and idempotent. It includes catalogue credits and ordering, private-master and publishable-derivative metadata, a collection, an accepted submission, and two retained versions of each governance record. Running it twice creates no duplicate logical records.
+The seed is deterministic and idempotent. It includes the five rights-cleared Phase 1 listener tracks with track-specific artwork and publishable media, a private master that public queries must exclude, archived synthetic invariant fixtures, catalogue credits and ordering, a collection, accepted submissions, and retained governance history. Running it twice creates no duplicate logical records.
 
 The real migrate and seed entry points load an optional local `.env`, synchronously validate `DATABASE_URL`, and fail with a sanitized message before opening a connection when it is absent or malformed. Both adapters call the same injected, typed seed core in `scripts/seed-data.ts`.
 
@@ -58,7 +58,7 @@ Run the complete ephemeral validation harness without Docker, WSL, PostgreSQL to
 npm run db:validate:local
 ```
 
-The harness uses Drizzle's official PGlite adapter to apply the committed migrations to a fresh in-memory database. It inspects tables, indexes, foreign keys, checks, and custom triggers; runs the shared seed twice and compares all table counts; reads catalogue, editorial, submission, and governance relations in order; verifies `updated_at` advances; rejects incomplete artwork dimensions, ambiguous submission outcomes, invalid uniqueness, collection targets, release credits, and version-supersession writes; then repeats migration and seed in a second fresh database.
+The harness uses Drizzle's official PGlite adapter to apply the committed migrations to a fresh in-memory database. It inspects tables, track-specific artwork relations, indexes, foreign keys, checks, and custom triggers; runs the shared seed twice and compares all table counts; reads catalogue, editorial, submission, and governance relations in order; verifies `updated_at` advances; rejects incomplete artwork dimensions, ambiguous submission outcomes, invalid uniqueness, collection targets, release credits, and version-supersession writes; then repeats migration and seed in a second fresh database.
 
 PGlite executes PostgreSQL semantics in-process and reports its own `select version()` value. It is not a network connection and is not evidence that a particular PostgreSQL server or Neon version was tested. Live Neon compatibility remains a separate isolated-environment check.
 

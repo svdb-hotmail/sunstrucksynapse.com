@@ -4,9 +4,10 @@ interface QueueProps {
   entries: QueueEntry[];
   onClear: () => void;
   onSelect: (entry: QueueEntry) => void;
+  onRemove: (itemId: string) => void;
 }
 
-export function Queue({ entries, onClear, onSelect }: QueueProps) {
+export function Queue({ entries, onClear, onSelect, onRemove }: QueueProps) {
   return (
     <section className="queue">
       <div className="queue-head">
@@ -20,14 +21,24 @@ export function Queue({ entries, onClear, onSelect }: QueueProps) {
           {entries.map((entry, index) => (
             <li key={entry.itemId}>
               <span>{String(index + 1).padStart(2, "0")}</span>
-              <button
-                type="button"
-                aria-label={`Play ${entry.title} from queue`}
-                onClick={() => onSelect(entry)}
-              >
-                <strong>{entry.title}</strong>
-                <em>{entry.subtitle}</em>
-              </button>
+              <div className="queue-entry">
+                <button
+                  type="button"
+                  aria-label={`Play ${entry.title} from queue`}
+                  onClick={() => onSelect(entry)}
+                >
+                  <strong>{entry.title}</strong>
+                  <em>{entry.subtitle}</em>
+                </button>
+                <button
+                  type="button"
+                  className="queue-remove"
+                  aria-label={`Remove ${entry.title} from queue`}
+                  onClick={() => onRemove(entry.itemId)}
+                >
+                  Remove
+                </button>
+              </div>
             </li>
           ))}
         </ol>

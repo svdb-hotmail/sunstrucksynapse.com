@@ -1,22 +1,24 @@
+import { Link } from "react-router";
+
 export function Header() {
   return (
     <header className="topbar">
-      <a className="site-logo" href="#top" aria-label="Sunstruck Synapse Radio home">
+      <Link className="site-logo" to="/" aria-label="Sunstruck Synapse Radio home">
         <span className="mini-orb">SS</span>
         <span>Sunstruck Synapse Radio</span>
-      </a>
+      </Link>
 
       <nav className="desktop-nav" aria-label="Primary">
-        <a href="#latest">Latest</a>
-        <a href="#audio">Listen</a>
-        <a href="#video">Watch</a>
-        <a href="#about">About</a>
-        <a href="#contact">Contact</a>
+        <Link to="/#latest">Latest</Link>
+        <Link to="/#audio">Listen</Link>
+        <Link to="/#video">Watch</Link>
+        <Link to="/#about">About</Link>
+        <Link to="/#contact">Contact</Link>
       </nav>
 
-      <a className="subscribe" href="#about">
+      <Link className="subscribe" to="/#about">
         About the radio
-      </a>
+      </Link>
     </header>
   );
 }

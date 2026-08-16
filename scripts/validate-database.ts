@@ -37,12 +37,14 @@ const expectedTables = [
   "rights_declarations",
   "submissions",
   "track_artist_credits",
+  "track_artwork_assets",
   "tracks",
 ] as const;
 
 const requiredIndexes = [
   "artists_slug_unique",
   "tracks_release_order_idx",
+  "track_artwork_assets_track_id_idx",
   "collection_items_collection_order_idx",
   "collection_items_track_unique",
   "collection_items_release_unique",
@@ -147,7 +149,7 @@ async function verifySchemaObjects(client: PGlite) {
     assert(constraints.get(checkName) === "c", `required check ${checkName} is missing`);
   }
   const foreignKeyCount = constraintResult.rows.filter(({ type }) => type === "f").length;
-  assert(foreignKeyCount === 31, `expected 31 foreign keys, found ${foreignKeyCount}`);
+  assert(foreignKeyCount === 33, `expected 33 foreign keys, found ${foreignKeyCount}`);
 
   const triggerResult = await client.query<{ name: string }>(
     `select tgname as name
@@ -745,7 +747,7 @@ async function validateExistingHistoryGuard() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 3, "expected the original and two forward migrations");
+    assert(migrations.length === 4, "expected the original and three forward migrations");
     for (const statement of migrations[0]!.sql) {
       await client.exec(statement);
     }

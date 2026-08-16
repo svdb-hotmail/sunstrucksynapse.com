@@ -1,65 +1,73 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
-  catalogueItems,
-  catalogueSections,
-  getCatalogueItem,
-  initialCatalogueItem,
-} from "../../app/data/catalogue";
+  createStaticCatalogueRepository,
+  loadPublicCatalogue,
+} from "../../app/repositories/catalogue.server";
+import { buildCatalogueSections, findCatalogueItem } from "../../app/services/catalogue";
+import type { CatalogueRepository } from "../../app/repositories/catalogue.server";
+import { makeCatalogueItem } from "../fixtures/catalogue";
 
-describe("catalogue fixtures", () => {
-  it("keeps item identifiers unique and every section reference canonical", () => {
-    const itemIds = catalogueItems.map(({ id }) => id);
+describe("catalogue service", () => {
+  const catalogueItems = [
+    makeCatalogueItem("audio-one"),
+    makeCatalogueItem("video-one", { mediaKind: "video" }),
+    makeCatalogueItem("audio-two"),
+  ];
 
-    expect(new Set(itemIds).size).toBe(itemIds.length);
-    for (const section of catalogueSections) {
-      for (const item of section.items) {
-        expect(getCatalogueItem(item.id)).toBe(item);
-      }
-    }
-  });
+  it("builds latest, audio and video sections from repository items", () => {
+    const sections = buildCatalogueSections(catalogueItems);
 
-  it("starts the player on the canonical Sunstruck Synapse audio fixture", () => {
-    expect(initialCatalogueItem).toBe(getCatalogueItem("solar-nerve"));
-    expect(initialCatalogueItem.mediaKind).toBe("audio");
-    expect(initialCatalogueItem.media).toEqual({
-      src: "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3",
-      mimeType: "audio/mpeg",
-    });
-  });
-
-  it("exposes the radio structure without service or portfolio language", () => {
-    expect(catalogueSections.map((section) => section.title)).toEqual([
+    expect(sections.map((section) => section.title)).toEqual([
       "Latest transmissions",
       "Listen",
       "Watch",
     ]);
-    expect(JSON.stringify(catalogueSections)).not.toMatch(/portfolio|client work|service/i);
+    expect(sections[1]?.items.map((item) => item.id)).toEqual(["audio-one", "audio-two"]);
+    expect(sections[2]?.items.map((item) => item.id)).toEqual(["video-one"]);
   });
 
-  it("fails loudly for an unknown fixture identifier", () => {
-    expect(() => getCatalogueItem("missing-item")).toThrow(
-      "Unknown catalogue fixture: missing-item",
-    );
+  it("finds an item without creating a parallel item instance", () => {
+    expect(findCatalogueItem(catalogueItems, "video-one")).toBe(catalogueItems[1]);
+    expect(findCatalogueItem(catalogueItems, "missing")).toBeUndefined();
   });
 
-  it("maps both supplied audio files and all three supplied video files", () => {
-    expect(
-      catalogueItems
-        .filter((item) => item.mediaKind === "audio" && item.media)
-        .map((item) => item.media?.src),
-    ).toEqual([
-      "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3",
-      "/assets/audio/The Mushroom Circle (Gnome Revolution).mp3",
-    ]);
-    expect(
-      catalogueItems
-        .filter((item) => item.mediaKind === "video" && item.media)
-        .map((item) => item.media?.src),
-    ).toEqual([
-      "/assets/video/AI_pop-slop_202607190035.mp4",
-      "/assets/video/final-movie_00007_.mp4",
-      "/assets/video/gone_fishing.mp4",
-    ]);
+  it("reports ready and empty repository states", async () => {
+    await expect(
+      loadPublicCatalogue(createStaticCatalogueRepository(catalogueItems)),
+    ).resolves.toEqual({
+      status: "ready",
+      items: catalogueItems,
+    });
+    await expect(loadPublicCatalogue(createStaticCatalogueRepository([]))).resolves.toEqual({
+      status: "empty",
+      items: [],
+    });
+  });
+
+  it("returns a sanitized error state when the database read fails", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const failingRepository: CatalogueRepository = {
+      async listPublishedTracks() {
+        throw new Error("database credential must not reach the client");
+      },
+      async findPublishedArtist() {
+        return null;
+      },
+      async findPublishedRelease() {
+        return null;
+      },
+      async findPublishedTrack() {
+        return null;
+      },
+    };
+
+    await expect(loadPublicCatalogue(failingRepository)).resolves.toEqual({
+      status: "error",
+      items: [],
+      message: "The catalogue is temporarily unavailable. Please try again shortly.",
+    });
+    expect(consoleError).toHaveBeenCalledOnce();
+    consoleError.mockRestore();
   });
 });
