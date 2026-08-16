@@ -16,8 +16,8 @@ import {
   trackArtworkAssets,
   tracks,
   videoAssets,
-} from "~/db/schema";
-import * as schema from "~/db/schema";
+} from "../db/schema";
+import * as schema from "../db/schema";
 import type {
   Artwork,
   CatalogueItem,
@@ -26,8 +26,8 @@ import type {
   PublicEditorialCollection,
   PublicRelease,
   PublicTrack,
-} from "~/types/catalogue";
-import { createMediaDeliveryUrl } from "~/services/media-signing";
+} from "../types/catalogue";
+import { createMediaDeliveryUrl } from "../services/media-signing";
 
 export interface CatalogueRepository {
   listPublishedTracks(): Promise<CatalogueItem[]>;

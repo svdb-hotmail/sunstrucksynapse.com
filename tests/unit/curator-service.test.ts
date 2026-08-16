@@ -332,9 +332,13 @@ describe("slug conflict scoping", () => {
     });
     expect(secondArtist.ok).toBe(true);
 
-    const updateArtistConflict = await service.update("artist", (secondArtist as { ok: true; value: CuratorEntity }).value.id, {
-      slug: "shared-artist-slug",
-    });
+    const updateArtistConflict = await service.update(
+      "artist",
+      (secondArtist as { ok: true; value: CuratorEntity }).value.id,
+      {
+        slug: "shared-artist-slug",
+      },
+    );
     expect(updateArtistConflict).toEqual({
       ok: false,
       error: { code: "conflict", message: "The artist slug is already in use." },

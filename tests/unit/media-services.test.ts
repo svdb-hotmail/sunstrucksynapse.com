@@ -6,7 +6,7 @@ import type { LoaderFunctionArgs } from "react-router";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 import { cloudflareContext } from "../../app/config/cloudflare-context.server";
-import type { WorkerEnv } from "../../app/config/env.server";
+import type { MediaBucket, WorkerEnv } from "../../app/config/env.server";
 import {
   artistArtworkAssets,
   artists,
@@ -48,18 +48,14 @@ interface MockR2Item {
   httpMetadata?: Record<string, string>;
 }
 
-function createMockMediaBucket(): R2Bucket {
+function createMockMediaBucket(): MediaBucket {
   const storage = new Map<string, MockR2Item>();
 
-  const bucket: Partial<R2Bucket> = {
-    async put(key: string, value: unknown, options?: R2PutOptions): Promise<R2Object> {
+  const bucket: MediaBucket = {
+    async put(key, value, options) {
       let bytes: Uint8Array;
-      if (value instanceof Uint8Array) {
-        bytes = value;
-      } else if (typeof value === "string") {
-        bytes = new TextEncoder().encode(value);
-      } else if (value && typeof (value as ReadableStream<Uint8Array>).getReader === "function") {
-        const reader = (value as ReadableStream<Uint8Array>).getReader();
+      if (value && typeof value.getReader === "function") {
+        const reader = value.getReader();
         const chunks: Uint8Array[] = [];
         let total = 0;
         while (true) {
@@ -83,74 +79,43 @@ function createMockMediaBucket(): R2Bucket {
       const item: MockR2Item = {
         body: bytes,
         size: bytes.byteLength,
-        customMetadata: options?.customMetadata,
-        httpMetadata: options?.httpMetadata as Record<string, string> | undefined,
+        customMetadata: options.customMetadata,
+        httpMetadata: options.httpMetadata,
       };
       storage.set(key, item);
 
-      return {
-        key,
-        version: "v1",
-        size: bytes.byteLength,
-        etag: "mock-etag",
-        httpEtag: '"mock-etag"',
-        checksums: {},
-        uploaded: new Date(),
-        customMetadata: options?.customMetadata,
-        httpMetadata: options?.httpMetadata,
-        writeHttpMetadata: (_headers: Headers) => {},
-      } as R2Object;
+      return { size: bytes.byteLength };
     },
-    async head(key: string): Promise<R2Object | null> {
+    async head(key) {
       const item = storage.get(key);
       if (!item) return null;
       return {
-        key,
-        version: "v1",
         size: item.size,
-        etag: "mock-etag",
-        httpEtag: '"mock-etag"',
-        checksums: {},
-        uploaded: new Date(),
         customMetadata: item.customMetadata,
-        writeHttpMetadata: (_headers: Headers) => {},
-      } as R2Object;
+      };
     },
-    async get(key: string): Promise<R2ObjectBody | null> {
+    async get(key) {
       const item = storage.get(key);
       if (!item) return null;
       return {
-        key,
-        version: "v1",
         size: item.size,
-        etag: "mock-etag",
         httpEtag: '"mock-etag"',
-        checksums: {},
-        uploaded: new Date(),
         body: new ReadableStream<Uint8Array>({
           start(controller) {
             controller.enqueue(item.body);
             controller.close();
           },
         }),
-        bodyUsed: false,
-        arrayBuffer: async () => item.body.buffer,
-        text: async () => new TextDecoder().decode(item.body),
-        json: async () => JSON.parse(new TextDecoder().decode(item.body)),
-        blob: async () => new Blob([item.body]),
-        customMetadata: item.customMetadata,
+        range: undefined,
         writeHttpMetadata: (_headers: Headers) => {},
-      } as R2ObjectBody;
+      };
     },
-    async delete(key: string | string[]): Promise<void> {
-      const keys = Array.isArray(key) ? key : [key];
-      for (const k of keys) {
-        storage.delete(k);
-      }
+    async delete(key) {
+      storage.delete(key);
     },
   };
 
-  return bucket as R2Bucket;
+  return bucket;
 }
 
 describe("managed media declarations", () => {
@@ -295,12 +260,12 @@ describe("incremental sha256 hashing", () => {
     foxHasher.update(foxBytes.subarray(10, 25));
     foxHasher.update(foxBytes.subarray(25));
     expect(foxHasher.digestHex()).toBe(
-      "d7a8fbb307d7809469ca9abb6b00ab019d1d30f48459ba29a0c59f505238a573",
+      "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592",
     );
 
     const blob = new Blob([foxBytes]);
     await expect(computeBlobSha256(blob, 8)).resolves.toBe(
-      "d7a8fbb307d7809469ca9abb6b00ab019d1d30f48459ba29a0c59f505238a573",
+      "d7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592",
     );
   });
 });
@@ -308,7 +273,7 @@ describe("incremental sha256 hashing", () => {
 describe("media service upload targeting, expiration, and streaming", () => {
   let client: PGlite;
   let db: ReturnType<typeof drizzle<typeof schema>>;
-  let mockBucket: R2Bucket;
+  let mockBucket: MediaBucket;
   let env: WorkerEnv;
 
   beforeAll(async () => {
@@ -318,9 +283,13 @@ describe("media service upload targeting, expiration, and streaming", () => {
     await seedDatabase(db);
     mockBucket = createMockMediaBucket();
     env = {
+      DATABASE_URL: "postgres://localhost:5432/sunstruck_test",
+      ACCESS_TEAM_DOMAIN: "https://auth.cloudflareaccess.com",
+      ACCESS_AUD: "test-aud-secret",
+      CURATOR_EMAILS: "curator@example.test",
       MEDIA_BUCKET: mockBucket,
       MEDIA_DELIVERY_SIGNING_SECRET: "test-signing-secret",
-    } as WorkerEnv;
+    };
   }, 30_000);
 
   afterAll(async () => {
@@ -329,9 +298,18 @@ describe("media service upload targeting, expiration, and streaming", () => {
 
   it("Gap #3: persists target artwork relationships for artist, release, track, and editorial collection", async () => {
     const [artist] = await db.select({ id: artists.id, slug: artists.slug }).from(artists).limit(1);
-    const [release] = await db.select({ id: releases.id, slug: releases.slug }).from(releases).limit(1);
-    const [track] = await db.select({ id: tracks.id, slug: tracks.slug, releaseId: tracks.releaseId }).from(tracks).limit(1);
-    const [collection] = await db.select({ id: editorialCollections.id, slug: editorialCollections.slug }).from(editorialCollections).limit(1);
+    const [release] = await db
+      .select({ id: releases.id, slug: releases.slug })
+      .from(releases)
+      .limit(1);
+    const [track] = await db
+      .select({ id: tracks.id, slug: tracks.slug, releaseId: tracks.releaseId })
+      .from(tracks)
+      .limit(1);
+    const [collection] = await db
+      .select({ id: editorialCollections.id, slug: editorialCollections.slug })
+      .from(editorialCollections)
+      .limit(1);
 
     const targets = [
       { type: "artist" as const, id: artist.id },
@@ -401,21 +379,33 @@ describe("media service upload targeting, expiration, and streaming", () => {
         const rows = await db
           .select()
           .from(artistArtworkAssets)
-          .where(and(eq(artistArtworkAssets.artistId, target.id), eq(artistArtworkAssets.role, "avatar")));
+          .where(
+            and(
+              eq(artistArtworkAssets.artistId, target.id),
+              eq(artistArtworkAssets.role, "avatar"),
+            ),
+          );
         expect(rows).toHaveLength(1);
         expect(rows[0].artworkAssetId).toBe(completed.value.assetId);
       } else if (target.type === "release") {
         const rows = await db
           .select()
           .from(releaseArtworkAssets)
-          .where(and(eq(releaseArtworkAssets.releaseId, target.id), eq(releaseArtworkAssets.role, "primary")));
+          .where(
+            and(
+              eq(releaseArtworkAssets.releaseId, target.id),
+              eq(releaseArtworkAssets.role, "primary"),
+            ),
+          );
         expect(rows).toHaveLength(1);
         expect(rows[0].artworkAssetId).toBe(completed.value.assetId);
       } else if (target.type === "track") {
         const rows = await db
           .select()
           .from(trackArtworkAssets)
-          .where(and(eq(trackArtworkAssets.trackId, target.id), eq(trackArtworkAssets.role, "primary")));
+          .where(
+            and(eq(trackArtworkAssets.trackId, target.id), eq(trackArtworkAssets.role, "primary")),
+          );
         expect(rows).toHaveLength(1);
         expect(rows[0].artworkAssetId).toBe(completed.value.assetId);
       } else if (target.type === "collection") {
@@ -427,7 +417,9 @@ describe("media service upload targeting, expiration, and streaming", () => {
       }
     }
 
-    const catalogueRepo = createCatalogueRepository(db, { signingSecret: env.MEDIA_DELIVERY_SIGNING_SECRET });
+    const catalogueRepo = createCatalogueRepository(db, {
+      signingSecret: env.MEDIA_DELIVERY_SIGNING_SECRET,
+    });
 
     const publishedArtist = await catalogueRepo.findPublishedArtist(artist.slug);
     expect(publishedArtist?.artwork.src).toContain("/media/artwork/");
@@ -452,9 +444,15 @@ describe("media service upload targeting, expiration, and streaming", () => {
 
   it("Gap #3: private master artwork remains hidden across all public catalogue surfaces", async () => {
     const [artist] = await db.select({ id: artists.id, slug: artists.slug }).from(artists).limit(1);
-    const [release] = await db.select({ id: releases.id, slug: releases.slug }).from(releases).limit(1);
+    const [release] = await db
+      .select({ id: releases.id, slug: releases.slug })
+      .from(releases)
+      .limit(1);
     const [track] = await db.select({ id: tracks.id, slug: tracks.slug }).from(tracks).limit(1);
-    const [collection] = await db.select({ id: editorialCollections.id, slug: editorialCollections.slug }).from(editorialCollections).limit(1);
+    const [collection] = await db
+      .select({ id: editorialCollections.id, slug: editorialCollections.slug })
+      .from(editorialCollections)
+      .limit(1);
 
     const testContent = new Uint8Array([10, 20, 30, 40]);
     const hasher = new IncrementalSha256();
@@ -497,7 +495,9 @@ describe("media service upload targeting, expiration, and streaming", () => {
       await service.complete(created.value.id);
     }
 
-    const catalogueRepo = createCatalogueRepository(db, { signingSecret: env.MEDIA_DELIVERY_SIGNING_SECRET });
+    const catalogueRepo = createCatalogueRepository(db, {
+      signingSecret: env.MEDIA_DELIVERY_SIGNING_SECRET,
+    });
 
     const publishedArtist = await catalogueRepo.findPublishedArtist(artist.slug);
     expect(publishedArtist?.artwork.src).toBe("/assets/favicon.svg");
@@ -512,7 +512,63 @@ describe("media service upload targeting, expiration, and streaming", () => {
     expect(publishedCollection?.artwork).toBeUndefined();
   });
 
+  it("atomically replaces an existing primary audio asset without violating uniqueness", async () => {
+    const [track] = await db.select({ id: tracks.id }).from(tracks).limit(1);
+    const testContent = new Uint8Array([11, 22, 33, 44, 55]);
+    const hasher = new IncrementalSha256();
+    hasher.update(testContent);
+    const service = new MediaService(db, env, () => new Date("2026-08-16T12:00:00Z"));
+    const created = await service.createSession(
+      {
+        kind: "audio",
+        scope: "publishable_derivative",
+        mimeType: "audio/mpeg",
+        checksumSha256: hasher.digestHex(),
+        byteSize: testContent.byteLength,
+        durationMs: 120_000,
+        codec: "mp3",
+        targetEntityType: "track",
+        targetEntityId: track.id,
+      },
+      actor,
+    );
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+
+    const uploaded = await service.upload(
+      created.value.id,
+      new Request("https://example.test/upload", {
+        method: "PUT",
+        headers: { "content-type": "audio/mpeg" },
+        body: testContent,
+      }),
+    );
+    expect(uploaded.ok).toBe(true);
+
+    const completed = await service.complete(created.value.id);
+    expect(completed.ok).toBe(true);
+    const primaryAssets = await db
+      .select()
+      .from(audioAssets)
+      .where(
+        and(
+          eq(audioAssets.trackId, track.id),
+          eq(audioAssets.scope, "publishable_derivative"),
+          eq(audioAssets.isPrimary, true),
+        ),
+      );
+    expect(primaryAssets).toHaveLength(1);
+    if (!completed.ok) return;
+    const [session] = await db
+      .select({ objectKey: uploadSessions.objectKey })
+      .from(uploadSessions)
+      .where(eq(uploadSessions.id, created.value.id));
+    expect(primaryAssets[0].id).toBe(completed.value.assetId);
+    expect(primaryAssets[0].objectKey).toBe(session.objectKey);
+  });
+
   it("Gap #7: complete() rejects expiresAt in past, creates no asset rows, and cleanup handles abandoned session", async () => {
+    const [artist] = await db.select({ id: artists.id }).from(artists).limit(1);
     let now = new Date("2026-08-16T12:00:00Z");
     const service = new MediaService(db, env, () => now);
     const testContent = new Uint8Array([99, 98, 97, 96]);
@@ -529,6 +585,8 @@ describe("media service upload targeting, expiration, and streaming", () => {
         byteSize: testContent.byteLength,
         width: 400,
         height: 400,
+        targetEntityType: "artist",
+        targetEntityId: artist.id,
       },
       actor,
     );
@@ -571,6 +629,7 @@ describe("media service upload targeting, expiration, and streaming", () => {
   });
 
   it("Gap #8: streams bounded-memory chunks and verifies checksums and byte sizes", async () => {
+    const [artist] = await db.select({ id: artists.id }).from(artists).limit(1);
     const chunk1 = new Uint8Array([1, 2, 3, 4]);
     const chunk2 = new Uint8Array([5, 6, 7, 8]);
     const chunk3 = new Uint8Array([9, 10, 11, 12]);
@@ -592,6 +651,8 @@ describe("media service upload targeting, expiration, and streaming", () => {
         byteSize: totalBytes,
         width: 600,
         height: 600,
+        targetEntityType: "artist",
+        targetEntityId: artist.id,
       },
       actor,
     );
@@ -626,6 +687,8 @@ describe("media service upload targeting, expiration, and streaming", () => {
         byteSize: totalBytes,
         width: 600,
         height: 600,
+        targetEntityType: "artist",
+        targetEntityId: artist.id,
       },
       actor,
     );
@@ -854,6 +917,8 @@ describe("signed media delivery and fresh playback resolution", () => {
       const request = new Request(`https://example.com/media/audio/${assetId}`);
       const response = await mediaLoader({
         request,
+        url: new URL(request.url),
+        pattern: "/media/:kind/:assetId",
         params: { kind: "audio", assetId },
         context: mockContext,
       });
@@ -864,9 +929,7 @@ describe("signed media delivery and fresh playback resolution", () => {
       expect(location).toContain("&signature=");
 
       // The redirect target is signed and valid
-      await expect(
-        verifyMediaSignature(new URL(location!), secret),
-      ).resolves.toBe(true);
+      await expect(verifyMediaSignature(new URL(location!), secret)).resolves.toBe(true);
     });
 
     it("returns JSON when unsigned request specifies ?playback=true or Accept: application/json", async () => {
@@ -875,6 +938,8 @@ describe("signed media delivery and fresh playback resolution", () => {
       });
       const response = await mediaLoader({
         request,
+        url: new URL(request.url),
+        pattern: "/media/:kind/:assetId",
         params: { kind: "audio", assetId },
         context: mockContext,
       });
@@ -888,10 +953,17 @@ describe("signed media delivery and fresh playback resolution", () => {
     });
 
     it("streams media directly when a valid signed URL is requested", async () => {
-      const signedUrl = await createMediaDeliveryUrl("https://example.com", "audio", assetId, secret);
+      const signedUrl = await createMediaDeliveryUrl(
+        "https://example.com",
+        "audio",
+        assetId,
+        secret,
+      );
       const request = new Request(signedUrl);
       const response = await mediaLoader({
         request,
+        url: new URL(request.url),
+        pattern: "/media/:kind/:assetId",
         params: { kind: "audio", assetId },
         context: mockContext,
       });
@@ -912,6 +984,8 @@ describe("signed media delivery and fresh playback resolution", () => {
       const request = new Request(expiredUrl);
       const response = await mediaLoader({
         request,
+        url: new URL(request.url),
+        pattern: "/media/:kind/:assetId",
         params: { kind: "audio", assetId },
         context: mockContext,
       });

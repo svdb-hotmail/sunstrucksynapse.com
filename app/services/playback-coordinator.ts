@@ -12,7 +12,7 @@ export interface PlaybackMediaElement {
 
 export interface PlaybackCoordinatorOptions {
   resolveUrl?: (src: string) => Promise<string>;
-  onActiveSrcChange?: (src: string | null) => void;
+  onActiveSrcChange?: (src: string | null, itemId: string | null) => void;
   onErrorChange?: (error: string | null) => void;
   onLoadingChange?: (loading: boolean) => void;
 }
@@ -22,7 +22,7 @@ export class PlaybackCoordinator {
   private media: PlaybackMediaElement | null = null;
   private isInternalPlay = false;
   private resolveUrl: (src: string) => Promise<string>;
-  private onActiveSrcChange?: (src: string | null) => void;
+  private onActiveSrcChange?: (src: string | null, itemId: string | null) => void;
   private onErrorChange?: (error: string | null) => void;
   private onLoadingChange?: (loading: boolean) => void;
 
@@ -44,7 +44,7 @@ export class PlaybackCoordinator {
     this.onLoadingChange?.(false);
 
     if (!item?.media) {
-      this.onActiveSrcChange?.(null);
+      this.onActiveSrcChange?.(null, item?.id ?? null);
       if (this.media) {
         this.media.src = "";
       }
@@ -53,7 +53,7 @@ export class PlaybackCoordinator {
 
     // Set canonical source without fetching or minting expiring signed URLs on selection
     // Do NOT trigger media loading on selection
-    this.onActiveSrcChange?.(item.media.src);
+    this.onActiveSrcChange?.(item.media.src, item.id);
     if (this.media) {
       this.media.src = item.media.src;
     }
@@ -73,11 +73,16 @@ export class PlaybackCoordinator {
       let activeSrc = item.media.src;
       if (isR2MediaUrl(activeSrc)) {
         activeSrc = await this.resolveUrl(activeSrc);
+        if (this.item?.id !== item.id) {
+          return;
+        }
+        this.onActiveSrcChange?.(activeSrc, item.id);
       }
-      this.onActiveSrcChange?.(activeSrc);
 
       if (this.media) {
-        this.media.src = activeSrc;
+        if (isR2MediaUrl(item.media.src)) {
+          this.media.src = activeSrc;
+        }
         this.media.load();
         this.isInternalPlay = true;
         try {
@@ -88,7 +93,7 @@ export class PlaybackCoordinator {
       }
     } catch {
       this.onErrorChange?.(
-        "Playback could not start automatically. Use the player controls to begin.",
+        "Playback could not be loaded or started automatically. Use the player controls to begin.",
       );
     } finally {
       this.onLoadingChange?.(false);
@@ -107,6 +112,7 @@ export class PlaybackCoordinator {
     this.onErrorChange?.(null);
     this.onLoadingChange?.(true);
     const media = this.media;
+    const itemId = this.item.id;
 
     try {
       const savedTime = media ? media.currentTime : 0;
@@ -115,7 +121,10 @@ export class PlaybackCoordinator {
       }
 
       const freshUrl = await this.resolveUrl(this.item.media.src);
-      this.onActiveSrcChange?.(freshUrl);
+      if (this.item?.id !== itemId) {
+        return;
+      }
+      this.onActiveSrcChange?.(freshUrl, itemId);
 
       if (media) {
         media.src = freshUrl;
@@ -131,33 +140,39 @@ export class PlaybackCoordinator {
         }
       }
     } catch {
-      this.onErrorChange?.(
-        "This preview could not be loaded. Check your connection and retry.",
-      );
+      this.onErrorChange?.("This preview could not be loaded. Check your connection and retry.");
     } finally {
       this.onLoadingChange?.(false);
     }
   }
 
   async retry(): Promise<void> {
-    if (!this.item?.media) {
+    const item = this.item;
+    if (!item?.media) {
       return;
     }
 
     this.onErrorChange?.(null);
     this.onLoadingChange?.(true);
     const media = this.media;
+    const itemMedia = item.media;
 
     try {
-      let freshSrc = this.item.media.src;
+      const itemId = item.id;
+      let freshSrc = itemMedia.src;
       if (isR2MediaUrl(freshSrc)) {
         freshSrc = await this.resolveUrl(freshSrc);
+        if (this.item?.id !== itemId) {
+          return;
+        }
+        this.onActiveSrcChange?.(freshSrc, itemId);
       }
-      this.onActiveSrcChange?.(freshSrc);
 
       if (media) {
         const savedTime = media.currentTime;
-        media.src = freshSrc;
+        if (isR2MediaUrl(itemMedia.src)) {
+          media.src = freshSrc;
+        }
         media.load();
         if (savedTime > 0) {
           media.currentTime = savedTime;
@@ -170,9 +185,7 @@ export class PlaybackCoordinator {
         }
       }
     } catch {
-      this.onErrorChange?.(
-        "Playback is still unavailable. Check your connection and try again.",
-      );
+      this.onErrorChange?.("Playback is still unavailable. Check your connection and try again.");
     } finally {
       this.onLoadingChange?.(false);
     }

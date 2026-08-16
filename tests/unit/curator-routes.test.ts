@@ -92,6 +92,8 @@ describe("curator routes and actions status mappings", () => {
           headers: authHeaders,
           body: form1,
         }),
+        url: new URL("https://example.test/curator"),
+        pattern: "/curator",
         context,
         params: {},
       });
@@ -109,6 +111,8 @@ describe("curator routes and actions status mappings", () => {
           headers: authHeaders,
           body: form2,
         }),
+        url: new URL("https://example.test/curator"),
+        pattern: "/curator",
         context,
         params: {},
       });
@@ -127,6 +131,8 @@ describe("curator routes and actions status mappings", () => {
           headers: authHeaders,
           body: form3,
         }),
+        url: new URL("https://example.test/curator"),
+        pattern: "/curator",
         context,
         params: {},
       });
@@ -151,6 +157,8 @@ describe("curator routes and actions status mappings", () => {
           headers: authHeaders,
           body: form1,
         }),
+        url: new URL("https://example.test/curator"),
+        pattern: "/curator",
         context,
         params: {},
       });
@@ -167,6 +175,8 @@ describe("curator routes and actions status mappings", () => {
           headers: authHeaders,
           body: form2,
         }),
+        url: new URL("https://example.test/curator"),
+        pattern: "/curator",
         context,
         params: {},
       });
@@ -191,6 +201,8 @@ describe("curator routes and actions status mappings", () => {
           headers: authHeaders,
           body: form1,
         }),
+        url: new URL("https://example.test/curator"),
+        pattern: "/curator",
         context,
         params: {},
       });
@@ -214,6 +226,8 @@ describe("curator routes and actions status mappings", () => {
           headers: authHeaders,
           body: form2,
         }),
+        url: new URL("https://example.test/curator"),
+        pattern: "/curator",
         context,
         params: {},
       });
@@ -229,6 +243,8 @@ describe("curator routes and actions status mappings", () => {
           headers: { ...authHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({ slug: "INVALID SLUG", title: "Test" }),
         }),
+        url: new URL("https://example.test/curator/api/entities/artist"),
+        pattern: "/curator/api/entities/:entityType",
         context,
         params: { entityType: "artist" },
       });
@@ -244,6 +260,8 @@ describe("curator routes and actions status mappings", () => {
           method: "DELETE",
           headers: authHeaders,
         }),
+        url: new URL(`https://example.test/curator/api/entities/artist/${missingId}`),
+        pattern: "/curator/api/entities/:entityType/:entityId",
         context,
         params: { entityType: "artist", entityId: missingId },
       });
@@ -265,6 +283,8 @@ describe("curator routes and actions status mappings", () => {
           headers: { ...authHeaders, "Content-Type": "application/json" },
           body: JSON.stringify({ slug: "api-artist", title: "API Artist Duplicate" }),
         }),
+        url: new URL("https://example.test/curator/api/entities/artist"),
+        pattern: "/curator/api/entities/:entityType",
         context,
         params: { entityType: "artist" },
       });
@@ -285,6 +305,8 @@ describe("curator routes and actions status mappings", () => {
           method: "DELETE",
           headers: authHeaders,
         }),
+        url: new URL(`https://example.test/curator/api/entities/artist/${artist.id}`),
+        pattern: "/curator/api/entities/:entityType/:entityId",
         context,
         params: { entityType: "artist", entityId: artist.id },
       });

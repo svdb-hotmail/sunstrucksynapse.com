@@ -92,13 +92,7 @@ describe("player playback behavior and coordinator lifecycle", () => {
     ).resolves.toBe(false);
 
     // Fresh URL at tDelayedPlay
-    const freshSignedUrl = await createMediaDeliveryUrl(
-      "",
-      "audio",
-      assetId,
-      secret,
-      tDelayedPlay,
-    );
+    const freshSignedUrl = await createMediaDeliveryUrl("", "audio", assetId, secret, tDelayedPlay);
 
     const mockResolveUrl = vi.fn().mockResolvedValue(freshSignedUrl);
     const media = createMockMediaElement();
@@ -255,4 +249,3 @@ describe("player playback behavior and coordinator lifecycle", () => {
     expect(mockResolveUrl).not.toHaveBeenCalled();
   });
 });
-

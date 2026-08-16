@@ -10,7 +10,10 @@ describe("Cloudflare Worker scheduled publication handler", () => {
   });
 
   it("processes scheduled publications on cron trigger without curator Access authentication", async () => {
-    const service = new CuratorService(e2eCuratorRepository, () => new Date("2026-08-16T08:00:00Z"));
+    const service = new CuratorService(
+      e2eCuratorRepository,
+      () => new Date("2026-08-16T08:00:00Z"),
+    );
     const actor = { id: "curator-1", email: "curator@example.test" };
 
     const dueArtist = await service.create("artist", {
@@ -104,11 +107,17 @@ describe("Cloudflare Worker scheduled publication handler", () => {
     const originalMode = import.meta.env.MODE;
     try {
       import.meta.env.MODE = "production";
-      const request = new Request("https://example.com/");
-      const response = await worker.fetch(request, {} as Env, {
-        waitUntil: () => {},
-        passThroughOnException: () => {},
-      } as unknown as ExecutionContext);
+      const request = new Request("https://example.com/") as unknown as Parameters<
+        NonNullable<typeof worker.fetch>
+      >[0];
+      const response = await worker.fetch(
+        request,
+        {} as Env,
+        {
+          waitUntil: () => {},
+          passThroughOnException: () => {},
+        } as unknown as ExecutionContext,
+      );
       expect(response.status).toBe(500);
     } finally {
       import.meta.env.MODE = originalMode;

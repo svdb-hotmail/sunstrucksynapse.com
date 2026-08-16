@@ -128,4 +128,3 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
 export async function action(args: ActionFunctionArgs) {
   return loader(args);
 }
-

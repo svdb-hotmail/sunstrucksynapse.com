@@ -43,7 +43,14 @@ export async function action({ request, params, context }: ActionFunctionArgs) {
     runtime.curatorRepository ?? (runtime.db ? createCuratorRepository(runtime.db) : null);
   if (!type || !repository) return Response.json({ error: "Not found." }, { status: 404 });
   const service = new CuratorService(repository);
-  const payload: unknown = await request.json();
+  let payload: unknown = {};
+  if (request.method !== "DELETE") {
+    try {
+      payload = await request.json();
+    } catch {
+      return Response.json({ error: "Invalid request." }, { status: 400 });
+    }
+  }
   if (typeof payload !== "object" || payload === null) {
     return Response.json({ error: "Invalid request." }, { status: 400 });
   }

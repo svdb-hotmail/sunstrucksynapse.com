@@ -6,7 +6,6 @@ import type {
   CuratorEntity,
   CuratorEntityType,
   CuratorRepository,
-  Lifecycle,
   UpdateEntityInput,
 } from "./curator.server";
 
@@ -37,6 +36,33 @@ export function createE2eCuratorRepository(): CuratorRepository {
     itemIds.forEach((id, index) => {
       const item = collectionItems.find((candidate) => candidate.id === id);
       if (item) item.position = index + 1;
+    });
+    return true;
+  };
+
+  const setLifecycle: CuratorRepository["setLifecycle"] = async (
+    type,
+    id,
+    from,
+    to,
+    now,
+    scheduledFor,
+    actor,
+    reason,
+  ) => {
+    const entity = await find(type, id);
+    if (!entity || entity.lifecycleStatus !== from) return false;
+    entity.lifecycleStatus = to;
+    entity.scheduledFor = to === "scheduled" ? scheduledFor : null;
+    audit.unshift({
+      id: crypto.randomUUID(),
+      entityType: type,
+      entityId: id,
+      fromLifecycle: from,
+      toLifecycle: to,
+      actorEmail: actor.email,
+      reason,
+      occurredAt: now,
     });
     return true;
   };
@@ -94,23 +120,7 @@ export function createE2eCuratorRepository(): CuratorRepository {
         ? entities.get("track")!.some((entity) => entity.releaseId === id)
         : false;
     },
-    async setLifecycle(type, id, from, to, now, scheduledFor, actor, reason) {
-      const entity = await find(type, id);
-      if (!entity || entity.lifecycleStatus !== from) return false;
-      entity.lifecycleStatus = to;
-      entity.scheduledFor = to === "scheduled" ? scheduledFor : null;
-      audit.unshift({
-        id: crypto.randomUUID(),
-        entityType: type,
-        entityId: id,
-        fromLifecycle: from,
-        toLifecycle: to,
-        actorEmail: actor.email,
-        reason,
-        occurredAt: now,
-      });
-      return true;
-    },
+    setLifecycle,
     async addCollectionItem(collectionId: string, target: CollectionTarget) {
       collectionItems.push({
         id: crypto.randomUUID(),

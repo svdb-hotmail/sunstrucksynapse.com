@@ -2,13 +2,7 @@ import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 
 import type { WorkerEnv } from "~/config/env.server";
-import {
-  artists,
-  editorialCollections,
-  releases,
-  tracks,
-  uploadSessions,
-} from "~/db/schema";
+import { artists, editorialCollections, releases, tracks, uploadSessions } from "~/db/schema";
 import * as schema from "~/db/schema";
 import type { CuratorIdentity } from "~/types/curator";
 import { IncrementalSha256 } from "~/utils/sha256";
@@ -53,9 +47,10 @@ export function isTargetEntityType(value: unknown): value is TargetEntityType {
   );
 }
 
-function createFixedLengthStream(
-  expectedSize: number,
-): { readable: ReadableStream<Uint8Array>; writable: WritableStream<Uint8Array> } {
+function createFixedLengthStream(expectedSize: number): {
+  readable: ReadableStream<Uint8Array>;
+  writable: WritableStream<Uint8Array>;
+} {
   const globalClass = Reflect.get(globalThis, "FixedLengthStream");
   if (typeof globalClass === "function") {
     return new globalClass(expectedSize);
@@ -143,8 +138,7 @@ export function parseUploadDeclaration(input: unknown): MediaResult<UploadDeclar
   }
 
   const targetEntityId =
-    optionalString("targetEntityId") ??
-    (kind === "audio" ? optionalString("trackId") : undefined);
+    optionalString("targetEntityId") ?? (kind === "audio" ? optionalString("trackId") : undefined);
 
   if (!targetEntityId || !uuidRegex.test(targetEntityId)) {
     return { ok: false, status: 400, message: "A valid target entity ID is required." };
@@ -393,17 +387,14 @@ export class MediaService<TQueryResult extends PgQueryResultHKT = PgQueryResultH
             )
             RETURNING id
           ),
-          del_old AS (
-            DELETE FROM artist_artwork_assets
-            WHERE artist_id = ${targetEntityId} AND role = 'avatar' AND position = 1
-            RETURNING id
-          ),
           ins_rel AS (
             INSERT INTO artist_artwork_assets (
               artist_id, artwork_asset_id, role, position, created_at
             ) VALUES (
               ${targetEntityId}, ${assetId}, 'avatar', 1, ${now}
             )
+            ON CONFLICT (artist_id, role, position)
+            DO UPDATE SET artwork_asset_id = EXCLUDED.artwork_asset_id
             RETURNING id
           ),
           upd_session AS (
@@ -424,17 +415,14 @@ export class MediaService<TQueryResult extends PgQueryResultHKT = PgQueryResultH
             )
             RETURNING id
           ),
-          del_old AS (
-            DELETE FROM release_artwork_assets
-            WHERE release_id = ${targetEntityId} AND role = 'primary' AND position = 1
-            RETURNING id
-          ),
           ins_rel AS (
             INSERT INTO release_artwork_assets (
               release_id, artwork_asset_id, role, position, created_at
             ) VALUES (
               ${targetEntityId}, ${assetId}, 'primary', 1, ${now}
             )
+            ON CONFLICT (release_id, role, position)
+            DO UPDATE SET artwork_asset_id = EXCLUDED.artwork_asset_id
             RETURNING id
           ),
           upd_session AS (
@@ -455,17 +443,14 @@ export class MediaService<TQueryResult extends PgQueryResultHKT = PgQueryResultH
             )
             RETURNING id
           ),
-          del_old AS (
-            DELETE FROM track_artwork_assets
-            WHERE track_id = ${targetEntityId} AND role = 'primary' AND position = 1
-            RETURNING id
-          ),
           ins_rel AS (
             INSERT INTO track_artwork_assets (
               track_id, artwork_asset_id, role, position, created_at
             ) VALUES (
               ${targetEntityId}, ${assetId}, 'primary', 1, ${now}
             )
+            ON CONFLICT (track_id, role, position)
+            DO UPDATE SET artwork_asset_id = EXCLUDED.artwork_asset_id
             RETURNING id
           ),
           upd_session AS (
@@ -505,18 +490,25 @@ export class MediaService<TQueryResult extends PgQueryResultHKT = PgQueryResultH
       const isPrimary = session.scope === "publishable_derivative";
       if (isPrimary) {
         await this.db.execute(sql`
-          WITH unset_primary AS (
-            UPDATE audio_assets
-            SET is_primary = false, updated_at = ${now}
-            WHERE track_id = ${targetEntityId} AND scope = 'publishable_derivative' AND is_primary = true
-            RETURNING id
-          ),
-          ins_audio AS (
+          WITH upsert_audio AS (
             INSERT INTO audio_assets (
               id, track_id, object_key, storage_provider, status, scope, mime_type, checksum_sha256, byte_size, duration_ms, codec, is_primary, created_at, updated_at
             ) VALUES (
               ${assetId}, ${targetEntityId}, ${session.objectKey}, 'r2', 'ready', ${session.scope}, ${session.mimeType}, ${session.checksumSha256}, ${session.byteSize}, ${session.durationMs}, ${session.codec}, true, ${now}, ${now}
             )
+            ON CONFLICT (track_id, scope) WHERE is_primary
+            DO UPDATE SET
+              id = EXCLUDED.id,
+              object_key = EXCLUDED.object_key,
+              storage_provider = EXCLUDED.storage_provider,
+              status = EXCLUDED.status,
+              mime_type = EXCLUDED.mime_type,
+              checksum_sha256 = EXCLUDED.checksum_sha256,
+              byte_size = EXCLUDED.byte_size,
+              duration_ms = EXCLUDED.duration_ms,
+              codec = EXCLUDED.codec,
+              created_at = EXCLUDED.created_at,
+              updated_at = EXCLUDED.updated_at
             RETURNING id
           ),
           upd_session AS (
@@ -525,7 +517,7 @@ export class MediaService<TQueryResult extends PgQueryResultHKT = PgQueryResultH
             WHERE id = ${sessionId} AND status = 'pending'
             RETURNING id
           )
-          SELECT id FROM ins_audio
+          SELECT id FROM upsert_audio
         `);
       } else {
         await this.db.execute(sql`

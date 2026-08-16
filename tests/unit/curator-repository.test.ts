@@ -52,7 +52,9 @@ describe("curator repository atomic transactions", () => {
     expect(updated?.lifecycleStatus).toBe("in_review");
 
     const audit = await repository.listAudit();
-    const entry = audit.find((row) => row.entityId === artist.id && row.toLifecycle === "in_review");
+    const entry = audit.find(
+      (row) => row.entityId === artist.id && row.toLifecycle === "in_review",
+    );
     expect(entry).toMatchObject({
       entityType: "artist",
       entityId: artist.id,
@@ -148,7 +150,16 @@ describe("curator repository atomic transactions", () => {
     });
 
     const t0 = new Date("2026-08-16T10:00:00Z");
-    await repository.setLifecycle("artist", dueArtist.id, "draft", "in_review", t0, null, actor, null);
+    await repository.setLifecycle(
+      "artist",
+      dueArtist.id,
+      "draft",
+      "in_review",
+      t0,
+      null,
+      actor,
+      null,
+    );
     await repository.setLifecycle(
       "artist",
       dueArtist.id,
@@ -160,7 +171,16 @@ describe("curator repository atomic transactions", () => {
       null,
     );
 
-    await repository.setLifecycle("artist", futureArtist.id, "draft", "in_review", t0, null, actor, null);
+    await repository.setLifecycle(
+      "artist",
+      futureArtist.id,
+      "draft",
+      "in_review",
+      t0,
+      null,
+      actor,
+      null,
+    );
     await repository.setLifecycle(
       "artist",
       futureArtist.id,

@@ -39,7 +39,10 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   const mediaRef = useRef<HTMLMediaElement>(null);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeMediaSrc, setActiveMediaSrc] = useState<string | null>(item?.media?.src ?? null);
+  const [activeMedia, setActiveMedia] = useState<{
+    itemId: string;
+    src: string;
+  } | null>(item?.media ? { itemId: item.id, src: item.media.src } : null);
   const preventMediaAction = (event: React.SyntheticEvent) => event.preventDefault();
   const playerArtwork = item
     ? (item.artwork.playerSrc ?? item.artwork.src)
@@ -48,7 +51,9 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   const coordinatorRef = useRef<PlaybackCoordinator | null>(null);
   if (!coordinatorRef.current) {
     coordinatorRef.current = new PlaybackCoordinator({
-      onActiveSrcChange: setActiveMediaSrc,
+      onActiveSrcChange: (src, itemId) => {
+        setActiveMedia(src && itemId ? { itemId, src } : null);
+      },
       onErrorChange: setPlaybackError,
       onLoadingChange: setIsLoading,
     });
@@ -159,6 +164,8 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       setPlaybackError("This preview could not be loaded. Check your connection and retry.");
     },
   };
+  const activeMediaSrc =
+    activeMedia && activeMedia.itemId === item?.id ? activeMedia.src : (item?.media?.src ?? null);
 
   return (
     <aside ref={ref} className="player-panel" aria-label="Featured media player" tabIndex={-1}>
@@ -195,13 +202,9 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
               key={item.id}
               ref={mediaRef as React.RefObject<HTMLAudioElement>}
               aria-label={`${item.description.title} audio player`}
-              src={activeMediaSrc ?? item.media.src}
               {...mediaProps}
             >
-              <source
-                src={activeMediaSrc ?? item.media.src}
-                type={item.media.mimeType}
-              />
+              <source src={activeMediaSrc ?? item.media.src} type={item.media.mimeType} />
             </audio>
           ) : (
             <video
@@ -210,13 +213,9 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
               aria-label={`${item.description.title} video player`}
               poster={item.media.poster ?? "/assets/posters/video-poster.svg"}
               disablePictureInPicture
-              src={activeMediaSrc ?? item.media.src}
               {...mediaProps}
             >
-              <source
-                src={activeMediaSrc ?? item.media.src}
-                type={item.media.mimeType}
-              />
+              <source src={activeMediaSrc ?? item.media.src} type={item.media.mimeType} />
             </video>
           )}
           {isLoading ? (

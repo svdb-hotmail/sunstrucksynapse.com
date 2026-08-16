@@ -1,6 +1,8 @@
 {
   "extends": "./tsconfig.json",
   "include": [
+    ".react-router/types/**/*",
+    "worker-configuration.d.ts",
     "react-router.config.ts",
     "vite.config.ts",
     "vitest.config.ts",
@@ -8,22 +10,8 @@
     "drizzle.config.ts",
     "scripts/**/*",
     "tests/**/*",
-    "app/config/env.server.ts",
-    "app/db/client.server.ts",
-    "app/db/schema/**/*",
-    "app/repositories/catalogue.server.ts",
-    "app/repositories/curator-fixture.server.ts",
-    "app/repositories/curator.server.ts",
-    "app/services/access-auth.server.ts",
-    "app/services/catalogue.ts",
-    "app/services/curator.server.ts",
-    "app/services/media-signing.ts",
-    "app/services/media.server.ts",
-    "app/types/catalogue.ts",
-    "app/types/curator.ts",
-    "app/utils/json-ld.ts",
-    "app/utils/player-storage.ts",
-    "app/utils/queue.ts"
+    "workers/**/*",
+    "app/**/*"
   ],
   "compilerOptions": {
     "composite": true,
@@ -32,7 +20,9 @@
     "target": "ES2022",
     "module": "ES2022",
     "moduleResolution": "bundler",
+    "jsx": "react-jsx",
     "baseUrl": ".",
+    "rootDirs": [".", "./.react-router/types"],
     "paths": {
       "~/*": ["./app/*"]
     }

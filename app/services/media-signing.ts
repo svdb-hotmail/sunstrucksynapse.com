@@ -78,4 +78,3 @@ export async function resolveFreshPlaybackUrl(
   }
   throw new Error("Invalid playback URL response.");
 }
-
