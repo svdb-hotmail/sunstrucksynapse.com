@@ -1,3 +1,5 @@
+import { Link } from "react-router";
+
 import type { CatalogueItem } from "~/types/catalogue";
 
 interface CatalogueCardProps {
@@ -32,6 +34,7 @@ export function CatalogueCard({ item, isSelected, onSelect, onQueue, onPlay }: C
         <strong className="media-card-title">{item.description.title}</strong>
         <span className="media-card-description">{item.description.subtitle}</span>
         <div className="card-actions">
+          <Link to={item.href}>View track</Link>
           <button
             type="button"
             aria-label={

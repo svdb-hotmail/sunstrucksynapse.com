@@ -2,8 +2,10 @@ export type MediaKind = "audio" | "video";
 
 export interface Creator {
   id: string;
+  slug: string;
   name: string;
   role: string;
+  href: string;
 }
 
 export interface Artwork {
@@ -25,7 +27,15 @@ export interface MediaSource<Kind extends MediaKind> {
 
 interface CatalogueItemBase {
   id: string;
+  slug: string;
   creator: Creator;
+  release: {
+    id: string;
+    slug: string;
+    title: string;
+    href: string;
+  };
+  href: string;
   artwork: Artwork;
   description: DescriptiveText;
 }
@@ -43,8 +53,16 @@ export interface CatalogueSection {
   items: CatalogueItem[];
 }
 
+export interface PublicEditorialCollection {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  items: CatalogueItem[];
+}
+
 export interface PlayerState {
-  selectedItemId: CatalogueItem["id"];
+  selectedItemId: CatalogueItem["id"] | null;
 }
 
 export interface QueueEntry {
@@ -61,8 +79,41 @@ export interface Offering {
 }
 
 export interface PlayerOutletContext {
-  selectedItemId: CatalogueItem["id"];
+  selectedItemId: CatalogueItem["id"] | null;
+  catalogue: CatalogueLoadResult;
   selectItem: (item: CatalogueItem) => void;
   queueItem: (item: CatalogueItem) => void;
   playItem: (item: CatalogueItem) => void;
 }
+
+export interface PublicArtist {
+  id: string;
+  slug: string;
+  name: string;
+  biography: string | null;
+  href: string;
+  artwork: Artwork;
+  tracks: CatalogueItem[];
+}
+
+export interface PublicRelease {
+  id: string;
+  slug: string;
+  title: string;
+  releaseDate: string | null;
+  href: string;
+  artwork: Artwork;
+  artists: Creator[];
+  tracks: CatalogueItem[];
+}
+
+export interface PublicTrack {
+  item: CatalogueItem;
+  artist: PublicArtist;
+  release: PublicRelease;
+}
+
+export type CatalogueLoadResult =
+  | { status: "ready"; items: CatalogueItem[]; collections: PublicEditorialCollection[] }
+  | { status: "empty"; items: []; collections: [] }
+  | { status: "error"; items: []; collections: []; message: string };

@@ -21,7 +21,30 @@ export function removeQueueItem(entries: QueueEntry[], itemId: string): QueueEnt
 
 export function findNextPlayableQueueEntry(
   entries: QueueEntry[],
-  getItem: (itemId: string) => CatalogueItem,
+  getItem: (itemId: string) => CatalogueItem | undefined,
 ): QueueEntry | undefined {
-  return entries.find((entry) => Boolean(getItem(entry.itemId).media));
+  return entries.find((entry) => Boolean(getItem(entry.itemId)?.media));
+}
+
+export function findAdjacentPlayableItem(
+  items: CatalogueItem[],
+  currentItemId: string,
+  direction: -1 | 1,
+): CatalogueItem | undefined {
+  const currentIndex = items.findIndex((item) => item.id === currentItemId);
+  if (currentIndex < 0) {
+    return undefined;
+  }
+
+  for (
+    let index = currentIndex + direction;
+    index >= 0 && index < items.length;
+    index += direction
+  ) {
+    if (items[index]?.media) {
+      return items[index];
+    }
+  }
+
+  return undefined;
 }

@@ -19,15 +19,17 @@ export default defineConfig({
     url: baseURL,
     reuseExistingServer: false,
     timeout: 120_000,
-    env: {
-      ...process.env,
-      DATABASE_URL: "postgresql://ci:ci@127.0.0.1:5432/unused",
-    },
   },
   projects: [
     {
-      name: "chromium",
+      name: "desktop-chromium",
       use: { ...devices["Desktop Chrome"] },
+      testIgnore: /.*\.mobile\.spec\.ts/,
+    },
+    {
+      name: "mobile-chromium",
+      use: { ...devices["Pixel 5"] },
+      testMatch: /.*\.mobile\.spec\.ts/,
     },
   ],
 });

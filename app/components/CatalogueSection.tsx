@@ -3,7 +3,7 @@ import type { CatalogueItem, CatalogueSection as CatalogueSectionModel } from "~
 
 interface CatalogueSectionProps {
   section: CatalogueSectionModel;
-  selectedItemId: string;
+  selectedItemId: string | null;
   onSelect: (item: CatalogueItem) => void;
   onQueue: (item: CatalogueItem) => void;
   onPlay: (item: CatalogueItem) => void;

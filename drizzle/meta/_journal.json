@@ -22,6 +22,20 @@
       "when": 1786824374610,
       "tag": "0002_harden_catalogue_invariants",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1786850379042,
+      "tag": "0003_add_track_artwork_assets",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1786854012851,
+      "tag": "0004_add_video_assets",
+      "breakpoints": true
     }
   ]
 }

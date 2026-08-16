@@ -268,6 +268,30 @@ export const trackArtistCredits = pgTable(
   ],
 );
 
+export const trackArtworkAssets = pgTable(
+  "track_artwork_assets",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => tracks.id, { onDelete: "cascade" }),
+    artworkAssetId: uuid("artwork_asset_id")
+      .notNull()
+      .references(() => artworkAssets.id, { onDelete: "restrict" }),
+    role: artworkRole("role").default("gallery").notNull(),
+    position: integer("position").default(1).notNull(),
+    altText: text("alt_text"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    unique("track_artwork_assets_position_unique").on(table.trackId, table.role, table.position),
+    unique("track_artwork_assets_asset_unique").on(table.trackId, table.artworkAssetId, table.role),
+    index("track_artwork_assets_track_id_idx").on(table.trackId),
+    index("track_artwork_assets_artwork_asset_id_idx").on(table.artworkAssetId),
+    check("track_artwork_assets_position_check", sql`${table.position} > 0`),
+  ],
+);
+
 export const audioAssets = pgTable(
   "audio_assets",
   {
@@ -295,5 +319,37 @@ export const audioAssets = pgTable(
     check("audio_assets_checksum_sha256_check", sql`${table.checksumSha256} ~ '^[0-9a-f]{64}$'`),
     check("audio_assets_byte_size_check", sql`${table.byteSize} > 0`),
     check("audio_assets_duration_check", sql`${table.durationMs} > 0`),
+    check("audio_assets_mime_type_check", sql`${table.mimeType} ~ '^audio/'`),
+  ],
+);
+
+export const videoAssets = pgTable(
+  "video_assets",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    trackId: uuid("track_id")
+      .notNull()
+      .references(() => tracks.id, { onDelete: "restrict" }),
+    objectKey: text("object_key").notNull(),
+    scope: assetScope("scope").notNull(),
+    mimeType: text("mime_type").notNull(),
+    checksumSha256: text("checksum_sha256").notNull(),
+    byteSize: bigint("byte_size", { mode: "number" }).notNull(),
+    durationMs: integer("duration_ms").notNull(),
+    codec: text("codec").notNull(),
+    isPrimary: boolean("is_primary").default(false).notNull(),
+    ...timestamps(),
+  },
+  (table) => [
+    uniqueIndex("video_assets_object_key_unique").on(table.objectKey),
+    uniqueIndex("video_assets_track_scope_primary_unique")
+      .on(table.trackId, table.scope)
+      .where(sql`${table.isPrimary}`),
+    index("video_assets_track_id_idx").on(table.trackId),
+    index("video_assets_scope_idx").on(table.scope),
+    check("video_assets_checksum_sha256_check", sql`${table.checksumSha256} ~ '^[0-9a-f]{64}$'`),
+    check("video_assets_byte_size_check", sql`${table.byteSize} > 0`),
+    check("video_assets_duration_check", sql`${table.durationMs} > 0`),
+    check("video_assets_mime_type_check", sql`${table.mimeType} ~ '^video/'`),
   ],
 );

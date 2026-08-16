@@ -20,7 +20,9 @@ import {
   rightsDeclarations,
   submissions,
   trackArtistCredits,
+  trackArtworkAssets,
   tracks,
+  videoAssets,
 } from "../app/db/schema";
 import * as schema from "../app/db/schema";
 
@@ -45,6 +47,39 @@ export const seedIds = {
   provenanceStep: "a1000000-0000-4000-8000-000000000001",
   provenanceSource: "a2000000-0000-4000-8000-000000000001",
   provenanceEvidence: "a3000000-0000-4000-8000-000000000001",
+  productionArtist: "10000000-0000-4000-8000-000000000101",
+  productionRelease: "20000000-0000-4000-8000-000000000101",
+  productionTracks: [
+    "30000000-0000-4000-8000-000000000101",
+    "30000000-0000-4000-8000-000000000102",
+    "30000000-0000-4000-8000-000000000103",
+    "30000000-0000-4000-8000-000000000104",
+    "30000000-0000-4000-8000-000000000105",
+  ],
+  productionArtwork: [
+    "40000000-0000-4000-8000-000000000101",
+    "40000000-0000-4000-8000-000000000102",
+    "40000000-0000-4000-8000-000000000103",
+    "40000000-0000-4000-8000-000000000104",
+    "40000000-0000-4000-8000-000000000105",
+  ],
+  productionMedia: [
+    "50000000-0000-4000-8000-000000000101",
+    "50000000-0000-4000-8000-000000000102",
+    "50000000-0000-4000-8000-000000000103",
+    "50000000-0000-4000-8000-000000000104",
+    "50000000-0000-4000-8000-000000000105",
+  ],
+  productionPrivateMedia: "50000000-0000-4000-8000-000000000106",
+  productionCollection: "60000000-0000-4000-8000-000000000101",
+  productionCollectionItems: [
+    "61000000-0000-4000-8000-000000000101",
+    "61000000-0000-4000-8000-000000000102",
+    "61000000-0000-4000-8000-000000000103",
+    "61000000-0000-4000-8000-000000000104",
+  ],
+  productionSubmission: "70000000-0000-4000-8000-000000000101",
+  productionRights: "80000000-0000-4000-8000-000000000151",
 } as const;
 
 const publishedAt = new Date("2026-01-15T12:00:00.000Z");
@@ -53,6 +88,7 @@ const reviewedAt = new Date("2026-01-12T15:00:00.000Z");
 const acceptedAt = new Date("2026-01-13T16:00:00.000Z");
 const versionOneFinalizedAt = new Date("2026-01-11T10:00:00.000Z");
 const versionTwoFinalizedAt = new Date("2026-01-12T10:00:00.000Z");
+const archivedAt = new Date("2026-08-16T00:00:00.000Z");
 
 export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
   db: PgDatabase<TQueryResult, typeof schema>,
@@ -191,6 +227,339 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         },
       ])
       .onConflictDoNothing();
+
+    await tx
+      .insert(artworkAssets)
+      .values([
+        {
+          id: seedIds.productionArtwork[0],
+          objectKey: "assets/thumbs/thumb-01.svg",
+          scope: "publishable_derivative",
+          mimeType: "image/svg+xml",
+          checksumSha256: "0c8d83c6abf59b2d8e4240a92276b2996380b7d361c4366cea43d2a2198997cc",
+          byteSize: 1_228,
+          width: 1600,
+          height: 900,
+        },
+        {
+          id: seedIds.productionArtwork[1],
+          objectKey: "assets/thumbs/thumb-02.svg",
+          scope: "publishable_derivative",
+          mimeType: "image/svg+xml",
+          checksumSha256: "31832e5dbb572c49c9d6c17f30701a21c6163163ec864c8fbe0dc034251d6acf",
+          byteSize: 1_227,
+          width: 1600,
+          height: 900,
+        },
+        {
+          id: seedIds.productionArtwork[2],
+          objectKey: "assets/thumbs/thumb-03.svg",
+          scope: "publishable_derivative",
+          mimeType: "image/svg+xml",
+          checksumSha256: "ef715e70b26cc70549675184786d6e31461b1c33f870ba0b89ee1008fc9f9ec2",
+          byteSize: 1_228,
+          width: 1600,
+          height: 900,
+        },
+        {
+          id: seedIds.productionArtwork[3],
+          objectKey: "assets/thumbs/thumb-05.svg",
+          scope: "publishable_derivative",
+          mimeType: "image/svg+xml",
+          checksumSha256: "0401f06a033184b61b03d4c010b43db75ed9c33e573f48b0fe7954f83cea41d6",
+          byteSize: 1_231,
+          width: 1600,
+          height: 900,
+        },
+        {
+          id: seedIds.productionArtwork[4],
+          objectKey: "assets/thumbs/thumb-09.svg",
+          scope: "publishable_derivative",
+          mimeType: "image/svg+xml",
+          checksumSha256: "50c268e5b1d41511a10157b54797f23e46468da42d75090d66fa53f967f10877",
+          byteSize: 1_229,
+          width: 1600,
+          height: 900,
+        },
+      ])
+      .onConflictDoNothing();
+
+    await tx
+      .insert(artists)
+      .values({
+        id: seedIds.productionArtist,
+        slug: "sunstruck-synapse",
+        displayName: "Sunstruck Synapse",
+        biography:
+          "Human-directed transmissions spanning electronic music and visual counterparts.",
+        lifecycleStatus: "published",
+        publishedAt,
+      })
+      .onConflictDoNothing();
+
+    await tx
+      .insert(artistArtworkAssets)
+      .values({
+        artistId: seedIds.productionArtist,
+        artworkAssetId: seedIds.productionArtwork[0],
+        role: "avatar",
+        position: 1,
+        altText: "Sunstruck Synapse artwork.",
+      })
+      .onConflictDoNothing();
+
+    await tx
+      .insert(releases)
+      .values({
+        id: seedIds.productionRelease,
+        slug: "phase-zero-transmissions",
+        title: "Phase Zero Transmissions",
+        releaseDate: publishedAt,
+        lifecycleStatus: "published",
+        publishedAt,
+      })
+      .onConflictDoNothing();
+
+    await tx
+      .insert(releaseArtistCredits)
+      .values({
+        releaseId: seedIds.productionRelease,
+        artistId: seedIds.productionArtist,
+        position: 1,
+        creditedAs: "Sunstruck Synapse",
+      })
+      .onConflictDoNothing();
+
+    await tx
+      .insert(releaseArtworkAssets)
+      .values({
+        releaseId: seedIds.productionRelease,
+        artworkAssetId: seedIds.productionArtwork[0],
+        role: "primary",
+        position: 1,
+        altText: "Cover artwork for Phase Zero Transmissions.",
+      })
+      .onConflictDoNothing();
+
+    const productionTrackValues = [
+      {
+        id: seedIds.productionTracks[0],
+        slug: "ai-pop-slop-202607190035",
+        title: "AI Pop-Slop 202607190035",
+      },
+      {
+        id: seedIds.productionTracks[1],
+        slug: "revolution-will-be-televised",
+        title: "Sunstruck Synapse (Revolution will be televised)",
+      },
+      {
+        id: seedIds.productionTracks[2],
+        slug: "final-movie-00007",
+        title: "Final Movie 00007",
+      },
+      {
+        id: seedIds.productionTracks[3],
+        slug: "the-mushroom-circle-gnome-revolution",
+        title: "The Mushroom Circle (Gnome Revolution)",
+      },
+      {
+        id: seedIds.productionTracks[4],
+        slug: "gone-fishing",
+        title: "Gone Fishing",
+      },
+    ] as const;
+
+    await tx
+      .insert(tracks)
+      .values(
+        productionTrackValues.map((track, index) => ({
+          ...track,
+          releaseId: seedIds.productionRelease,
+          discNumber: 1,
+          position: index + 1,
+          lifecycleStatus: "published" as const,
+          publishedAt,
+        })),
+      )
+      .onConflictDoNothing();
+
+    await tx
+      .insert(trackArtistCredits)
+      .values(
+        seedIds.productionTracks.map((trackId) => ({
+          trackId,
+          artistId: seedIds.productionArtist,
+          position: 1,
+          creditedAs: "Sunstruck Synapse",
+        })),
+      )
+      .onConflictDoNothing();
+
+    await tx
+      .insert(trackArtworkAssets)
+      .values(
+        seedIds.productionTracks.map((trackId, index) => ({
+          trackId,
+          artworkAssetId: seedIds.productionArtwork[index],
+          role: "primary" as const,
+          position: 1,
+          altText: `${productionTrackValues[index].title} artwork.`,
+        })),
+      )
+      .onConflictDoNothing();
+
+    await tx
+      .insert(audioAssets)
+      .values([
+        {
+          id: seedIds.productionMedia[1],
+          trackId: seedIds.productionTracks[1],
+          objectKey: "assets/audio/Sunstruck Synapse (Revolution will be televised).mp3",
+          scope: "publishable_derivative",
+          mimeType: "audio/mpeg",
+          checksumSha256: "67b3e0501fb1cded733d9b6815e07dfedfbd950d32b717596b4bb31be5b5b923",
+          byteSize: 7_138_735,
+          durationMs: 445_289,
+          codec: "mp3",
+          isPrimary: true,
+        },
+        {
+          id: seedIds.productionMedia[3],
+          trackId: seedIds.productionTracks[3],
+          objectKey: "assets/audio/The Mushroom Circle (Gnome Revolution).mp3",
+          scope: "publishable_derivative",
+          mimeType: "audio/mpeg",
+          checksumSha256: "e86c3c0788f1c6067467ce0bb22156c378c298b8a3eca8ecd3dc33d783af920e",
+          byteSize: 8_766_686,
+          durationMs: 547_039,
+          codec: "mp3",
+          isPrimary: true,
+        },
+        {
+          id: seedIds.productionPrivateMedia,
+          trackId: seedIds.productionTracks[1],
+          objectKey: "audio/private/revolution-master.wav",
+          scope: "private_master",
+          mimeType: "audio/wav",
+          checksumSha256: "f".repeat(64),
+          byteSize: 56_448_000,
+          durationMs: 180_000,
+          codec: "pcm_s24le",
+          isPrimary: true,
+        },
+      ])
+      .onConflictDoNothing();
+
+    await tx
+      .insert(videoAssets)
+      .values([
+        {
+          id: seedIds.productionMedia[0],
+          trackId: seedIds.productionTracks[0],
+          objectKey: "assets/video/AI_pop-slop_202607190035.mp4",
+          scope: "publishable_derivative",
+          mimeType: "video/mp4",
+          checksumSha256: "dcbb82599d7df74fc187ca53ae908b575c0cbe1c5387747883a5157f6c0c50cf",
+          byteSize: 9_613_030,
+          durationMs: 30_016,
+          codec: "h264-aac",
+          isPrimary: true,
+        },
+        {
+          id: seedIds.productionMedia[2],
+          trackId: seedIds.productionTracks[2],
+          objectKey: "assets/video/final-movie_00007_.mp4",
+          scope: "publishable_derivative",
+          mimeType: "video/mp4",
+          checksumSha256: "fbd96fd9afda3b0a8a2c8c456477e05e04e5af5f1141deebfb7c8749878eb92c",
+          byteSize: 2_249_897,
+          durationMs: 14_458,
+          codec: "h264-aac",
+          isPrimary: true,
+        },
+        {
+          id: seedIds.productionMedia[4],
+          trackId: seedIds.productionTracks[4],
+          objectKey: "assets/video/gone_fishing.mp4",
+          scope: "publishable_derivative",
+          mimeType: "video/mp4",
+          checksumSha256: "0e85461019e5428e6f4aefe8b61b5900961acd2ee99b819354b4076e43a1fa7a",
+          byteSize: 13_983_942,
+          durationMs: 15_000,
+          codec: "h264-aac",
+          isPrimary: true,
+        },
+      ])
+      .onConflictDoNothing();
+
+    await tx
+      .insert(editorialCollections)
+      .values({
+        id: seedIds.productionCollection,
+        slug: "latest-transmissions",
+        name: "Latest transmissions",
+        description: "The newest published transmissions selected for the radio.",
+        artworkAssetId: seedIds.productionArtwork[0],
+        lifecycleStatus: "published",
+        publishedAt,
+      })
+      .onConflictDoNothing();
+
+    await tx
+      .insert(collectionItems)
+      .values(
+        seedIds.productionCollectionItems.map((id, index) => ({
+          id,
+          collectionId: seedIds.productionCollection,
+          trackId: seedIds.productionTracks[index],
+          position: index + 1,
+        })),
+      )
+      .onConflictDoNothing();
+
+    await tx
+      .insert(submissions)
+      .values({
+        id: seedIds.productionSubmission,
+        invitationReference: "production-catalogue-001",
+        submitterName: "Sunstruck Synapse",
+        submitterEmail: "rights@sunstrucksynapse.com",
+        title: "Phase Zero Transmissions",
+        status: "accepted",
+        submittedAt,
+        reviewedAt,
+        acceptedAt,
+        resultingReleaseId: seedIds.productionRelease,
+        reviewNotes: "Rights-cleared production catalogue accepted for publication.",
+      })
+      .onConflictDoNothing();
+
+    await tx
+      .insert(rightsDeclarations)
+      .values({
+        id: seedIds.productionRights,
+        submissionId: seedIds.productionSubmission,
+        version: 1,
+        status: "draft",
+        authorityBasis: "original_author",
+        containsThirdPartyMaterial: false,
+        restrictions: "Approved for publication on Sunstruck Synapse Radio.",
+      })
+      .onConflictDoNothing();
+
+    await tx
+      .update(rightsDeclarations)
+      .set({
+        status: "attested",
+        attestation: "The submitter confirms authority to publish all five seeded tracks.",
+        attestedAt: versionOneFinalizedAt,
+      })
+      .where(
+        and(
+          eq(rightsDeclarations.id, seedIds.productionRights),
+          eq(rightsDeclarations.status, "draft"),
+        ),
+      );
 
     await tx
       .insert(editorialCollections)
@@ -429,5 +798,18 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
       .where(
         and(eq(provenanceRecords.id, seedIds.provenanceTwo), eq(provenanceRecords.status, "draft")),
       );
+
+    await tx
+      .update(tracks)
+      .set({ lifecycleStatus: "archived", archivedAt })
+      .where(eq(tracks.releaseId, seedIds.release));
+    await tx
+      .update(releases)
+      .set({ lifecycleStatus: "archived", archivedAt })
+      .where(eq(releases.id, seedIds.release));
+    await tx
+      .update(artists)
+      .set({ lifecycleStatus: "archived", archivedAt })
+      .where(eq(artists.id, seedIds.artist));
   });
 }

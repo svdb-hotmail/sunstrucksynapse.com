@@ -7,12 +7,17 @@ import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
 
 interface ApplicationShellProps {
   children: React.ReactNode;
-  item: CatalogueItem;
+  item: CatalogueItem | null;
   queue: QueueEntry[];
   playerPanelRef: Ref<HTMLElement>;
   playbackRequest: { itemId: string; sequence: number } | null;
   onClearQueue: () => void;
   onSelectQueueEntry: (entry: QueueEntry) => void;
+  onRemoveQueueEntry: (itemId: string) => void;
+  onPrevious: () => void;
+  onNext: () => void;
+  canPrevious: boolean;
+  canNext: boolean;
   onMediaEnded: () => void;
 }
 
@@ -24,6 +29,11 @@ export function ApplicationShell({
   playbackRequest,
   onClearQueue,
   onSelectQueueEntry,
+  onRemoveQueueEntry,
+  onPrevious,
+  onNext,
+  canPrevious,
+  canNext,
   onMediaEnded,
 }: ApplicationShellProps) {
   return (
@@ -36,6 +46,11 @@ export function ApplicationShell({
           playbackRequest={playbackRequest}
           onClearQueue={onClearQueue}
           onSelectQueueEntry={onSelectQueueEntry}
+          onRemoveQueueEntry={onRemoveQueueEntry}
+          onPrevious={onPrevious}
+          onNext={onNext}
+          canPrevious={canPrevious}
+          canNext={canNext}
           onMediaEnded={onMediaEnded}
         />
         <main className="content-panel">

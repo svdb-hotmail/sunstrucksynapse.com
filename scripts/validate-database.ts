@@ -37,12 +37,16 @@ const expectedTables = [
   "rights_declarations",
   "submissions",
   "track_artist_credits",
+  "track_artwork_assets",
   "tracks",
+  "video_assets",
 ] as const;
 
 const requiredIndexes = [
   "artists_slug_unique",
   "tracks_release_order_idx",
+  "track_artwork_assets_track_id_idx",
+  "video_assets_track_id_idx",
   "collection_items_collection_order_idx",
   "collection_items_track_unique",
   "collection_items_release_unique",
@@ -55,6 +59,7 @@ const requiredIndexes = [
 
 const requiredChecks = [
   "artwork_assets_dimensions_check",
+  "audio_assets_mime_type_check",
   "collection_items_exactly_one_target_check",
   "rights_declarations_parent_check",
   "rights_declarations_version_check",
@@ -62,12 +67,14 @@ const requiredChecks = [
   "creative_process_disclosures_parent_check",
   "provenance_records_parent_check",
   "submissions_resulting_catalogue_check",
+  "video_assets_mime_type_check",
 ] as const;
 
 const requiredTriggers = [
   "artists_set_updated_at",
   "artwork_assets_set_updated_at",
   "audio_assets_set_updated_at",
+  "video_assets_set_updated_at",
   "releases_set_updated_at",
   "tracks_set_updated_at",
   "editorial_collections_set_updated_at",
@@ -147,7 +154,7 @@ async function verifySchemaObjects(client: PGlite) {
     assert(constraints.get(checkName) === "c", `required check ${checkName} is missing`);
   }
   const foreignKeyCount = constraintResult.rows.filter(({ type }) => type === "f").length;
-  assert(foreignKeyCount === 31, `expected 31 foreign keys, found ${foreignKeyCount}`);
+  assert(foreignKeyCount === 34, `expected 34 foreign keys, found ${foreignKeyCount}`);
 
   const triggerResult = await client.query<{ name: string }>(
     `select tgname as name
@@ -202,6 +209,22 @@ async function verifySeedRelations(db: ReturnType<typeof drizzle<typeof schema>>
   assert(
     tracksWithCredits.every(({ artist }) => artist === "Synthetic Dawn Ensemble"),
     "track artist credits do not resolve to the seeded artist",
+  );
+
+  const audioMimeTypes = await client.query<{ mime_type: string }>(
+    "select mime_type from audio_assets",
+  );
+  assert(
+    audioMimeTypes.rows.every(({ mime_type }) => mime_type.startsWith("audio/")),
+    "audio assets contain non-audio media",
+  );
+  const videoMimeTypes = await client.query<{ mime_type: string }>(
+    "select mime_type from video_assets",
+  );
+  assert(
+    videoMimeTypes.rows.length === 3 &&
+      videoMimeTypes.rows.every(({ mime_type }) => mime_type.startsWith("video/")),
+    "video assets do not contain the three production videos",
   );
 
   const collectionOrder = await db
@@ -745,7 +768,7 @@ async function validateExistingHistoryGuard() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 3, "expected the original and two forward migrations");
+    assert(migrations.length === 5, "expected the original and four forward migrations");
     for (const statement of migrations[0]!.sql) {
       await client.exec(statement);
     }
@@ -784,12 +807,142 @@ async function validateExistingHistoryGuard() {
   }
 }
 
+async function validateVideoAssetForwardMigration() {
+  const client = new PGlite();
+  try {
+    const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
+    assert(migrations.length === 5, "expected the original and four forward migrations");
+    for (const migration of migrations.slice(0, 4)) {
+      for (const statement of migration.sql) {
+        await client.exec(statement);
+      }
+    }
+    await client.exec(`
+      insert into artists (
+        id, slug, display_name
+      ) values (
+        '10000000-0000-4000-8000-000000000901',
+        'migration-artist',
+        'Migration Artist'
+      );
+      insert into releases (
+        id, slug, title
+      ) values (
+        '20000000-0000-4000-8000-000000000901',
+        'migration-release',
+        'Migration Release'
+      );
+      insert into release_artist_credits (
+        release_id, artist_id, position
+      ) values (
+        '20000000-0000-4000-8000-000000000901',
+        '10000000-0000-4000-8000-000000000901',
+        1
+      );
+      insert into tracks (
+        id, release_id, slug, title, position
+      ) values (
+        '30000000-0000-4000-8000-000000000901',
+        '20000000-0000-4000-8000-000000000901',
+        'migration-track',
+        'Migration Track',
+        1
+      );
+      insert into audio_assets (
+        id, track_id, object_key, scope, mime_type, checksum_sha256,
+        byte_size, duration_ms, codec, is_primary
+      ) values (
+        '40000000-0000-4000-8000-000000000901',
+        '30000000-0000-4000-8000-000000000901',
+        'video/migration-track.mp4',
+        'publishable_derivative',
+        'video/mp4',
+        repeat('9', 64),
+        1024,
+        1000,
+        'h264',
+        true
+      );
+    `);
+
+    for (const statement of migrations[4]!.sql) {
+      await client.exec(statement);
+    }
+
+    const migrated = await client.query<{
+      id: string;
+      object_key: string;
+      mime_type: string;
+      codec: string;
+      is_primary: boolean;
+    }>(
+      `select id, object_key, mime_type, codec, is_primary
+       from video_assets
+       where id = '40000000-0000-4000-8000-000000000901'`,
+    );
+    assert(
+      migrated.rows.length === 1 &&
+        migrated.rows[0]?.object_key === "video/migration-track.mp4" &&
+        migrated.rows[0]?.mime_type === "video/mp4" &&
+        migrated.rows[0]?.codec === "h264" &&
+        migrated.rows[0]?.is_primary,
+      "forward migration did not preserve the existing video asset",
+    );
+    const staleAudio = await client.query<{ count: number }>(
+      `select count(*)::integer as count
+       from audio_assets
+       where id = '40000000-0000-4000-8000-000000000901'`,
+    );
+    assert(
+      staleAudio.rows[0]?.count === 0,
+      "forward migration left the video asset in audio_assets",
+    );
+    await expectRejection("video MIME in audio_assets", () =>
+      client.query(
+        `insert into audio_assets (
+           track_id, object_key, scope, mime_type, checksum_sha256,
+           byte_size, duration_ms, codec
+         ) values (
+           '30000000-0000-4000-8000-000000000901',
+           'video/invalid-audio-row.mp4',
+           'private_original',
+           'video/mp4',
+           repeat('8', 64),
+           1024,
+           1000,
+           'h264'
+         )`,
+      ),
+    );
+    await expectRejection("audio MIME in video_assets", () =>
+      client.query(
+        `insert into video_assets (
+           track_id, object_key, scope, mime_type, checksum_sha256,
+           byte_size, duration_ms, codec
+         ) values (
+           '30000000-0000-4000-8000-000000000901',
+           'audio/invalid-video-row.mp3',
+           'private_original',
+           'audio/mpeg',
+           repeat('7', 64),
+           1024,
+           1000,
+           'mp3'
+         )`,
+      ),
+    );
+  } finally {
+    await client.close();
+  }
+}
+
 try {
   await validateExistingHistoryGuard();
+  await validateVideoAssetForwardMigration();
   const expectedCounts = await validateFirstDatabase();
   await validateFreshReset(expectedCounts);
   console.log(
-    "Local PGlite validation passed: migrations, schema objects, shared seed idempotence, all three governance lifecycles, relations, ordering, constraints, timestamps, and fresh reset.",
+    "Local PGlite validation passed: forward data migration, schema objects, shared seed idempotence, all three governance lifecycles, relations, ordering, constraints, timestamps, and fresh reset.",
   );
 } catch (error) {
   const message = error instanceof Error ? error.message : "unknown validation failure";

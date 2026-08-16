@@ -9,7 +9,7 @@
     "dev": "react-router dev",
     "build": "react-router build",
     "preview": "npm run build && vite preview",
-    "preview:e2e": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "preview:e2e": "react-router build --mode test && vite preview --host 127.0.0.1 --port 4173 --strictPort",
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "test:unit": "vitest run",

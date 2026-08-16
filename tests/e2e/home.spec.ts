@@ -1,6 +1,29 @@
 import { expect, test } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
-test("renders the radio copy and updates the featured selection", async ({ page }) => {
+const revolutionTitle = "Sunstruck Synapse (Revolution will be televised)";
+const revolutionSource = "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3";
+const mushroomTitle = "The Mushroom Circle (Gnome Revolution)";
+
+function cardFor(page: Page, title: string) {
+  return page.locator(".media-card").filter({ hasText: title }).first();
+}
+
+async function expectHashTarget(page: Page, id: string) {
+  await expect(page).toHaveURL(new RegExp(`#${id}$`));
+  const target = page.locator(`#${id}`);
+  await expect(target).toBeVisible();
+  await expect
+    .poll(() =>
+      target.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        return bounds.top >= 0 && bounds.top < window.innerHeight && bounds.bottom > 0;
+      }),
+    )
+    .toBe(true);
+}
+
+test("loads the database catalogue and controls the correct media", async ({ page }) => {
   const browserErrors: string[] = [];
   page.on("console", (message) => {
     if (message.type() === "error") {
@@ -15,159 +38,270 @@ test("renders the radio copy and updates the featured selection", async ({ page 
   await expect(
     page.getByRole("heading", { name: "A radio for music made with intent." }),
   ).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Listen", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "Watch", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: "About the radio", exact: true })).toBeVisible();
-  await expect(page.getByRole("heading", { name: /Revolution will be televised/ })).toBeVisible();
+  await expect(page.locator(".media-card")).toHaveCount(10);
+  await cardFor(page, revolutionTitle)
+    .getByRole("button", { name: `Play ${revolutionTitle}` })
+    .click();
 
-  await page.getByRole("button", { name: "Select The Mushroom Circle (Gnome Revolution)" }).click();
+  const audio = page.getByLabel(`${revolutionTitle} audio player`);
+  await expect(audio.locator("source")).toHaveAttribute("src", revolutionSource);
+  await expect(audio).toHaveAttribute("controls", "");
+  await expect
+    .poll(() => audio.evaluate((element: HTMLMediaElement) => element.readyState))
+    .toBeGreaterThan(0);
+  await expect
+    .poll(() => audio.evaluate((element: HTMLMediaElement) => element.paused))
+    .toBe(false);
+  const seekAccepted = await audio.evaluate((element: HTMLMediaElement) => {
+    element.pause();
+    element.currentTime = 1;
+    element.volume = 0.4;
+    return Number.isFinite(element.currentTime);
+  });
+  expect(seekAccepted).toBe(true);
+  expect(await audio.evaluate((element: HTMLMediaElement) => element.volume)).toBeCloseTo(0.4);
 
-  const audio = page.getByLabel("The Mushroom Circle (Gnome Revolution) audio player");
-  await expect(audio).toBeVisible();
-  await expect(audio.locator("source")).toHaveAttribute(
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  const video = page.getByLabel("Final Movie 00007 video player");
+  await expect(video).toBeVisible();
+  await expect(video.locator("source")).toHaveAttribute(
     "src",
-    "/assets/audio/The Mushroom Circle (Gnome Revolution).mp3",
+    "/assets/video/final-movie_00007_.mp4",
   );
-  await expect(audio.locator("source")).toHaveAttribute("type", "audio/mpeg");
-  await expect(page.getByText("Preview coming soon.").first()).toBeVisible();
+  await page.getByRole("button", { name: "Previous", exact: true }).click();
+  await expect(page.getByLabel(`${revolutionTitle} audio player`)).toBeVisible();
+
+  const mediaSessionTitle = await page.evaluate(
+    () => navigator.mediaSession?.metadata?.title ?? null,
+  );
+  expect(mediaSessionTitle).toBe(revolutionTitle);
   expect(browserErrors).toEqual([]);
 });
 
-test("queues unique items in order, consumes an entry, and clears the queue", async ({ page }) => {
+test("supports queue removal, next priority and automatic advancement", async ({ page }) => {
   await page.goto("/");
 
-  const unavailablePlay = page.getByRole("button", {
-    name: "Quiet Machines preview coming soon",
-  });
-  const unavailableQueue = page.getByRole("button", {
-    name: "Queue unavailable for Quiet Machines; preview coming soon",
-  });
-  await expect(unavailablePlay).toBeDisabled();
-  await expect(unavailableQueue).toBeDisabled();
-
-  await page
-    .getByRole("button", {
-      name: "Queue Sunstruck Synapse (Revolution will be televised)",
-    })
+  await cardFor(page, revolutionTitle)
+    .getByRole("button", { name: `Play ${revolutionTitle}` })
     .click();
-  await page
-    .getByRole("button", {
-      name: "Queue Sunstruck Synapse (Revolution will be televised)",
-    })
+  await cardFor(page, mushroomTitle)
+    .getByRole("button", { name: `Queue ${mushroomTitle}` })
     .click();
-  await page.getByRole("button", { name: "Queue AI Pop-Slop 202607190035" }).click();
-  await expect(page.getByRole("heading", { name: /Revolution will be televised/ })).toBeVisible();
 
   const queue = page.getByRole("heading", { name: "Next in queue" }).locator("..").locator("..");
-  await unavailableQueue.dispatchEvent("click");
-  await expect(queue.getByRole("listitem")).toHaveCount(2);
-  await expect(queue.getByRole("listitem").nth(0)).toContainText("Revolution will be televised");
-  await expect(queue.getByRole("listitem").nth(1)).toContainText("AI Pop-Slop 202607190035");
-
-  await queue
-    .getByRole("button", {
-      name: "Play Sunstruck Synapse (Revolution will be televised) from queue",
-    })
-    .click();
   await expect(queue.getByRole("listitem")).toHaveCount(1);
-  await expect(page.getByRole("heading", { name: /Revolution will be televised/ })).toBeVisible();
+  await queue.getByRole("button", { name: `Remove ${mushroomTitle} from queue` }).click();
+  await expect(queue.getByText("Queue is clear.")).toBeVisible();
 
-  await queue.getByRole("button", { name: "Clear all" }).click();
+  await cardFor(page, mushroomTitle)
+    .getByRole("button", { name: `Queue ${mushroomTitle}` })
+    .click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await expect(page.getByLabel(`${mushroomTitle} audio player`)).toBeVisible();
+  await expect(queue.getByText("Queue is clear.")).toBeVisible();
+
+  await cardFor(page, "Gone Fishing").getByRole("button", { name: "Queue Gone Fishing" }).click();
+  await page.getByLabel(`${mushroomTitle} audio player`).dispatchEvent("ended");
+  await expect(page.getByLabel("Gone Fishing video player")).toBeVisible();
   await expect(queue.getByText("Queue is clear.")).toBeVisible();
 });
 
-test("play switches real audio and video sources without stale media", async ({ page }) => {
-  await page.goto("/");
-
-  await page
-    .getByRole("button", { name: "Play Sunstruck Synapse (Revolution will be televised)" })
-    .click();
-  await expect(
-    page.getByRole("button", {
-      name: "Play Sunstruck Synapse (Revolution will be televised)",
-    }),
-  ).toBeEnabled();
-  const firstAudio = page.getByLabel(
-    "Sunstruck Synapse (Revolution will be televised) audio player",
-  );
-  await expect(firstAudio.locator("source")).toHaveAttribute(
-    "src",
-    "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3",
-  );
-  await expect
-    .poll(() => firstAudio.evaluate((element: { readyState: number }) => element.readyState))
-    .toBeGreaterThan(0);
-
-  await page.getByRole("button", { name: "Play AI Pop-Slop 202607190035" }).click();
-  const video = page.getByLabel("AI Pop-Slop 202607190035 video player");
-  await expect(video.locator("source")).toHaveAttribute(
-    "src",
-    "/assets/video/AI_pop-slop_202607190035.mp4",
-  );
-  const videoResponse = await page.request.get("/assets/video/AI_pop-slop_202607190035.mp4");
-  expect(videoResponse.ok()).toBe(true);
-  expect(videoResponse.headers()["content-type"]).toContain("video/mp4");
-  await expect(page.locator("audio.protected-media")).toHaveCount(0);
-
-  await page.getByRole("button", { name: "Play The Mushroom Circle (Gnome Revolution)" }).click();
-  const secondAudio = page.getByLabel("The Mushroom Circle (Gnome Revolution) audio player");
-  await expect(secondAudio.locator("source")).toHaveAttribute(
-    "src",
-    "/assets/audio/The Mushroom Circle (Gnome Revolution).mp3",
-  );
-  await expect
-    .poll(() => secondAudio.evaluate((element: { readyState: number }) => element.readyState))
-    .toBeGreaterThan(0);
-  await expect(page.locator("video.protected-media")).toHaveCount(0);
-});
-
-test("automatic queue advancement starts next media without scrolling or focusing", async ({
+test("keeps playback through internal navigation and restores state without autoplay", async ({
   page,
 }) => {
-  await page.addInitScript({
-    content: `
-      globalThis.__playerScrollCalls = 0;
-      globalThis.__playerFocusCalls = 0;
-      Element.prototype.scrollIntoView = function () {
-        globalThis.__playerScrollCalls += 1;
-      };
-      const originalFocus = HTMLElement.prototype.focus;
-      HTMLElement.prototype.focus = function (...args) {
-        globalThis.__playerFocusCalls += 1;
-        return originalFocus.apply(this, args);
-      };
-    `,
+  await page.goto("/");
+  const revolutionCard = cardFor(page, revolutionTitle);
+
+  await revolutionCard.getByRole("button", { name: `Play ${revolutionTitle}` }).click();
+  await cardFor(page, mushroomTitle)
+    .getByRole("button", { name: `Queue ${mushroomTitle}` })
+    .click();
+
+  const audio = page.getByLabel(`${revolutionTitle} audio player`);
+  await audio.evaluate((element: HTMLMediaElement) => {
+    element.dataset.persistenceProbe = "kept";
+    element.pause();
+  });
+  await revolutionCard.getByRole("link", { name: "View track" }).click();
+
+  await expect(page).toHaveURL(/\/tracks\/phase-zero-transmissions\/revolution-will-be-televised$/);
+  await expect(page.getByLabel(`${revolutionTitle} audio player`)).toHaveAttribute(
+    "data-persistence-probe",
+    "kept",
+  );
+  await page.waitForFunction(() =>
+    window.localStorage.getItem("sunstruck-synapse-player-v1")?.includes("000000000104"),
+  );
+  await page.reload();
+
+  const restoredAudio = page.getByLabel(`${revolutionTitle} audio player`);
+  await expect(restoredAudio.locator("source")).toHaveAttribute("src", revolutionSource);
+  expect(await restoredAudio.evaluate((element: HTMLMediaElement) => element.paused)).toBe(true);
+  await expect(
+    page.getByRole("button", { name: `Play ${mushroomTitle} from queue` }),
+  ).toBeVisible();
+});
+
+test("serves canonical artist, release and track pages with global-player actions", async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, "share", {
+      configurable: true,
+      value: async (data: ShareData) => {
+        Reflect.set(globalThis, "__sharedUrl", data.url);
+      },
+    });
+  });
+
+  await page.goto("/artists/sunstruck-synapse");
+  await expect(page.getByRole("heading", { name: "Sunstruck Synapse", exact: true })).toBeVisible();
+  await expect(page.getByRole("listitem")).toHaveCount(6);
+
+  await page.goto("/releases/phase-zero-transmissions");
+  await expect(
+    page.getByRole("heading", { name: "Phase Zero Transmissions", exact: true }),
+  ).toBeVisible();
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    /\/releases\/phase-zero-transmissions$/,
+  );
+
+  await page.goto("/tracks/phase-zero-transmissions/revolution-will-be-televised");
+  await expect(page).toHaveTitle(new RegExp(revolutionTitle.replace(/[()]/g, "\\$&")));
+  await expect(page.locator('meta[property="og:type"]')).toHaveAttribute("content", "music.song");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    "href",
+    /\/tracks\/phase-zero-transmissions\/revolution-will-be-televised$/,
+  );
+  await page.getByRole("button", { name: "Share", exact: true }).click();
+  await expect
+    .poll(() => page.evaluate(() => Reflect.get(globalThis, "__sharedUrl")))
+    .toMatch(/\/tracks\/phase-zero-transmissions\/revolution-will-be-televised$/);
+
+  await page.getByRole("button", { name: "Play in global player" }).click();
+  await expect(
+    page.getByLabel(`${revolutionTitle} audio player`).locator("source"),
+  ).toHaveAttribute("src", revolutionSource);
+
+  const missing = await page.goto("/tracks/phase-zero-transmissions/not-published");
+  expect(missing?.status()).toBe(404);
+  await expect(page.getByRole("heading", { name: "Page not found" })).toBeVisible();
+});
+
+test("reports unavailable media accessibly and allows retry", async ({ page }) => {
+  await page.route("**/*.mp3", (route) => route.abort("failed"));
+  await page.goto("/");
+
+  await cardFor(page, revolutionTitle)
+    .getByRole("button", { name: `Play ${revolutionTitle}` })
+    .click();
+
+  const alert = page.getByRole("alert");
+  await expect(alert).toContainText("could not be loaded");
+  await expect(alert.getByRole("button", { name: "Retry" })).toBeVisible();
+  await alert.getByRole("button", { name: "Retry" }).click();
+  await expect(alert).toContainText(/unavailable|could not be loaded/);
+});
+
+test("presents published tracks with missing media without requesting a source", async ({
+  page,
+}) => {
+  const mediaRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.resourceType() === "media" && request.url().includes("quiet-machines")) {
+      mediaRequests.push(request.url());
+    }
   });
   await page.goto("/");
 
-  await page.getByRole("button", { name: "Queue AI Pop-Slop 202607190035" }).click();
-  await page
-    .getByRole("button", { name: "Play Sunstruck Synapse (Revolution will be televised)" })
+  const missingMediaCard = cardFor(page, "Quiet Machines");
+  await expect(
+    missingMediaCard.getByRole("button", {
+      name: "Quiet Machines preview coming soon",
+    }),
+  ).toBeDisabled();
+  await expect(
+    missingMediaCard.getByRole("button", {
+      name: "Queue unavailable for Quiet Machines; preview coming soon",
+    }),
+  ).toBeDisabled();
+  await missingMediaCard.getByRole("button", { name: "Select Quiet Machines" }).click();
+  await expect(page.getByText("Preview coming soon.").first()).toBeVisible();
+  await page.waitForTimeout(100);
+  expect(mediaRequests).toEqual([]);
+});
+
+test("supports keyboard activation and reduced-motion focus movement", async ({ page }) => {
+  await page.addInitScript(() => {
+    Reflect.set(globalThis, "__scrollBehavior", null);
+    Element.prototype.scrollIntoView = function (options) {
+      Reflect.set(
+        globalThis,
+        "__scrollBehavior",
+        typeof options === "object" ? options.behavior : null,
+      );
+    };
+  });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+
+  const viewTrack = cardFor(page, revolutionTitle).getByRole("link", { name: "View track" });
+  await viewTrack.focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/revolution-will-be-televised$/);
+
+  await page.getByRole("link", { name: "Sunstruck Synapse Radio home" }).click();
+  await cardFor(page, revolutionTitle)
+    .getByRole("button", { name: `Play ${revolutionTitle}` })
     .click();
-  await page.evaluate(() => {
-    const counters = globalThis as typeof globalThis & {
-      __playerScrollCalls: number;
-      __playerFocusCalls: number;
+  expect(await page.evaluate(() => Reflect.get(globalThis, "__scrollBehavior"))).toBe("auto");
+});
+
+test("scrolls router hash links without replacing the persistent player", async ({ page }) => {
+  await page.addInitScript(() => {
+    const scrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (options) {
+      Reflect.set(globalThis, "__hashScroll", {
+        id: this.id,
+        behavior: typeof options === "object" ? options.behavior : null,
+      });
+      scrollIntoView.call(this, options);
     };
-    counters.__playerScrollCalls = 0;
-    counters.__playerFocusCalls = 0;
   });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
 
   await page
-    .getByLabel("Sunstruck Synapse (Revolution will be televised) audio player")
-    .dispatchEvent("ended");
-
-  await expect(page.getByLabel("AI Pop-Slop 202607190035 video player")).toBeVisible();
-  const counters = await page.evaluate(() => {
-    const state = globalThis as typeof globalThis & {
-      __playerScrollCalls: number;
-      __playerFocusCalls: number;
-    };
-    return {
-      scroll: state.__playerScrollCalls,
-      focus: state.__playerFocusCalls,
-    };
+    .getByRole("navigation", { name: "Primary" })
+    .getByRole("link", { name: "Latest" })
+    .click();
+  await expectHashTarget(page, "latest");
+  expect(await page.evaluate(() => Reflect.get(globalThis, "__hashScroll"))).toEqual({
+    id: "latest",
+    behavior: "auto",
   });
-  expect(counters).toEqual({ scroll: 0, focus: 0 });
-  await expect(page.getByText("Queue is clear.")).toBeVisible();
+
+  await page.locator(".panel-footer").getByRole("link", { name: "Contact" }).click();
+  await expectHashTarget(page, "contact");
+
+  await cardFor(page, revolutionTitle)
+    .getByRole("button", { name: `Play ${revolutionTitle}` })
+    .click();
+  const audio = page.getByLabel(`${revolutionTitle} audio player`);
+  await audio.evaluate((element: HTMLMediaElement) => {
+    element.dataset.hashNavigationProbe = "kept";
+    element.pause();
+  });
+  await cardFor(page, revolutionTitle).getByRole("link", { name: "View track" }).click();
+  await page
+    .getByRole("navigation", { name: "Primary" })
+    .getByRole("link", { name: "About", exact: true })
+    .click();
+
+  await expectHashTarget(page, "about");
+  await expect(page.getByLabel(`${revolutionTitle} audio player`)).toHaveAttribute(
+    "data-hash-navigation-probe",
+    "kept",
+  );
 });
