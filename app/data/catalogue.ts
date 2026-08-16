@@ -17,8 +17,12 @@ export const catalogueItems: CatalogueItem[] = [
       alt: "Signal Bloom visual artwork",
     },
     description: {
-      title: "Signal Bloom",
-      subtitle: "A luminous visual transmission shaped around rhythm and motion.",
+      title: "AI Pop-Slop 202607190035",
+      subtitle: "A bright visual transmission moving through synthetic pop imagery.",
+    },
+    media: {
+      src: "/assets/video/AI_pop-slop_202607190035.mp4",
+      mimeType: "video/mp4",
     },
   },
   {
@@ -31,8 +35,12 @@ export const catalogueItems: CatalogueItem[] = [
       alt: "Solar Nerve cover artwork",
     },
     description: {
-      title: "Solar Nerve",
-      subtitle: "A bright, restless transmission built for close listening.",
+      title: "Sunstruck Synapse (Revolution will be televised)",
+      subtitle: "A restless broadcast built around momentum, signal and revolt.",
+    },
+    media: {
+      src: "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3",
+      mimeType: "audio/mpeg",
     },
   },
   {
@@ -44,8 +52,12 @@ export const catalogueItems: CatalogueItem[] = [
       alt: "Neon Weather visual artwork",
     },
     description: {
-      title: "Neon Weather",
-      subtitle: "Synthetic weather patterns moving through colour and light.",
+      title: "Final Movie 00007",
+      subtitle: "A compact visual transmission shaped by light, motion and atmosphere.",
+    },
+    media: {
+      src: "/assets/video/final-movie_00007_.mp4",
+      mimeType: "video/mp4",
     },
   },
   {
@@ -70,8 +82,12 @@ export const catalogueItems: CatalogueItem[] = [
       alt: "Morning Voltage audio thumbnail",
     },
     description: {
-      title: "Morning Voltage",
-      subtitle: "Early light, charged textures and a steady forward pulse.",
+      title: "The Mushroom Circle (Gnome Revolution)",
+      subtitle: "A playful, charged gathering with a revolutionary pulse.",
+    },
+    media: {
+      src: "/assets/audio/The Mushroom Circle (Gnome Revolution).mp3",
+      mimeType: "audio/mpeg",
     },
   },
   {
@@ -122,8 +138,12 @@ export const catalogueItems: CatalogueItem[] = [
       alt: "Synapse Drift video thumbnail",
     },
     description: {
-      title: "Synapse Drift",
-      subtitle: "A slow visual drift through the station's imagined signal path.",
+      title: "Gone Fishing",
+      subtitle: "A quiet visual excursion beyond the usual signal path.",
+    },
+    media: {
+      src: "/assets/video/gone_fishing.mp4",
+      mimeType: "video/mp4",
     },
   },
   {

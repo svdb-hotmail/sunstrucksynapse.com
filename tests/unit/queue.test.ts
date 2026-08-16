@@ -29,7 +29,7 @@ describe("queue operations", () => {
   });
 
   it("finds the first playable item without disturbing queue order", () => {
-    const unavailable = getCatalogueItem("solar-nerve");
+    const unavailable = getCatalogueItem("quiet-machines");
     const videoItem = getCatalogueItem("neon-weather");
     if (videoItem.mediaKind !== "video") {
       throw new Error("Expected Neon Weather to be a video fixture");
@@ -56,6 +56,6 @@ describe("queue operations", () => {
         return item;
       }),
     ).toEqual(entries[1]);
-    expect(entries.map((entry) => entry.itemId)).toEqual(["solar-nerve", "neon-weather"]);
+    expect(entries.map((entry) => entry.itemId)).toEqual(["quiet-machines", "neon-weather"]);
   });
 });

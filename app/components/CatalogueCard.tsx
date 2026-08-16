@@ -49,7 +49,7 @@ export function CatalogueCard({ item, isSelected, onSelect, onQueue, onPlay }: C
             onClick={() => onPlay(item)}
             disabled={!item.media}
           >
-            {item.media ? "Play" : "Preview coming soon"}
+            {item.media ? "Play" : "Preview coming soon."}
           </button>
         </div>
       </div>
