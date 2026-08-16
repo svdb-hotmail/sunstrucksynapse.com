@@ -65,16 +65,22 @@ The Chieftain owns the technical problem:
 
 - investigation;
 - architecture/implementation decisions within validated intent;
-- decomposition;
+- technical planning after Elder advice;
 - synthesis and review;
 - test-impact strategy;
 - integration;
 - all Git lifecycle and Draft PR maintenance;
 - CI failure diagnosis.
 
-The Chieftain does not certify its own Epic/issue acceptance.
+The Chieftain does not:
 
-Use Elders for consequential uncertainty or second opinions, not ceremony. Use only relevant Wardens.
+- certify its own Epic/issue acceptance;
+- dispatch work directly to a Villager;
+- give an Epic, multiple tickets, or a broad cross-layer objective to one execution agent.
+
+Before finalizing any execution plan, both Elders advise. The Chieftain must
+reason over both findings rather than treating consultation as ceremony. Use
+only relevant Wardens after integration.
 
 ## Elders
 
@@ -97,7 +103,8 @@ Instantiate only Wardens relevant to the changed contract.
 
 ## Taskmaster
 
-Use a Taskmaster when one bounded domain naturally contains several subtasks needing consolidation.
+The Chieftain assigns exactly one Shaman-admitted issue or ticket to one
+Taskmaster. The Taskmaster is the only role that dispatches Villagers.
 
 The Taskmaster may invoke Villagers but may not:
 
@@ -106,6 +113,14 @@ The Taskmaster may invoke Villagers but may not:
 - perform Git lifecycle work;
 - create another Taskmaster layer;
 - certify acceptance.
+
+The Taskmaster:
+
+- decomposes its one ticket into small, single-purpose craft packets;
+- assigns each packet to one compatible specialized Villager;
+- never assigns an Epic, multiple tickets, or a broad cross-layer objective to a Villager;
+- performs only Prettier on touched files and `git diff --check` to consolidate results;
+- returns one consolidated implementation result to the Chieftain.
 
 Maximum execution hierarchy:
 
@@ -123,9 +138,18 @@ They do not:
 - make protected decisions;
 - perform Git lifecycle work;
 - invoke other agents;
-- run broad suites unless explicitly requested.
+- run tests, builds, linters, formatting, type checks, browser checks, or other validation commands.
 
-Out-of-scope findings are reported, not pursued.
+A Tester Villager authors exact test code or a focused reproduction but does not
+execute it. Out-of-scope findings are reported, not pursued.
+
+## Authority-breach quarantine
+
+Work produced through a broken authority chain is untrusted and must be
+quarantined. It cannot become implementation or verification evidence through a
+retroactive Taskmaster summary. Ideas may be independently re-derived, but code
+must be reconstructed under the correct authority chain unless the human
+maintainer explicitly authorizes an exception.
 
 ## Delegation packet
 
@@ -138,7 +162,7 @@ SCOPE:
 INPUT REFS:
 DO:
 DO NOT:
-FOCUSED CHECK:
+AUTHORING CHECK:
 RETURN:
 ```
 

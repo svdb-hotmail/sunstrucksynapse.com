@@ -93,6 +93,7 @@ Affected journey(s):
 
 - Elder of Wisdom: <!-- not needed / consulted; finding -->
 - Elder of Doubt: <!-- not needed / consulted; finding -->
+- Chieftain reasoning over both findings:
 
 ## Warden audits
 
@@ -115,6 +116,8 @@ Affected journey(s):
 - Chieftain profile/model route:
 - Taskmaster(s):
 - Villager guild(s):
+- Authority-chain exception: <!-- None / human-approved details -->
+- Quarantined work excluded from evidence (immutable object/artifact ID):
 - Elder(s):
 - Warden(s):
 - Shaman audit context/model route:
@@ -145,6 +148,9 @@ Before asking the human maintainer to consider Ready for Review:
 - [ ] Known risks / untested behavior are stated
 - [ ] No meaningful test was weakened/skipped merely to obtain green CI
 - [ ] Model policy was followed or a human-approved exception is recorded
+- [ ] Each Taskmaster received one admitted ticket and only Taskmasters dispatched Villagers
+- [ ] Villagers received narrow craft packets and ran no validation commands
+- [ ] Authority-breaching work was quarantined and excluded from evidence
 - [ ] PR remains Draft until the human decides otherwise
 
 Only the human maintainer/owner decides whether to switch this PR from Draft to Ready for Review.

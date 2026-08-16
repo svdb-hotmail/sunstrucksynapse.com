@@ -27,24 +27,19 @@
 
 - Elder of Wisdom:
 - Elder of Doubt:
+- Chieftain reasoning over both findings:
 - Required Wardens:
 
 ## Delegation
 
-### Taskmaster domain
+### Taskmaster ticket
 
+- Issue/ticket:
 - Goal:
 - Scope:
 - Subtasks:
-
-### Direct Villager task
-
-- Guild:
-- Goal:
-- Scope:
-- Do:
-- Do not:
-- Focused check:
+- Required specialized guilds:
+- Taskmaster checks: Prettier on touched files; `git diff --check`
 
 ## Verification intent
 

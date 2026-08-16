@@ -25,12 +25,15 @@ If this receipt cannot establish the increment's lineage, the increment is not c
 - Taskmasters:
 - Villagers:
 - Model routes / policy exceptions:
+- Authority-chain exception:
+- Quarantined work excluded from evidence (immutable object/artifact ID):
 
 ## Implementation lineage
 
 - Branch/worktree:
 - Commits:
 - Files/contracts changed:
+- Chieftain integration review:
 
 ## Verification lineage
 
