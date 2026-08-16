@@ -1,3 +1,5 @@
+import { Link } from "react-router";
+
 import { CatalogueCard } from "~/components/CatalogueCard";
 import type { CatalogueItem, CatalogueSection as CatalogueSectionModel } from "~/types/catalogue";
 
@@ -25,7 +27,7 @@ export function CatalogueSection({
           </span>
           {section.title}
         </h2>
-        <a href="#contact">View all</a>
+        <Link to={section.href}>View collection</Link>
       </div>
 
       <div className="media-row">

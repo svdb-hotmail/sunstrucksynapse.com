@@ -2,13 +2,17 @@ import { createContext } from "react-router";
 
 import type { Database } from "~/db/client.server";
 import type { CatalogueRepository } from "~/repositories/catalogue.server";
+import type { CuratorRepository } from "~/repositories/curator.server";
+import type { CuratorIdentity } from "~/types/curator";
 
-import type { DatabaseEnv } from "./env.server";
+import type { WorkerEnv } from "./env.server";
 
 export interface CloudflareContextValue {
   db?: Database;
   catalogueRepository: CatalogueRepository;
-  env?: DatabaseEnv;
+  curatorRepository?: CuratorRepository;
+  env?: WorkerEnv;
+  identity?: CuratorIdentity;
   ctx: ExecutionContext;
 }
 

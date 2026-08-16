@@ -1,6 +1,8 @@
 {
   "extends": "./tsconfig.json",
   "include": [
+    ".react-router/types/**/*",
+    "worker-configuration.d.ts",
     "react-router.config.ts",
     "vite.config.ts",
     "vitest.config.ts",
@@ -8,22 +10,19 @@
     "drizzle.config.ts",
     "scripts/**/*",
     "tests/**/*",
-    "app/config/env.server.ts",
-    "app/db/schema/**/*",
-    "app/repositories/catalogue.server.ts",
-    "app/services/catalogue.ts",
-    "app/types/catalogue.ts",
-    "app/utils/player-storage.ts",
-    "app/utils/queue.ts"
+    "workers/**/*",
+    "app/**/*"
   ],
   "compilerOptions": {
     "composite": true,
-    "types": ["node"],
+    "types": ["node", "vite/client"],
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
     "target": "ES2022",
     "module": "ES2022",
     "moduleResolution": "bundler",
+    "jsx": "react-jsx",
     "baseUrl": ".",
+    "rootDirs": [".", "./.react-router/types"],
     "paths": {
       "~/*": ["./app/*"]
     }

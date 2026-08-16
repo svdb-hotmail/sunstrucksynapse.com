@@ -17,6 +17,11 @@ import {
   tracks,
 } from "../app/db/schema";
 import * as schema from "../app/db/schema";
+import {
+  createCatalogueRepository,
+  loadPublicCatalogue,
+} from "../app/repositories/catalogue.server";
+import { buildCatalogueSections } from "../app/services/catalogue";
 import { seedDatabase, seedIds } from "./seed-data";
 
 const expectedTables = [
@@ -31,6 +36,7 @@ const expectedTables = [
   "provenance_records",
   "provenance_sources",
   "provenance_steps",
+  "publication_audit",
   "release_artist_credits",
   "release_artwork_assets",
   "releases",
@@ -39,6 +45,7 @@ const expectedTables = [
   "track_artist_credits",
   "track_artwork_assets",
   "tracks",
+  "upload_sessions",
   "video_assets",
 ] as const;
 
@@ -54,19 +61,24 @@ const requiredIndexes = [
   "rights_declarations_submission_version_unique",
   "rights_declarations_supersedes_unique",
   "creative_process_disclosures_supersedes_unique",
+  "publication_audit_entity_history_idx",
   "provenance_records_supersedes_unique",
+  "upload_sessions_cleanup_idx",
 ] as const;
 
 const requiredChecks = [
   "artwork_assets_dimensions_check",
   "audio_assets_mime_type_check",
   "collection_items_exactly_one_target_check",
+  "editorial_collections_homepage_config_check",
   "rights_declarations_parent_check",
   "rights_declarations_version_check",
   "rights_declarations_self_supersession_check",
   "creative_process_disclosures_parent_check",
   "provenance_records_parent_check",
   "submissions_resulting_catalogue_check",
+  "upload_sessions_metadata_check",
+  "upload_sessions_state_check",
   "video_assets_mime_type_check",
 ] as const;
 
@@ -768,7 +780,7 @@ async function validateExistingHistoryGuard() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 5, "expected the original and four forward migrations");
+    assert(migrations.length === 6, "expected the original and five forward migrations");
     for (const statement of migrations[0]!.sql) {
       await client.exec(statement);
     }
@@ -811,7 +823,7 @@ async function validateVideoAssetForwardMigration() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 5, "expected the original and four forward migrations");
+    assert(migrations.length === 6, "expected the original and five forward migrations");
     for (const migration of migrations.slice(0, 4)) {
       for (const statement of migration.sql) {
         await client.exec(statement);
@@ -936,9 +948,183 @@ async function validateVideoAssetForwardMigration() {
   }
 }
 
+async function validateHomepageCollectionsForwardMigration() {
+  const client = new PGlite();
+  try {
+    const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
+    assert(migrations.length === 6, "expected the original and five forward migrations");
+    for (const migration of migrations.slice(0, 5)) {
+      for (const statement of migration.sql) {
+        await client.exec(statement);
+      }
+    }
+
+    await client.exec(`
+      insert into artwork_assets (
+        id, object_key, scope, mime_type, checksum_sha256, byte_size, width, height
+      ) values
+        ('40000000-0000-4000-8000-000000000101', 'assets/thumbs/thumb-01.svg', 'publishable_derivative', 'image/svg+xml', repeat('1', 64), 1228, 1600, 900),
+        ('40000000-0000-4000-8000-000000000102', 'assets/thumbs/thumb-02.svg', 'publishable_derivative', 'image/svg+xml', repeat('2', 64), 1227, 1600, 900),
+        ('40000000-0000-4000-8000-000000000103', 'assets/thumbs/thumb-03.svg', 'publishable_derivative', 'image/svg+xml', repeat('3', 64), 1228, 1600, 900),
+        ('40000000-0000-4000-8000-000000000104', 'assets/thumbs/thumb-05.svg', 'publishable_derivative', 'image/svg+xml', repeat('4', 64), 1231, 1600, 900),
+        ('40000000-0000-4000-8000-000000000105', 'assets/thumbs/thumb-09.svg', 'publishable_derivative', 'image/svg+xml', repeat('5', 64), 1229, 1600, 900);
+
+      insert into artists (
+        id, slug, display_name, biography, lifecycle_status, published_at
+      ) values (
+        '10000000-0000-4000-8000-000000000101', 'sunstruck-synapse', 'Sunstruck Synapse',
+        'Human-directed transmissions.', 'published', '2026-01-15T12:00:00.000Z'
+      );
+
+      insert into artist_artwork_assets (
+        artist_id, artwork_asset_id, role, position, alt_text
+      ) values (
+        '10000000-0000-4000-8000-000000000101', '40000000-0000-4000-8000-000000000101', 'avatar', 1, 'Avatar'
+      );
+
+      insert into releases (
+        id, slug, title, release_date, lifecycle_status, published_at
+      ) values (
+        '20000000-0000-4000-8000-000000000101', 'phase-zero-transmissions', 'Phase Zero Transmissions',
+        '2026-01-15T12:00:00.000Z', 'published', '2026-01-15T12:00:00.000Z'
+      );
+
+      insert into release_artist_credits (
+        release_id, artist_id, position, credited_as
+      ) values (
+        '20000000-0000-4000-8000-000000000101', '10000000-0000-4000-8000-000000000101', 1, 'Sunstruck Synapse'
+      );
+
+      insert into release_artwork_assets (
+        release_id, artwork_asset_id, role, position, alt_text
+      ) values (
+        '20000000-0000-4000-8000-000000000101', '40000000-0000-4000-8000-000000000101', 'primary', 1, 'Cover'
+      );
+
+      insert into tracks (
+        id, release_id, slug, title, disc_number, position, lifecycle_status, published_at
+      ) values
+        ('30000000-0000-4000-8000-000000000101', '20000000-0000-4000-8000-000000000101', 'ai-pop-slop-202607190035', 'AI Pop-Slop 202607190035', 1, 1, 'published', '2026-01-15T12:00:00.000Z'),
+        ('30000000-0000-4000-8000-000000000102', '20000000-0000-4000-8000-000000000101', 'revolution-will-be-televised', 'Sunstruck Synapse (Revolution will be televised)', 1, 2, 'published', '2026-01-15T12:00:00.000Z'),
+        ('30000000-0000-4000-8000-000000000103', '20000000-0000-4000-8000-000000000101', 'final-movie-00007', 'Final Movie 00007', 1, 3, 'published', '2026-01-15T12:00:00.000Z'),
+        ('30000000-0000-4000-8000-000000000104', '20000000-0000-4000-8000-000000000101', 'the-mushroom-circle-gnome-revolution', 'The Mushroom Circle (Gnome Revolution)', 1, 4, 'published', '2026-01-15T12:00:00.000Z'),
+        ('30000000-0000-4000-8000-000000000105', '20000000-0000-4000-8000-000000000101', 'gone-fishing', 'Gone Fishing', 1, 5, 'published', '2026-01-15T12:00:00.000Z');
+
+      insert into track_artist_credits (track_id, artist_id, position, credited_as) values
+        ('30000000-0000-4000-8000-000000000101', '10000000-0000-4000-8000-000000000101', 1, 'Sunstruck Synapse'),
+        ('30000000-0000-4000-8000-000000000102', '10000000-0000-4000-8000-000000000101', 1, 'Sunstruck Synapse'),
+        ('30000000-0000-4000-8000-000000000103', '10000000-0000-4000-8000-000000000101', 1, 'Sunstruck Synapse'),
+        ('30000000-0000-4000-8000-000000000104', '10000000-0000-4000-8000-000000000101', 1, 'Sunstruck Synapse'),
+        ('30000000-0000-4000-8000-000000000105', '10000000-0000-4000-8000-000000000101', 1, 'Sunstruck Synapse');
+
+      insert into track_artwork_assets (track_id, artwork_asset_id, role, position, alt_text) values
+        ('30000000-0000-4000-8000-000000000101', '40000000-0000-4000-8000-000000000101', 'primary', 1, 'Artwork 1'),
+        ('30000000-0000-4000-8000-000000000102', '40000000-0000-4000-8000-000000000102', 'primary', 1, 'Artwork 2'),
+        ('30000000-0000-4000-8000-000000000103', '40000000-0000-4000-8000-000000000103', 'primary', 1, 'Artwork 3'),
+        ('30000000-0000-4000-8000-000000000104', '40000000-0000-4000-8000-000000000104', 'primary', 1, 'Artwork 4'),
+        ('30000000-0000-4000-8000-000000000105', '40000000-0000-4000-8000-000000000105', 'primary', 1, 'Artwork 5');
+
+      insert into audio_assets (
+        id, track_id, object_key, scope, mime_type, checksum_sha256, byte_size, duration_ms, codec, is_primary
+      ) values
+        ('50000000-0000-4000-8000-000000000102', '30000000-0000-4000-8000-000000000102', 'assets/audio/revolution.mp3', 'publishable_derivative', 'audio/mpeg', repeat('a', 64), 7138735, 445289, 'mp3', true),
+        ('50000000-0000-4000-8000-000000000104', '30000000-0000-4000-8000-000000000104', 'assets/audio/mushroom.mp3', 'publishable_derivative', 'audio/mpeg', repeat('b', 64), 8766686, 547039, 'mp3', true);
+
+      insert into video_assets (
+        id, track_id, object_key, scope, mime_type, checksum_sha256, byte_size, duration_ms, codec, is_primary
+      ) values
+        ('50000000-0000-4000-8000-000000000101', '30000000-0000-4000-8000-000000000101', 'assets/video/slop.mp4', 'publishable_derivative', 'video/mp4', repeat('c', 64), 9613030, 30016, 'h264-aac', true),
+        ('50000000-0000-4000-8000-000000000103', '30000000-0000-4000-8000-000000000103', 'assets/video/movie.mp4', 'publishable_derivative', 'video/mp4', repeat('d', 64), 2249897, 14458, 'h264-aac', true),
+        ('50000000-0000-4000-8000-000000000105', '30000000-0000-4000-8000-000000000105', 'assets/video/fishing.mp4', 'publishable_derivative', 'video/mp4', repeat('e', 64), 13983942, 15000, 'h264-aac', true);
+
+      insert into editorial_collections (
+        id, slug, name, description, artwork_asset_id, lifecycle_status, published_at
+      ) values (
+        '60000000-0000-4000-8000-000000000101', 'latest-transmissions', 'Latest transmissions',
+        'The newest published transmissions selected for the radio.',
+        '40000000-0000-4000-8000-000000000101', 'published', '2026-01-15T12:00:00.000Z'
+      );
+
+      insert into collection_items (id, collection_id, track_id, position) values
+        ('61000000-0000-4000-8000-000000000101', '60000000-0000-4000-8000-000000000101', '30000000-0000-4000-8000-000000000101', 1),
+        ('61000000-0000-4000-8000-000000000102', '60000000-0000-4000-8000-000000000101', '30000000-0000-4000-8000-000000000102', 2),
+        ('61000000-0000-4000-8000-000000000103', '60000000-0000-4000-8000-000000000101', '30000000-0000-4000-8000-000000000103', 3),
+        ('61000000-0000-4000-8000-000000000104', '60000000-0000-4000-8000-000000000101', '30000000-0000-4000-8000-000000000104', 4);
+    `);
+
+    for (const statement of migrations[5]!.sql) {
+      await client.exec(statement);
+    }
+
+    const db = drizzle(client, { schema });
+    const repository = createCatalogueRepository(db);
+    const catalogue = await loadPublicCatalogue(repository);
+
+    assert(catalogue.status === "ready", "public catalogue is not ready after migration 0005");
+    assert(
+      catalogue.collections.length === 3,
+      `expected 3 homepage collections, found ${catalogue.collections.length}`,
+    );
+
+    const slugs = catalogue.collections.map((c) => c.slug);
+    assert(
+      JSON.stringify(slugs) === JSON.stringify(["latest-transmissions", "listen", "watch"]),
+      `expected homepage collection slugs ["latest-transmissions", "listen", "watch"], found ${JSON.stringify(slugs)}`,
+    );
+
+    const names = catalogue.collections.map((c) => c.name);
+    assert(
+      JSON.stringify(names) === JSON.stringify(["Latest transmissions", "Listen", "Watch"]),
+      `expected homepage collection names ["Latest transmissions", "Listen", "Watch"], found ${JSON.stringify(names)}`,
+    );
+
+    const latestCollection = catalogue.collections[0]!;
+    assert(
+      latestCollection.items.length === 4,
+      `expected 4 tracks in latest-transmissions, found ${latestCollection.items.length}`,
+    );
+
+    const listenCollection = catalogue.collections[1]!;
+    assert(
+      listenCollection.items.length === 2 &&
+        listenCollection.items[0]?.slug === "revolution-will-be-televised" &&
+        listenCollection.items[1]?.slug === "the-mushroom-circle-gnome-revolution",
+      "listen collection does not contain the expected audio tracks in order",
+    );
+
+    const watchCollection = catalogue.collections[2]!;
+    assert(
+      watchCollection.items.length === 3 &&
+        watchCollection.items[0]?.slug === "ai-pop-slop-202607190035" &&
+        watchCollection.items[1]?.slug === "final-movie-00007" &&
+        watchCollection.items[2]?.slug === "gone-fishing",
+      "watch collection does not contain the expected video tracks in order",
+    );
+
+    const sections = buildCatalogueSections(catalogue.items, catalogue.collections);
+    assert(
+      JSON.stringify(sections.map((s) => s.id)) === JSON.stringify(["latest", "audio", "video"]),
+      "homepage sections do not map to latest, audio, video section IDs",
+    );
+    assert(
+      JSON.stringify(sections.map((s) => s.icon)) === JSON.stringify(["✦", "✺", "✹"]),
+      "homepage section icons do not match expected symbols",
+    );
+    assert(
+      sections[0]?.items.length === 4 &&
+        sections[1]?.items.length === 2 &&
+        sections[2]?.items.length === 3,
+      "homepage section item counts do not match expected counts",
+    );
+  } finally {
+    await client.close();
+  }
+}
+
 try {
   await validateExistingHistoryGuard();
   await validateVideoAssetForwardMigration();
+  await validateHomepageCollectionsForwardMigration();
   const expectedCounts = await validateFirstDatabase();
   await validateFreshReset(expectedCounts);
   console.log(

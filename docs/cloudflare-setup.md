@@ -4,6 +4,14 @@ This guide documents the recommended Cloudflare settings for **sunstrucksynapse.
 
 The application now targets Cloudflare Workers rather than a static Pages upload. This document is advisory only: production account changes, deployment, bindings, and secrets remain outside the application migration. Revalidate every caching recommendation against route-specific behavior before enabling it.
 
+## Curator Access
+
+Every `/curator/*` route validates the Access JWT from `CF-Access-Jwt-Assertion` (or the `CF_Authorization` cookie) against the team certificates. Signature, `RS256`, issuer, audience, and expiry are checked. The normalized email must also be listed in `CURATOR_EMAILS`. Failures return a generic 401 or 403.
+
+Only builds with `import.meta.env.MODE === "test"` accept `x-test-curator-identity: actor-id|curator@example.test`. Production never trusts this header. Local development outside test mode must use a real Access session; do not add a local bypass.
+
+Configure `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `CURATOR_EMAILS`, `DATABASE_URL`, `MEDIA_DELIVERY_SIGNING_SECRET`, and the `MEDIA_BUCKET` R2 binding externally in the Cloudflare Worker dashboard. The repository does not contain their production values or secrets; `wrangler.jsonc` retains only the `MEDIA_BUCKET` binding and bucket names. Actor subject and email are retained for audits.
+
 ## Recommended Settings
 
 ### Security & Performance (Enable)
@@ -107,7 +115,7 @@ _Note: Cloudflare WAF rules do not add response headers. Configure response head
 
 1. **Contact Form**: The current `mailto:` form is not mixed content, but it depends on the visitor's local email client and can fail or feel awkward. Replace it with a proper API endpoint (e.g., Cloudflare Workers + Resend/SendGrid) in a future update.
 
-2. **Media Delivery**: Phase 1 media derivatives currently live in `public/assets/` and are referenced by publishable database asset records. Migrating delivery to private R2 and signed application URLs remains separate work described in `media-protection.md`.
+2. **Media Delivery**: Phase 1 static assets remain supported with `storage_provider = 'static'`. New managed assets use private R2 and signed application URLs described in `media-protection.md`.
 
 3. **Testing**: After enabling settings, test in an incognito window to verify:
    - [ ] No mixed-content warnings

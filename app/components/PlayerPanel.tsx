@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import { NowPlaying } from "~/components/NowPlaying";
 import { Queue } from "~/components/Queue";
+import { PlaybackCoordinator } from "~/services/playback-coordinator";
 import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
 
 interface PlayerPanelProps {
@@ -38,37 +39,45 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   const mediaRef = useRef<HTMLMediaElement>(null);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [activeMedia, setActiveMedia] = useState<{
+    itemId: string;
+    src: string;
+  } | null>(item?.media ? { itemId: item.id, src: item.media.src } : null);
   const preventMediaAction = (event: React.SyntheticEvent) => event.preventDefault();
   const playerArtwork = item
     ? (item.artwork.playerSrc ?? item.artwork.src)
     : "/assets/hero-art.svg";
 
+  const coordinatorRef = useRef<PlaybackCoordinator | null>(null);
+  if (!coordinatorRef.current) {
+    coordinatorRef.current = new PlaybackCoordinator({
+      onActiveSrcChange: (src, itemId) => {
+        setActiveMedia(src && itemId ? { itemId, src } : null);
+      },
+      onErrorChange: setPlaybackError,
+      onLoadingChange: setIsLoading,
+    });
+  }
+  const coordinator = coordinatorRef.current;
+
   useEffect(() => {
-    setPlaybackError(null);
-    const mediaElement = mediaRef.current;
-    if (!mediaElement || !item?.media) {
-      setIsLoading(false);
-      return;
-    }
+    coordinator.attachMedia(mediaRef.current);
+  });
 
-    let isCurrentRequest = true;
-    setIsLoading(true);
-    mediaElement.load();
-    if (playbackRequest?.itemId === item.id) {
-      void mediaElement.play().catch(() => {
-        if (isCurrentRequest && mediaRef.current === mediaElement) {
-          setPlaybackError(
-            "Playback could not start automatically. Use the player controls to begin.",
-          );
-          setIsLoading(false);
-        }
-      });
+  useEffect(() => {
+    coordinator.selectItem(item);
+    if (playbackRequest?.itemId === item?.id && item) {
+      void coordinator.playRequested(item);
     }
+  }, [coordinator, item, playbackRequest]);
 
-    return () => {
-      isCurrentRequest = false;
-    };
-  }, [item?.id, playbackRequest]);
+  const handlePlay = () => {
+    void coordinator.handleNativePlay();
+  };
+
+  const retryPlayback = () => {
+    void coordinator.retry();
+  };
 
   useEffect(() => {
     if (!item?.media || !("mediaSession" in navigator)) {
@@ -95,7 +104,9 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
         }
       }
     };
-    setHandler("play", () => void mediaRef.current?.play());
+    setHandler("play", () => {
+      void coordinator.handleNativePlay();
+    });
     setHandler("pause", () => mediaRef.current?.pause());
     setHandler("previoustrack", onPrevious);
     setHandler("nexttrack", onNext);
@@ -134,30 +145,17 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
         setHandler(action, null);
       }
     };
-  }, [item, onNext, onPrevious]);
-
-  const retryPlayback = () => {
-    const media = mediaRef.current;
-    if (!media) {
-      return;
-    }
-    setPlaybackError(null);
-    setIsLoading(true);
-    media.load();
-    void media.play().catch(() => {
-      setIsLoading(false);
-      setPlaybackError("Playback is still unavailable. Check your connection and try again.");
-    });
-  };
+  }, [coordinator, item, onNext, onPrevious]);
 
   const mediaProps = {
     className: "protected-media",
     controls: true,
     controlsList: "nodownload noplaybackrate",
-    preload: "metadata" as const,
+    preload: "none" as const,
     onContextMenu: preventMediaAction,
     onDragStart: preventMediaAction,
     onEnded: onMediaEnded,
+    onPlay: handlePlay,
     onLoadStart: () => setIsLoading(true),
     onLoadedMetadata: () => setIsLoading(false),
     onCanPlay: () => setIsLoading(false),
@@ -166,6 +164,8 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       setPlaybackError("This preview could not be loaded. Check your connection and retry.");
     },
   };
+  const activeMediaSrc =
+    activeMedia && activeMedia.itemId === item?.id ? activeMedia.src : (item?.media?.src ?? null);
 
   return (
     <aside ref={ref} className="player-panel" aria-label="Featured media player" tabIndex={-1}>
@@ -204,7 +204,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
               aria-label={`${item.description.title} audio player`}
               {...mediaProps}
             >
-              <source src={item.media.src} type={item.media.mimeType} />
+              <source src={activeMediaSrc ?? item.media.src} type={item.media.mimeType} />
             </audio>
           ) : (
             <video
@@ -215,7 +215,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
               disablePictureInPicture
               {...mediaProps}
             >
-              <source src={item.media.src} type={item.media.mimeType} />
+              <source src={activeMediaSrc ?? item.media.src} type={item.media.mimeType} />
             </video>
           )}
           {isLoading ? (

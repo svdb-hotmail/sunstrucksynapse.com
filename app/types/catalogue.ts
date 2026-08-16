@@ -47,9 +47,10 @@ export type CatalogueItem = CatalogueItemBase &
   );
 
 export interface CatalogueSection {
-  id: "latest" | "audio" | "video";
+  id: string;
   title: string;
   icon: string;
+  href: string;
   items: CatalogueItem[];
 }
 
@@ -58,6 +59,7 @@ export interface PublicEditorialCollection {
   slug: string;
   name: string;
   description: string | null;
+  artwork?: Artwork;
   items: CatalogueItem[];
 }
 

@@ -8,7 +8,17 @@
     "enabled": true,
   },
   "upload_source_maps": true,
+  "r2_buckets": [
+    {
+      "binding": "MEDIA_BUCKET",
+      "bucket_name": "sunstruck-synapse-media",
+      "preview_bucket_name": "sunstruck-synapse-media-preview",
+    },
+  ],
+  "triggers": {
+    "crons": ["* * * * *"],
+  },
   "secrets": {
-    "required": ["DATABASE_URL"],
+    "required": ["DATABASE_URL", "MEDIA_DELIVERY_SIGNING_SECRET"],
   },
 }

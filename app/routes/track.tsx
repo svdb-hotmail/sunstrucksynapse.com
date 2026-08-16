@@ -2,6 +2,8 @@ import { Link, useOutletContext } from "react-router";
 
 import { ShareButton } from "~/components/ShareButton";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
+import { trackSeo } from "~/services/seo.server";
+import { serializeJsonLd } from "~/utils/json-ld";
 import type { PlayerOutletContext } from "~/types/catalogue";
 
 import type { Route } from "./+types/track";
@@ -12,8 +14,9 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
   if (!track) {
     throw new Response("Track not found.", { status: 404, statusText: "Track not found" });
   }
-  const canonicalUrl = new URL(track.item.href, request.url).href;
-  return { track, canonicalUrl };
+  const seo = trackSeo(track);
+  const canonicalUrl = new URL(seo.canonicalPath, request.url).href;
+  return { track, canonicalUrl, seo };
 }
 
 export const meta: Route.MetaFunction = ({ loaderData }) => {
@@ -44,6 +47,10 @@ export default function TrackRoute({ loaderData }: Route.ComponentProps) {
 
   return (
     <article className="entity-page track-page">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(loaderData.seo.jsonLd) }}
+      />
       <p className="eyebrow">Track</p>
       <div className="entity-hero">
         <img src={item.artwork.src} alt={item.artwork.alt} />

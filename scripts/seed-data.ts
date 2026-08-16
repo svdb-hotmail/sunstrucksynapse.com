@@ -78,6 +78,17 @@ export const seedIds = {
     "61000000-0000-4000-8000-000000000103",
     "61000000-0000-4000-8000-000000000104",
   ],
+  productionListenCollection: "60000000-0000-4000-8000-000000000102",
+  productionWatchCollection: "60000000-0000-4000-8000-000000000103",
+  productionListenItems: [
+    "61000000-0000-4000-8000-000000000201",
+    "61000000-0000-4000-8000-000000000202",
+  ],
+  productionWatchItems: [
+    "61000000-0000-4000-8000-000000000301",
+    "61000000-0000-4000-8000-000000000302",
+    "61000000-0000-4000-8000-000000000303",
+  ],
   productionSubmission: "70000000-0000-4000-8000-000000000101",
   productionRights: "80000000-0000-4000-8000-000000000151",
 } as const;
@@ -494,16 +505,52 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
 
     await tx
       .insert(editorialCollections)
-      .values({
-        id: seedIds.productionCollection,
-        slug: "latest-transmissions",
-        name: "Latest transmissions",
-        description: "The newest published transmissions selected for the radio.",
-        artworkAssetId: seedIds.productionArtwork[0],
-        lifecycleStatus: "published",
-        publishedAt,
-      })
+      .values([
+        {
+          id: seedIds.productionCollection,
+          slug: "latest-transmissions",
+          name: "Latest transmissions",
+          description: "The newest published transmissions selected for the radio.",
+          artworkAssetId: seedIds.productionArtwork[0],
+          showOnHomepage: true,
+          homepagePosition: 1,
+          lifecycleStatus: "published",
+          publishedAt,
+        },
+        {
+          id: seedIds.productionListenCollection,
+          slug: "listen",
+          name: "Listen",
+          description: "Published audio transmissions.",
+          artworkAssetId: seedIds.productionArtwork[1],
+          showOnHomepage: true,
+          homepagePosition: 2,
+          lifecycleStatus: "published",
+          publishedAt,
+        },
+        {
+          id: seedIds.productionWatchCollection,
+          slug: "watch",
+          name: "Watch",
+          description: "Published audiovisual transmissions.",
+          artworkAssetId: seedIds.productionArtwork[0],
+          showOnHomepage: true,
+          homepagePosition: 3,
+          lifecycleStatus: "published",
+          publishedAt,
+        },
+      ])
       .onConflictDoNothing();
+    for (const [id, position] of [
+      [seedIds.productionCollection, 1],
+      [seedIds.productionListenCollection, 2],
+      [seedIds.productionWatchCollection, 3],
+    ] as const) {
+      await tx
+        .update(editorialCollections)
+        .set({ showOnHomepage: true, homepagePosition: position })
+        .where(eq(editorialCollections.id, id));
+    }
 
     await tx
       .insert(collectionItems)
@@ -515,6 +562,23 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
           position: index + 1,
         })),
       )
+      .onConflictDoNothing();
+    await tx
+      .insert(collectionItems)
+      .values([
+        ...seedIds.productionListenItems.map((id, index) => ({
+          id,
+          collectionId: seedIds.productionListenCollection,
+          trackId: seedIds.productionTracks[index === 0 ? 1 : 3],
+          position: index + 1,
+        })),
+        ...seedIds.productionWatchItems.map((id, index) => ({
+          id,
+          collectionId: seedIds.productionWatchCollection,
+          trackId: seedIds.productionTracks[index * 2],
+          position: index + 1,
+        })),
+      ])
       .onConflictDoNothing();
 
     await tx
@@ -569,10 +633,15 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         name: "Early Signals",
         description: "A fictional launch collection for deterministic development data.",
         artworkAssetId: seedIds.artwork,
+        showOnHomepage: false,
         lifecycleStatus: "published",
         publishedAt,
       })
       .onConflictDoNothing();
+    await tx
+      .update(editorialCollections)
+      .set({ showOnHomepage: false, homepagePosition: null })
+      .where(eq(editorialCollections.id, seedIds.collection));
 
     await tx
       .insert(collectionItems)
