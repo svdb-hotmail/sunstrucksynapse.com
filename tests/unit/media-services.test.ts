@@ -442,7 +442,7 @@ describe("media service upload targeting, expiration, and streaming", () => {
     expect(collectionItem?.artwork?.src).toContain("/media/artwork/");
   });
 
-  it("Gap #3: private master artwork remains hidden across all public catalogue surfaces", async () => {
+  it("keeps private master artwork separate from public artwork associations", async () => {
     const [artist] = await db.select({ id: artists.id, slug: artists.slug }).from(artists).limit(1);
     const [release] = await db
       .select({ id: releases.id, slug: releases.slug })
@@ -454,12 +454,9 @@ describe("media service upload targeting, expiration, and streaming", () => {
       .from(editorialCollections)
       .limit(1);
 
-    const testContent = new Uint8Array([10, 20, 30, 40]);
-    const hasher = new IncrementalSha256();
-    hasher.update(testContent);
-    const validChecksum = hasher.digestHex();
-
     const service = new MediaService(db, env, () => new Date("2026-08-16T12:00:00Z"));
+    const privateAssetIds: string[] = [];
+    const publicAssetIds = new Map<string, string>();
 
     for (const target of [
       { type: "artist" as const, id: artist.id },
@@ -467,13 +464,16 @@ describe("media service upload targeting, expiration, and streaming", () => {
       { type: "track" as const, id: track.id },
       { type: "collection" as const, id: collection.id },
     ]) {
-      const created = await service.createSession(
+      const publicContent = new Uint8Array([1, target.id.length, 3, 4]);
+      const publicHasher = new IncrementalSha256();
+      publicHasher.update(publicContent);
+      const publicSession = await service.createSession(
         {
           kind: "artwork",
-          scope: "private_master",
+          scope: "publishable_derivative",
           mimeType: "image/webp",
-          checksumSha256: validChecksum,
-          byteSize: testContent.byteLength,
+          checksumSha256: publicHasher.digestHex(),
+          byteSize: publicContent.byteLength,
           width: 1000,
           height: 1000,
           targetEntityType: target.type,
@@ -481,35 +481,144 @@ describe("media service upload targeting, expiration, and streaming", () => {
         },
         actor,
       );
-      expect(created.ok).toBe(true);
-      if (!created.ok) return;
+      expect(publicSession.ok).toBe(true);
+      if (!publicSession.ok) return;
 
-      await service.upload(
-        created.value.id,
-        new Request("https://example.test/upload", {
-          method: "PUT",
-          headers: { "content-type": "image/webp" },
-          body: testContent,
-        }),
+      expect(
+        await service.upload(
+          publicSession.value.id,
+          new Request("https://example.test/upload", {
+            method: "PUT",
+            headers: { "content-type": "image/webp" },
+            body: publicContent,
+          }),
+        ),
+      ).toMatchObject({ ok: true });
+      const publicCompletion = await service.complete(publicSession.value.id);
+      expect(publicCompletion.ok).toBe(true);
+      if (!publicCompletion.ok) return;
+      publicAssetIds.set(target.type, publicCompletion.value.assetId);
+
+      const privateContent = new Uint8Array([10, target.id.length, 30, 40]);
+      const privateHasher = new IncrementalSha256();
+      privateHasher.update(privateContent);
+      const privateSession = await service.createSession(
+        {
+          kind: "artwork",
+          scope: "private_master",
+          mimeType: "image/webp",
+          checksumSha256: privateHasher.digestHex(),
+          byteSize: privateContent.byteLength,
+          width: 1000,
+          height: 1000,
+          targetEntityType: target.type,
+          targetEntityId: target.id,
+        },
+        actor,
       );
-      await service.complete(created.value.id);
+      expect(privateSession.ok).toBe(true);
+      if (!privateSession.ok) return;
+
+      expect(
+        await service.upload(
+          privateSession.value.id,
+          new Request("https://example.test/upload", {
+            method: "PUT",
+            headers: { "content-type": "image/webp" },
+            body: privateContent,
+          }),
+        ),
+      ).toMatchObject({ ok: true });
+      const privateCompletion = await service.complete(privateSession.value.id);
+      expect(privateCompletion.ok).toBe(true);
+      if (!privateCompletion.ok) return;
+      privateAssetIds.push(privateCompletion.value.assetId);
+
+      const [privateAsset] = await db
+        .select({ scope: artworkAssets.scope })
+        .from(artworkAssets)
+        .where(eq(artworkAssets.id, privateCompletion.value.assetId));
+      expect(privateAsset.scope).toBe("private_master");
+
+      if (target.type === "artist") {
+        const [association] = await db
+          .select({ assetId: artistArtworkAssets.artworkAssetId })
+          .from(artistArtworkAssets)
+          .where(
+            and(
+              eq(artistArtworkAssets.artistId, target.id),
+              eq(artistArtworkAssets.role, "avatar"),
+              eq(artistArtworkAssets.position, 1),
+            ),
+          );
+        expect(association.assetId).toBe(publicCompletion.value.assetId);
+      } else if (target.type === "release") {
+        const [association] = await db
+          .select({ assetId: releaseArtworkAssets.artworkAssetId })
+          .from(releaseArtworkAssets)
+          .where(
+            and(
+              eq(releaseArtworkAssets.releaseId, target.id),
+              eq(releaseArtworkAssets.role, "primary"),
+              eq(releaseArtworkAssets.position, 1),
+            ),
+          );
+        expect(association.assetId).toBe(publicCompletion.value.assetId);
+      } else if (target.type === "track") {
+        const [association] = await db
+          .select({ assetId: trackArtworkAssets.artworkAssetId })
+          .from(trackArtworkAssets)
+          .where(
+            and(
+              eq(trackArtworkAssets.trackId, target.id),
+              eq(trackArtworkAssets.role, "primary"),
+              eq(trackArtworkAssets.position, 1),
+            ),
+          );
+        expect(association.assetId).toBe(publicCompletion.value.assetId);
+      } else {
+        const [updatedCollection] = await db
+          .select({ assetId: editorialCollections.artworkAssetId })
+          .from(editorialCollections)
+          .where(eq(editorialCollections.id, target.id));
+        expect(updatedCollection.assetId).toBe(publicCompletion.value.assetId);
+      }
+    }
+
+    const publicContext = {
+      get(key: unknown) {
+        if (key === cloudflareContext) {
+          return { db, env };
+        }
+        return undefined;
+      },
+    } as unknown as LoaderFunctionArgs["context"];
+    for (const privateAssetId of privateAssetIds) {
+      const request = new Request(`https://example.test/media/artwork/${privateAssetId}`);
+      const response = await mediaLoader({
+        request,
+        url: new URL(request.url),
+        pattern: "/media/:kind/:assetId",
+        params: { kind: "artwork", assetId: privateAssetId },
+        context: publicContext,
+      });
+      expect(response.status).toBe(404);
     }
 
     const catalogueRepo = createCatalogueRepository(db, {
       signingSecret: env.MEDIA_DELIVERY_SIGNING_SECRET,
     });
-
     const publishedArtist = await catalogueRepo.findPublishedArtist(artist.slug);
-    expect(publishedArtist?.artwork.src).toBe("/assets/favicon.svg");
+    expect(publishedArtist?.artwork.src).toContain(publicAssetIds.get("artist")!);
 
     const publishedRelease = await catalogueRepo.findPublishedRelease(release.slug);
-    expect(publishedRelease?.artwork.src).toBe("/assets/favicon.svg");
+    expect(publishedRelease?.artwork.src).toContain(publicAssetIds.get("release")!);
 
     const publishedTrack = await catalogueRepo.findPublishedTrack(release.slug, track.slug);
-    expect(publishedTrack?.item.artwork.src).toBe("/assets/favicon.svg");
+    expect(publishedTrack?.item.artwork.src).toContain(publicAssetIds.get("track")!);
 
     const publishedCollection = await catalogueRepo.findPublishedCollection(collection.slug);
-    expect(publishedCollection?.artwork).toBeUndefined();
+    expect(publishedCollection?.artwork?.src).toContain(publicAssetIds.get("collection")!);
   });
 
   it("atomically replaces an existing primary audio asset without violating uniqueness", async () => {

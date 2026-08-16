@@ -390,9 +390,8 @@ export class MediaService<TQueryResult extends PgQueryResultHKT = PgQueryResultH
           ins_rel AS (
             INSERT INTO artist_artwork_assets (
               artist_id, artwork_asset_id, role, position, created_at
-            ) VALUES (
-              ${targetEntityId}, ${assetId}, 'avatar', 1, ${now}
-            )
+            ) SELECT ${targetEntityId}, ${assetId}, 'avatar', 1, ${now}
+            WHERE ${session.scope} = 'publishable_derivative'
             ON CONFLICT (artist_id, role, position)
             DO UPDATE SET artwork_asset_id = EXCLUDED.artwork_asset_id
             RETURNING id
@@ -418,9 +417,8 @@ export class MediaService<TQueryResult extends PgQueryResultHKT = PgQueryResultH
           ins_rel AS (
             INSERT INTO release_artwork_assets (
               release_id, artwork_asset_id, role, position, created_at
-            ) VALUES (
-              ${targetEntityId}, ${assetId}, 'primary', 1, ${now}
-            )
+            ) SELECT ${targetEntityId}, ${assetId}, 'primary', 1, ${now}
+            WHERE ${session.scope} = 'publishable_derivative'
             ON CONFLICT (release_id, role, position)
             DO UPDATE SET artwork_asset_id = EXCLUDED.artwork_asset_id
             RETURNING id
@@ -446,9 +444,8 @@ export class MediaService<TQueryResult extends PgQueryResultHKT = PgQueryResultH
           ins_rel AS (
             INSERT INTO track_artwork_assets (
               track_id, artwork_asset_id, role, position, created_at
-            ) VALUES (
-              ${targetEntityId}, ${assetId}, 'primary', 1, ${now}
-            )
+            ) SELECT ${targetEntityId}, ${assetId}, 'primary', 1, ${now}
+            WHERE ${session.scope} = 'publishable_derivative'
             ON CONFLICT (track_id, role, position)
             DO UPDATE SET artwork_asset_id = EXCLUDED.artwork_asset_id
             RETURNING id
@@ -474,7 +471,7 @@ export class MediaService<TQueryResult extends PgQueryResultHKT = PgQueryResultH
           upd_coll AS (
             UPDATE editorial_collections
             SET artwork_asset_id = ${assetId}, updated_at = ${now}
-            WHERE id = ${targetEntityId}
+            WHERE id = ${targetEntityId} AND ${session.scope} = 'publishable_derivative'
             RETURNING id
           ),
           upd_session AS (
