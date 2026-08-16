@@ -5,8 +5,8 @@ export function Contact() {
         <p className="eyebrow">Contact</p>
         <h2>Send the signal.</h2>
         <p>
-          Send a short brief, references, and the type of audio/video/portfolio work you need
-          delivered.
+          Get in touch about the radio, the artists and music we feature, or a thoughtful
+          collaboration.
         </p>
       </div>
 
@@ -18,13 +18,13 @@ export function Contact() {
           Email <input name="email" type="email" required autoComplete="email" />
         </label>
         <label>
-          Project type
-          <select name="project_type" required defaultValue="">
+          Subject
+          <select name="subject" required defaultValue="">
             <option value="">Choose one</option>
-            <option>Audio</option>
-            <option>Video</option>
-            <option>Portfolio</option>
-            <option>Creative system</option>
+            <option>The radio</option>
+            <option>Music or artist</option>
+            <option>Visual work</option>
+            <option>Collaboration</option>
           </select>
         </label>
         <label>

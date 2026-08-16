@@ -9,8 +9,14 @@ import {
 } from "react-router";
 
 import { ApplicationShell } from "~/components/ApplicationShell";
-import { getCatalogueItem, initialCatalogueItem, initialQueue } from "~/data/catalogue";
-import type { CatalogueItem, MediaKind, PlayerOutletContext, PlayerState } from "~/types/catalogue";
+import { getCatalogueItem, initialCatalogueItem } from "~/data/catalogue";
+import type {
+  CatalogueItem,
+  PlayerOutletContext,
+  PlayerState,
+  QueueEntry,
+} from "~/types/catalogue";
+import { addQueueItem, findNextPlayableQueueEntry, removeQueueItem } from "~/utils/queue";
 
 import type { Route } from "./+types/root";
 import "./styles/global.css";
@@ -40,18 +46,30 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
 export default function App() {
   const playerPanelRef = useRef<HTMLElement>(null);
+  const playbackSequence = useRef(0);
   const [player, setPlayer] = useState<PlayerState>({
     selectedItemId: initialCatalogueItem.id,
-    mode: initialCatalogueItem.mediaKind,
   });
-  const [queue, setQueue] = useState(initialQueue);
+  const [playbackRequest, setPlaybackRequest] = useState<{
+    itemId: string;
+    sequence: number;
+  } | null>(null);
+  const [queue, setQueue] = useState<QueueEntry[]>([]);
   const selectedItem = getCatalogueItem(player.selectedItemId);
 
   const selectItem = useCallback((item: CatalogueItem) => {
-    setPlayer({
-      selectedItemId: item.id,
-      mode: item.mediaKind,
-    });
+    setPlayer({ selectedItemId: item.id });
+    setPlaybackRequest(null);
+  }, []);
+
+  const requestPlayback = useCallback((item: CatalogueItem, moveFocus = true) => {
+    setPlayer({ selectedItemId: item.id });
+    playbackSequence.current += 1;
+    setPlaybackRequest({ itemId: item.id, sequence: playbackSequence.current });
+
+    if (!moveFocus) {
+      return;
+    }
 
     window.requestAnimationFrame(() => {
       const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -63,23 +81,45 @@ export default function App() {
     });
   }, []);
 
-  const setMode = useCallback((mode: MediaKind) => {
-    setPlayer((current) => ({ ...current, mode }));
-  }, []);
+  const selectQueueEntry = useCallback(
+    (entry: QueueEntry) => {
+      const item = getCatalogueItem(entry.itemId);
+      setQueue((current) => removeQueueItem(current, entry.itemId));
+      if (item.media) {
+        requestPlayback(item);
+      } else {
+        selectItem(item);
+      }
+    },
+    [requestPlayback, selectItem],
+  );
+
+  const advanceQueue = useCallback(() => {
+    const nextPlayable = findNextPlayableQueueEntry(queue, getCatalogueItem);
+    if (!nextPlayable) {
+      return;
+    }
+
+    setQueue((current) => removeQueueItem(current, nextPlayable.itemId));
+    requestPlayback(getCatalogueItem(nextPlayable.itemId), false);
+  }, [queue, requestPlayback]);
 
   const outletContext: PlayerOutletContext = {
     selectedItemId: selectedItem.id,
     selectItem,
+    queueItem: (item) => setQueue((current) => addQueueItem(current, item)),
+    playItem: requestPlayback,
   };
 
   return (
     <ApplicationShell
       item={selectedItem}
-      mode={player.mode}
       queue={queue}
       playerPanelRef={playerPanelRef}
-      onModeChange={setMode}
+      playbackRequest={playbackRequest}
       onClearQueue={() => setQueue([])}
+      onSelectQueueEntry={selectQueueEntry}
+      onMediaEnded={advanceQueue}
     >
       <Outlet context={outletContext} />
     </ApplicationShell>

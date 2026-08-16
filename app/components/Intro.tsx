@@ -2,15 +2,13 @@ export function Intro() {
   return (
     <section id="top" className="intro-strip">
       <div>
-        <p className="eyebrow">
-          Audio {"\u00b7"} Video {"\u00b7"} AI Creative Production
-        </p>
-        <h2>Media portfolio, streaming-style. Built for browsers, desktop, and mobile.</h2>
+        <p className="eyebrow">Human-curated {"\u2022"} AI-assisted music</p>
+        <h2>A radio for music made with intent.</h2>
       </div>
       <p>
-        Showcase music, reels, generated video work, visual systems, and client offerings without
-        throwing raw files at visitors like it&apos;s 2006 and everyone still trusts download
-        buttons.
+        Sunstruck Synapse Radio is a human-curated listening space for intentional AI-assisted music
+        and its visual counterparts. AI is part of the instrument. Human taste, direction and
+        authorship remain at the centre.
       </p>
     </section>
   );

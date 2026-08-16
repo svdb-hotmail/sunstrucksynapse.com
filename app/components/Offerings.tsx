@@ -6,10 +6,13 @@ interface OfferingsProps {
 
 export function Offerings({ offerings }: OfferingsProps) {
   return (
-    <section id="offerings" className="offerings">
+    <section id="about" className="offerings">
       <div className="section-title">
         <h2>
-          <span className="section-icon">{"\u2600"}</span>Offerings
+          <span className="section-icon" aria-hidden="true">
+            {"\u2600"}
+          </span>
+          About the radio
         </h2>
       </div>
 

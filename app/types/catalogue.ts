@@ -17,13 +17,24 @@ export interface DescriptiveText {
   subtitle: string;
 }
 
-export interface CatalogueItem {
+export interface MediaSource<Kind extends MediaKind> {
+  src: string;
+  mimeType: `${Kind}/${string}`;
+  poster?: Kind extends "video" ? string : never;
+}
+
+interface CatalogueItemBase {
   id: string;
   creator: Creator;
-  mediaKind: MediaKind;
   artwork: Artwork;
   description: DescriptiveText;
 }
+
+export type CatalogueItem = CatalogueItemBase &
+  (
+    | { mediaKind: "audio"; media?: MediaSource<"audio"> }
+    | { mediaKind: "video"; media?: MediaSource<"video"> }
+  );
 
 export interface CatalogueSection {
   id: "latest" | "audio" | "video";
@@ -34,11 +45,9 @@ export interface CatalogueSection {
 
 export interface PlayerState {
   selectedItemId: CatalogueItem["id"];
-  mode: MediaKind;
 }
 
 export interface QueueEntry {
-  id: string;
   itemId: CatalogueItem["id"];
   title: string;
   subtitle: string;
@@ -54,4 +63,6 @@ export interface Offering {
 export interface PlayerOutletContext {
   selectedItemId: CatalogueItem["id"];
   selectItem: (item: CatalogueItem) => void;
+  queueItem: (item: CatalogueItem) => void;
+  playItem: (item: CatalogueItem) => void;
 }

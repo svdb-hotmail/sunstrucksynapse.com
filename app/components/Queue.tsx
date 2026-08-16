@@ -3,9 +3,10 @@ import type { QueueEntry } from "~/types/catalogue";
 interface QueueProps {
   entries: QueueEntry[];
   onClear: () => void;
+  onSelect: (entry: QueueEntry) => void;
 }
 
-export function Queue({ entries, onClear }: QueueProps) {
+export function Queue({ entries, onClear, onSelect }: QueueProps) {
   return (
     <section className="queue">
       <div className="queue-head">
@@ -17,10 +18,16 @@ export function Queue({ entries, onClear }: QueueProps) {
       {entries.length > 0 ? (
         <ol>
           {entries.map((entry, index) => (
-            <li key={entry.id}>
+            <li key={entry.itemId}>
               <span>{String(index + 1).padStart(2, "0")}</span>
-              <strong>{entry.title}</strong>
-              <em>{entry.subtitle}</em>
+              <button
+                type="button"
+                aria-label={`Play ${entry.title} from queue`}
+                onClick={() => onSelect(entry)}
+              >
+                <strong>{entry.title}</strong>
+                <em>{entry.subtitle}</em>
+              </button>
             </li>
           ))}
         </ol>
