@@ -8,7 +8,7 @@ describe("catalogue states", () => {
   });
 
   it("renders an intentional empty state", () => {
-    const copy = catalogueStateCopy({ status: "empty", items: [] });
+    const copy = catalogueStateCopy({ status: "empty", items: [], collections: [] });
 
     expect(copy).toEqual({
       heading: "No transmissions are published yet.",
@@ -20,6 +20,7 @@ describe("catalogue states", () => {
     const copy = catalogueStateCopy({
       status: "error",
       items: [],
+      collections: [],
       message: "The catalogue is temporarily unavailable. Please try again shortly.",
     });
 

@@ -16,7 +16,14 @@ describe("catalogue service", () => {
   ];
 
   it("builds latest, audio and video sections from repository items", () => {
-    const sections = buildCatalogueSections(catalogueItems);
+    const latestCollection = {
+      id: "latest-id",
+      slug: "latest-transmissions",
+      name: "Latest transmissions",
+      description: null,
+      items: [catalogueItems[2]!, catalogueItems[0]!],
+    };
+    const sections = buildCatalogueSections(catalogueItems, [latestCollection]);
 
     expect(sections.map((section) => section.title)).toEqual([
       "Latest transmissions",
@@ -25,6 +32,7 @@ describe("catalogue service", () => {
     ]);
     expect(sections[1]?.items.map((item) => item.id)).toEqual(["audio-one", "audio-two"]);
     expect(sections[2]?.items.map((item) => item.id)).toEqual(["video-one"]);
+    expect(sections[0]?.items.map((item) => item.id)).toEqual(["audio-two", "audio-one"]);
   });
 
   it("finds an item without creating a parallel item instance", () => {
@@ -38,10 +46,12 @@ describe("catalogue service", () => {
     ).resolves.toEqual({
       status: "ready",
       items: catalogueItems,
+      collections: [],
     });
     await expect(loadPublicCatalogue(createStaticCatalogueRepository([]))).resolves.toEqual({
       status: "empty",
       items: [],
+      collections: [],
     });
   });
 
@@ -50,6 +60,9 @@ describe("catalogue service", () => {
     const failingRepository: CatalogueRepository = {
       async listPublishedTracks() {
         throw new Error("database credential must not reach the client");
+      },
+      async listPublishedCollections() {
+        return [];
       },
       async findPublishedArtist() {
         return null;
@@ -65,6 +78,7 @@ describe("catalogue service", () => {
     await expect(loadPublicCatalogue(failingRepository)).resolves.toEqual({
       status: "error",
       items: [],
+      collections: [],
       message: "The catalogue is temporarily unavailable. Please try again shortly.",
     });
     expect(consoleError).toHaveBeenCalledOnce();

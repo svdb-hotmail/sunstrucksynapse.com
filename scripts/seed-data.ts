@@ -22,6 +22,7 @@ import {
   trackArtistCredits,
   trackArtworkAssets,
   tracks,
+  videoAssets,
 } from "../app/db/schema";
 import * as schema from "../app/db/schema";
 
@@ -70,6 +71,13 @@ export const seedIds = {
     "50000000-0000-4000-8000-000000000105",
   ],
   productionPrivateMedia: "50000000-0000-4000-8000-000000000106",
+  productionCollection: "60000000-0000-4000-8000-000000000101",
+  productionCollectionItems: [
+    "61000000-0000-4000-8000-000000000101",
+    "61000000-0000-4000-8000-000000000102",
+    "61000000-0000-4000-8000-000000000103",
+    "61000000-0000-4000-8000-000000000104",
+  ],
   productionSubmission: "70000000-0000-4000-8000-000000000101",
   productionRights: "80000000-0000-4000-8000-000000000151",
 } as const;
@@ -404,18 +412,6 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
       .insert(audioAssets)
       .values([
         {
-          id: seedIds.productionMedia[0],
-          trackId: seedIds.productionTracks[0],
-          objectKey: "assets/video/AI_pop-slop_202607190035.mp4",
-          scope: "publishable_derivative",
-          mimeType: "video/mp4",
-          checksumSha256: "dcbb82599d7df74fc187ca53ae908b575c0cbe1c5387747883a5157f6c0c50cf",
-          byteSize: 9_613_030,
-          durationMs: 30_016,
-          codec: "h264-aac",
-          isPrimary: true,
-        },
-        {
           id: seedIds.productionMedia[1],
           trackId: seedIds.productionTracks[1],
           objectKey: "assets/audio/Sunstruck Synapse (Revolution will be televised).mp3",
@@ -425,18 +421,6 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
           byteSize: 7_138_735,
           durationMs: 445_289,
           codec: "mp3",
-          isPrimary: true,
-        },
-        {
-          id: seedIds.productionMedia[2],
-          trackId: seedIds.productionTracks[2],
-          objectKey: "assets/video/final-movie_00007_.mp4",
-          scope: "publishable_derivative",
-          mimeType: "video/mp4",
-          checksumSha256: "fbd96fd9afda3b0a8a2c8c456477e05e04e5af5f1141deebfb7c8749878eb92c",
-          byteSize: 2_249_897,
-          durationMs: 14_458,
-          codec: "h264-aac",
           isPrimary: true,
         },
         {
@@ -452,18 +436,6 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
           isPrimary: true,
         },
         {
-          id: seedIds.productionMedia[4],
-          trackId: seedIds.productionTracks[4],
-          objectKey: "assets/video/gone_fishing.mp4",
-          scope: "publishable_derivative",
-          mimeType: "video/mp4",
-          checksumSha256: "0e85461019e5428e6f4aefe8b61b5900961acd2ee99b819354b4076e43a1fa7a",
-          byteSize: 13_983_942,
-          durationMs: 15_000,
-          codec: "h264-aac",
-          isPrimary: true,
-        },
-        {
           id: seedIds.productionPrivateMedia,
           trackId: seedIds.productionTracks[1],
           objectKey: "audio/private/revolution-master.wav",
@@ -476,6 +448,73 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
           isPrimary: true,
         },
       ])
+      .onConflictDoNothing();
+
+    await tx
+      .insert(videoAssets)
+      .values([
+        {
+          id: seedIds.productionMedia[0],
+          trackId: seedIds.productionTracks[0],
+          objectKey: "assets/video/AI_pop-slop_202607190035.mp4",
+          scope: "publishable_derivative",
+          mimeType: "video/mp4",
+          checksumSha256: "dcbb82599d7df74fc187ca53ae908b575c0cbe1c5387747883a5157f6c0c50cf",
+          byteSize: 9_613_030,
+          durationMs: 30_016,
+          codec: "h264-aac",
+          isPrimary: true,
+        },
+        {
+          id: seedIds.productionMedia[2],
+          trackId: seedIds.productionTracks[2],
+          objectKey: "assets/video/final-movie_00007_.mp4",
+          scope: "publishable_derivative",
+          mimeType: "video/mp4",
+          checksumSha256: "fbd96fd9afda3b0a8a2c8c456477e05e04e5af5f1141deebfb7c8749878eb92c",
+          byteSize: 2_249_897,
+          durationMs: 14_458,
+          codec: "h264-aac",
+          isPrimary: true,
+        },
+        {
+          id: seedIds.productionMedia[4],
+          trackId: seedIds.productionTracks[4],
+          objectKey: "assets/video/gone_fishing.mp4",
+          scope: "publishable_derivative",
+          mimeType: "video/mp4",
+          checksumSha256: "0e85461019e5428e6f4aefe8b61b5900961acd2ee99b819354b4076e43a1fa7a",
+          byteSize: 13_983_942,
+          durationMs: 15_000,
+          codec: "h264-aac",
+          isPrimary: true,
+        },
+      ])
+      .onConflictDoNothing();
+
+    await tx
+      .insert(editorialCollections)
+      .values({
+        id: seedIds.productionCollection,
+        slug: "latest-transmissions",
+        name: "Latest transmissions",
+        description: "The newest published transmissions selected for the radio.",
+        artworkAssetId: seedIds.productionArtwork[0],
+        lifecycleStatus: "published",
+        publishedAt,
+      })
+      .onConflictDoNothing();
+
+    await tx
+      .insert(collectionItems)
+      .values(
+        seedIds.productionCollectionItems.map((id, index) => ({
+          id,
+          collectionId: seedIds.productionCollection,
+          trackId: seedIds.productionTracks[index],
+          position: index + 1,
+        })),
+      )
       .onConflictDoNothing();
 
     await tx

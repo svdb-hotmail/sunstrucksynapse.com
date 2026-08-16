@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import type { PgDatabase } from "drizzle-orm/pg-core";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core/session";
 
@@ -7,12 +7,15 @@ import {
   artists,
   artworkAssets,
   audioAssets,
+  collectionItems,
+  editorialCollections,
   releaseArtistCredits,
   releaseArtworkAssets,
   releases,
   trackArtistCredits,
   trackArtworkAssets,
   tracks,
+  videoAssets,
 } from "~/db/schema";
 import * as schema from "~/db/schema";
 import type {
@@ -20,12 +23,14 @@ import type {
   CatalogueItem,
   CatalogueLoadResult,
   PublicArtist,
+  PublicEditorialCollection,
   PublicRelease,
   PublicTrack,
 } from "~/types/catalogue";
 
 export interface CatalogueRepository {
   listPublishedTracks(): Promise<CatalogueItem[]>;
+  listPublishedCollections(publishedItems?: CatalogueItem[]): Promise<PublicEditorialCollection[]>;
   findPublishedArtist(slug: string): Promise<PublicArtist | null>;
   findPublishedRelease(slug: string): Promise<PublicRelease | null>;
   findPublishedTrack(releaseSlug: string, trackSlug: string): Promise<PublicTrack | null>;
@@ -47,8 +52,10 @@ interface PublishedTrackRow {
   artistPosition: number;
   artworkObjectKey: string | null;
   artworkAltText: string | null;
-  mediaObjectKey: string | null;
-  mediaMimeType: string | null;
+  audioObjectKey: string | null;
+  audioMimeType: string | null;
+  videoObjectKey: string | null;
+  videoMimeType: string | null;
 }
 
 function publicAssetPath(objectKey: string): string {
@@ -71,12 +78,14 @@ export function mapPublishedTracks(rows: PublishedTrackRow[]): CatalogueItem[] {
     }
 
     const artwork = artworkForRow(row);
-    const mediaKind = row.mediaMimeType?.startsWith("video/") ? "video" : "audio";
+    const mediaKind = row.videoObjectKey ? "video" : "audio";
+    const mediaObjectKey = mediaKind === "video" ? row.videoObjectKey : row.audioObjectKey;
+    const mediaMimeType = mediaKind === "video" ? row.videoMimeType : row.audioMimeType;
     const media =
-      row.mediaObjectKey && row.mediaMimeType
+      mediaObjectKey && mediaMimeType
         ? {
-            src: publicAssetPath(row.mediaObjectKey),
-            mimeType: row.mediaMimeType,
+            src: publicAssetPath(mediaObjectKey),
+            mimeType: mediaMimeType,
           }
         : undefined;
     const creator = {
@@ -176,10 +185,16 @@ function releaseFromItems(
   };
 }
 
-export function createStaticCatalogueRepository(items: CatalogueItem[]): CatalogueRepository {
+export function createStaticCatalogueRepository(
+  items: CatalogueItem[],
+  collections: PublicEditorialCollection[] = [],
+): CatalogueRepository {
   return {
     async listPublishedTracks() {
       return items;
+    },
+    async listPublishedCollections() {
+      return collections;
     },
     async findPublishedArtist(slug) {
       return artistFromItems(items, slug);
@@ -227,8 +242,10 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         artistPosition: trackArtistCredits.position,
         artworkObjectKey: artworkAssets.objectKey,
         artworkAltText: trackArtworkAssets.altText,
-        mediaObjectKey: audioAssets.objectKey,
-        mediaMimeType: audioAssets.mimeType,
+        audioObjectKey: audioAssets.objectKey,
+        audioMimeType: audioAssets.mimeType,
+        videoObjectKey: videoAssets.objectKey,
+        videoMimeType: videoAssets.mimeType,
       })
       .from(tracks)
       .innerJoin(releases, eq(releases.id, tracks.releaseId))
@@ -257,6 +274,14 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
           eq(audioAssets.isPrimary, true),
         ),
       )
+      .leftJoin(
+        videoAssets,
+        and(
+          eq(videoAssets.trackId, tracks.id),
+          eq(videoAssets.scope, "publishable_derivative"),
+          eq(videoAssets.isPrimary, true),
+        ),
+      )
       .where(
         and(
           eq(artists.lifecycleStatus, "published"),
@@ -265,7 +290,8 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         ),
       )
       .orderBy(
-        asc(releases.releaseDate),
+        sql`${releases.releaseDate} desc nulls last`,
+        asc(releases.slug),
         asc(tracks.discNumber),
         asc(tracks.position),
         asc(trackArtistCredits.position),
@@ -276,8 +302,56 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
     return mapPublishedTracks(await readPublishedRows());
   }
 
+  async function listPublishedCollections(
+    publishedItems?: CatalogueItem[],
+  ): Promise<PublicEditorialCollection[]> {
+    const items = publishedItems ?? (await listPublishedTracks());
+    const rows = await db
+      .select({
+        collectionId: editorialCollections.id,
+        collectionSlug: editorialCollections.slug,
+        collectionName: editorialCollections.name,
+        collectionDescription: editorialCollections.description,
+        position: collectionItems.position,
+        trackId: collectionItems.trackId,
+        releaseId: collectionItems.releaseId,
+      })
+      .from(editorialCollections)
+      .innerJoin(collectionItems, eq(collectionItems.collectionId, editorialCollections.id))
+      .where(eq(editorialCollections.lifecycleStatus, "published"))
+      .orderBy(
+        sql`${editorialCollections.publishedAt} desc nulls last`,
+        asc(editorialCollections.slug),
+        asc(collectionItems.position),
+      );
+    const itemsById = new Map(items.map((item) => [item.id, item]));
+    const collections = new Map<string, PublicEditorialCollection>();
+
+    for (const row of rows) {
+      const collection = collections.get(row.collectionId) ?? {
+        id: row.collectionId,
+        slug: row.collectionSlug,
+        name: row.collectionName,
+        description: row.collectionDescription,
+        items: [],
+      };
+      const targetItems = row.trackId
+        ? [itemsById.get(row.trackId)].filter((item): item is CatalogueItem => Boolean(item))
+        : items.filter((item) => item.release.id === row.releaseId);
+      for (const item of targetItems) {
+        if (!collection.items.some((candidate) => candidate.id === item.id)) {
+          collection.items.push(item);
+        }
+      }
+      collections.set(row.collectionId, collection);
+    }
+
+    return [...collections.values()].filter((collection) => collection.items.length > 0);
+  }
+
   return {
     listPublishedTracks,
+    listPublishedCollections,
     async findPublishedArtist(slug) {
       const [artist] = await db
         .select({
@@ -310,9 +384,14 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         return null;
       }
 
-      const items = mapPublishedTracks(await readPublishedRows()).filter(
-        (item) => item.creator.id === artist.id,
-      );
+      const [items, creditedTracks] = await Promise.all([
+        listPublishedTracks(),
+        db
+          .select({ trackId: trackArtistCredits.trackId })
+          .from(trackArtistCredits)
+          .where(eq(trackArtistCredits.artistId, artist.id)),
+      ]);
+      const creditedTrackIds = new Set(creditedTracks.map(({ trackId }) => trackId));
       return {
         id: artist.id,
         slug: artist.slug,
@@ -325,7 +404,7 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
             : "/assets/favicon.svg",
           alt: artist.artworkAltText ?? `${artist.name} artwork`,
         },
-        tracks: items,
+        tracks: items.filter((item) => creditedTrackIds.has(item.id)),
       };
     },
     async findPublishedRelease(slug) {
@@ -426,12 +505,16 @@ export async function loadPublicCatalogue(
 ): Promise<CatalogueLoadResult> {
   try {
     const items = await repository.listPublishedTracks();
-    return items.length > 0 ? { status: "ready", items } : { status: "empty", items: [] };
+    const collections = await repository.listPublishedCollections(items);
+    return items.length > 0
+      ? { status: "ready", items, collections }
+      : { status: "empty", items: [], collections: [] };
   } catch (error) {
     console.error("Public catalogue query failed.", error);
     return {
       status: "error",
       items: [],
+      collections: [],
       message: "The catalogue is temporarily unavailable. Please try again shortly.",
     };
   }

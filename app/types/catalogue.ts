@@ -53,6 +53,14 @@ export interface CatalogueSection {
   items: CatalogueItem[];
 }
 
+export interface PublicEditorialCollection {
+  id: string;
+  slug: string;
+  name: string;
+  description: string | null;
+  items: CatalogueItem[];
+}
+
 export interface PlayerState {
   selectedItemId: CatalogueItem["id"] | null;
 }
@@ -106,6 +114,6 @@ export interface PublicTrack {
 }
 
 export type CatalogueLoadResult =
-  | { status: "ready"; items: CatalogueItem[] }
-  | { status: "empty"; items: [] }
-  | { status: "error"; items: []; message: string };
+  | { status: "ready"; items: CatalogueItem[]; collections: PublicEditorialCollection[] }
+  | { status: "empty"; items: []; collections: [] }
+  | { status: "error"; items: []; collections: []; message: string };

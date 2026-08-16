@@ -19,11 +19,7 @@ import type {
   PlayerState,
   QueueEntry,
 } from "~/types/catalogue";
-import {
-  PLAYER_STORAGE_KEY,
-  restorePlayerState,
-  serializePlayerState,
-} from "~/utils/player-storage";
+import { persistPlayerToStorage, restorePlayerFromStorage } from "~/utils/player-storage";
 import {
   addQueueItem,
   findAdjacentPlayableItem,
@@ -72,6 +68,7 @@ export default function App() {
   const defaultItem = catalogueItems.find((item) => item.media) ?? catalogueItems[0] ?? null;
   const playerPanelRef = useRef<HTMLElement>(null);
   const playbackSequence = useRef(0);
+  const persistenceEnabled = useRef(true);
   const [hasRestoredPlayer, setHasRestoredPlayer] = useState(false);
   const [player, setPlayer] = useState<PlayerState>({
     selectedItemId: defaultItem?.id ?? null,
@@ -86,24 +83,31 @@ export default function App() {
     : undefined;
 
   useEffect(() => {
-    const restored = restorePlayerState(
-      window.localStorage.getItem(PLAYER_STORAGE_KEY),
-      catalogueItems,
-      defaultItem?.id ?? null,
-    );
-    setPlayer({ selectedItemId: restored.selectedItemId });
-    setQueue(restored.queue);
+    let storage: Storage | null = null;
+    try {
+      storage = window.localStorage;
+    } catch {
+      persistenceEnabled.current = false;
+    }
+    const restored = restorePlayerFromStorage(storage, catalogueItems, defaultItem?.id ?? null);
+    persistenceEnabled.current = restored.persistenceAvailable;
+    setPlayer({ selectedItemId: restored.player.selectedItemId });
+    setQueue(restored.player.queue);
     setHasRestoredPlayer(true);
   }, [catalogueItems, defaultItem?.id]);
 
   useEffect(() => {
-    if (!hasRestoredPlayer) {
+    if (!hasRestoredPlayer || !persistenceEnabled.current) {
       return;
     }
-    window.localStorage.setItem(
-      PLAYER_STORAGE_KEY,
-      serializePlayerState(player.selectedItemId, queue),
-    );
+    let storage: Storage | null = null;
+    try {
+      storage = window.localStorage;
+    } catch {
+      persistenceEnabled.current = false;
+      return;
+    }
+    persistenceEnabled.current = persistPlayerToStorage(storage, player.selectedItemId, queue);
   }, [hasRestoredPlayer, player.selectedItemId, queue]);
 
   const selectItem = useCallback((item: CatalogueItem) => {

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { restorePlayerState, serializePlayerState } from "../../app/utils/player-storage";
+import {
+  persistPlayerToStorage,
+  restorePlayerFromStorage,
+  restorePlayerState,
+  serializePlayerState,
+} from "../../app/utils/player-storage";
 import { addQueueItem } from "../../app/utils/queue";
 import { makeCatalogueItem } from "../fixtures/catalogue";
 
@@ -38,5 +43,28 @@ describe("player persistence", () => {
       selectedItemId: first.id,
       queue: [],
     });
+  });
+
+  it("disables persistence when reading storage throws", () => {
+    const storage = {
+      getItem() {
+        throw new DOMException("Storage disabled", "SecurityError");
+      },
+    };
+
+    expect(restorePlayerFromStorage(storage, items, first.id)).toEqual({
+      player: { selectedItemId: first.id, queue: [] },
+      persistenceAvailable: false,
+    });
+  });
+
+  it("disables persistence when writing storage throws", () => {
+    const storage = {
+      setItem() {
+        throw new DOMException("Quota exceeded", "QuotaExceededError");
+      },
+    };
+
+    expect(persistPlayerToStorage(storage, second.id, addQueueItem([], first))).toBe(false);
   });
 });

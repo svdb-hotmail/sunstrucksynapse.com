@@ -23,7 +23,7 @@ export const meta: Route.MetaFunction = () => [
 export default function Home() {
   const { selectedItemId, catalogue, selectItem, queueItem, playItem } =
     useOutletContext<PlayerOutletContext>();
-  const catalogueSections = buildCatalogueSections(catalogue.items);
+  const catalogueSections = buildCatalogueSections(catalogue.items, catalogue.collections);
 
   return (
     <>

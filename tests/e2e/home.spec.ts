@@ -24,7 +24,7 @@ test("loads the database catalogue and controls the correct media", async ({ pag
   await expect(
     page.getByRole("heading", { name: "A radio for music made with intent." }),
   ).toBeVisible();
-  await expect(page.locator(".media-card")).toHaveCount(9);
+  await expect(page.locator(".media-card")).toHaveCount(10);
   await cardFor(page, revolutionTitle)
     .getByRole("button", { name: `Play ${revolutionTitle}` })
     .click();
@@ -142,7 +142,7 @@ test("serves canonical artist, release and track pages with global-player action
 
   await page.goto("/artists/sunstruck-synapse");
   await expect(page.getByRole("heading", { name: "Sunstruck Synapse", exact: true })).toBeVisible();
-  await expect(page.getByRole("listitem")).toHaveCount(5);
+  await expect(page.getByRole("listitem")).toHaveCount(6);
 
   await page.goto("/releases/phase-zero-transmissions");
   await expect(
@@ -188,6 +188,34 @@ test("reports unavailable media accessibly and allows retry", async ({ page }) =
   await expect(alert.getByRole("button", { name: "Retry" })).toBeVisible();
   await alert.getByRole("button", { name: "Retry" }).click();
   await expect(alert).toContainText(/unavailable|could not be loaded/);
+});
+
+test("presents published tracks with missing media without requesting a source", async ({
+  page,
+}) => {
+  const mediaRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.resourceType() === "media" && request.url().includes("quiet-machines")) {
+      mediaRequests.push(request.url());
+    }
+  });
+  await page.goto("/");
+
+  const missingMediaCard = cardFor(page, "Quiet Machines");
+  await expect(
+    missingMediaCard.getByRole("button", {
+      name: "Quiet Machines preview coming soon",
+    }),
+  ).toBeDisabled();
+  await expect(
+    missingMediaCard.getByRole("button", {
+      name: "Queue unavailable for Quiet Machines; preview coming soon",
+    }),
+  ).toBeDisabled();
+  await missingMediaCard.getByRole("button", { name: "Select Quiet Machines" }).click();
+  await expect(page.getByText("Preview coming soon.").first()).toBeVisible();
+  await page.waitForTimeout(100);
+  expect(mediaRequests).toEqual([]);
 });
 
 test("supports keyboard activation and reduced-motion focus movement", async ({ page }) => {

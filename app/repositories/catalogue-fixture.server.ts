@@ -21,8 +21,8 @@ function item(
   slug: string,
   title: string,
   mediaKind: MediaKind,
-  mediaSrc: string,
-  mimeType: string,
+  mediaSrc: string | null,
+  mimeType: string | null,
   artworkSrc: string,
 ): CatalogueItem {
   const base = {
@@ -45,12 +45,18 @@ function item(
     ? {
         ...base,
         mediaKind,
-        media: { src: mediaSrc, mimeType: mimeType as `audio/${string}` },
+        media:
+          mediaSrc && mimeType
+            ? { src: mediaSrc, mimeType: mimeType as `audio/${string}` }
+            : undefined,
       }
     : {
         ...base,
         mediaKind,
-        media: { src: mediaSrc, mimeType: mimeType as `video/${string}` },
+        media:
+          mediaSrc && mimeType
+            ? { src: mediaSrc, mimeType: mimeType as `video/${string}` }
+            : undefined,
       };
 }
 
@@ -100,8 +106,17 @@ const items = [
     "video/mp4",
     "/assets/thumbs/thumb-09.svg",
   ),
+  item(6, "quiet-machines", "Quiet Machines", "audio", null, null, "/assets/thumbs/thumb-06.svg"),
 ];
 
 export function createE2eCatalogueRepository() {
-  return createStaticCatalogueRepository(items);
+  return createStaticCatalogueRepository(items, [
+    {
+      id: "60000000-0000-4000-8000-000000000101",
+      slug: "latest-transmissions",
+      name: "Latest transmissions",
+      description: "The newest published transmissions selected for the radio.",
+      items: items.slice(0, 4),
+    },
+  ]);
 }
