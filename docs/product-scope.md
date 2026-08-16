@@ -101,6 +101,6 @@ Measurement should be basic and privacy-conscious, collecting only what is neede
 
 ## Current state and future possibilities
 
-The repository now provides a React Router 8 framework-mode application with strict TypeScript, a responsive persistent player shell, a PostgreSQL-backed publishable catalogue, real media playback and queue persistence, and public artist, release, and track routes. The schema and seed also cover editorial, submission, rights, and provenance records. Search, curator administration, listener analytics, controlled production media delivery, and production deployment remain future work.
+The repository now provides a React Router 8 framework-mode application with strict TypeScript, a responsive persistent player shell, a PostgreSQL-backed publishable catalogue, real media playback and queue persistence, public artist, release, track, and collection routes, a protected curator workspace, controlled publishing, and managed R2 media delivery. The schema and seed also cover editorial, submission, rights, and provenance records. Phase 3 is active; its artist submission workflows are not yet implemented. Search, listener analytics, and production deployment remain future work.
 
 Future phases may consider deeper creator workflows, richer provenance integrations, additional presentation formats, or selected capabilities currently outside the MVP. Such possibilities require separate product and technical decisions. They do not broaden this MVP, create a dependency on LEMM, or imply that future functionality already exists.
