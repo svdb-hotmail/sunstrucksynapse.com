@@ -1,0 +1,83 @@
+version: 1
+
+project:
+  name: Sunstruck Synapse Radio
+  repository: svdb-hotmail/sunstrucksynapse.com
+  default_branch: main
+  issue_system: github
+  human_maintainer: svdb-hotmail
+
+sources_of_truth:
+  product:
+    - README.md
+    - docs/product-scope.md
+  architecture:
+    - docs/architecture/README.md
+    - docs/architecture/decisions/
+  decisions:
+    - docs/architecture/decisions/
+  additional:
+    - docs/database.md
+    - docs/deployment.md
+    - docs/media-protection.md
+    - docs/content-guide.md
+    - docs/cloudflare-setup.md
+
+execution:
+  branch_prefix: agent/
+  prefer_worktree: true
+  max_delegation_depth: 3
+  max_parallel_taskmasters: 3
+  full_ci_on_draft: false
+
+model_policy:
+  strategy: least-expensive-capable
+  forbidden_providers:
+    - anthropic
+  forbidden_families:
+    - claude
+  unknown_provider_route: deny
+  prefer_independent_reviewer_model_family: true
+  child_self_escalation: deny
+
+roles:
+  chieftain:
+    default_cost_tier: strongest-needed
+  shaman:
+    default_cost_tier: reasoning-strong
+  elder_wisdom:
+    default_cost_tier: reasoning-strong
+  elder_doubt:
+    default_cost_tier: reasoning-strong
+  wardens:
+    quality: required-for-meaningful-behavior-change
+    architecture: conditional
+    security: conditional
+    canon_data: conditional
+  taskmaster:
+    default_cost_tier: medium
+  villager:
+    default_cost_tier: lowest-capable
+
+ci:
+  node: 22.22.0
+  install: npm ci --no-audit --no-fund
+  aggregate: npm run ci
+  e2e_browser_install: npx playwright install --with-deps chromium
+  test_database_url: postgresql://ci:ci@127.0.0.1:5432/unused
+  required_check_name: CI / quality-gate
+
+protected_decisions:
+  require_human_for:
+    - product-intent
+    - editorial-policy
+    - acceptance-criteria-interpretation
+    - architecture-boundary-change
+    - persistence-or-storage-policy
+    - authentication-or-security-policy
+    - rights-or-provenance-policy
+    - private-media-handling
+    - provider-policy
+    - destructive-data-behavior
+    - epic-sequencing-exception
+    - scope-expansion
