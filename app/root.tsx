@@ -7,6 +7,7 @@ import {
   Scripts,
   ScrollRestoration,
   useLoaderData,
+  useLocation,
 } from "react-router";
 
 import { ApplicationShell } from "~/components/ApplicationShell";
@@ -56,6 +57,32 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </body>
     </html>
   );
+}
+
+function HashNavigation() {
+  const location = useLocation();
+
+  useEffect(() => {
+    if (!location.hash) {
+      return;
+    }
+
+    const frame = window.requestAnimationFrame(() => {
+      const target = document.getElementById(decodeURIComponent(location.hash.slice(1)));
+      if (!target) {
+        return;
+      }
+      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      target.scrollIntoView({
+        behavior: reducedMotion ? "auto" : "smooth",
+        block: "start",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [location.hash, location.key, location.pathname]);
+
+  return null;
 }
 
 export default function App() {
@@ -200,22 +227,25 @@ export default function App() {
   };
 
   return (
-    <ApplicationShell
-      item={selectedItem ?? null}
-      queue={queue}
-      playerPanelRef={playerPanelRef}
-      playbackRequest={playbackRequest}
-      onClearQueue={() => setQueue([])}
-      onSelectQueueEntry={selectQueueEntry}
-      onRemoveQueueEntry={(itemId) => setQueue((current) => removeQueueItem(current, itemId))}
-      onPrevious={playPrevious}
-      onNext={() => advancePlayback(false)}
-      canPrevious={hasPrevious}
-      canNext={hasNext}
-      onMediaEnded={() => advancePlayback(false)}
-    >
-      <Outlet context={outletContext} />
-    </ApplicationShell>
+    <>
+      <HashNavigation />
+      <ApplicationShell
+        item={selectedItem ?? null}
+        queue={queue}
+        playerPanelRef={playerPanelRef}
+        playbackRequest={playbackRequest}
+        onClearQueue={() => setQueue([])}
+        onSelectQueueEntry={selectQueueEntry}
+        onRemoveQueueEntry={(itemId) => setQueue((current) => removeQueueItem(current, itemId))}
+        onPrevious={playPrevious}
+        onNext={() => advancePlayback(false)}
+        canPrevious={hasPrevious}
+        canNext={hasNext}
+        onMediaEnded={() => advancePlayback(false)}
+      >
+        <Outlet context={outletContext} />
+      </ApplicationShell>
+    </>
   );
 }
 

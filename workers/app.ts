@@ -13,6 +13,15 @@ const requestHandler = createRequestHandler(
 
 export default {
   fetch(request, env, ctx) {
+    const context = new RouterContextProvider();
+    if (import.meta.env.MODE === "test") {
+      context.set(cloudflareContext, {
+        catalogueRepository: createE2eCatalogueRepository(),
+        ctx,
+      });
+      return requestHandler(request, context);
+    }
+
     let validatedEnv;
     try {
       validatedEnv = validateDatabaseEnv(env);
@@ -24,13 +33,9 @@ export default {
     }
 
     const db = createDatabase(validatedEnv);
-    const context = new RouterContextProvider();
     context.set(cloudflareContext, {
       db,
-      catalogueRepository:
-        import.meta.env.MODE === "test"
-          ? createE2eCatalogueRepository()
-          : createCatalogueRepository(db),
+      catalogueRepository: createCatalogueRepository(db),
       env: validatedEnv,
       ctx,
     });

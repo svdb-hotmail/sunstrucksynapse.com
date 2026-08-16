@@ -9,6 +9,20 @@ function cardFor(page: Page, title: string) {
   return page.locator(".media-card").filter({ hasText: title }).first();
 }
 
+async function expectHashTarget(page: Page, id: string) {
+  await expect(page).toHaveURL(new RegExp(`#${id}$`));
+  const target = page.locator(`#${id}`);
+  await expect(target).toBeVisible();
+  await expect
+    .poll(() =>
+      target.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        return bounds.top >= 0 && bounds.top < window.innerHeight && bounds.bottom > 0;
+      }),
+    )
+    .toBe(true);
+}
+
 test("loads the database catalogue and controls the correct media", async ({ page }) => {
   const browserErrors: string[] = [];
   page.on("console", (message) => {
@@ -242,4 +256,52 @@ test("supports keyboard activation and reduced-motion focus movement", async ({ 
     .getByRole("button", { name: `Play ${revolutionTitle}` })
     .click();
   expect(await page.evaluate(() => Reflect.get(globalThis, "__scrollBehavior"))).toBe("auto");
+});
+
+test("scrolls router hash links without replacing the persistent player", async ({ page }) => {
+  await page.addInitScript(() => {
+    const scrollIntoView = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (options) {
+      Reflect.set(globalThis, "__hashScroll", {
+        id: this.id,
+        behavior: typeof options === "object" ? options.behavior : null,
+      });
+      scrollIntoView.call(this, options);
+    };
+  });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+
+  await page
+    .getByRole("navigation", { name: "Primary" })
+    .getByRole("link", { name: "Latest" })
+    .click();
+  await expectHashTarget(page, "latest");
+  expect(await page.evaluate(() => Reflect.get(globalThis, "__hashScroll"))).toEqual({
+    id: "latest",
+    behavior: "auto",
+  });
+
+  await page.locator(".panel-footer").getByRole("link", { name: "Contact" }).click();
+  await expectHashTarget(page, "contact");
+
+  await cardFor(page, revolutionTitle)
+    .getByRole("button", { name: `Play ${revolutionTitle}` })
+    .click();
+  const audio = page.getByLabel(`${revolutionTitle} audio player`);
+  await audio.evaluate((element: HTMLMediaElement) => {
+    element.dataset.hashNavigationProbe = "kept";
+    element.pause();
+  });
+  await cardFor(page, revolutionTitle).getByRole("link", { name: "View track" }).click();
+  await page
+    .getByRole("navigation", { name: "Primary" })
+    .getByRole("link", { name: "About", exact: true })
+    .click();
+
+  await expectHashTarget(page, "about");
+  await expect(page.getByLabel(`${revolutionTitle} audio player`)).toHaveAttribute(
+    "data-hash-navigation-probe",
+    "kept",
+  );
 });

@@ -385,6 +385,12 @@ video.protected-media {
     linear-gradient(180deg, rgba(255, 255, 255, 0.025), rgba(255, 255, 255, 0));
 }
 
+.media-section,
+.offerings,
+.contact {
+  scroll-margin-top: 80px;
+}
+
 .topbar {
   position: sticky;
   top: 0;

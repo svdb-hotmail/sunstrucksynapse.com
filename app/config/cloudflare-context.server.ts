@@ -6,9 +6,9 @@ import type { CatalogueRepository } from "~/repositories/catalogue.server";
 import type { DatabaseEnv } from "./env.server";
 
 export interface CloudflareContextValue {
-  db: Database;
+  db?: Database;
   catalogueRepository: CatalogueRepository;
-  env: DatabaseEnv;
+  env?: DatabaseEnv;
   ctx: ExecutionContext;
 }
 

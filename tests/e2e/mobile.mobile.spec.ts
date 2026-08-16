@@ -4,6 +4,20 @@ test("completes the listener flow without horizontal overflow on mobile", async 
   await page.goto("/");
 
   await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "Mobile navigation" })
+    .getByRole("link", { name: "Listen" })
+    .click();
+  await expect(page).toHaveURL(/#audio$/);
+  await expect(page.locator("#audio")).toBeVisible();
+  await expect
+    .poll(() =>
+      page.locator("#audio").evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        return bounds.top >= 0 && bounds.top < window.innerHeight && bounds.bottom > 0;
+      }),
+    )
+    .toBe(true);
   expect(
     await page.evaluate(() => ({
       body: document.body.scrollWidth,
