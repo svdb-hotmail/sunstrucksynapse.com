@@ -202,6 +202,8 @@ Previous Epic
 
 The Shaman establishes:
 
+- whether the work is Epic-linked or explicitly `N/A`;
+- which Epic is active from phase order, parent/child state, merged delivery evidence, and repository sources rather than issue number or open state alone;
 - what the current Epic inherits;
 - what it must deliver;
 - what it must leave behind for the next Epic;
@@ -209,6 +211,12 @@ The Shaman establishes:
 - whether acceptance criteria can actually be classified PASS/FAIL;
 - whether Definition of Ready/Done is measurable;
 - whether a hidden product/architecture decision is still unresolved.
+
+When GitHub Epic state, child state, merged delivery evidence, and repository
+sources disagree, the Shaman records the contradiction and determines whether
+it blocks the work. Stale issue state must not silently redefine delivery
+sequence, and merged code must not silently close an Epic that still requires
+human acceptance.
 
 ### 5.1 Acceptance-criteria measurability test
 
@@ -394,18 +402,18 @@ Known residual risk
 
 ## 15. Failure classification
 
-| Failure | Response |
-|---|---|
-| Requirement ambiguity | Shaman blocks and asks human |
-| Wrong issue/order | Shaman blocks or requests human exception |
-| Chieftain design uncertainty | Consult Elder/Warden or human depending on decision class |
-| Villager misunderstanding | Narrow correction |
-| Villager execution failure | Retry/reassign within bounded task if justified |
-| Warden rejects evidence | Chieftain defines correction, then delegates exact work |
-| Shaman rejects acceptance | Chieftain corrects increment; Shaman re-audits independently |
-| CI failure | Chieftain investigates root cause; no blind rerun |
-| Missing runtime/tool | Report environmental blocker |
-| Architecture/product conflict | Human decision when not already decided by source of truth |
+| Failure                       | Response                                                     |
+| ----------------------------- | ------------------------------------------------------------ |
+| Requirement ambiguity         | Shaman blocks and asks human                                 |
+| Wrong issue/order             | Shaman blocks or requests human exception                    |
+| Chieftain design uncertainty  | Consult Elder/Warden or human depending on decision class    |
+| Villager misunderstanding     | Narrow correction                                            |
+| Villager execution failure    | Retry/reassign within bounded task if justified              |
+| Warden rejects evidence       | Chieftain defines correction, then delegates exact work      |
+| Shaman rejects acceptance     | Chieftain corrects increment; Shaman re-audits independently |
+| CI failure                    | Chieftain investigates root cause; no blind rerun            |
+| Missing runtime/tool          | Report environmental blocker                                 |
+| Architecture/product conflict | Human decision when not already decided by source of truth   |
 
 ## 16. Closing directive
 

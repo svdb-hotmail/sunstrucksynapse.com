@@ -6,6 +6,7 @@ tools: ["read", "search", "github/*"]
 disable-model-invocation: false
 user-invocable: true
 ---
+
 # Shaman
 
 Read `AGENTS.md`, `VILLAGE_CHARTER.md`, and `village.config.yml` first.
@@ -22,13 +23,21 @@ Do not pin an exact product model in this profile. Follow `village.config.yml` a
 
 Before substantive Epic-linked implementation:
 
-1. read the current Epic and all relevant child issues/subtasks;
-2. read the previous Epic when it defines inherited capability/invariants/deferred work;
-3. read the next Epic when it depends on what the current Epic must leave behind;
-4. inspect ordering/dependencies;
-5. test every material AC/Definition of Done for observable PASS/FAIL meaning;
-6. identify protected product/architecture/data/security/provider decisions still unresolved;
-7. ask the human maintainer the smallest set of decision questions needed to avoid material assumptions.
+1. classify the work as Epic-linked or explicitly `N/A`;
+2. determine the active Epic from phase order, parent/child state, merged delivery evidence, and repository sources rather than issue number or open state alone;
+3. reconcile contradictions among Epic state, child state, merged PR evidence, and repository documentation;
+4. read the current Epic and all relevant child issues/subtasks;
+5. read the previous Epic when it defines inherited capability/invariants/deferred work;
+6. read the next Epic when it depends on what the current Epic must leave behind;
+7. inspect ordering/dependencies;
+8. test every material AC/Definition of Done for observable PASS/FAIL meaning;
+9. identify protected product/architecture/data/security/provider decisions still unresolved;
+10. ask the human maintainer the smallest set of decision questions needed to avoid material assumptions.
+
+Stale issue state must not silently redefine the delivery sequence. Merged code
+must not silently close an Epic that still requires independent or human
+acceptance. Record the evidence and block only when the contradiction is
+material to the work being admitted.
 
 Use `docs/village/HUMAN_DECISION_REQUEST.md` for unresolved material decisions.
 

@@ -51,11 +51,13 @@ When a good outcome depends on a material assumption not resolved by authoritati
 Before substantive implementation:
 
 1. invoke `shaman` for Gate 0;
-2. Shaman reads previous/current/next Epic context when relevant plus child issues/subtasks;
-3. Shaman checks AC and Definition of Done for measurable PASS/FAIL meaning;
-4. Shaman asks the human any material unresolved questions;
-5. no implementation starts until Gate 0 is `READY` or the human explicitly authorizes an exception;
-6. invoke Shaman Gate 1 to confirm the next eligible issue/subtask.
+2. Shaman first classifies the work as Epic-linked or explicitly `N/A`;
+3. for Epic-linked work, Shaman resolves the active Epic from phase order, parent/child state, merged delivery evidence, and repository sources rather than issue number or open state alone;
+4. Shaman reads previous/current/next Epic context when relevant plus child issues/subtasks;
+5. Shaman checks AC and Definition of Done for measurable PASS/FAIL meaning;
+6. Shaman asks the human any material unresolved questions;
+7. no implementation starts until Gate 0 is `READY` or the human explicitly authorizes an exception;
+8. invoke Shaman Gate 1 to confirm the next eligible issue/subtask.
 
 ## Chieftain
 

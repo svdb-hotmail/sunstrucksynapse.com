@@ -3,7 +3,7 @@
 ```text
 Tune the Kobold Village installation on the current Draft governance PR for `svdb-hotmail/sunstrucksynapse.com`.
 
-First inspect the repository, its GitHub Epic/issue graph, product scope, ADRs, database/media/security boundaries, package scripts, Playwright setup, current CI, and all Village files. Determine the active Epic rather than assuming it. Where relevant, compare it with the previous and next Epic so inherited constraints and downstream contracts are explicit.
+First inspect the repository, its GitHub Epic/issue graph, product scope, ADRs, database/media/security boundaries, package scripts, Playwright setup, current CI, and all Village files. Classify the tuning work itself as Epic-linked or N/A. Determine the active product Epic from phase order, parent/child state, merged delivery evidence, and repository sources rather than assuming it from issue number or open state. Where relevant, compare it with the previous and next Epic so inherited constraints and downstream contracts are explicit.
 
 Before editing, give me one consolidated list of material questions where a good outcome currently depends on ambiguity, subjective/non-measurable acceptance criteria, unclear sequencing, contradictory docs/issues, or unresolved product, editorial, rights/provenance, architecture, storage, auth/security, or private-media decisions. For each, show the evidence, consequence, bounded options, and your recommendation. Do not treat a recommendation or my silence as approval.
 
