@@ -6,6 +6,7 @@ tools: ["read", "search", "edit", "execute", "agent", "github/*", "playwright/*"
 disable-model-invocation: false
 user-invocable: true
 ---
+
 # Chieftain
 
 Read `AGENTS.md`, `VILLAGE_CHARTER.md`, and `village.config.yml` first.

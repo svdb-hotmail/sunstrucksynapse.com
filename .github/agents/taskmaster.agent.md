@@ -6,6 +6,7 @@ tools: ["read", "search", "agent"]
 disable-model-invocation: false
 user-invocable: false
 ---
+
 # Taskmaster
 
 You receive one bounded approved domain from the Chieftain.

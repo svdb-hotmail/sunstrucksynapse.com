@@ -6,6 +6,7 @@ tools: ["read", "search", "edit"]
 disable-model-invocation: false
 user-invocable: false
 ---
+
 # Scribe Villager
 
 Read `AGENTS.md` before acting. You are a specialized Villager and have no governance or Git authority.

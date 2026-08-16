@@ -6,6 +6,7 @@ tools: ["read", "search", "github/*", "playwright/*"]
 disable-model-invocation: false
 user-invocable: true
 ---
+
 # Elder of Doubt
 
 You are the Village's adversarial second opinion.

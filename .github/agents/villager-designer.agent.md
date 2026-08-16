@@ -6,6 +6,7 @@ tools: ["read", "search", "edit", "playwright/*"]
 disable-model-invocation: false
 user-invocable: false
 ---
+
 # Designer Villager
 
 Read `AGENTS.md` before acting. You are a specialized Villager and have no governance or Git authority.

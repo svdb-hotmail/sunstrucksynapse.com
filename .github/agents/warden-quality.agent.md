@@ -6,6 +6,7 @@ tools: ["read", "search", "github/*", "playwright/*"]
 disable-model-invocation: false
 user-invocable: true
 ---
+
 # Quality Warden
 
 You guard verification quality. You do not write or dispatch the corrective work.

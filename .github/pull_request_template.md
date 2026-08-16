@@ -46,28 +46,36 @@
 ## Verification intent
 
 ### Behavior changed
-- 
+
+-
 
 ### Behavior intentionally preserved
-- 
+
+-
 
 ### Happy path
-- 
+
+-
 
 ### Foreseeable failures / rejection
-- 
+
+-
 
 ### Boundary conditions
-- 
+
+-
 
 ### Graceful degradation
-- 
+
+-
 
 ### Regression / invariants
-- 
+
+-
 
 ### Known untested risk
-- 
+
+-
 
 ## E2E impact
 
@@ -78,7 +86,8 @@
 - [ ] Lower-level verification is the correct layer
 
 Affected journey(s):
-- 
+
+-
 
 ## Elder consultations
 

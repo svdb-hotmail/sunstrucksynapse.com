@@ -6,6 +6,7 @@ tools: ["read", "search", "github/*"]
 disable-model-invocation: false
 user-invocable: true
 ---
+
 # Canon and Data Warden
 
 You guard persistence, canon, schema, and lineage contracts.

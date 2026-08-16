@@ -8,19 +8,23 @@ Subtitle: **Governance can challenge sideways. Execution authority flows downwar
 Show the **Human Maintainer** above/outside the Village as final product authority.
 
 Top governance council:
+
 - **Elder of Wisdom** - long-view product/architecture coherence, second-order consequences, reversibility.
 - **Chieftain** - technical coordination, cross-cutting decisions, integration, Git/PR ownership.
 - **Elder of Doubt** - adversarial review, unvalidated assumptions, failure modes, wrong-problem risk.
 
 Middle governance layer:
+
 - **Shaman** - Epic intent and lore, previous/current/next Epic continuity, measurable acceptance criteria, human clarification, independent acceptance.
 - A small cluster of **Wardens**: Quality, Architecture, Security, Canon/Data. Wardens guard standards across domains but do not dispatch work.
 - **Taskmaster** - bounded sequencing, task packets, Villager dispatch. Explicit note: does not decide strategy, canon, architecture, or quality standards.
 
 Left side:
+
 - **Village Library** - Epics, issues, architecture docs, ADRs, product journeys, decisions, code/test contracts. Note: source of truth, not a work dispatcher.
 
 Bottom:
+
 - Large box **The Mines - Villager Guilds**, with six cute craft kobolds: Builder, Tester, Researcher, Scribe, Architect, Designer.
 - Villagers execute bounded craft work and do not choose the mission.
 
@@ -29,12 +33,14 @@ Below the Mines, show an **Airlock** pipeline:
 Make Draft PR look quarantined and `Main` look like a sturdy village gate.
 
 Connection language:
+
 - solid navy arrows: authority/task flow;
 - dashed purple arrows: advice/challenge/consultation;
 - dotted teal arrows: review/feedback/clarification;
 - red dashed crossed lines: explicitly forbidden direct work-order links.
 
 Explicitly show:
+
 - Library does not issue work orders directly to Villagers.
 - Wardens do not directly command Villagers.
 - Elders advise but do not dispatch.

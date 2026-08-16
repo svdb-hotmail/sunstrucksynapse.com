@@ -3,6 +3,7 @@
 If this receipt cannot establish the increment's lineage, the increment is not complete.
 
 ## Requirement lineage
+
 - Epic:
 - Issue/subtask:
 - Previous Epic dependency:
@@ -10,11 +11,13 @@ If this receipt cannot establish the increment's lineage, the increment is not c
 - Acceptance criteria:
 
 ## Decision lineage
+
 - Human decisions:
 - Architecture decisions:
 - Exceptions/overrides:
 
 ## Agent lineage
+
 - Chieftain:
 - Shaman:
 - Elders:
@@ -24,11 +27,13 @@ If this receipt cannot establish the increment's lineage, the increment is not c
 - Model routes / policy exceptions:
 
 ## Implementation lineage
+
 - Branch/worktree:
 - Commits:
 - Files/contracts changed:
 
 ## Verification lineage
+
 - Focused checks:
 - Unit/integration tests:
 - E2E:
@@ -37,9 +42,11 @@ If this receipt cannot establish the increment's lineage, the increment is not c
 - CI run:
 
 ## Human lineage
+
 - Ready-for-Review decision:
 - Merge decision:
 
 ## Residual risk
+
 - Known untested behavior:
 - Deferred work:
