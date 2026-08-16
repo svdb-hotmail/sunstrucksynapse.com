@@ -44,3 +44,38 @@ export async function verifyMediaSignature(
   }
   return mismatch === 0;
 }
+
+export function isR2MediaUrl(src: string): boolean {
+  return /^\/?media\/(audio|artwork)\//.test(src);
+}
+
+export function getR2PlaybackUrlEndpoint(src: string): string | null {
+  const match = src.match(/^\/?(media\/(audio|artwork)\/[^?#]+)/);
+  if (!match) return null;
+  return `/${match[1]}?playback=true`;
+}
+
+export async function resolveFreshPlaybackUrl(
+  src: string,
+  fetcher: typeof fetch = (input, init) => fetch(input, init),
+): Promise<string> {
+  if (!isR2MediaUrl(src)) {
+    return src;
+  }
+  const endpoint = getR2PlaybackUrlEndpoint(src);
+  if (!endpoint) {
+    return src;
+  }
+  const response = await fetcher(endpoint, {
+    headers: { Accept: "application/json" },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to refresh playback URL: ${response.status}`);
+  }
+  const data = (await response.json()) as { url?: string };
+  if (typeof data?.url === "string" && data.url.length > 0) {
+    return data.url;
+  }
+  throw new Error("Invalid playback URL response.");
+}
+

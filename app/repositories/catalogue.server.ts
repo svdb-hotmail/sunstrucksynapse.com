@@ -324,8 +324,8 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
             : row.artworkObjectKey,
         audioObjectKey:
           row.audioStorageProvider === "r2"
-            ? row.audioAssetId && media
-              ? await createMediaDeliveryUrl("", "audio", row.audioAssetId, media.signingSecret)
+            ? row.audioAssetId
+              ? `/media/audio/${row.audioAssetId}`
               : null
             : row.audioObjectKey,
       })),
