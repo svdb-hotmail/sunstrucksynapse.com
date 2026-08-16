@@ -72,6 +72,8 @@ Release artist-credit updates and deletes lock their parent release rows before 
 
 Rights declarations, creative-process disclosures, and provenance records use a shared lifecycle trigger plus unique predecessor indexes. The forward migration first rejects any pre-existing invalid history. Every version begins as a draft; version 1 has no predecessor, and every later draft points to the immediately preceding attested/finalized version for the exact same submission, release, or track. Creating a draft successor leaves its predecessor current. Attesting or finalizing that successor atomically marks the predecessor superseded. Direct or premature supersession, draft predecessors, gaps, branches, cross-parent links, identity changes, finalized-content changes, and deletion are rejected. Provenance steps, sources, and private evidence references can change only while their parent provenance record is draft. Revisions therefore follow one append-only lifecycle across all three governance record types.
 
+Phase 3 adds invitation-backed submission records, submission activity history, private evidence upload sessions, evidence-access grants, and pinned acceptance links to the exact reviewed rights, process, and provenance revisions. Invitation and evidence-upload rows use the shared `updated_at` trigger pattern; evidence-access rows are intentionally append-only audit records.
+
 Wrangler 4.123.0's pinned `config-schema.json` supports `secrets.required`, so `wrangler.jsonc` declares `DATABASE_URL` there. This declaration improves generated typing and local warnings but does not set a value; use `npx wrangler secret put DATABASE_URL` for deployed environments.
 
 ## Rollback and recovery

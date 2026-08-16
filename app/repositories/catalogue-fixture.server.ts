@@ -1,5 +1,6 @@
 import { createStaticCatalogueRepository } from "~/repositories/catalogue.server";
 import type { CatalogueItem, MediaKind } from "~/types/catalogue";
+import type { PublicTrackDisclosure } from "~/types/submissions";
 
 const artist = {
   id: "10000000-0000-4000-8000-000000000101",
@@ -110,27 +111,97 @@ const items = [
 ];
 
 export function createE2eCatalogueRepository() {
-  return createStaticCatalogueRepository(items, [
-    {
-      id: "60000000-0000-4000-8000-000000000101",
-      slug: "latest-transmissions",
-      name: "Latest transmissions",
-      description: "The newest published transmissions selected for the radio.",
-      items: items.slice(0, 4),
+  const disclosures: Record<string, PublicTrackDisclosure> = {
+    [items[1].id]: {
+      trackTitle: items[1].description.title,
+      releaseTitle: release.title,
+      artistName: artist.name,
+      reviewedAt: "2026-08-16T09:00:00.000Z",
+      rights: {
+        authorityBasis: "original_author",
+        publicSummary: "Original-author submission accepted for curator preparation.",
+        publicNotes: "Rights-cleared for Sunstruck Synapse Radio.",
+        territories: ["Worldwide"],
+        distributorName: "Independent",
+        distributorReleaseId: "SSR-PHASE-0",
+        isrc: "GBABC2600001",
+      },
+      process: {
+        aiUsed: true,
+        aiUseDescription: "AI-assisted ideation.",
+        meaningfulHumanContribution: "Human composition, editing, and final production.",
+        publicSummary: "AI supported ideation while humans directed the final work.",
+        humanRoles: [
+          {
+            name: "Sunstruck Synapse",
+            role: "artist",
+            contribution: "Composition and production",
+            isPublic: true,
+          },
+        ],
+        aiTools: [
+          {
+            name: "Fictional Sketch Model",
+            model: "v1",
+            provider: "Example",
+            purpose: "Ideation",
+            isPublic: true,
+          },
+        ],
+        lyricsUsed: false,
+        lyricsDetails: null,
+        voiceCloneUsed: false,
+        voiceCloneDetails: null,
+        samplesUsed: false,
+        sampleDetails: null,
+        sourceMaterialContext: null,
+      },
+      provenance: {
+        summary: "Reviewed provenance summary.",
+        publicNotes: "Public notes exclude evidence object references.",
+        sources: [
+          {
+            sourceType: "generated_material",
+            reference: "Seed sketch 001",
+            rightsContext: "Internal development sketch.",
+          },
+        ],
+        steps: [
+          {
+            position: 1,
+            processType: "arrangement",
+            description: "The artist rebuilt the arrangement from the sketch.",
+            occurredAt: null,
+          },
+        ],
+      },
     },
-    {
-      id: "60000000-0000-4000-8000-000000000102",
-      slug: "listen",
-      name: "Listen",
-      description: "Published audio transmissions.",
-      items: items.filter((entry) => entry.mediaKind === "audio"),
-    },
-    {
-      id: "60000000-0000-4000-8000-000000000103",
-      slug: "watch",
-      name: "Watch",
-      description: "Published audiovisual transmissions.",
-      items: items.filter((entry) => entry.mediaKind === "video"),
-    },
-  ]);
+  };
+  return createStaticCatalogueRepository(
+    items,
+    [
+      {
+        id: "60000000-0000-4000-8000-000000000101",
+        slug: "latest-transmissions",
+        name: "Latest transmissions",
+        description: "The newest published transmissions selected for the radio.",
+        items: items.slice(0, 4),
+      },
+      {
+        id: "60000000-0000-4000-8000-000000000102",
+        slug: "listen",
+        name: "Listen",
+        description: "Published audio transmissions.",
+        items: items.filter((entry) => entry.mediaKind === "audio"),
+      },
+      {
+        id: "60000000-0000-4000-8000-000000000103",
+        slug: "watch",
+        name: "Watch",
+        description: "Published audiovisual transmissions.",
+        items: items.filter((entry) => entry.mediaKind === "video"),
+      },
+    ],
+    disclosures,
+  );
 }

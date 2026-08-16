@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, or, sql } from "drizzle-orm";
 import type { PgDatabase } from "drizzle-orm/pg-core";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core/session";
 
@@ -8,10 +8,16 @@ import {
   artworkAssets,
   audioAssets,
   collectionItems,
+  creativeProcessDisclosures,
   editorialCollections,
+  provenanceRecords,
+  provenanceSources,
+  provenanceSteps,
   releaseArtistCredits,
   releaseArtworkAssets,
   releases,
+  rightsDeclarations,
+  submissions,
   trackArtistCredits,
   trackArtworkAssets,
   tracks,
@@ -27,6 +33,7 @@ import type {
   PublicRelease,
   PublicTrack,
 } from "../types/catalogue";
+import type { PublicTrackDisclosure } from "../types/submissions";
 import { createMediaDeliveryUrl } from "../services/media-signing";
 
 export interface CatalogueRepository {
@@ -36,6 +43,10 @@ export interface CatalogueRepository {
   findPublishedArtist(slug: string): Promise<PublicArtist | null>;
   findPublishedRelease(slug: string): Promise<PublicRelease | null>;
   findPublishedTrack(releaseSlug: string, trackSlug: string): Promise<PublicTrack | null>;
+  findPublicTrackDisclosure(
+    releaseSlug: string,
+    trackSlug: string,
+  ): Promise<PublicTrackDisclosure | null>;
 }
 
 interface PublishedTrackRow {
@@ -194,6 +205,7 @@ function releaseFromItems(
 export function createStaticCatalogueRepository(
   items: CatalogueItem[],
   collections: PublicEditorialCollection[] = [],
+  disclosures: Record<string, PublicTrackDisclosure> = {},
 ): CatalogueRepository {
   return {
     async listPublishedTracks() {
@@ -225,7 +237,19 @@ export function createStaticCatalogueRepository(
       if (!artist || !release) {
         return null;
       }
-      return { item, artist, release };
+      return {
+        item,
+        artist,
+        release,
+        reviewedDisclosureHref: disclosures[item.id] ? `${item.href}/disclosure` : undefined,
+      };
+    },
+    async findPublicTrackDisclosure(releaseSlug, trackSlug) {
+      const item =
+        items.find(
+          (candidate) => candidate.release.slug === releaseSlug && candidate.slug === trackSlug,
+        ) ?? null;
+      return item ? (disclosures[item.id] ?? null) : null;
     },
   };
 }
@@ -441,6 +465,144 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
     );
 
     return result;
+  }
+
+  async function findPublicTrackDisclosure(
+    releaseSlug: string,
+    trackSlug: string,
+  ): Promise<PublicTrackDisclosure | null> {
+    const [row] = await db
+      .select({
+        trackTitle: tracks.title,
+        releaseTitle: releases.title,
+        artistName: artists.displayName,
+        reviewedAt: submissions.acceptedAt,
+        authorityBasis: rightsDeclarations.authorityBasis,
+        rightsPublicSummary: rightsDeclarations.publicSummary,
+        rightsPublicNotes: rightsDeclarations.publicNotes,
+        territories: rightsDeclarations.territories,
+        distributorName: rightsDeclarations.distributorName,
+        distributorReleaseId: rightsDeclarations.distributorReleaseId,
+        isrc: rightsDeclarations.isrc,
+        aiUsed: creativeProcessDisclosures.aiUsed,
+        aiUseDescription: creativeProcessDisclosures.aiUseDescription,
+        meaningfulHumanContribution: creativeProcessDisclosures.meaningfulHumanContribution,
+        processSummary: creativeProcessDisclosures.artistSummary,
+        humanRoles: creativeProcessDisclosures.humanRoles,
+        aiTools: creativeProcessDisclosures.aiTools,
+        lyricsUsed: creativeProcessDisclosures.lyricsUsed,
+        lyricsDetails: creativeProcessDisclosures.lyricsDetails,
+        voiceCloneUsed: creativeProcessDisclosures.voiceCloneUsed,
+        voiceCloneDetails: creativeProcessDisclosures.voiceCloneDetails,
+        samplesUsed: creativeProcessDisclosures.samplesUsed,
+        sampleDetails: creativeProcessDisclosures.sampleDetails,
+        sourceMaterialContext: creativeProcessDisclosures.sourceMaterialContext,
+        provenanceSummary: provenanceRecords.summary,
+        provenancePublicNotes: provenanceRecords.publicNotes,
+        provenanceRecordId: provenanceRecords.id,
+      })
+      .from(tracks)
+      .innerJoin(releases, eq(releases.id, tracks.releaseId))
+      .innerJoin(trackArtistCredits, eq(trackArtistCredits.trackId, tracks.id))
+      .innerJoin(artists, eq(artists.id, trackArtistCredits.artistId))
+      .innerJoin(
+        submissions,
+        and(
+          eq(submissions.status, "accepted"),
+          or(
+            eq(submissions.resultingTrackId, tracks.id),
+            eq(submissions.resultingReleaseId, releases.id),
+          ),
+        ),
+      )
+      .innerJoin(
+        rightsDeclarations,
+        eq(rightsDeclarations.id, submissions.acceptedRightsDeclarationId),
+      )
+      .innerJoin(
+        creativeProcessDisclosures,
+        eq(creativeProcessDisclosures.id, submissions.acceptedCreativeProcessDisclosureId),
+      )
+      .innerJoin(
+        provenanceRecords,
+        eq(provenanceRecords.id, submissions.acceptedProvenanceRecordId),
+      )
+      .where(
+        and(
+          eq(releases.slug, releaseSlug),
+          eq(tracks.slug, trackSlug),
+          eq(releases.lifecycleStatus, "published"),
+          eq(tracks.lifecycleStatus, "published"),
+          eq(trackArtistCredits.position, 1),
+        ),
+      )
+      .limit(1);
+    if (!row || !row.reviewedAt) return null;
+    const [steps, sources] = await Promise.all([
+      db
+        .select({
+          position: provenanceSteps.position,
+          processType: provenanceSteps.processType,
+          description: provenanceSteps.description,
+          occurredAt: provenanceSteps.occurredAt,
+        })
+        .from(provenanceSteps)
+        .where(eq(provenanceSteps.provenanceRecordId, row.provenanceRecordId))
+        .orderBy(asc(provenanceSteps.position)),
+      db
+        .select({
+          sourceType: provenanceSources.sourceType,
+          reference: provenanceSources.reference,
+          rightsContext: provenanceSources.rightsContext,
+        })
+        .from(provenanceSources)
+        .where(eq(provenanceSources.provenanceRecordId, row.provenanceRecordId))
+        .orderBy(asc(provenanceSources.position)),
+    ]);
+    return {
+      trackTitle: row.trackTitle,
+      releaseTitle: row.releaseTitle,
+      artistName: row.artistName,
+      reviewedAt: row.reviewedAt.toISOString(),
+      rights: {
+        authorityBasis:
+          row.authorityBasis === "licensed" || row.authorityBasis === "public_domain"
+            ? row.authorityBasis
+            : "original_author",
+        publicSummary: row.rightsPublicSummary,
+        publicNotes: row.rightsPublicNotes,
+        territories: row.territories,
+        distributorName: row.distributorName,
+        distributorReleaseId: row.distributorReleaseId,
+        isrc: row.isrc,
+      },
+      process: {
+        aiUsed: row.aiUsed,
+        aiUseDescription: row.aiUseDescription,
+        meaningfulHumanContribution: row.meaningfulHumanContribution,
+        publicSummary: row.processSummary,
+        humanRoles: row.humanRoles,
+        aiTools: row.aiTools,
+        lyricsUsed: row.lyricsUsed,
+        lyricsDetails: row.lyricsDetails,
+        voiceCloneUsed: row.voiceCloneUsed,
+        voiceCloneDetails: row.voiceCloneDetails,
+        samplesUsed: row.samplesUsed,
+        sampleDetails: row.sampleDetails,
+        sourceMaterialContext: row.sourceMaterialContext,
+      },
+      provenance: {
+        summary: row.provenanceSummary,
+        publicNotes: row.provenancePublicNotes,
+        steps: steps.map((step) => ({
+          position: step.position,
+          processType: step.processType,
+          description: step.description,
+          occurredAt: step.occurredAt?.toISOString() ?? null,
+        })),
+        sources,
+      },
+    };
   }
 
   return {
@@ -668,7 +830,16 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
       if (!artist || !release) {
         return null;
       }
-      return { item, artist, release };
+      const disclosure = await findPublicTrackDisclosure(releaseSlug, trackSlug);
+      return {
+        item,
+        artist,
+        release,
+        reviewedDisclosureHref: disclosure ? `${item.href}/disclosure` : undefined,
+      };
+    },
+    async findPublicTrackDisclosure(releaseSlug, trackSlug) {
+      return findPublicTrackDisclosure(releaseSlug, trackSlug);
     },
   };
 }

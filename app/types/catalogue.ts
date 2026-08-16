@@ -113,6 +113,7 @@ export interface PublicTrack {
   item: CatalogueItem;
   artist: PublicArtist;
   release: PublicRelease;
+  reviewedDisclosureHref?: string;
 }
 
 export type CatalogueLoadResult =

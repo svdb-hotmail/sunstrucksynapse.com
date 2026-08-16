@@ -91,6 +91,9 @@ describe("catalogue service", () => {
       async findPublishedTrack() {
         return null;
       },
+      async findPublicTrackDisclosure() {
+        return null;
+      },
     };
 
     await expect(loadPublicCatalogue(failingRepository)).resolves.toEqual({

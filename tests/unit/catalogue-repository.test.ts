@@ -107,6 +107,28 @@ describe("catalogue repository", () => {
     expect(track?.item.media?.src).toBe(
       "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3",
     );
+    expect(track?.reviewedDisclosureHref).toBe(
+      "/tracks/phase-zero-transmissions/revolution-will-be-televised/disclosure",
+    );
+  });
+
+  it("returns the pinned public disclosure revision without exposing private evidence keys", async () => {
+    const disclosure = await repository.findPublicTrackDisclosure(
+      "phase-zero-transmissions",
+      "revolution-will-be-televised",
+    );
+
+    expect(disclosure).toMatchObject({
+      artistName: "Sunstruck Synapse",
+      rights: {
+        authorityBasis: "original_author",
+        territories: ["Worldwide"],
+      },
+      process: {
+        aiUsed: true,
+      },
+    });
+    expect(JSON.stringify(disclosure)).not.toContain("private/evidence/");
   });
 
   it("includes a multiply credited track on both published artist pages", async () => {

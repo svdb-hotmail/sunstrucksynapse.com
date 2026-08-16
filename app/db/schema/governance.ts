@@ -6,6 +6,7 @@ import {
   foreignKey,
   index,
   integer,
+  jsonb,
   pgTable,
   text,
   timestamp,
@@ -17,11 +18,14 @@ import { releases, tracks } from "./catalogue";
 import {
   attestationStatus,
   authorityBasis,
+  evidenceMalwareStatus,
   provenanceSourceType,
+  submissionActorRole,
   versionedRecordStatus,
 } from "./enums";
 import { timestamps } from "./helpers";
 import { submissions } from "./submissions";
+import type { AiToolDisclosure, HumanRoleDisclosure } from "~/types/submissions";
 
 export const rightsDeclarations = pgTable(
   "rights_declarations",
@@ -35,11 +39,26 @@ export const rightsDeclarations = pgTable(
     version: integer("version").notNull(),
     supersedesId: uuid("supersedes_id"),
     status: attestationStatus("status").default("draft").notNull(),
+    revisionAuthorRole: submissionActorRole("revision_author_role").default("submitter").notNull(),
+    revisionAuthorName: text("revision_author_name").notNull(),
+    revisionAuthorEmail: text("revision_author_email").notNull(),
+    revisionReason: text("revision_reason").notNull(),
     authorityBasis: authorityBasis("authority_basis").notNull(),
     authorityDetails: text("authority_details"),
+    entitlementStatement: text("entitlement_statement").notNull(),
+    publicSummary: text("public_summary").notNull(),
+    publicNotes: text("public_notes"),
+    privateNotes: text("private_notes"),
     containsThirdPartyMaterial: boolean("contains_third_party_material").default(false).notNull(),
     thirdPartyMaterialDetails: text("third_party_material_details"),
     restrictions: text("restrictions"),
+    territories: text("territories")
+      .array()
+      .default(sql`'{}'::text[]`)
+      .notNull(),
+    distributorName: text("distributor_name"),
+    distributorReleaseId: text("distributor_release_id"),
+    isrc: text("isrc"),
     attestation: text("attestation"),
     attestedAt: timestamp("attested_at", { withTimezone: true }),
     ...timestamps(),
@@ -84,6 +103,21 @@ export const rightsDeclarations = pgTable(
       "rights_declarations_third_party_check",
       sql`not ${table.containsThirdPartyMaterial} or nullif(btrim(${table.thirdPartyMaterialDetails}), '') is not null`,
     ),
+    check(
+      "rights_declarations_revision_author_check",
+      sql`nullif(btrim(${table.revisionAuthorName}), '') is not null
+        and position('@' in ${table.revisionAuthorEmail}) > 1
+        and nullif(btrim(${table.revisionReason}), '') is not null`,
+    ),
+    check(
+      "rights_declarations_entitlement_check",
+      sql`nullif(btrim(${table.entitlementStatement}), '') is not null
+        and nullif(btrim(${table.publicSummary}), '') is not null`,
+    ),
+    check(
+      "rights_declarations_isrc_check",
+      sql`${table.isrc} is null or ${table.isrc} ~ '^[A-Z]{2}[A-Z0-9]{3}[0-9]{7}$'`,
+    ),
   ],
 );
 
@@ -99,12 +133,34 @@ export const creativeProcessDisclosures = pgTable(
     version: integer("version").notNull(),
     supersedesId: uuid("supersedes_id"),
     status: versionedRecordStatus("status").default("draft").notNull(),
+    revisionAuthorRole: submissionActorRole("revision_author_role").default("submitter").notNull(),
+    revisionAuthorName: text("revision_author_name").notNull(),
+    revisionAuthorEmail: text("revision_author_email").notNull(),
+    revisionReason: text("revision_reason").notNull(),
     aiUsed: boolean("ai_used").notNull(),
     aiUseDescription: text("ai_use_description"),
     meaningfulHumanContribution: text("meaningful_human_contribution").notNull(),
-    toolsAndSystems: text("tools_and_systems").array().notNull(),
+    toolsAndSystems: text("tools_and_systems")
+      .array()
+      .default(sql`'{}'::text[]`)
+      .notNull(),
+    humanRoles: jsonb("human_roles")
+      .$type<HumanRoleDisclosure[]>()
+      .default(sql`'[]'::jsonb`)
+      .notNull(),
+    aiTools: jsonb("ai_tools")
+      .$type<AiToolDisclosure[]>()
+      .default(sql`'[]'::jsonb`)
+      .notNull(),
+    lyricsUsed: boolean("lyrics_used").default(false).notNull(),
+    lyricsDetails: text("lyrics_details"),
+    voiceCloneUsed: boolean("voice_clone_used").default(false).notNull(),
+    voiceCloneDetails: text("voice_clone_details"),
+    samplesUsed: boolean("samples_used").default(false).notNull(),
+    sampleDetails: text("sample_details"),
     sourceMaterialContext: text("source_material_context"),
     artistSummary: text("artist_summary").notNull(),
+    privateNotes: text("private_notes"),
     finalizedAt: timestamp("finalized_at", { withTimezone: true }),
     ...timestamps(),
   },
@@ -156,6 +212,24 @@ export const creativeProcessDisclosures = pgTable(
       "creative_process_disclosures_artist_summary_check",
       sql`nullif(btrim(${table.artistSummary}), '') is not null`,
     ),
+    check(
+      "creative_process_disclosures_revision_author_check",
+      sql`nullif(btrim(${table.revisionAuthorName}), '') is not null
+        and position('@' in ${table.revisionAuthorEmail}) > 1
+        and nullif(btrim(${table.revisionReason}), '') is not null`,
+    ),
+    check(
+      "creative_process_disclosures_lyrics_check",
+      sql`not ${table.lyricsUsed} or nullif(btrim(${table.lyricsDetails}), '') is not null`,
+    ),
+    check(
+      "creative_process_disclosures_voice_clone_check",
+      sql`not ${table.voiceCloneUsed} or nullif(btrim(${table.voiceCloneDetails}), '') is not null`,
+    ),
+    check(
+      "creative_process_disclosures_samples_check",
+      sql`not ${table.samplesUsed} or nullif(btrim(${table.sampleDetails}), '') is not null`,
+    ),
   ],
 );
 
@@ -171,7 +245,13 @@ export const provenanceRecords = pgTable(
     version: integer("version").notNull(),
     supersedesId: uuid("supersedes_id"),
     status: versionedRecordStatus("status").default("draft").notNull(),
+    revisionAuthorRole: submissionActorRole("revision_author_role").default("submitter").notNull(),
+    revisionAuthorName: text("revision_author_name").notNull(),
+    revisionAuthorEmail: text("revision_author_email").notNull(),
+    revisionReason: text("revision_reason").notNull(),
     summary: text("summary").notNull(),
+    publicNotes: text("public_notes"),
+    privateNotes: text("private_notes"),
     finalizedAt: timestamp("finalized_at", { withTimezone: true }),
     ...timestamps(),
   },
@@ -212,6 +292,12 @@ export const provenanceRecords = pgTable(
       sql`(${table.status} = 'draft' and ${table.finalizedAt} is null) or (${table.status} in ('finalized', 'superseded') and ${table.finalizedAt} is not null)`,
     ),
     check("provenance_records_summary_check", sql`nullif(btrim(${table.summary}), '') is not null`),
+    check(
+      "provenance_records_revision_author_check",
+      sql`nullif(btrim(${table.revisionAuthorName}), '') is not null
+        and position('@' in ${table.revisionAuthorEmail}) > 1
+        and nullif(btrim(${table.revisionReason}), '') is not null`,
+    ),
   ],
 );
 
@@ -267,20 +353,30 @@ export const provenanceEvidence = pgTable(
       .references(() => provenanceRecords.id, { onDelete: "cascade" }),
     storageProvider: text("storage_provider").notNull(),
     objectKey: text("object_key").notNull(),
+    originalFilename: text("original_filename").notNull(),
     mimeType: text("mime_type").notNull(),
     checksumSha256: text("checksum_sha256").notNull(),
     byteSize: bigint("byte_size", { mode: "number" }).notNull(),
+    malwareStatus: evidenceMalwareStatus("malware_status").default("pending_review").notNull(),
+    scheduledDeletionAt: timestamp("scheduled_deletion_at", { withTimezone: true }),
+    deletedAt: timestamp("deleted_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
-    uniqueIndex("provenance_evidence_storage_ref_unique").on(
+    uniqueIndex("provenance_evidence_record_storage_ref_unique").on(
+      table.provenanceRecordId,
       table.storageProvider,
       table.objectKey,
     ),
     index("provenance_evidence_provenance_record_id_idx").on(table.provenanceRecordId),
+    index("provenance_evidence_malware_status_idx").on(table.malwareStatus),
     check(
       "provenance_evidence_object_key_check",
-      sql`${table.objectKey} !~* '^https?://' and nullif(btrim(${table.objectKey}), '') is not null`,
+      sql`${table.objectKey} !~* '^https?://' and ${table.objectKey} like 'private/evidence/%' and nullif(btrim(${table.objectKey}), '') is not null`,
+    ),
+    check(
+      "provenance_evidence_filename_check",
+      sql`nullif(btrim(${table.originalFilename}), '') is not null`,
     ),
     check(
       "provenance_evidence_checksum_sha256_check",

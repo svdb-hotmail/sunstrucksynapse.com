@@ -546,6 +546,9 @@ export default function CuratorWorkspace() {
           <p className="eyebrow">Private workspace</p>
           <h1>Catalogue curator</h1>
           <p>Signed in as {data.identity.email}</p>
+          <p>
+            <Link to="/curator/submissions">Review submissions</Link>
+          </p>
         </div>
         <Link to="/">Public catalogue</Link>
       </header>

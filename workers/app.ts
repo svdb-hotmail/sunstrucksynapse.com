@@ -7,12 +7,86 @@ import { createE2eCatalogueRepository } from "../app/repositories/catalogue-fixt
 import { createCatalogueRepository } from "../app/repositories/catalogue.server";
 import { createE2eCuratorRepository } from "../app/repositories/curator-fixture.server";
 import { createCuratorRepository } from "../app/repositories/curator.server";
+import { createE2eSubmissionRepository } from "../app/repositories/submissions-fixture.server";
+import { createSubmissionRepository } from "../app/repositories/submissions.server";
 
 const requestHandler = createRequestHandler(
   () => import("virtual:react-router/server-build"),
   import.meta.env.MODE,
 );
 export const e2eCuratorRepository = createE2eCuratorRepository();
+export const e2eSubmissionRepository = createE2eSubmissionRepository();
+
+const testEnv = {
+  DATABASE_URL: "postgres://localhost:5432/test",
+  ACCESS_TEAM_DOMAIN: "https://auth.cloudflareaccess.com",
+  ACCESS_AUD: "test-aud",
+  CURATOR_EMAILS: "curator@example.test,auditor@example.test",
+  MEDIA_DELIVERY_SIGNING_SECRET: "test-signing-secret",
+  MEDIA_BUCKET: {
+    objects: new Map<
+      string,
+      { bytes: Uint8Array; contentType: string; metadata: Record<string, string> }
+    >(),
+    async put(
+      key: string,
+      value: ReadableStream<Uint8Array>,
+      options: {
+        httpMetadata: { contentType: string };
+        customMetadata: Record<string, string>;
+        sha256: string;
+      },
+    ) {
+      const reader = value.getReader();
+      const chunks: Uint8Array[] = [];
+      let size = 0;
+      while (true) {
+        const { done, value: chunk } = await reader.read();
+        if (done) break;
+        if (chunk) {
+          chunks.push(chunk);
+          size += chunk.byteLength;
+        }
+      }
+      const bytes = new Uint8Array(size);
+      let offset = 0;
+      for (const chunk of chunks) {
+        bytes.set(chunk, offset);
+        offset += chunk.byteLength;
+      }
+      this.objects.set(key, {
+        bytes,
+        contentType: options.httpMetadata.contentType,
+        metadata: options.customMetadata,
+      });
+      return { size };
+    },
+    async head(key: string) {
+      const value = this.objects.get(key);
+      return value ? { size: value.bytes.byteLength, customMetadata: value.metadata } : null;
+    },
+    async get(key: string) {
+      const value = this.objects.get(key);
+      if (!value) return null;
+      return {
+        body: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(value.bytes);
+            controller.close();
+          },
+        }),
+        size: value.bytes.byteLength,
+        httpEtag: `"${key}"`,
+        writeHttpMetadata(headers: Headers) {
+          headers.set("content-type", value.contentType);
+        },
+      };
+    },
+    async delete(key: string) {
+      this.objects.delete(key);
+    },
+  },
+};
 
 export default {
   fetch(request, env, ctx) {
@@ -21,6 +95,8 @@ export default {
       context.set(cloudflareContext, {
         catalogueRepository: createE2eCatalogueRepository(),
         curatorRepository: e2eCuratorRepository,
+        submissionRepository: e2eSubmissionRepository,
+        env: testEnv,
         ctx,
       });
       return requestHandler(request, context);
@@ -43,6 +119,7 @@ export default {
         signingSecret: validatedEnv.MEDIA_DELIVERY_SIGNING_SECRET,
       }),
       curatorRepository: createCuratorRepository(db),
+      submissionRepository: createSubmissionRepository(db),
       env: validatedEnv,
       ctx,
     });

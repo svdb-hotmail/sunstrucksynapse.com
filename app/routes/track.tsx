@@ -70,6 +70,11 @@ export default function TrackRoute({ loaderData }: Route.ComponentProps) {
             </button>
             <ShareButton title={item.description.title} url={loaderData.canonicalUrl} />
           </div>
+          {loaderData.track.reviewedDisclosureHref ? (
+            <p>
+              <Link to={loaderData.track.reviewedDisclosureHref}>Reviewed disclosure</Link>
+            </p>
+          ) : null}
         </div>
       </div>
       <Link to="/">Back to catalogue</Link>
