@@ -5,19 +5,21 @@ export type DatabaseEnv = Readonly<{
 export interface MediaBucket {
   put(
     key: string,
-    value: ArrayBuffer,
+    value: ReadableStream<Uint8Array>,
     options: {
       httpMetadata: { contentType: string };
       customMetadata: Record<string, string>;
+      sha256: string;
     },
-  ): Promise<unknown>;
+  ): Promise<{ size: number }>;
   head(key: string): Promise<{ size: number; customMetadata?: Record<string, string> } | null>;
   get(
     key: string,
     options: { range: Headers },
   ): Promise<{
     body: ReadableStream;
-    range?: unknown;
+    size: number;
+    range?: { offset: number; length: number };
     httpEtag: string;
     writeHttpMetadata(headers: Headers): void;
   } | null>;

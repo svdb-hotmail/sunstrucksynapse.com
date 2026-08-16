@@ -1,9 +1,9 @@
 import { and, eq, inArray, lt } from "drizzle-orm";
 
-import type { CuratorIdentity } from "~/config/cloudflare-context.server";
 import type { WorkerEnv } from "~/config/env.server";
 import type { Database } from "~/db/client.server";
 import { artworkAssets, audioAssets, uploadSessions } from "~/db/schema";
+import type { CuratorIdentity } from "~/types/curator";
 
 export type UploadKind = "artwork" | "audio";
 export type AssetScope = "private_master" | "publishable_derivative";
@@ -110,10 +110,6 @@ export function parseUploadDeclaration(input: unknown): MediaResult<UploadDeclar
   });
 }
 
-function hex(bytes: ArrayBuffer): string {
-  return [...new Uint8Array(bytes)].map((value) => value.toString(16).padStart(2, "0")).join("");
-}
-
 export class MediaService {
   constructor(
     private readonly db: Database,
@@ -170,22 +166,33 @@ export class MediaService {
     if (Number.isFinite(contentLength) && contentLength > session.byteSize) {
       return { ok: false, status: 413, message: "Upload exceeds the declared byte size." };
     }
-    const bytes = await request.arrayBuffer();
-    if (bytes.byteLength !== session.byteSize) {
-      return { ok: false, status: 400, message: "Byte size does not match the declaration." };
+    if (!request.body) {
+      return { ok: false, status: 400, message: "Upload body is required." };
     }
-    const checksum = hex(await crypto.subtle.digest("SHA-256", bytes));
-    if (checksum !== session.checksumSha256) {
+    let stored;
+    try {
+      stored = await this.env.MEDIA_BUCKET.put(session.objectKey, request.body, {
+        httpMetadata: { contentType: session.mimeType },
+        customMetadata: {
+          checksumSha256: session.checksumSha256,
+          uploadSessionId: session.id,
+        },
+        sha256: session.checksumSha256,
+      });
+    } catch (error) {
+      if (!(error instanceof Error) || !/checksum|sha-?256/i.test(error.message)) {
+        throw error;
+      }
       await this.db
         .update(uploadSessions)
         .set({ status: "failed", failureReason: "Checksum mismatch", updatedAt: this.clock() })
         .where(and(eq(uploadSessions.id, sessionId), eq(uploadSessions.status, "pending")));
       return { ok: false, status: 400, message: "Checksum does not match the declaration." };
     }
-    await this.env.MEDIA_BUCKET.put(session.objectKey, bytes, {
-      httpMetadata: { contentType: session.mimeType },
-      customMetadata: { checksumSha256: checksum, uploadSessionId: session.id },
-    });
+    if (stored.size !== session.byteSize) {
+      await this.env.MEDIA_BUCKET.delete(session.objectKey);
+      return { ok: false, status: 400, message: "Byte size does not match the declaration." };
+    }
     return { ok: true, value: null };
   }
 
@@ -223,21 +230,56 @@ export class MediaService {
               height: session.height,
             })
             .returning({ id: artworkAssets.id })
-        : await this.db
-            .insert(audioAssets)
-            .values({
-              trackId: session.targetEntityId!,
-              objectKey: session.objectKey,
-              storageProvider: "r2",
-              status: "ready",
-              scope: session.scope,
-              mimeType: session.mimeType,
-              checksumSha256: session.checksumSha256,
-              byteSize: session.byteSize,
-              durationMs: session.durationMs!,
-              codec: session.codec!,
-            })
-            .returning({ id: audioAssets.id });
+        : await (async () => {
+            const isPrimary = session.scope === "publishable_derivative";
+            if (isPrimary) {
+              const [, rows] = await this.db.batch([
+                this.db
+                  .update(audioAssets)
+                  .set({ isPrimary: false, updatedAt: this.clock() })
+                  .where(
+                    and(
+                      eq(audioAssets.trackId, session.targetEntityId!),
+                      eq(audioAssets.scope, "publishable_derivative"),
+                      eq(audioAssets.isPrimary, true),
+                    ),
+                  ),
+                this.db
+                  .insert(audioAssets)
+                  .values({
+                    trackId: session.targetEntityId!,
+                    objectKey: session.objectKey,
+                    storageProvider: "r2",
+                    status: "ready",
+                    scope: session.scope,
+                    mimeType: session.mimeType,
+                    checksumSha256: session.checksumSha256,
+                    byteSize: session.byteSize,
+                    durationMs: session.durationMs!,
+                    codec: session.codec!,
+                    isPrimary: true,
+                  })
+                  .returning({ id: audioAssets.id }),
+              ]);
+              return rows;
+            }
+            return this.db
+              .insert(audioAssets)
+              .values({
+                trackId: session.targetEntityId!,
+                objectKey: session.objectKey,
+                storageProvider: "r2",
+                status: "ready",
+                scope: session.scope,
+                mimeType: session.mimeType,
+                checksumSha256: session.checksumSha256,
+                byteSize: session.byteSize,
+                durationMs: session.durationMs!,
+                codec: session.codec!,
+                isPrimary: false,
+              })
+              .returning({ id: audioAssets.id });
+          })();
     await this.db
       .update(uploadSessions)
       .set({ status: "completed", completedAt: this.clock(), updatedAt: this.clock() })

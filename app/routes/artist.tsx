@@ -4,6 +4,7 @@ import { EntityTrackList } from "~/components/EntityTrackList";
 import { ShareButton } from "~/components/ShareButton";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { artistSeo } from "~/services/seo.server";
+import { serializeJsonLd } from "~/utils/json-ld";
 import type { PlayerOutletContext } from "~/types/catalogue";
 
 import type { Route } from "./+types/artist";
@@ -49,7 +50,7 @@ export default function ArtistRoute({ loaderData }: Route.ComponentProps) {
     <article className="entity-page">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(loaderData.seo.jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(loaderData.seo.jsonLd) }}
       />
       <p className="eyebrow">Artist</p>
       <div className="entity-hero">

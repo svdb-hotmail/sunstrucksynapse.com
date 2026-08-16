@@ -4,6 +4,7 @@ import { EntityTrackList } from "~/components/EntityTrackList";
 import { ShareButton } from "~/components/ShareButton";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { collectionSeo } from "~/services/seo.server";
+import { serializeJsonLd } from "~/utils/json-ld";
 import type { PlayerOutletContext } from "~/types/catalogue";
 
 import type { Route } from "./+types/collection";
@@ -48,7 +49,7 @@ export default function CollectionRoute({ loaderData }: Route.ComponentProps) {
     <article className="entity-page">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(seo.jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(seo.jsonLd) }}
       />
       <p className="eyebrow">Editorial collection</p>
       <div className="entity-heading">

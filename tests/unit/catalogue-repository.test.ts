@@ -40,7 +40,7 @@ describe("catalogue repository", () => {
     expect(JSON.stringify(items)).not.toContain("private");
   });
 
-  it("serves the published editorial collection in database order without private or unpublished content", async () => {
+  it("serves configured homepage collections in database order without private or unpublished content", async () => {
     await client.exec(`
       insert into editorial_collections (
         id, slug, name, lifecycle_status
@@ -62,13 +62,25 @@ describe("catalogue repository", () => {
 
     const collections = await repository.listPublishedCollections();
 
-    expect(collections).toHaveLength(1);
-    expect(collections[0]?.slug).toBe("latest-transmissions");
+    expect(collections.map(({ slug }) => slug)).toEqual([
+      "latest-transmissions",
+      "listen",
+      "watch",
+    ]);
     expect(collections[0]?.items.map((item) => item.id)).toEqual([
       "30000000-0000-4000-8000-000000000101",
       "30000000-0000-4000-8000-000000000102",
       "30000000-0000-4000-8000-000000000103",
       "30000000-0000-4000-8000-000000000104",
+    ]);
+    expect(collections[1]?.items.map((item) => item.id)).toEqual([
+      "30000000-0000-4000-8000-000000000102",
+      "30000000-0000-4000-8000-000000000104",
+    ]);
+    expect(collections[2]?.items.map((item) => item.id)).toEqual([
+      "30000000-0000-4000-8000-000000000101",
+      "30000000-0000-4000-8000-000000000103",
+      "30000000-0000-4000-8000-000000000105",
     ]);
     expect(JSON.stringify(collections)).not.toMatch(/draft-selection|private/);
   });

@@ -1,9 +1,10 @@
-import { and, asc, eq, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, lte, ne, sql } from "drizzle-orm";
 
-import type { CuratorIdentity } from "~/config/cloudflare-context.server";
 import type { Database } from "~/db/client.server";
+import type { CuratorIdentity } from "~/types/curator";
 import {
   artists,
+  audioAssets,
   collectionItems,
   editorialCollections,
   publicationAudit,
@@ -11,6 +12,7 @@ import {
   releases,
   trackArtistCredits,
   tracks,
+  videoAssets,
 } from "~/db/schema";
 
 export type CuratorEntityType = "artist" | "release" | "track" | "collection";
@@ -88,6 +90,7 @@ export interface CuratorRepository {
     reason: string | null,
   ): Promise<boolean>;
   addCollectionItem(collectionId: string, target: CollectionTarget): Promise<void>;
+  hasCollectionTarget(collectionId: string, target: CollectionTarget): Promise<boolean>;
   removeCollectionItem(collectionId: string, itemId: string): Promise<boolean>;
   reorderCollectionItems(collectionId: string, itemIds: string[]): Promise<boolean>;
   listCollectionItems(collectionId: string): Promise<CuratorCollectionItem[]>;
@@ -96,6 +99,7 @@ export interface CuratorRepository {
     showOnHomepage: boolean,
     homepagePosition: number | null,
   ): Promise<boolean>;
+  homepagePositionInUse(collectionId: string, homepagePosition: number): Promise<boolean>;
   listAudit(): Promise<CuratorAuditEntry[]>;
   publishScheduled(now: Date): Promise<number>;
 }
@@ -153,17 +157,9 @@ export function createCuratorRepository(db: Database): CuratorRepository {
       type === "artist"
         ? await db.select(artistSelection).from(artists).where(eq(artists.id, id)).limit(1)
         : type === "release"
-          ? await db
-              .select(releaseSelection)
-              .from(releases)
-              .where(eq(releases.id, id))
-              .limit(1)
+          ? await db.select(releaseSelection).from(releases).where(eq(releases.id, id)).limit(1)
           : type === "track"
-            ? await db
-                .select(trackSelection)
-                .from(tracks)
-                .where(eq(tracks.id, id))
-                .limit(1)
+            ? await db.select(trackSelection).from(tracks).where(eq(tracks.id, id)).limit(1)
             : await db
                 .select(collectionSelection)
                 .from(editorialCollections)
@@ -287,12 +283,35 @@ export function createCuratorRepository(db: Database): CuratorRepository {
       return Boolean(releaseCredit[0] || trackCredit[0]);
     }
     if (type === "release") {
-      const row = await db
-        .select({ id: tracks.id })
-        .from(tracks)
-        .where(eq(tracks.releaseId, id))
-        .limit(1);
-      return Boolean(row[0]);
+      const [track, collection] = await Promise.all([
+        db.select({ id: tracks.id }).from(tracks).where(eq(tracks.releaseId, id)).limit(1),
+        db
+          .select({ id: collectionItems.id })
+          .from(collectionItems)
+          .where(eq(collectionItems.releaseId, id))
+          .limit(1),
+      ]);
+      return Boolean(track[0] || collection[0]);
+    }
+    if (type === "track") {
+      const [collection, audio, video] = await Promise.all([
+        db
+          .select({ id: collectionItems.id })
+          .from(collectionItems)
+          .where(eq(collectionItems.trackId, id))
+          .limit(1),
+        db
+          .select({ id: audioAssets.id })
+          .from(audioAssets)
+          .where(eq(audioAssets.trackId, id))
+          .limit(1),
+        db
+          .select({ id: videoAssets.id })
+          .from(videoAssets)
+          .where(eq(videoAssets.trackId, id))
+          .limit(1),
+      ]);
+      return Boolean(collection[0] || audio[0] || video[0]);
     }
     return false;
   }
@@ -371,6 +390,21 @@ export function createCuratorRepository(db: Database): CuratorRepository {
       annotation: target.annotation,
       position: (last?.position ?? 0) + 1,
     });
+  }
+
+  async function hasCollectionTarget(
+    collectionId: string,
+    target: CollectionTarget,
+  ): Promise<boolean> {
+    const targetCondition = target.trackId
+      ? eq(collectionItems.trackId, target.trackId)
+      : eq(collectionItems.releaseId, target.releaseId!);
+    const rows = await db
+      .select({ id: collectionItems.id })
+      .from(collectionItems)
+      .where(and(eq(collectionItems.collectionId, collectionId), targetCondition))
+      .limit(1);
+    return rows.length > 0;
   }
 
   async function removeCollectionItem(collectionId: string, itemId: string): Promise<boolean> {
@@ -469,6 +503,24 @@ export function createCuratorRepository(db: Database): CuratorRepository {
     return rows.length > 0;
   }
 
+  async function homepagePositionInUse(
+    collectionId: string,
+    homepagePosition: number,
+  ): Promise<boolean> {
+    const rows = await db
+      .select({ id: editorialCollections.id })
+      .from(editorialCollections)
+      .where(
+        and(
+          eq(editorialCollections.showOnHomepage, true),
+          eq(editorialCollections.homepagePosition, homepagePosition),
+          ne(editorialCollections.id, collectionId),
+        ),
+      )
+      .limit(1);
+    return rows.length > 0;
+  }
+
   async function publishScheduled(now: Date): Promise<number> {
     let count = 0;
     const system = { id: "scheduled-publication", email: "system@sunstrucksynapse.com" };
@@ -515,10 +567,12 @@ export function createCuratorRepository(db: Database): CuratorRepository {
     hasReferences,
     setLifecycle,
     addCollectionItem,
+    hasCollectionTarget,
     removeCollectionItem,
     reorderCollectionItems,
     listCollectionItems,
     configureCollectionHomepage,
+    homepagePositionInUse,
     listAudit,
     publishScheduled,
   };

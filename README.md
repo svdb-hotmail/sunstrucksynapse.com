@@ -10,7 +10,7 @@ Music quality, deliberate human selection, and clear creative-process context de
 
 This repository contains a React Router 8 framework-mode application written in strict TypeScript and running on the Cloudflare Workers runtime through the Cloudflare Vite plugin. It provides a responsive public listening experience backed by the PostgreSQL catalogue, with a persistent global media player, queue and transport controls, and stable artist, release, and track routes.
 
-The first five rights-cleared listener tracks and their publishable media metadata are seeded through Drizzle. Public repository queries exclude non-published records and private assets. Curator administration, open submissions, search, analytics, controlled R2 delivery, and the remaining platform services are still future work.
+The first five rights-cleared listener tracks and their publishable media metadata are seeded through Drizzle. Public repository queries exclude non-published records and private assets. Phase 2 adds the Cloudflare Access-protected curator workspace, catalogue and editorial collection management, audited publication scheduling, managed R2 uploads, and signed derivative delivery. Open submissions, search, analytics, and the remaining platform services are still future work.
 
 ## Intended product
 
@@ -24,7 +24,7 @@ See the [product scope, terminology, and non-goals](docs/product-scope.md) for t
 
 The intended MVP centres on a curated catalogue, real continuous audio playback, queue and playback controls, artist/release/track pages, editorial collections, search and filtering, curator administration, structured submissions, rights and creative-process declarations, basic privacy-conscious analytics, and a responsive, accessible web experience.
 
-Phase 1 now implements the catalogue, playback, queue, and public entity-page portion of that boundary. The MVP excludes open self-publishing, royalty accounting, advertising, native mobile applications, algorithmic recommendation feeds, social features, automated AI-quality scoring, DRM, and payments.
+Phases 1 and 2 implement the catalogue, playback, queue, public entity pages, curator catalogue management, editorial shelves, and controlled publishing portion of that boundary. The MVP excludes open self-publishing, royalty accounting, advertising, native mobile applications, algorithmic recommendation feeds, social features, automated AI-quality scoring, DRM, and payments.
 
 ## Future possibilities
 

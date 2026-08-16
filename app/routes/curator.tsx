@@ -24,15 +24,14 @@ import { validateCatalogueForm, validateReason, validateUuid } from "~/services/
 const entityTypes = ["artist", "release", "track", "collection"] as const;
 const lifecycleTransitions: Readonly<Record<Lifecycle, readonly Lifecycle[]>> = {
   draft: ["in_review"],
-  in_review: ["draft", "scheduled", "published"],
-  scheduled: ["draft", "published"],
+  in_review: ["scheduled"],
+  scheduled: ["published"],
   published: ["archived"],
-  archived: ["draft"],
+  archived: [],
 };
 
 function entityType(value: FormDataEntryValue | null): CuratorEntityType | null {
-  return typeof value === "string" &&
-    entityTypes.includes(value as (typeof entityTypes)[number])
+  return typeof value === "string" && entityTypes.includes(value as (typeof entityTypes)[number])
     ? (value as CuratorEntityType)
     : null;
 }
@@ -130,9 +129,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const result = await service.transition(type, id, to as Lifecycle, identity, {
       reason: reason?.ok ? reason.value : undefined,
       scheduledFor:
-        typeof scheduledValue === "string" && scheduledValue
-          ? new Date(scheduledValue)
-          : undefined,
+        typeof scheduledValue === "string" && scheduledValue ? new Date(scheduledValue) : undefined,
     });
     return result.ok ? redirect("/curator?transitioned=1") : error(result.error.message, 409);
   }
@@ -142,11 +139,10 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (show && (!Number.isSafeInteger(position) || position < 1)) {
       return error("Homepage collections require a positive position.");
     }
-    const changed = await repository.configureCollectionHomepage(
-      id,
-      show,
-      show ? position : null,
-    );
+    if (show && (await repository.homepagePositionInUse(id, position))) {
+      return error("That homepage position is already in use.", 409);
+    }
+    const changed = await repository.configureCollectionHomepage(id, show, show ? position : null);
     return changed ? redirect("/curator?configured=1") : error("Collection not found.", 404);
   }
   if (type === "collection" && intent === "add-item") {

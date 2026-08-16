@@ -54,5 +54,13 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
   headers.set("content-type", asset.mimeType);
   headers.set("cache-control", "private, max-age=300");
   headers.set("etag", object.httpEtag);
+  headers.set("accept-ranges", "bytes");
+  if (object.range) {
+    const { offset, length } = object.range;
+    headers.set("content-range", `bytes ${offset}-${offset + length - 1}/${object.size}`);
+    headers.set("content-length", String(length));
+  } else {
+    headers.set("content-length", String(object.size));
+  }
   return new Response(object.body, { status: object.range ? 206 : 200, headers });
 }

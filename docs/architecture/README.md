@@ -4,7 +4,7 @@ This document describes the intended production architecture for the Sunstruck S
 
 Phase 0 issue #15 implemented the application foundation: React Router 8 framework mode, strict TypeScript, reusable responsive components, a persistent application and player shell, a Cloudflare Worker entry, and Cloudflare Vite configuration for development, builds, and local production preview.
 
-Phase 1 issue #5 adds the Neon/Drizzle catalogue repository, publishable catalogue seed, persistent global playback and queue state, and public artist, release, and track routes. R2 media storage and controlled delivery, authentication and curator tooling, transactional email, analytics, and production deployment automation remain deferred.
+Phase 1 issue #5 adds the Neon/Drizzle catalogue repository, publishable catalogue seed, persistent global playback and queue state, and public artist, release, and track routes. Phase 2 epic #7 adds Cloudflare Access authorization, curator catalogue and collection workflows, audited publication scheduling, managed R2 storage, and signed public derivative delivery. Transactional email, analytics, and production infrastructure provisioning remain deferred.
 
 The accepted architecture decisions are:
 
@@ -33,7 +33,7 @@ flowchart LR
     Events --> Worker
 ```
 
-The Cloudflare Worker is the production application boundary: it serves the public application, reads publishable catalogue data from Neon, and will later authorize curator and controlled-media requests, record semantic playback events, and integrate with managed object storage and email services. The diagram is deliberately compact and includes deferred integrations.
+The Cloudflare Worker is the production application boundary: it serves the public application, reads publishable catalogue data from Neon, authorizes curator and controlled-media requests, and integrates with managed object storage. Semantic playback events and email services remain deferred. The diagram is deliberately compact and includes those deferred integrations.
 
 ## Trust boundaries
 

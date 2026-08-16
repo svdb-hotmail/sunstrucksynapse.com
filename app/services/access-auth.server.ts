@@ -1,7 +1,7 @@
 import { createRemoteJWKSet, errors, jwtVerify, type JWTPayload } from "jose";
 
-import type { CuratorIdentity } from "~/config/cloudflare-context.server";
 import type { WorkerEnv } from "~/config/env.server";
+import type { CuratorIdentity } from "~/types/curator";
 
 export type AuthResult =
   | { ok: true; identity: CuratorIdentity }

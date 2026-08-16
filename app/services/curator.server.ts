@@ -1,4 +1,3 @@
-import type { CuratorIdentity } from "~/config/cloudflare-context.server";
 import type {
   CollectionTarget,
   CreateEntityInput,
@@ -8,6 +7,7 @@ import type {
   Lifecycle,
   UpdateEntityInput,
 } from "~/repositories/curator.server";
+import type { CuratorIdentity } from "~/types/curator";
 
 export type CuratorErrorCode =
   | "conflict"
@@ -22,10 +22,10 @@ export type CuratorResult<T> =
 
 const transitions: Readonly<Record<Lifecycle, readonly Lifecycle[]>> = {
   draft: ["in_review"],
-  in_review: ["draft", "scheduled", "published"],
-  scheduled: ["draft", "published"],
+  in_review: ["scheduled"],
+  scheduled: ["published"],
   published: ["archived"],
-  archived: ["draft"],
+  archived: [],
 };
 
 export class CuratorService {
@@ -129,6 +129,22 @@ export class CuratorService {
   }
 
   async delete(type: CuratorEntityType, id: string): Promise<CuratorResult<null>> {
+    const entity = await this.repository.find(type, id);
+    if (!entity) {
+      return {
+        ok: false,
+        error: { code: "not_found", message: `The ${type} no longer exists.` },
+      };
+    }
+    if (entity.lifecycleStatus !== "draft" && entity.lifecycleStatus !== "archived") {
+      return {
+        ok: false,
+        error: {
+          code: "invalid",
+          message: "Only draft or archived records can be deleted.",
+        },
+      };
+    }
     if (await this.repository.hasReferences(type, id)) {
       return {
         ok: false,
@@ -137,7 +153,9 @@ export class CuratorService {
           message:
             type === "artist"
               ? "Remove this artist's release and track credits before deleting it."
-              : "Move or delete this release's tracks before deleting it.",
+              : type === "release"
+                ? "Move or delete this release's tracks and collection entries before deleting it."
+                : "Remove this track from collections and managed media before deleting it.",
         },
       };
     }
@@ -209,6 +227,12 @@ export class CuratorService {
     collectionId: string,
     target: CollectionTarget,
   ): Promise<CuratorResult<null>> {
+    if (!(await this.repository.find("collection", collectionId))) {
+      return {
+        ok: false,
+        error: { code: "not_found", message: "The collection no longer exists." },
+      };
+    }
     if (Boolean(target.trackId) === Boolean(target.releaseId)) {
       return {
         ok: false,
@@ -221,6 +245,12 @@ export class CuratorService {
       return {
         ok: false,
         error: { code: "not_found", message: "The selected collection item no longer exists." },
+      };
+    }
+    if (await this.repository.hasCollectionTarget(collectionId, target)) {
+      return {
+        ok: false,
+        error: { code: "conflict", message: "That item is already in this collection." },
       };
     }
     await this.repository.addCollectionItem(collectionId, target);

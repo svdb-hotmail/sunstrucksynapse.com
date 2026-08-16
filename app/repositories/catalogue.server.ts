@@ -278,6 +278,7 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         and(
           eq(artworkAssets.id, trackArtworkAssets.artworkAssetId),
           eq(artworkAssets.scope, "publishable_derivative"),
+          eq(artworkAssets.status, "ready"),
         ),
       )
       .leftJoin(
@@ -286,6 +287,7 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
           eq(audioAssets.trackId, tracks.id),
           eq(audioAssets.scope, "publishable_derivative"),
           eq(audioAssets.isPrimary, true),
+          eq(audioAssets.status, "ready"),
         ),
       )
       .leftJoin(
@@ -294,6 +296,7 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
           eq(videoAssets.trackId, tracks.id),
           eq(videoAssets.scope, "publishable_derivative"),
           eq(videoAssets.isPrimary, true),
+          eq(videoAssets.status, "ready"),
         ),
       )
       .where(
@@ -462,6 +465,7 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
           and(
             eq(artworkAssets.id, artistArtworkAssets.artworkAssetId),
             eq(artworkAssets.scope, "publishable_derivative"),
+            eq(artworkAssets.status, "ready"),
           ),
         )
         .where(and(eq(artists.slug, slug), eq(artists.lifecycleStatus, "published")))
@@ -528,6 +532,7 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
           and(
             eq(artworkAssets.id, releaseArtworkAssets.artworkAssetId),
             eq(artworkAssets.scope, "publishable_derivative"),
+            eq(artworkAssets.status, "ready"),
           ),
         )
         .where(

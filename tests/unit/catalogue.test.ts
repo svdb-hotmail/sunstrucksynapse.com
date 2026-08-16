@@ -15,15 +15,30 @@ describe("catalogue service", () => {
     makeCatalogueItem("audio-two"),
   ];
 
-  it("builds latest, audio and video sections from repository items", () => {
-    const latestCollection = {
-      id: "latest-id",
-      slug: "latest-transmissions",
-      name: "Latest transmissions",
-      description: null,
-      items: [catalogueItems[2]!, catalogueItems[0]!],
-    };
-    const sections = buildCatalogueSections(catalogueItems, [latestCollection]);
+  it("builds homepage sections entirely from configured collections", () => {
+    const sections = buildCatalogueSections(catalogueItems, [
+      {
+        id: "latest-id",
+        slug: "latest-transmissions",
+        name: "Latest transmissions",
+        description: null,
+        items: [catalogueItems[2]!, catalogueItems[0]!],
+      },
+      {
+        id: "listen-id",
+        slug: "listen",
+        name: "Listen",
+        description: null,
+        items: [catalogueItems[0]!, catalogueItems[2]!],
+      },
+      {
+        id: "watch-id",
+        slug: "watch",
+        name: "Watch",
+        description: null,
+        items: [catalogueItems[1]!],
+      },
+    ]);
 
     expect(sections.map((section) => section.title)).toEqual([
       "Latest transmissions",

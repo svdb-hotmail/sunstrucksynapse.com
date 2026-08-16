@@ -113,6 +113,13 @@ export function createE2eCuratorRepository(): CuratorRepository {
         position: collectionItems.filter((item) => item.collectionId === collectionId).length + 1,
       });
     },
+    async hasCollectionTarget(collectionId, target) {
+      return collectionItems.some(
+        (item) =>
+          item.collectionId === collectionId &&
+          (target.trackId ? item.trackId === target.trackId : item.releaseId === target.releaseId),
+      );
+    },
     async removeCollectionItem(collectionId, itemId) {
       const index = collectionItems.findIndex(
         (item) => item.collectionId === collectionId && item.id === itemId,
@@ -139,6 +146,16 @@ export function createE2eCuratorRepository(): CuratorRepository {
       collection.showOnHomepage = showOnHomepage;
       collection.homepagePosition = showOnHomepage ? homepagePosition : null;
       return true;
+    },
+    async homepagePositionInUse(collectionId, homepagePosition) {
+      return entities
+        .get("collection")!
+        .some(
+          (collection) =>
+            collection.id !== collectionId &&
+            collection.showOnHomepage &&
+            collection.homepagePosition === homepagePosition,
+        );
     },
     async listAudit() {
       return [...audit];

@@ -3,6 +3,7 @@ import { Link, useOutletContext } from "react-router";
 import { ShareButton } from "~/components/ShareButton";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { trackSeo } from "~/services/seo.server";
+import { serializeJsonLd } from "~/utils/json-ld";
 import type { PlayerOutletContext } from "~/types/catalogue";
 
 import type { Route } from "./+types/track";
@@ -48,7 +49,7 @@ export default function TrackRoute({ loaderData }: Route.ComponentProps) {
     <article className="entity-page track-page">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(loaderData.seo.jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(loaderData.seo.jsonLd) }}
       />
       <p className="eyebrow">Track</p>
       <div className="entity-hero">
