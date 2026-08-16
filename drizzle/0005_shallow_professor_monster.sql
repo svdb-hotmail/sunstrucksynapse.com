@@ -59,6 +59,133 @@ ALTER TABLE "video_assets" ADD COLUMN "storage_provider" "storage_provider" DEFA
 ALTER TABLE "video_assets" ADD COLUMN "status" "managed_asset_status" DEFAULT 'ready' NOT NULL;--> statement-breakpoint
 ALTER TABLE "editorial_collections" ADD COLUMN "show_on_homepage" boolean DEFAULT false NOT NULL;--> statement-breakpoint
 ALTER TABLE "editorial_collections" ADD COLUMN "homepage_position" integer;--> statement-breakpoint
+UPDATE "editorial_collections"
+SET "show_on_homepage" = true, "homepage_position" = 1
+WHERE "slug" = 'latest-transmissions' AND "homepage_position" IS NULL;--> statement-breakpoint
+INSERT INTO "editorial_collections" (
+	"id",
+	"slug",
+	"name",
+	"description",
+	"artwork_asset_id",
+	"show_on_homepage",
+	"homepage_position",
+	"lifecycle_status",
+	"published_at"
+)
+SELECT
+	gen_random_uuid(),
+	'listen',
+	'Listen',
+	'Published audio transmissions.',
+	(
+		SELECT taa."artwork_asset_id"
+		FROM "tracks" t
+		JOIN "track_artwork_assets" taa ON taa."track_id" = t."id" AND taa."role" = 'primary'
+		JOIN "audio_assets" aa ON aa."track_id" = t."id" AND aa."scope" = 'publishable_derivative' AND aa."is_primary" = true
+		LEFT JOIN "video_assets" va ON va."track_id" = t."id" AND va."scope" = 'publishable_derivative' AND va."is_primary" = true
+		WHERE t."lifecycle_status" = 'published' AND va."id" IS NULL
+		ORDER BY t."published_at" ASC NULLS LAST, t."position" ASC
+		LIMIT 1
+	),
+	true,
+	2,
+	'published',
+	COALESCE((SELECT MIN("published_at") FROM "tracks" WHERE "lifecycle_status" = 'published'), now())
+WHERE NOT EXISTS (SELECT 1 FROM "editorial_collections" WHERE "slug" = 'listen')
+  AND EXISTS (
+	SELECT 1 FROM "tracks" t
+	JOIN "audio_assets" aa ON aa."track_id" = t."id" AND aa."scope" = 'publishable_derivative' AND aa."is_primary" = true
+	LEFT JOIN "video_assets" va ON va."track_id" = t."id" AND va."scope" = 'publishable_derivative' AND va."is_primary" = true
+	WHERE t."lifecycle_status" = 'published' AND va."id" IS NULL
+  );--> statement-breakpoint
+UPDATE "editorial_collections"
+SET "show_on_homepage" = true, "homepage_position" = 2
+WHERE "slug" = 'listen' AND "homepage_position" IS NULL;--> statement-breakpoint
+INSERT INTO "editorial_collections" (
+	"id",
+	"slug",
+	"name",
+	"description",
+	"artwork_asset_id",
+	"show_on_homepage",
+	"homepage_position",
+	"lifecycle_status",
+	"published_at"
+)
+SELECT
+	gen_random_uuid(),
+	'watch',
+	'Watch',
+	'Published audiovisual transmissions.',
+	(
+		SELECT taa."artwork_asset_id"
+		FROM "tracks" t
+		JOIN "track_artwork_assets" taa ON taa."track_id" = t."id" AND taa."role" = 'primary'
+		JOIN "video_assets" va ON va."track_id" = t."id" AND va."scope" = 'publishable_derivative' AND va."is_primary" = true
+		WHERE t."lifecycle_status" = 'published'
+		ORDER BY t."published_at" ASC NULLS LAST, t."position" ASC
+		LIMIT 1
+	),
+	true,
+	3,
+	'published',
+	COALESCE((SELECT MIN("published_at") FROM "tracks" WHERE "lifecycle_status" = 'published'), now())
+WHERE NOT EXISTS (SELECT 1 FROM "editorial_collections" WHERE "slug" = 'watch')
+  AND EXISTS (
+	SELECT 1 FROM "tracks" t
+	JOIN "video_assets" va ON va."track_id" = t."id" AND va."scope" = 'publishable_derivative' AND va."is_primary" = true
+	WHERE t."lifecycle_status" = 'published'
+  );--> statement-breakpoint
+UPDATE "editorial_collections"
+SET "show_on_homepage" = true, "homepage_position" = 3
+WHERE "slug" = 'watch' AND "homepage_position" IS NULL;--> statement-breakpoint
+INSERT INTO "collection_items" ("id", "collection_id", "track_id", "position")
+SELECT
+	gen_random_uuid(),
+	c."id",
+	t."id",
+	ROW_NUMBER() OVER (
+		ORDER BY
+			r."release_date" DESC NULLS LAST,
+			r."slug" ASC,
+			t."disc_number" ASC,
+			t."position" ASC
+	) as position
+FROM "tracks" t
+JOIN "releases" r ON r."id" = t."release_id"
+JOIN "editorial_collections" c ON c."slug" = 'listen'
+JOIN "audio_assets" aa ON aa."track_id" = t."id" AND aa."scope" = 'publishable_derivative' AND aa."is_primary" = true
+LEFT JOIN "video_assets" va ON va."track_id" = t."id" AND va."scope" = 'publishable_derivative' AND va."is_primary" = true
+WHERE t."lifecycle_status" = 'published'
+  AND r."lifecycle_status" = 'published'
+  AND va."id" IS NULL
+  AND NOT EXISTS (
+	SELECT 1 FROM "collection_items" ci WHERE ci."collection_id" = c."id"
+  )
+ON CONFLICT ("collection_id", "position") DO NOTHING;--> statement-breakpoint
+INSERT INTO "collection_items" ("id", "collection_id", "track_id", "position")
+SELECT
+	gen_random_uuid(),
+	c."id",
+	t."id",
+	ROW_NUMBER() OVER (
+		ORDER BY
+			r."release_date" DESC NULLS LAST,
+			r."slug" ASC,
+			t."disc_number" ASC,
+			t."position" ASC
+	) as position
+FROM "tracks" t
+JOIN "releases" r ON r."id" = t."release_id"
+JOIN "editorial_collections" c ON c."slug" = 'watch'
+JOIN "video_assets" va ON va."track_id" = t."id" AND va."scope" = 'publishable_derivative' AND va."is_primary" = true
+WHERE t."lifecycle_status" = 'published'
+  AND r."lifecycle_status" = 'published'
+  AND NOT EXISTS (
+	SELECT 1 FROM "collection_items" ci WHERE ci."collection_id" = c."id"
+  )
+ON CONFLICT ("collection_id", "position") DO NOTHING;--> statement-breakpoint
 CREATE INDEX "publication_audit_entity_history_idx" ON "publication_audit" USING btree ("entity_type","entity_id","occurred_at","id");--> statement-breakpoint
 CREATE INDEX "publication_audit_actor_idx" ON "publication_audit" USING btree ("actor_id","occurred_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "upload_sessions_object_key_unique" ON "upload_sessions" USING btree ("object_key");--> statement-breakpoint
