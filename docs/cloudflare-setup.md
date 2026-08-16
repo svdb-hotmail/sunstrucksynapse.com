@@ -10,7 +10,7 @@ Every `/curator/*` route validates the Access JWT from `CF-Access-Jwt-Assertion`
 
 Only builds with `import.meta.env.MODE === "test"` accept `x-test-curator-identity: actor-id|curator@example.test`. Production never trusts this header. Local development outside test mode must use a real Access session; do not add a local bypass.
 
-Required values are `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `CURATOR_EMAILS`, `DATABASE_URL`, `MEDIA_DELIVERY_SIGNING_SECRET`, and the `MEDIA_BUCKET` R2 binding. Actor subject and email are retained for audits.
+Configure `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, `CURATOR_EMAILS`, `DATABASE_URL`, `MEDIA_DELIVERY_SIGNING_SECRET`, and the `MEDIA_BUCKET` R2 binding externally in the Cloudflare Worker dashboard. The repository does not contain their production values or secrets; `wrangler.jsonc` retains only the `MEDIA_BUCKET` binding and bucket names. Actor subject and email are retained for audits.
 
 ## Recommended Settings
 

@@ -8,13 +8,13 @@ Production deployment, account setup, custom-domain changes, and secrets are int
 
 Before deployment, an operator must:
 
-1. Create production and preview R2 buckets and replace the example names in `wrangler.jsonc`.
-2. Create a Cloudflare Access application covering `/curator/*`, then replace `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `CURATOR_EMAILS`.
-3. Set `DATABASE_URL` and a high-entropy `MEDIA_DELIVERY_SIGNING_SECRET` with `wrangler secret put`.
+1. Create the production `sunstruck-synapse-media` and preview `sunstruck-synapse-media-preview` R2 buckets.
+2. In the Cloudflare Worker dashboard, configure the `MEDIA_BUCKET` R2 binding and the `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `CURATOR_EMAILS` runtime variables. These values are intentionally not stored in `wrangler.jsonc`.
+3. In the Cloudflare Worker dashboard, configure `DATABASE_URL` and a high-entropy `MEDIA_DELIVERY_SIGNING_SECRET` as secrets. Do not commit their values.
 4. Apply migrations, including `0005_shallow_professor_monster.sql`, before deploying.
 5. Verify Access rejection and signed media byte-range delivery.
 
-The configuration declares bindings only. It does not create Access policies, buckets, DNS, or secrets.
+The configuration retains the `MEDIA_BUCKET` binding and bucket names for deployment consistency, but Cloudflare supplies the actual runtime binding and values. It does not create Access policies, buckets, DNS, or secrets.
 
 ## Build boundary
 

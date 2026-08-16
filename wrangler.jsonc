@@ -8,11 +8,6 @@
     "enabled": true,
   },
   "upload_source_maps": true,
-  "vars": {
-    "ACCESS_TEAM_DOMAIN": "https://REPLACE-ME.cloudflareaccess.com",
-    "ACCESS_AUD": "REPLACE-ME",
-    "CURATOR_EMAILS": "REPLACE-ME@example.com",
-  },
   "r2_buckets": [
     {
       "binding": "MEDIA_BUCKET",
