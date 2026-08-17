@@ -1,11 +1,14 @@
 import { useState } from "react";
+import { recordPlaybackEvent } from "~/services/analytics.client";
 
 interface ShareButtonProps {
   title: string;
   url: string;
+  trackId?: string;
+  collectionId?: string;
 }
 
-export function ShareButton({ title, url }: ShareButtonProps) {
+export function ShareButton({ title, url, trackId, collectionId }: ShareButtonProps) {
   const [status, setStatus] = useState<string | null>(null);
 
   const share = async () => {
@@ -13,11 +16,13 @@ export function ShareButton({ title, url }: ShareButtonProps) {
     try {
       if (navigator.share) {
         await navigator.share({ title, url });
+        recordPlaybackEvent("share", { trackId, collectionId });
         setStatus("Shared.");
         return;
       }
       if (navigator.clipboard) {
         await navigator.clipboard.writeText(url);
+        recordPlaybackEvent("share", { trackId, collectionId });
         setStatus("Canonical link copied.");
         return;
       }

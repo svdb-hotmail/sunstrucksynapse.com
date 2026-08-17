@@ -33,6 +33,7 @@ const expectedTables = [
   "creative_process_disclosures",
   "editorial_collections",
   "evidence_upload_sessions",
+  "playback_events",
   "provenance_evidence",
   "provenance_evidence_access_audit",
   "provenance_evidence_access_grants",
@@ -74,6 +75,8 @@ const requiredIndexes = [
   "provenance_evidence_record_storage_ref_unique",
   "provenance_records_supersedes_unique",
   "upload_sessions_cleanup_idx",
+  "playback_events_event_id_unique",
+  "playback_events_track_idx",
 ] as const;
 
 const requiredChecks = [
@@ -94,6 +97,10 @@ const requiredChecks = [
   "upload_sessions_metadata_check",
   "upload_sessions_state_check",
   "video_assets_mime_type_check",
+  "playback_events_name_check",
+  "playback_events_session_hash_check",
+  "playback_events_progress_check",
+  "playback_events_bot_check",
 ] as const;
 
 const requiredTriggers = [
@@ -182,7 +189,7 @@ async function verifySchemaObjects(client: PGlite) {
     assert(constraints.get(checkName) === "c", `required check ${checkName} is missing`);
   }
   const foreignKeyCount = constraintResult.rows.filter(({ type }) => type === "f").length;
-  assert(foreignKeyCount === 44, `expected 44 foreign keys, found ${foreignKeyCount}`);
+  assert(foreignKeyCount === 46, `expected 46 foreign keys, found ${foreignKeyCount}`);
 
   const triggerResult = await client.query<{ name: string }>(
     `select tgname as name
@@ -946,7 +953,7 @@ async function validateExistingHistoryGuard() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 7, "expected the original and six forward migrations");
+    assert(migrations.length === 8, "expected the original and seven forward migrations");
     for (const statement of migrations[0]!.sql) {
       await client.exec(statement);
     }
@@ -989,7 +996,7 @@ async function validateVideoAssetForwardMigration() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 7, "expected the original and six forward migrations");
+    assert(migrations.length === 8, "expected the original and seven forward migrations");
     for (const migration of migrations.slice(0, 4)) {
       for (const statement of migration.sql) {
         await client.exec(statement);
@@ -1118,7 +1125,7 @@ async function validateHomepageCollectionsForwardMigration() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 7, "expected the original and six forward migrations");
+    assert(migrations.length === 8, "expected the original and seven forward migrations");
     for (const migration of migrations.slice(0, 5)) {
       for (const statement of migration.sql) {
         await client.exec(statement);
@@ -1220,6 +1227,11 @@ async function validateHomepageCollectionsForwardMigration() {
 
     for (const statement of migrations[5]!.sql) {
       await client.exec(statement);
+    }
+    for (const migration of migrations.slice(6)) {
+      for (const statement of migration.sql) {
+        await client.exec(statement);
+      }
     }
 
     const db = drizzle(client, { schema });

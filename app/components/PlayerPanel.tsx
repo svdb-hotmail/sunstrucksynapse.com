@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { NowPlaying } from "~/components/NowPlaying";
 import { Queue } from "~/components/Queue";
 import { PlaybackCoordinator } from "~/services/playback-coordinator";
+import { recordPlaybackEvent } from "~/services/analytics.client";
 import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
 
 interface PlayerPanelProps {
@@ -37,6 +38,12 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   ref,
 ) {
   const mediaRef = useRef<HTMLMediaElement>(null);
+  const trackedPlayback = useRef({
+    itemId: item?.id ?? null,
+    started: false,
+    thirtySeconds: false,
+    completed: false,
+  });
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeMedia, setActiveMedia] = useState<{
@@ -65,14 +72,64 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   });
 
   useEffect(() => {
+    const tracked = trackedPlayback.current;
+    if (tracked.itemId && tracked.itemId !== item?.id && tracked.started && !tracked.completed) {
+      recordPlaybackEvent("skip", {
+        trackId: tracked.itemId,
+        progressSeconds: Math.floor(mediaRef.current?.currentTime ?? 0),
+      });
+    }
+    if (tracked.itemId !== item?.id) {
+      trackedPlayback.current = {
+        itemId: item?.id ?? null,
+        started: false,
+        thirtySeconds: false,
+        completed: false,
+      };
+    }
     coordinator.selectItem(item);
     if (playbackRequest?.itemId === item?.id && item) {
+      recordPlaybackEvent("play_requested", { trackId: item.id });
       void coordinator.playRequested(item);
     }
   }, [coordinator, item, playbackRequest]);
 
   const handlePlay = () => {
+    const tracked = trackedPlayback.current;
+    if (item) {
+      if (tracked.completed) {
+        recordPlaybackEvent("replay", { trackId: item.id });
+        tracked.completed = false;
+        tracked.thirtySeconds = false;
+      } else if (!tracked.started) {
+        recordPlaybackEvent("playback_started", { trackId: item.id });
+      }
+      tracked.started = true;
+    }
     void coordinator.handleNativePlay();
+  };
+
+  const handleTimeUpdate = () => {
+    const tracked = trackedPlayback.current;
+    const currentTime = mediaRef.current?.currentTime ?? 0;
+    if (item && tracked.started && !tracked.thirtySeconds && currentTime >= 30) {
+      tracked.thirtySeconds = true;
+      recordPlaybackEvent("listen_30_seconds", {
+        trackId: item.id,
+        progressSeconds: 30,
+      });
+    }
+  };
+
+  const handleEnded = () => {
+    if (item) {
+      trackedPlayback.current.completed = true;
+      recordPlaybackEvent("completion", {
+        trackId: item.id,
+        progressSeconds: Math.floor(mediaRef.current?.duration ?? 0),
+      });
+    }
+    onMediaEnded();
   };
 
   const retryPlayback = () => {
@@ -154,14 +211,16 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     preload: "none" as const,
     onContextMenu: preventMediaAction,
     onDragStart: preventMediaAction,
-    onEnded: onMediaEnded,
+    onEnded: handleEnded,
     onPlay: handlePlay,
+    onTimeUpdate: handleTimeUpdate,
     onLoadStart: () => setIsLoading(true),
     onLoadedMetadata: () => setIsLoading(false),
     onCanPlay: () => setIsLoading(false),
     onError: () => {
       setIsLoading(false);
       setPlaybackError("This preview could not be loaded. Check your connection and retry.");
+      if (item) recordPlaybackEvent("playback_error", { trackId: item.id });
     },
   };
   const activeMediaSrc =

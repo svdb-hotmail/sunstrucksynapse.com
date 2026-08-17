@@ -548,6 +548,7 @@ export default function CuratorWorkspace() {
           <p>Signed in as {data.identity.email}</p>
           <p>
             <Link to="/curator/submissions">Review submissions</Link>
+            <Link to="/curator/analytics">View analytics</Link>
           </p>
         </div>
         <Link to="/">Public catalogue</Link>

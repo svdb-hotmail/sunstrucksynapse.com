@@ -9,6 +9,10 @@ import { createE2eCuratorRepository } from "../app/repositories/curator-fixture.
 import { createCuratorRepository } from "../app/repositories/curator.server";
 import { createE2eSubmissionRepository } from "../app/repositories/submissions-fixture.server";
 import { createSubmissionRepository } from "../app/repositories/submissions.server";
+import {
+  createAnalyticsRepository,
+  createMemoryAnalyticsRepository,
+} from "../app/repositories/analytics.server";
 
 const requestHandler = createRequestHandler(
   () => import("virtual:react-router/server-build"),
@@ -16,6 +20,7 @@ const requestHandler = createRequestHandler(
 );
 export const e2eCuratorRepository = createE2eCuratorRepository();
 export const e2eSubmissionRepository = createE2eSubmissionRepository();
+export const e2eAnalyticsRepository = createMemoryAnalyticsRepository();
 
 const testEnv = {
   DATABASE_URL: "postgres://localhost:5432/test",
@@ -96,6 +101,7 @@ export default {
         catalogueRepository: createE2eCatalogueRepository(),
         curatorRepository: e2eCuratorRepository,
         submissionRepository: e2eSubmissionRepository,
+        analyticsRepository: e2eAnalyticsRepository,
         env: testEnv,
         ctx,
       });
@@ -120,6 +126,7 @@ export default {
       }),
       curatorRepository: createCuratorRepository(db),
       submissionRepository: createSubmissionRepository(db),
+      analyticsRepository: createAnalyticsRepository(db),
       env: validatedEnv,
       ctx,
     });
@@ -129,14 +136,21 @@ export default {
   async scheduled(controller, env, _ctx) {
     if (import.meta.env.MODE === "test") {
       const now = controller?.scheduledTime ? new Date(controller.scheduledTime) : new Date();
-      await e2eCuratorRepository.publishScheduled(now);
+      await Promise.all([
+        e2eCuratorRepository.publishScheduled(now),
+        e2eAnalyticsRepository.purgeBefore(new Date(now.valueOf() - 90 * 86_400_000)),
+      ]);
       return;
     }
 
     const validatedEnv = validateWorkerEnv(env);
     const db = createDatabase(validatedEnv);
     const curatorRepository = createCuratorRepository(db);
+    const analyticsRepository = createAnalyticsRepository(db);
     const now = controller?.scheduledTime ? new Date(controller.scheduledTime) : new Date();
-    await curatorRepository.publishScheduled(now);
+    await Promise.all([
+      curatorRepository.publishScheduled(now),
+      analyticsRepository.purgeBefore(new Date(now.valueOf() - 90 * 86_400_000)),
+    ]);
   },
 } satisfies ExportedHandler<Env>;

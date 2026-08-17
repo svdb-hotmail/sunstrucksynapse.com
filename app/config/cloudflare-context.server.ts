@@ -4,6 +4,7 @@ import type { Database } from "~/db/client.server";
 import type { CatalogueRepository } from "~/repositories/catalogue.server";
 import type { CuratorRepository } from "~/repositories/curator.server";
 import type { SubmissionRepository } from "~/repositories/submissions.server";
+import type { AnalyticsRepository } from "~/repositories/analytics.server";
 import type { CuratorIdentity } from "~/types/curator";
 
 import type { WorkerEnv } from "./env.server";
@@ -13,6 +14,7 @@ export interface CloudflareContextValue {
   catalogueRepository: CatalogueRepository;
   curatorRepository?: CuratorRepository;
   submissionRepository?: SubmissionRepository;
+  analyticsRepository?: AnalyticsRepository;
   env?: WorkerEnv;
   identity?: CuratorIdentity;
   ctx: ExecutionContext;

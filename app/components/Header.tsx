@@ -12,6 +12,7 @@ export function Header() {
         <Link to="/#latest">Latest</Link>
         <Link to="/#audio">Listen</Link>
         <Link to="/#video">Watch</Link>
+        <Link to="/search">Search</Link>
         <Link to="/#about">About</Link>
         <Link to="/#contact">Contact</Link>
       </nav>

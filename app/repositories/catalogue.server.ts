@@ -54,6 +54,9 @@ interface PublishedTrackRow {
   trackSlug: string;
   trackTitle: string;
   trackPosition: number;
+  trackGenre: string | null;
+  trackMoods: string[];
+  trackCreativeProcessTags: string[];
   releaseId: string;
   releaseSlug: string;
   releaseTitle: string;
@@ -128,6 +131,12 @@ export function mapPublishedTracks(rows: PublishedTrackRow[]): CatalogueItem[] {
       description: {
         title: row.trackTitle,
         subtitle: `${row.releaseTitle} · ${row.artistName}`,
+      },
+      discovery: {
+        genre: row.trackGenre,
+        moods: row.trackMoods,
+        year: row.releaseDate?.getUTCFullYear() ?? null,
+        creativeProcessTags: row.trackCreativeProcessTags,
       },
     };
 
@@ -265,6 +274,9 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         trackSlug: tracks.slug,
         trackTitle: tracks.title,
         trackPosition: tracks.position,
+        trackGenre: tracks.genre,
+        trackMoods: tracks.moods,
+        trackCreativeProcessTags: tracks.creativeProcessTags,
         releaseId: releases.id,
         releaseSlug: releases.slug,
         releaseTitle: releases.title,

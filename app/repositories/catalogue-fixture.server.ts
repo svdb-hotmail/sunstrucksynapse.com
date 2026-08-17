@@ -61,6 +61,45 @@ function item(
       };
 }
 
+const discovery = [
+  {
+    genre: "electronic",
+    moods: ["provocative", "energetic"],
+    year: 2026,
+    creativeProcessTags: ["ai-generation", "human-editing"],
+  },
+  {
+    genre: "electronic",
+    moods: ["defiant", "energetic"],
+    year: 2026,
+    creativeProcessTags: ["ai-vocals", "human-production"],
+  },
+  {
+    genre: "experimental",
+    moods: ["surreal", "cinematic"],
+    year: 2026,
+    creativeProcessTags: ["ai-video", "human-direction"],
+  },
+  {
+    genre: "folk",
+    moods: ["playful", "earthy"],
+    year: 2026,
+    creativeProcessTags: ["ai-lyrics", "human-performance"],
+  },
+  {
+    genre: "ambient",
+    moods: ["calm", "reflective"],
+    year: 2026,
+    creativeProcessTags: ["ai-texture", "human-production"],
+  },
+  {
+    genre: "ambient",
+    moods: ["calm"],
+    year: 2026,
+    creativeProcessTags: ["human-production"],
+  },
+];
+
 const items = [
   item(
     1,
@@ -108,7 +147,7 @@ const items = [
     "/assets/thumbs/thumb-09.svg",
   ),
   item(6, "quiet-machines", "Quiet Machines", "audio", null, null, "/assets/thumbs/thumb-06.svg"),
-];
+].map((catalogueItem, index) => ({ ...catalogueItem, discovery: discovery[index] }));
 
 export function createE2eCatalogueRepository() {
   const disclosures: Record<string, PublicTrackDisclosure> = {

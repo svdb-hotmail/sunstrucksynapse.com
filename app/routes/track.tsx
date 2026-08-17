@@ -68,7 +68,11 @@ export default function TrackRoute({ loaderData }: Route.ComponentProps) {
             <button type="button" onClick={() => player.queueItem(item)} disabled={!item.media}>
               Add to queue
             </button>
-            <ShareButton title={item.description.title} url={loaderData.canonicalUrl} />
+            <ShareButton
+              title={item.description.title}
+              url={loaderData.canonicalUrl}
+              trackId={item.id}
+            />
           </div>
           {loaderData.track.reviewedDisclosureHref ? (
             <p>

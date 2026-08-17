@@ -38,6 +38,12 @@ interface CatalogueItemBase {
   href: string;
   artwork: Artwork;
   description: DescriptiveText;
+  discovery?: {
+    genre: string | null;
+    moods: string[];
+    year: number | null;
+    creativeProcessTags: string[];
+  };
 }
 
 export type CatalogueItem = CatalogueItemBase &

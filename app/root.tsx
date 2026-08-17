@@ -96,6 +96,7 @@ export default function App() {
   const playerPanelRef = useRef<HTMLElement>(null);
   const playbackSequence = useRef(0);
   const persistenceEnabled = useRef(true);
+  const userInteractedBeforeRestore = useRef(false);
   const [hasRestoredPlayer, setHasRestoredPlayer] = useState(false);
   const [player, setPlayer] = useState<PlayerState>({
     selectedItemId: defaultItem?.id ?? null,
@@ -118,8 +119,10 @@ export default function App() {
     }
     const restored = restorePlayerFromStorage(storage, catalogueItems, defaultItem?.id ?? null);
     persistenceEnabled.current = restored.persistenceAvailable;
-    setPlayer({ selectedItemId: restored.player.selectedItemId });
-    setQueue(restored.player.queue);
+    if (!userInteractedBeforeRestore.current) {
+      setPlayer({ selectedItemId: restored.player.selectedItemId });
+      setQueue(restored.player.queue);
+    }
     setHasRestoredPlayer(true);
   }, [catalogueItems, defaultItem?.id]);
 
@@ -138,11 +141,13 @@ export default function App() {
   }, [hasRestoredPlayer, player.selectedItemId, queue]);
 
   const selectItem = useCallback((item: CatalogueItem) => {
+    userInteractedBeforeRestore.current = true;
     setPlayer({ selectedItemId: item.id });
     setPlaybackRequest(null);
   }, []);
 
   const requestPlayback = useCallback((item: CatalogueItem, moveFocus = true) => {
+    userInteractedBeforeRestore.current = true;
     setPlayer({ selectedItemId: item.id });
     if (!item.media) {
       setPlaybackRequest(null);
@@ -211,6 +216,11 @@ export default function App() {
     }
   }, [catalogueItems, requestPlayback, selectedItem]);
 
+  const queueItem = useCallback((item: CatalogueItem) => {
+    userInteractedBeforeRestore.current = true;
+    setQueue((current) => addQueueItem(current, item));
+  }, []);
+
   const hasPrevious = selectedItem
     ? Boolean(findAdjacentPlayableItem(catalogueItems, selectedItem.id, -1))
     : false;
@@ -222,7 +232,7 @@ export default function App() {
     selectedItemId: selectedItem?.id ?? null,
     catalogue,
     selectItem,
-    queueItem: (item) => setQueue((current) => addQueueItem(current, item)),
+    queueItem,
     playItem: requestPlayback,
   };
 
@@ -234,9 +244,15 @@ export default function App() {
         queue={queue}
         playerPanelRef={playerPanelRef}
         playbackRequest={playbackRequest}
-        onClearQueue={() => setQueue([])}
+        onClearQueue={() => {
+          userInteractedBeforeRestore.current = true;
+          setQueue([]);
+        }}
         onSelectQueueEntry={selectQueueEntry}
-        onRemoveQueueEntry={(itemId) => setQueue((current) => removeQueueItem(current, itemId))}
+        onRemoveQueueEntry={(itemId) => {
+          userInteractedBeforeRestore.current = true;
+          setQueue((current) => removeQueueItem(current, itemId));
+        }}
         onPrevious={playPrevious}
         onNext={() => advancePlayback(false)}
         canPrevious={hasPrevious}

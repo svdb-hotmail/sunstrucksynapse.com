@@ -364,28 +364,43 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         id: seedIds.productionTracks[0],
         slug: "ai-pop-slop-202607190035",
         title: "AI Pop-Slop 202607190035",
+        genre: "pop",
+        moods: ["provocative", "energetic"],
+        creativeProcessTags: ["ai-composition", "human-production"],
       },
       {
         id: seedIds.productionTracks[1],
         slug: "revolution-will-be-televised",
         title: "Sunstruck Synapse (Revolution will be televised)",
+        genre: "electronic",
+        moods: ["defiant", "cinematic"],
+        creativeProcessTags: ["ai-sound-design", "human-arrangement"],
       },
       {
         id: seedIds.productionTracks[2],
         slug: "final-movie-00007",
         title: "Final Movie 00007",
+        genre: "ambient",
+        moods: ["cinematic", "reflective"],
+        creativeProcessTags: ["ai-composition", "human-mixing"],
       },
       {
         id: seedIds.productionTracks[3],
         slug: "the-mushroom-circle-gnome-revolution",
         title: "The Mushroom Circle (Gnome Revolution)",
+        genre: "folk",
+        moods: ["playful", "earthy"],
+        creativeProcessTags: ["ai-lyrics", "human-performance"],
       },
       {
         id: seedIds.productionTracks[4],
         slug: "gone-fishing",
         title: "Gone Fishing",
+        genre: "ambient",
+        moods: ["calm", "reflective"],
+        creativeProcessTags: ["ai-texture", "human-production"],
       },
-    ] as const;
+    ];
 
     await tx
       .insert(tracks)
