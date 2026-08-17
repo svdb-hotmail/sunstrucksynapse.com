@@ -1,4 +1,5 @@
 import {
+  Link,
   Form,
   redirect,
   useActionData,
@@ -370,6 +371,24 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
   }
   const rawToken = params.invitationToken ?? "";
   const tokenHash = sha256Hex(rawToken);
+  if (!runtime.rateLimitRepository) {
+    return Response.json({ error: "Submission service unavailable." }, { status: 503 });
+  }
+  const rateLimit = await runtime.rateLimitRepository.consume(
+    "submission_mutation",
+    tokenHash,
+    30,
+    300,
+  );
+  if (!rateLimit.allowed) {
+    return Response.json(
+      { error: "Too many requests. Wait before trying again." },
+      {
+        status: 429,
+        headers: { "retry-after": String(rateLimit.retryAfterSeconds) },
+      },
+    );
+  }
   const email = createTransactionalEmailService(runtime.env);
   const service = new SubmissionService(runtime.submissionRepository, email);
   const form = await request.formData();
@@ -526,6 +545,11 @@ export default function SubmissionRoute() {
             <strong>{data.aggregate.submission.publicReference}</strong>
           </>
         ) : null}
+      </p>
+      <p>
+        Review the <Link to="/submission-terms">submission terms</Link>,{" "}
+        <Link to="/privacy">privacy notice</Link>, and{" "}
+        <Link to="/takedown">content takedown process</Link>.
       </p>
       {data.flash ? <p role="status">{data.flash}</p> : null}
       {actionData?.error ? <p role="alert">{actionData.error}</p> : null}

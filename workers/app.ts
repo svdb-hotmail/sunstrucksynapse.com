@@ -13,6 +13,10 @@ import {
   createAnalyticsRepository,
   createMemoryAnalyticsRepository,
 } from "../app/repositories/analytics.server";
+import {
+  createMemoryRateLimitRepository,
+  createRateLimitRepository,
+} from "../app/repositories/rate-limit.server";
 
 const requestHandler = createRequestHandler(
   () => import("virtual:react-router/server-build"),
@@ -21,6 +25,7 @@ const requestHandler = createRequestHandler(
 export const e2eCuratorRepository = createE2eCuratorRepository();
 export const e2eSubmissionRepository = createE2eSubmissionRepository();
 export const e2eAnalyticsRepository = createMemoryAnalyticsRepository();
+export const e2eRateLimitRepository = createMemoryRateLimitRepository();
 
 const testEnv = {
   DATABASE_URL: "postgres://localhost:5432/test",
@@ -102,6 +107,7 @@ export default {
         curatorRepository: e2eCuratorRepository,
         submissionRepository: e2eSubmissionRepository,
         analyticsRepository: e2eAnalyticsRepository,
+        rateLimitRepository: e2eRateLimitRepository,
         env: testEnv,
         ctx,
       });
@@ -127,6 +133,7 @@ export default {
       curatorRepository: createCuratorRepository(db),
       submissionRepository: createSubmissionRepository(db),
       analyticsRepository: createAnalyticsRepository(db),
+      rateLimitRepository: createRateLimitRepository(db),
       env: validatedEnv,
       ctx,
     });
@@ -139,6 +146,7 @@ export default {
       await Promise.all([
         e2eCuratorRepository.publishScheduled(now),
         e2eAnalyticsRepository.purgeBefore(new Date(now.valueOf() - 90 * 86_400_000)),
+        e2eRateLimitRepository.purgeBefore(new Date(now.valueOf() - 86_400_000)),
       ]);
       return;
     }
@@ -147,10 +155,12 @@ export default {
     const db = createDatabase(validatedEnv);
     const curatorRepository = createCuratorRepository(db);
     const analyticsRepository = createAnalyticsRepository(db);
+    const rateLimitRepository = createRateLimitRepository(db);
     const now = controller?.scheduledTime ? new Date(controller.scheduledTime) : new Date();
     await Promise.all([
       curatorRepository.publishScheduled(now),
       analyticsRepository.purgeBefore(new Date(now.valueOf() - 90 * 86_400_000)),
+      rateLimitRepository.purgeBefore(new Date(now.valueOf() - 86_400_000)),
     ]);
   },
 } satisfies ExportedHandler<Env>;

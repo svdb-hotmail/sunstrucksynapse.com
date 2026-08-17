@@ -37,8 +37,9 @@ async function sha256(value: string): Promise<string> {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const repository = context.get(cloudflareContext).analyticsRepository;
-  if (!repository) return new Response(null, { status: 503 });
+  const runtime = context.get(cloudflareContext);
+  const repository = runtime.analyticsRepository;
+  if (!repository || !runtime.rateLimitRepository) return new Response(null, { status: 503 });
   if (!request.headers.get("content-type")?.startsWith("application/json")) {
     return new Response(null, { status: 415 });
   }
@@ -49,9 +50,22 @@ export async function action({ request, context }: Route.ActionArgs) {
     return new Response(null, { status: 400 });
   }
   if (!event) return new Response(null, { status: 400 });
+  const anonymousSessionHash = await sha256(event.anonymousSessionId);
+  const rateLimit = await runtime.rateLimitRepository.consume(
+    "analytics",
+    anonymousSessionHash,
+    120,
+    60,
+  );
+  if (!rateLimit.allowed) {
+    return new Response(null, {
+      status: 429,
+      headers: { "retry-after": String(rateLimit.retryAfterSeconds) },
+    });
+  }
   await repository.record({
     ...event,
-    anonymousSessionHash: await sha256(event.anonymousSessionId),
+    anonymousSessionHash,
     isBot: isbot(request.headers.get("user-agent") ?? ""),
   });
   return new Response(null, { status: 202 });

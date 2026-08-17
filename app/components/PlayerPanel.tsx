@@ -311,6 +311,9 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       <footer className="panel-footer">
         <Link to="/#about">About</Link>
         <Link to="/#contact">Contact</Link>
+        <Link to="/privacy">Privacy</Link>
+        <Link to="/submission-terms">Terms</Link>
+        <Link to="/takedown">Takedown</Link>
       </footer>
     </aside>
   );

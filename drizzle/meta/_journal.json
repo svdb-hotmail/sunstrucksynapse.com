@@ -57,6 +57,13 @@
       "when": 1786923450155,
       "tag": "0007_bent_slipstream",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1786926197082,
+      "tag": "0008_lame_guardian",
+      "breakpoints": true
     }
   ]
 }

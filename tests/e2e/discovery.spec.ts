@@ -44,3 +44,12 @@ test("accepts anonymous events, rejects malformed payloads, and protects analyti
   expect(analytics.status()).toBe(200);
   expect(await analytics.text()).toContain("Catalogue analytics");
 });
+
+test("publishes privacy, submission, and takedown policies", async ({ page }) => {
+  await page.goto("/privacy");
+  await expect(page.getByRole("heading", { name: "Privacy notice" })).toBeVisible();
+  await page.goto("/submission-terms");
+  await expect(page.getByRole("heading", { name: "Submission terms" })).toBeVisible();
+  await page.goto("/takedown");
+  await expect(page.getByRole("heading", { name: "Content takedown process" })).toBeVisible();
+});
