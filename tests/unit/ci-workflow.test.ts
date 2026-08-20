@@ -30,7 +30,16 @@ describe("CI quality-gate lifecycle", () => {
     expect(workflow).toContain("name: quality-gate");
     expect(qualityGateScript).toContain("npm ci --no-audit --no-fund");
     expect(qualityGateScript).toContain("npx playwright install --with-deps chromium");
+    expect(qualityGateScript).toContain("npm audit --audit-level=high");
+    expect(workflow).toContain("github/codeql-action/analyze@v4");
     expect(qualityGateScript).toContain("npm run ci");
     expect(packageJson.scripts.ci).toContain("npm run test:e2e");
+  });
+
+  it("grants minimum CodeQL permissions including actions: read and does not suppress CodeQL failure", () => {
+    expect(workflow).toContain("actions: read");
+    expect(workflow).toContain("contents: read");
+    expect(workflow).toContain("security-events: write");
+    expect(workflow).not.toContain("continue-on-error");
   });
 });

@@ -221,6 +221,15 @@ export const tracks = pgTable(
       .references(() => releases.id, { onDelete: "restrict" }),
     slug: text("slug").notNull(),
     title: text("title").notNull(),
+    genre: text("genre"),
+    moods: text("moods")
+      .array()
+      .default(sql`'{}'::text[]`)
+      .notNull(),
+    creativeProcessTags: text("creative_process_tags")
+      .array()
+      .default(sql`'{}'::text[]`)
+      .notNull(),
     discNumber: integer("disc_number").default(1).notNull(),
     position: integer("position").notNull(),
     lifecycleStatus: catalogueLifecycle("lifecycle_status").default("draft").notNull(),

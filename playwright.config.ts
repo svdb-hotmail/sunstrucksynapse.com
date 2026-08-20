@@ -31,5 +31,20 @@ export default defineConfig({
       use: { ...devices["Pixel 5"] },
       testMatch: /.*\.mobile\.spec\.ts/,
     },
+    {
+      name: "desktop-firefox",
+      use: { ...devices["Desktop Firefox"] },
+      testMatch: /.*\.compat\.spec\.ts/,
+    },
+    {
+      name: "desktop-webkit",
+      use: { ...devices["Desktop Safari"] },
+      testMatch: /.*\.compat\.spec\.ts/,
+    },
+    {
+      name: "mobile-webkit",
+      use: { ...devices["iPhone 13"] },
+      testMatch: /.*\.mobile\.spec\.ts/,
+    },
   ],
 });

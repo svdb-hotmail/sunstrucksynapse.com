@@ -33,6 +33,8 @@ export type WorkerEnv = DatabaseEnv &
     CURATOR_EMAILS: string;
     MEDIA_DELIVERY_SIGNING_SECRET: string;
     MEDIA_BUCKET: MediaBucket;
+    POSTMARK_SERVER_TOKEN?: string;
+    TRANSACTIONAL_EMAIL_FROM?: string;
   }>;
 
 const POSTGRES_PROTOCOLS = new Set(["postgres:", "postgresql:"]);
@@ -88,5 +90,11 @@ export function validateWorkerEnv(source: object): WorkerEnv {
     CURATOR_EMAILS: requiredString(source, "CURATOR_EMAILS"),
     MEDIA_DELIVERY_SIGNING_SECRET: requiredString(source, "MEDIA_DELIVERY_SIGNING_SECRET"),
     MEDIA_BUCKET: mediaBucket as MediaBucket,
+    ...(typeof Reflect.get(source, "POSTMARK_SERVER_TOKEN") === "string"
+      ? { POSTMARK_SERVER_TOKEN: String(Reflect.get(source, "POSTMARK_SERVER_TOKEN")).trim() }
+      : {}),
+    ...(typeof Reflect.get(source, "TRANSACTIONAL_EMAIL_FROM") === "string"
+      ? { TRANSACTIONAL_EMAIL_FROM: String(Reflect.get(source, "TRANSACTIONAL_EMAIL_FROM")).trim() }
+      : {}),
   });
 }

@@ -32,7 +32,11 @@ const expectedTables = [
   "collection_items",
   "creative_process_disclosures",
   "editorial_collections",
+  "evidence_upload_sessions",
+  "playback_events",
   "provenance_evidence",
+  "provenance_evidence_access_audit",
+  "provenance_evidence_access_grants",
   "provenance_records",
   "provenance_sources",
   "provenance_steps",
@@ -40,7 +44,10 @@ const expectedTables = [
   "release_artist_credits",
   "release_artwork_assets",
   "releases",
+  "request_rate_limits",
   "rights_declarations",
+  "submission_activities",
+  "submission_invitations",
   "submissions",
   "track_artist_credits",
   "track_artwork_assets",
@@ -58,12 +65,20 @@ const requiredIndexes = [
   "collection_items_track_unique",
   "collection_items_release_unique",
   "submissions_review_queue_idx",
+  "submissions_public_reference_unique",
   "rights_declarations_submission_version_unique",
   "rights_declarations_supersedes_unique",
   "creative_process_disclosures_supersedes_unique",
   "publication_audit_entity_history_idx",
+  "submission_invitations_public_reference_unique",
+  "submission_activities_submission_created_idx",
+  "evidence_upload_sessions_cleanup_idx",
+  "provenance_evidence_record_storage_ref_unique",
   "provenance_records_supersedes_unique",
   "upload_sessions_cleanup_idx",
+  "playback_events_event_id_unique",
+  "playback_events_track_idx",
+  "request_rate_limits_cleanup_idx",
 ] as const;
 
 const requiredChecks = [
@@ -75,11 +90,22 @@ const requiredChecks = [
   "rights_declarations_version_check",
   "rights_declarations_self_supersession_check",
   "creative_process_disclosures_parent_check",
+  "creative_process_disclosures_revision_author_check",
   "provenance_records_parent_check",
+  "provenance_records_revision_author_check",
+  "provenance_evidence_filename_check",
   "submissions_resulting_catalogue_check",
+  "submissions_acceptance_pins_check",
   "upload_sessions_metadata_check",
   "upload_sessions_state_check",
   "video_assets_mime_type_check",
+  "playback_events_name_check",
+  "playback_events_session_hash_check",
+  "playback_events_progress_check",
+  "playback_events_bot_check",
+  "request_rate_limits_scope_check",
+  "request_rate_limits_key_hash_check",
+  "request_rate_limits_count_check",
 ] as const;
 
 const requiredTriggers = [
@@ -94,6 +120,8 @@ const requiredTriggers = [
   "provenance_records_set_updated_at",
   "rights_declarations_set_updated_at",
   "submissions_set_updated_at",
+  "submission_invitations_set_updated_at",
+  "evidence_upload_sessions_set_updated_at",
   "rights_declarations_enforce_supersession",
   "creative_process_disclosures_enforce_supersession",
   "provenance_records_enforce_supersession",
@@ -166,7 +194,7 @@ async function verifySchemaObjects(client: PGlite) {
     assert(constraints.get(checkName) === "c", `required check ${checkName} is missing`);
   }
   const foreignKeyCount = constraintResult.rows.filter(({ type }) => type === "f").length;
-  assert(foreignKeyCount === 34, `expected 34 foreign keys, found ${foreignKeyCount}`);
+  assert(foreignKeyCount === 46, `expected 46 foreign keys, found ${foreignKeyCount}`);
 
   const triggerResult = await client.query<{ name: string }>(
     `select tgname as name
@@ -340,6 +368,42 @@ async function verifySeedRelations(db: ReturnType<typeof drizzle<typeof schema>>
   );
 }
 
+async function insertDraftSubmissionFixture(
+  client: PGlite,
+  submissionId: string,
+  invitationReference: string,
+  submitterName: string,
+  submitterEmail: string,
+  title: string,
+  status: string = "draft",
+) {
+  const suffix = submissionId.replace(/-/g, "").slice(-12);
+  const tokenHash = suffix.repeat(6).slice(0, 64);
+  const invitationId = crypto.randomUUID();
+  await client.query(
+    `insert into submission_invitations (
+       id, public_reference, token_hash, invitee_name, invitee_email, expires_at
+     ) values ($1, $2, $3, $4, $5, clock_timestamp() + interval '1 day')`,
+    [invitationId, `INV-${suffix}`, tokenHash, submitterName, submitterEmail],
+  );
+  await client.query(
+    `insert into submissions (
+       id, invitation_id, public_reference, invitation_reference, submission_kind,
+       submitter_name, submitter_email, title, status
+     ) values ($1, $2, $3, $4, 'track', $5, $6, $7, $8)`,
+    [
+      submissionId,
+      invitationId,
+      `SUB-${suffix}`,
+      invitationReference,
+      submitterName,
+      submitterEmail,
+      title,
+      status,
+    ],
+  );
+}
+
 async function verifyGovernanceLifecycles(client: PGlite) {
   const cases = [
     {
@@ -350,12 +414,19 @@ async function verifyGovernanceLifecycles(client: PGlite) {
       versionTwoId: "80000000-0000-4000-8000-000000000101",
       finalStatus: "attested",
       insertVersionOne: `insert into rights_declarations (
-        id, submission_id, version, status, authority_basis, contains_third_party_material
-      ) values ($1, $2, 1, 'draft', 'original_author', false)`,
-      insertVersionTwo: `insert into rights_declarations (
-        id, submission_id, version, supersedes_id, status, authority_basis,
+        id, submission_id, version, status, revision_author_name, revision_author_email,
+        revision_reason, authority_basis, entitlement_statement, public_summary,
         contains_third_party_material
-      ) values ($1, $2, 2, $3, 'draft', 'original_author', false)`,
+      ) values ($1, $2, 1, 'draft', 'Lifecycle Artist', 'lifecycle@example.invalid',
+        'Lifecycle test', 'original_author', 'Lifecycle entitlement', 'Lifecycle public summary',
+        false)`,
+      insertVersionTwo: `insert into rights_declarations (
+        id, submission_id, version, supersedes_id, status, revision_author_name,
+        revision_author_email, revision_reason, authority_basis, entitlement_statement,
+        public_summary, contains_third_party_material
+      ) values ($1, $2, 2, $3, 'draft', 'Lifecycle Artist', 'lifecycle@example.invalid',
+        'Lifecycle revision', 'original_author', 'Lifecycle entitlement',
+        'Lifecycle public summary', false)`,
       finalizeVersion: `update rights_declarations
         set status = 'attested', attestation = 'Lifecycle test attestation',
             attested_at = clock_timestamp()
@@ -376,15 +447,19 @@ async function verifyGovernanceLifecycles(client: PGlite) {
       versionTwoId: "90000000-0000-4000-8000-000000000101",
       finalStatus: "finalized",
       insertVersionOne: `insert into creative_process_disclosures (
-        id, submission_id, version, status, ai_used, meaningful_human_contribution,
-        tools_and_systems, artist_summary
-      ) values ($1, $2, 1, 'draft', false, 'Human lifecycle contribution',
-        '{}', 'Lifecycle disclosure')`,
+        id, submission_id, version, status, revision_author_name, revision_author_email,
+        revision_reason, ai_used, meaningful_human_contribution, tools_and_systems,
+        artist_summary
+      ) values ($1, $2, 1, 'draft', 'Lifecycle Artist', 'lifecycle@example.invalid',
+        'Lifecycle test', false, 'Human lifecycle contribution', '{}',
+        'Lifecycle disclosure')`,
       insertVersionTwo: `insert into creative_process_disclosures (
-        id, submission_id, version, supersedes_id, status, ai_used,
-        meaningful_human_contribution, tools_and_systems, artist_summary
-      ) values ($1, $2, 2, $3, 'draft', false, 'Human lifecycle contribution',
-        '{}', 'Lifecycle disclosure revision')`,
+        id, submission_id, version, supersedes_id, status, revision_author_name,
+        revision_author_email, revision_reason, ai_used, meaningful_human_contribution,
+        tools_and_systems, artist_summary
+      ) values ($1, $2, 2, $3, 'draft', 'Lifecycle Artist', 'lifecycle@example.invalid',
+        'Lifecycle revision', false, 'Human lifecycle contribution', '{}',
+        'Lifecycle disclosure revision')`,
       finalizeVersion: `update creative_process_disclosures
         set status = 'finalized', finalized_at = clock_timestamp()
         where id = $1`,
@@ -403,11 +478,15 @@ async function verifyGovernanceLifecycles(client: PGlite) {
       versionTwoId: "a0000000-0000-4000-8000-000000000101",
       finalStatus: "finalized",
       insertVersionOne: `insert into provenance_records (
-        id, submission_id, version, status, summary
-      ) values ($1, $2, 1, 'draft', 'Lifecycle provenance')`,
+        id, submission_id, version, status, revision_author_name, revision_author_email,
+        revision_reason, summary
+      ) values ($1, $2, 1, 'draft', 'Lifecycle Artist', 'lifecycle@example.invalid',
+        'Lifecycle test', 'Lifecycle provenance')`,
       insertVersionTwo: `insert into provenance_records (
-        id, submission_id, version, supersedes_id, status, summary
-      ) values ($1, $2, 2, $3, 'draft', 'Lifecycle provenance revision')`,
+        id, submission_id, version, supersedes_id, status, revision_author_name,
+        revision_author_email, revision_reason, summary
+      ) values ($1, $2, 2, $3, 'draft', 'Lifecycle Artist', 'lifecycle@example.invalid',
+        'Lifecycle revision', 'Lifecycle provenance revision')`,
       finalizeVersion: `update provenance_records
         set status = 'finalized', finalized_at = clock_timestamp()
         where id = $1`,
@@ -421,12 +500,13 @@ async function verifyGovernanceLifecycles(client: PGlite) {
   ] as const;
 
   for (const lifecycle of cases) {
-    await client.query(
-      `insert into submissions (
-         id, invitation_reference, submitter_name, submitter_email, title, status
-       ) values ($1, $2, 'Lifecycle Artist', 'lifecycle@example.invalid',
-         'Lifecycle Test', 'draft')`,
-      [lifecycle.submissionId, `lifecycle-${lifecycle.name}`],
+    await insertDraftSubmissionFixture(
+      client,
+      lifecycle.submissionId,
+      `lifecycle-${lifecycle.name}`,
+      "Lifecycle Artist",
+      "lifecycle@example.invalid",
+      "Lifecycle Test",
     );
     await client.query(lifecycle.insertVersionOne, [
       lifecycle.versionOneId,
@@ -513,18 +593,22 @@ async function verifyGovernanceLifecycles(client: PGlite) {
 async function verifyConstraintRejections(client: PGlite) {
   const submissionB = "70000000-0000-4000-8000-000000000002";
   const rightsB1 = "80000000-0000-4000-8000-000000000010";
-  await client.query(
-    `insert into submissions (
-       id, invitation_reference, submitter_name, submitter_email, title, status
-     ) values ($1, 'seed-invitation-002', 'Second Artist', 'second@example.invalid',
-       'Second Submission', 'draft')`,
-    [submissionB],
+  await insertDraftSubmissionFixture(
+    client,
+    submissionB,
+    "seed-invitation-002",
+    "Second Artist",
+    "second@example.invalid",
+    "Second Submission",
   );
   await client.query(
     `insert into rights_declarations (
-       id, submission_id, version, status, authority_basis,
+       id, submission_id, version, status, revision_author_name, revision_author_email,
+       revision_reason, authority_basis, entitlement_statement, public_summary,
        contains_third_party_material
-     ) values ($1, $2, 1, 'draft', 'original_author', false)`,
+     ) values ($1, $2, 1, 'draft', 'Second Artist', 'second@example.invalid',
+       'Constraint fixture', 'original_author', 'Constraint entitlement',
+       'Constraint public summary', false)`,
     [rightsB1, submissionB],
   );
 
@@ -691,32 +775,126 @@ async function verifyConstraintRejections(client: PGlite) {
     "update rights_declarations set restrictions = 'Draft update.' where id = $1",
     [rightsB1],
   );
+  const acceptedNoTarget = "70000000-0000-4000-8000-000000000020";
+  const acceptedRights = "80000000-0000-4000-8000-000000000021";
+  const acceptedDisclosure = "90000000-0000-4000-8000-000000000021";
+  const acceptedProvenance = "a0000000-0000-4000-8000-000000000021";
+  await insertDraftSubmissionFixture(
+    client,
+    acceptedNoTarget,
+    "accepted-without-target",
+    "Accepted Artist",
+    "accepted@example.invalid",
+    "Accepted without target",
+  );
   await client.query(
-    `insert into submissions (
-       invitation_reference, submitter_name, submitter_email, title, status,
-       submitted_at, reviewed_at, accepted_at
-     ) values ('accepted-without-target', 'Accepted Artist', 'accepted@example.invalid',
-       'Accepted without target', 'accepted', clock_timestamp(), clock_timestamp(),
-       clock_timestamp())`,
+    `insert into rights_declarations (
+       id, submission_id, version, status, revision_author_name, revision_author_email,
+       revision_reason, authority_basis, entitlement_statement, public_summary,
+       contains_third_party_material
+     ) values ($1, $2, 1, 'draft', 'Accepted Artist', 'accepted@example.invalid',
+       'Accepted fixture', 'original_author', 'Accepted entitlement',
+       'Accepted public summary', false)`,
+    [acceptedRights, acceptedNoTarget],
+  );
+  await client.query(
+    `insert into creative_process_disclosures (
+       id, submission_id, version, status, revision_author_name, revision_author_email,
+       revision_reason, ai_used, meaningful_human_contribution, tools_and_systems,
+       artist_summary
+     ) values ($1, $2, 1, 'draft', 'Accepted Artist', 'accepted@example.invalid',
+       'Accepted fixture', false, 'Accepted human contribution', '{}',
+       'Accepted disclosure')`,
+    [acceptedDisclosure, acceptedNoTarget],
+  );
+  await client.query(
+    `insert into provenance_records (
+       id, submission_id, version, status, revision_author_name, revision_author_email,
+       revision_reason, summary
+     ) values ($1, $2, 1, 'draft', 'Accepted Artist', 'accepted@example.invalid',
+       'Accepted fixture', 'Accepted provenance')`,
+    [acceptedProvenance, acceptedNoTarget],
+  );
+  await client.query(
+    `update rights_declarations
+     set status = 'attested', attestation = 'Accepted attestation', attested_at = clock_timestamp()
+     where id = $1`,
+    [acceptedRights],
+  );
+  await client.query(
+    `update creative_process_disclosures
+     set status = 'finalized', finalized_at = clock_timestamp()
+     where id = $1`,
+    [acceptedDisclosure],
+  );
+  await client.query(
+    `update provenance_records
+     set status = 'finalized', finalized_at = clock_timestamp()
+     where id = $1`,
+    [acceptedProvenance],
+  );
+  await client.query(
+    `update submissions
+     set status = 'accepted', submitted_at = clock_timestamp(), reviewed_at = clock_timestamp(),
+         accepted_at = clock_timestamp(), accepted_rights_declaration_id = $2,
+         accepted_creative_process_disclosure_id = $3, accepted_provenance_record_id = $4
+     where id = $1`,
+    [acceptedNoTarget, acceptedRights, acceptedDisclosure, acceptedProvenance],
+  );
+  await client.query(
+    `insert into submission_invitations (
+       id, public_reference, token_hash, invitee_name, invitee_email, expires_at
+     ) values
+       ('6f000000-0000-4000-8000-000000000021', 'INV-AMBIGUOUS', repeat('8', 64), 'Ambiguous Artist', 'ambiguous@example.invalid', clock_timestamp() + interval '1 day'),
+       ('6f000000-0000-4000-8000-000000000022', 'INV-DRAFT-TARGET', repeat('7', 64), 'Draft Artist', 'draft@example.invalid', clock_timestamp() + interval '1 day')`,
   );
   await expectRejection("accepted submission with both catalogue targets", () =>
     client.query(
       `insert into submissions (
-         invitation_reference, submitter_name, submitter_email, title, status,
-         submitted_at, reviewed_at, accepted_at, resulting_release_id, resulting_track_id
-       ) values ('ambiguous-target', 'Ambiguous Artist', 'ambiguous@example.invalid',
-         'Ambiguous target', 'accepted', clock_timestamp(), clock_timestamp(),
-         clock_timestamp(), $1, $2)`,
-      [seedIds.release, seedIds.trackOne],
+         id, invitation_id, public_reference, invitation_reference, submission_kind,
+         submitter_name, submitter_email, title, status, submitted_at, reviewed_at,
+         accepted_at, accepted_rights_declaration_id, accepted_creative_process_disclosure_id,
+         accepted_provenance_record_id, resulting_release_id, resulting_track_id
+       ) values (
+         '70000000-0000-4000-8000-000000000021',
+         '6f000000-0000-4000-8000-000000000021',
+         'SUB-AMBIGUOUS',
+         'ambiguous-target',
+         'track',
+         'Ambiguous Artist',
+         'ambiguous@example.invalid',
+         'Ambiguous target',
+         'accepted',
+         clock_timestamp(),
+         clock_timestamp(),
+         clock_timestamp(),
+         $3,
+         $4,
+         $5,
+         $1,
+         $2
+       )`,
+      [seedIds.release, seedIds.trackOne, acceptedRights, acceptedDisclosure, acceptedProvenance],
     ),
   );
   await expectRejection("non-accepted submission with a catalogue target", () =>
     client.query(
       `insert into submissions (
-         invitation_reference, submitter_name, submitter_email, title, status,
-         submitted_at, resulting_release_id
-       ) values ('draft-with-target', 'Draft Artist', 'draft@example.invalid',
-         'Draft target', 'submitted', clock_timestamp(), $1)`,
+         id, invitation_id, public_reference, invitation_reference, submission_kind,
+         submitter_name, submitter_email, title, status, submitted_at, resulting_release_id
+       ) values (
+         '70000000-0000-4000-8000-000000000022',
+         '6f000000-0000-4000-8000-000000000022',
+         'SUB-DRAFT-TARGET',
+         'draft-with-target',
+         'release',
+         'Draft Artist',
+         'draft@example.invalid',
+         'Draft target',
+         'received',
+         clock_timestamp(),
+         $1
+       )`,
       [seedIds.release],
     ),
   );
@@ -780,7 +958,7 @@ async function validateExistingHistoryGuard() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 6, "expected the original and five forward migrations");
+    assert(migrations.length === 9, "expected the original and eight forward migrations");
     for (const statement of migrations[0]!.sql) {
       await client.exec(statement);
     }
@@ -823,7 +1001,7 @@ async function validateVideoAssetForwardMigration() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 6, "expected the original and five forward migrations");
+    assert(migrations.length === 9, "expected the original and eight forward migrations");
     for (const migration of migrations.slice(0, 4)) {
       for (const statement of migration.sql) {
         await client.exec(statement);
@@ -952,7 +1130,7 @@ async function validateHomepageCollectionsForwardMigration() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 6, "expected the original and five forward migrations");
+    assert(migrations.length === 9, "expected the original and eight forward migrations");
     for (const migration of migrations.slice(0, 5)) {
       for (const statement of migration.sql) {
         await client.exec(statement);
@@ -1054,6 +1232,11 @@ async function validateHomepageCollectionsForwardMigration() {
 
     for (const statement of migrations[5]!.sql) {
       await client.exec(statement);
+    }
+    for (const migration of migrations.slice(6)) {
+      for (const statement of migration.sql) {
+        await client.exec(statement);
+      }
     }
 
     const db = drizzle(client, { schema });

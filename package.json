@@ -21,6 +21,8 @@
     "db:migrate": "node --env-file-if-exists=.env --import tsx scripts/migrate.ts",
     "db:seed": "node --env-file-if-exists=.env --import tsx scripts/seed.ts",
     "db:validate:local": "node --import tsx scripts/validate-database.ts",
+    "catalogue:export": "node --env-file-if-exists=.env --import tsx scripts/export-catalogue.ts",
+    "catalogue:audit": "node --env-file-if-exists=.env --import tsx scripts/audit-beta-readiness.ts",
     "ci": "npm run format:check && npm run lint && npm run typecheck && npm run test:unit && npm run db:validate:local && npm run build && npm run test:e2e"
   },
   "dependencies": {
@@ -52,7 +54,7 @@
     "typescript": "5.9.3",
     "typescript-eslint": "8.42.0",
     "vite": "8.2.1",
-    "vitest": "3.2.6",
+    "vitest": "^3.2.7",
     "wrangler": "4.123.0"
   }
 }

@@ -5,9 +5,10 @@ import type { CatalogueItem, PlayerOutletContext } from "~/types/catalogue";
 interface EntityTrackListProps {
   tracks: CatalogueItem[];
   player: PlayerOutletContext;
+  collectionId?: string;
 }
 
-export function EntityTrackList({ tracks, player }: EntityTrackListProps) {
+export function EntityTrackList({ tracks, player, collectionId }: EntityTrackListProps) {
   return (
     <ol className="entity-track-list">
       {tracks.map((track) => (
@@ -18,10 +19,18 @@ export function EntityTrackList({ tracks, player }: EntityTrackListProps) {
             <span>{track.description.subtitle}</span>
           </div>
           <div className="entity-track-actions">
-            <button type="button" onClick={() => player.queueItem(track)} disabled={!track.media}>
+            <button
+              type="button"
+              onClick={() => player.queueItem(track, collectionId)}
+              disabled={!track.media}
+            >
               Queue
             </button>
-            <button type="button" onClick={() => player.playItem(track)} disabled={!track.media}>
+            <button
+              type="button"
+              onClick={() => player.playItem(track, collectionId)}
+              disabled={!track.media}
+            >
               {track.media ? "Play" : "Unavailable"}
             </button>
           </div>

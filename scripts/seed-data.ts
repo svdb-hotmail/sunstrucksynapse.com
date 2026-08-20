@@ -18,6 +18,7 @@ import {
   releaseArtworkAssets,
   releases,
   rightsDeclarations,
+  submissionInvitations,
   submissions,
   trackArtistCredits,
   trackArtworkAssets,
@@ -37,6 +38,7 @@ export const seedIds = {
   collection: "60000000-0000-4000-8000-000000000001",
   collectionRelease: "61000000-0000-4000-8000-000000000001",
   collectionTrack: "61000000-0000-4000-8000-000000000002",
+  submissionInvitation: "6f000000-0000-4000-8000-000000000001",
   submission: "70000000-0000-4000-8000-000000000001",
   rightsOne: "80000000-0000-4000-8000-000000000001",
   rightsTwo: "80000000-0000-4000-8000-000000000002",
@@ -89,8 +91,13 @@ export const seedIds = {
     "61000000-0000-4000-8000-000000000302",
     "61000000-0000-4000-8000-000000000303",
   ],
+  productionSubmissionInvitation: "6f000000-0000-4000-8000-000000000101",
   productionSubmission: "70000000-0000-4000-8000-000000000101",
   productionRights: "80000000-0000-4000-8000-000000000151",
+  productionDisclosure: "90000000-0000-4000-8000-000000000151",
+  productionProvenance: "a0000000-0000-4000-8000-000000000151",
+  productionProvenanceStep: "a1000000-0000-4000-8000-000000000151",
+  productionProvenanceSource: "a2000000-0000-4000-8000-000000000151",
 } as const;
 
 const publishedAt = new Date("2026-01-15T12:00:00.000Z");
@@ -357,28 +364,43 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         id: seedIds.productionTracks[0],
         slug: "ai-pop-slop-202607190035",
         title: "AI Pop-Slop 202607190035",
+        genre: "pop",
+        moods: ["provocative", "energetic"],
+        creativeProcessTags: ["ai-composition", "human-production"],
       },
       {
         id: seedIds.productionTracks[1],
         slug: "revolution-will-be-televised",
         title: "Sunstruck Synapse (Revolution will be televised)",
+        genre: "electronic",
+        moods: ["defiant", "cinematic"],
+        creativeProcessTags: ["ai-sound-design", "human-arrangement"],
       },
       {
         id: seedIds.productionTracks[2],
         slug: "final-movie-00007",
         title: "Final Movie 00007",
+        genre: "ambient",
+        moods: ["cinematic", "reflective"],
+        creativeProcessTags: ["ai-composition", "human-mixing"],
       },
       {
         id: seedIds.productionTracks[3],
         slug: "the-mushroom-circle-gnome-revolution",
         title: "The Mushroom Circle (Gnome Revolution)",
+        genre: "folk",
+        moods: ["playful", "earthy"],
+        creativeProcessTags: ["ai-lyrics", "human-performance"],
       },
       {
         id: seedIds.productionTracks[4],
         slug: "gone-fishing",
         title: "Gone Fishing",
+        genre: "ambient",
+        moods: ["calm", "reflective"],
+        creativeProcessTags: ["ai-texture", "human-production"],
       },
-    ] as const;
+    ];
 
     await tx
       .insert(tracks)
@@ -582,18 +604,75 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
       .onConflictDoNothing();
 
     await tx
+      .insert(submissionInvitations)
+      .values({
+        id: seedIds.productionSubmissionInvitation,
+        publicReference: "INV-PRODUCTION-001",
+        tokenHash: "5".repeat(64),
+        inviteeName: "Sunstruck Synapse",
+        inviteeEmail: "rights@sunstrucksynapse.com",
+        expiresAt: new Date("2030-01-01T00:00:00.000Z"),
+      })
+      .onConflictDoNothing();
+
+    await tx
       .insert(submissions)
       .values({
         id: seedIds.productionSubmission,
+        invitationId: seedIds.productionSubmissionInvitation,
+        publicReference: "SUB-INV-PRODUCTION-001",
         invitationReference: "production-catalogue-001",
+        submissionKind: "release",
         submitterName: "Sunstruck Synapse",
         submitterEmail: "rights@sunstrucksynapse.com",
         title: "Phase Zero Transmissions",
-        status: "accepted",
-        submittedAt,
-        reviewedAt,
-        acceptedAt,
-        resultingReleaseId: seedIds.productionRelease,
+        artistDetails: {
+          displayName: "Sunstruck Synapse",
+          shortBiography:
+            "Human-directed transmissions spanning electronic music and visual counterparts.",
+          location: "United Kingdom",
+          websiteUrl: "https://example.test/sunstruck-synapse",
+          socialUrl: "",
+          priorWorkNotes: "",
+        },
+        releaseDetails: {
+          title: "Phase Zero Transmissions",
+          summary: "Rights-cleared production release seed.",
+          plannedReleaseDate: "2026-01-15",
+          labelName: "",
+          distributorName: "Independent",
+          distributorReleaseId: "SSR-PHASE-0",
+          territories: ["Worldwide"],
+        },
+        trackDetails: {
+          title: "Sunstruck Synapse (Revolution will be televised)",
+          versionTitle: "",
+          durationNotes: "",
+          isLeadSingle: true,
+          lyricsSummary: "",
+          isInstrumental: false,
+        },
+        contactDetails: {
+          contactName: "Sunstruck Synapse",
+          contactEmail: "rights@sunstrucksynapse.com",
+          contactPhone: "",
+          preferredContactMethod: "email",
+        },
+        acknowledgements: {
+          invitationConfirmed: true,
+          accuracyConfirmed: true,
+          rightsConfirmed: true,
+          disclosureConfirmed: true,
+          reviewProcessConfirmed: true,
+        },
+        abuseSignals: {
+          honeypotTriggered: false,
+          saveCount: 1,
+          submitCount: 1,
+          lastUserAgent: "seed",
+          lastIpHash: null,
+        },
+        status: "draft",
         reviewNotes: "Rights-cleared production catalogue accepted for publication.",
       })
       .onConflictDoNothing();
@@ -605,9 +684,19 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         submissionId: seedIds.productionSubmission,
         version: 1,
         status: "draft",
+        revisionAuthorName: "Sunstruck Synapse",
+        revisionAuthorEmail: "rights@sunstrucksynapse.com",
+        revisionReason: "Initial production seed submission.",
         authorityBasis: "original_author",
+        entitlementStatement: "The submitter controls the relevant publication rights.",
+        publicSummary: "Original-author release approved for Sunstruck Synapse Radio.",
+        publicNotes: "Rights-cleared for publication.",
         containsThirdPartyMaterial: false,
         restrictions: "Approved for publication on Sunstruck Synapse Radio.",
+        territories: ["Worldwide"],
+        distributorName: "Independent",
+        distributorReleaseId: "SSR-PHASE-0",
+        isrc: "GBABC2600001",
       })
       .onConflictDoNothing();
 
@@ -624,6 +713,125 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
           eq(rightsDeclarations.status, "draft"),
         ),
       );
+
+    await tx
+      .insert(creativeProcessDisclosures)
+      .values({
+        id: seedIds.productionDisclosure,
+        submissionId: seedIds.productionSubmission,
+        version: 1,
+        status: "draft",
+        revisionAuthorName: "Sunstruck Synapse",
+        revisionAuthorEmail: "rights@sunstrucksynapse.com",
+        revisionReason: "Initial production seed submission.",
+        aiUsed: true,
+        aiUseDescription: "AI-assisted ideation informed arrangement sketches.",
+        meaningfulHumanContribution:
+          "Human composition, arrangement, editing, and final production.",
+        toolsAndSystems: ["Fictional Sketch Model"],
+        humanRoles: [
+          {
+            name: "Sunstruck Synapse",
+            role: "artist",
+            contribution: "Composition and production",
+            isPublic: true,
+          },
+        ],
+        aiTools: [
+          {
+            name: "Fictional Sketch Model",
+            model: "v1",
+            provider: "Example",
+            purpose: "Ideation",
+            isPublic: true,
+          },
+        ],
+        sourceMaterialContext: "No third-party source recordings were used.",
+        artistSummary: "AI supported ideation while humans directed and finalized the release.",
+      })
+      .onConflictDoNothing();
+    await tx
+      .update(creativeProcessDisclosures)
+      .set({
+        status: "finalized",
+        finalizedAt: versionTwoFinalizedAt,
+      })
+      .where(
+        and(
+          eq(creativeProcessDisclosures.id, seedIds.productionDisclosure),
+          eq(creativeProcessDisclosures.status, "draft"),
+        ),
+      );
+
+    await tx
+      .insert(provenanceRecords)
+      .values({
+        id: seedIds.productionProvenance,
+        submissionId: seedIds.productionSubmission,
+        version: 1,
+        status: "draft",
+        revisionAuthorName: "Sunstruck Synapse",
+        revisionAuthorEmail: "rights@sunstrucksynapse.com",
+        revisionReason: "Initial production seed submission.",
+        summary: "Reviewed production provenance summary.",
+        publicNotes: "Public notes intentionally exclude private evidence references.",
+      })
+      .onConflictDoNothing();
+    const existingProductionStep = await tx
+      .select({ id: provenanceSteps.id })
+      .from(provenanceSteps)
+      .where(eq(provenanceSteps.id, seedIds.productionProvenanceStep))
+      .limit(1);
+    if (existingProductionStep.length === 0) {
+      await tx.insert(provenanceSteps).values({
+        id: seedIds.productionProvenanceStep,
+        provenanceRecordId: seedIds.productionProvenance,
+        position: 1,
+        processType: "arrangement",
+        description: "The artist rebuilt the arrangement from generated sketches.",
+      });
+    }
+    const existingProductionSource = await tx
+      .select({ id: provenanceSources.id })
+      .from(provenanceSources)
+      .where(eq(provenanceSources.id, seedIds.productionProvenanceSource))
+      .limit(1);
+    if (existingProductionSource.length === 0) {
+      await tx.insert(provenanceSources).values({
+        id: seedIds.productionProvenanceSource,
+        provenanceRecordId: seedIds.productionProvenance,
+        position: 1,
+        sourceType: "generated_material",
+        reference: "Production seed sketch reference",
+        rightsContext: "Internal creative sketching reference.",
+      });
+    }
+    await tx
+      .update(provenanceRecords)
+      .set({
+        status: "finalized",
+        finalizedAt: versionTwoFinalizedAt,
+      })
+      .where(
+        and(
+          eq(provenanceRecords.id, seedIds.productionProvenance),
+          eq(provenanceRecords.status, "draft"),
+        ),
+      );
+
+    await tx
+      .update(submissions)
+      .set({
+        status: "accepted",
+        submittedAt,
+        reviewedAt,
+        acceptedAt,
+        resultingReleaseId: seedIds.productionRelease,
+        acceptedRightsDeclarationId: seedIds.productionRights,
+        acceptedCreativeProcessDisclosureId: seedIds.productionDisclosure,
+        acceptedProvenanceRecordId: seedIds.productionProvenance,
+      })
+      .where(eq(submissions.id, seedIds.productionSubmission));
 
     await tx
       .insert(editorialCollections)
@@ -664,18 +872,74 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
       .onConflictDoNothing();
 
     await tx
+      .insert(submissionInvitations)
+      .values({
+        id: seedIds.submissionInvitation,
+        publicReference: "INV-SEED-001",
+        tokenHash: "6".repeat(64),
+        inviteeName: "Synthetic Dawn Ensemble",
+        inviteeEmail: "artist@example.invalid",
+        expiresAt: new Date("2030-01-01T00:00:00.000Z"),
+      })
+      .onConflictDoNothing();
+
+    await tx
       .insert(submissions)
       .values({
         id: seedIds.submission,
+        invitationId: seedIds.submissionInvitation,
+        publicReference: "SUB-INV-SEED-001",
         invitationReference: "seed-invitation-001",
+        submissionKind: "release",
         submitterName: "Synthetic Dawn Ensemble",
         submitterEmail: "artist@example.invalid",
         title: "Signals Before Sunrise",
-        status: "accepted",
-        submittedAt,
-        reviewedAt,
-        acceptedAt,
-        resultingReleaseId: seedIds.release,
+        artistDetails: {
+          displayName: "Synthetic Dawn Ensemble",
+          shortBiography: "A fictional artist used only for deterministic development data.",
+          location: "Nowhere",
+          websiteUrl: "https://example.invalid/synthetic-dawn",
+          socialUrl: "",
+          priorWorkNotes: "",
+        },
+        releaseDetails: {
+          title: "Signals Before Sunrise",
+          summary: "Synthetic accepted seed submission.",
+          plannedReleaseDate: "2026-01-15",
+          labelName: "",
+          distributorName: "",
+          distributorReleaseId: "",
+          territories: ["Worldwide"],
+        },
+        trackDetails: {
+          title: "First Light",
+          versionTitle: "",
+          durationNotes: "",
+          isLeadSingle: true,
+          lyricsSummary: "",
+          isInstrumental: false,
+        },
+        contactDetails: {
+          contactName: "Synthetic Dawn Ensemble",
+          contactEmail: "artist@example.invalid",
+          contactPhone: "",
+          preferredContactMethod: "email",
+        },
+        acknowledgements: {
+          invitationConfirmed: true,
+          accuracyConfirmed: true,
+          rightsConfirmed: true,
+          disclosureConfirmed: true,
+          reviewProcessConfirmed: true,
+        },
+        abuseSignals: {
+          honeypotTriggered: false,
+          saveCount: 1,
+          submitCount: 1,
+          lastUserAgent: "seed",
+          lastIpHash: null,
+        },
+        status: "draft",
         reviewNotes: "Synthetic accepted seed submission; acceptance is separate from publication.",
       })
       .onConflictDoNothing();
@@ -687,9 +951,16 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         submissionId: seedIds.submission,
         version: 1,
         status: "draft",
+        revisionAuthorName: "Synthetic Dawn Ensemble",
+        revisionAuthorEmail: "artist@example.invalid",
+        revisionReason: "Initial seed submission.",
         authorityBasis: "original_author",
+        entitlementStatement: "Synthetic development rights statement.",
+        publicSummary: "Original-author synthetic release retained for deterministic tests.",
+        publicNotes: "Development data only.",
         containsThirdPartyMaterial: false,
         restrictions: "Development data only.",
+        territories: ["Worldwide"],
       })
       .onConflictDoNothing();
 
@@ -716,9 +987,16 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         version: 2,
         supersedesId: seedIds.rightsOne,
         status: "draft",
+        revisionAuthorName: "Synthetic Dawn Ensemble",
+        revisionAuthorEmail: "artist@example.invalid",
+        revisionReason: "Clarified seed rights declaration.",
         authorityBasis: "original_author",
+        entitlementStatement: "Synthetic development rights statement.",
+        publicSummary: "Original-author synthetic release retained for deterministic tests.",
+        publicNotes: "Development data only.",
         containsThirdPartyMaterial: false,
         restrictions: "Development data only; no real-world rights are asserted.",
+        territories: ["Worldwide"],
       });
     }
 
@@ -740,10 +1018,30 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         submissionId: seedIds.submission,
         version: 1,
         status: "draft",
+        revisionAuthorName: "Synthetic Dawn Ensemble",
+        revisionAuthorEmail: "artist@example.invalid",
+        revisionReason: "Initial seed submission.",
         aiUsed: true,
         aiUseDescription: "A fictional generative sketch informed arrangement experiments.",
         meaningfulHumanContribution: "Human composition, arrangement, performance, and editing.",
         toolsAndSystems: ["Fictional Sketch Model"],
+        humanRoles: [
+          {
+            name: "Synthetic Dawn Ensemble",
+            role: "artist",
+            contribution: "Composition and arrangement",
+            isPublic: true,
+          },
+        ],
+        aiTools: [
+          {
+            name: "Fictional Sketch Model",
+            model: "v1",
+            provider: "Example",
+            purpose: "Ideation",
+            isPublic: true,
+          },
+        ],
         sourceMaterialContext: "No third-party source recording was used.",
         artistSummary: "An early fictional disclosure retained for revision history.",
       })
@@ -774,11 +1072,31 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         version: 2,
         supersedesId: seedIds.disclosureOne,
         status: "draft",
+        revisionAuthorName: "Synthetic Dawn Ensemble",
+        revisionAuthorEmail: "artist@example.invalid",
+        revisionReason: "Clarified seed disclosure.",
         aiUsed: true,
         aiUseDescription: "A fictional generative sketch was used for ideation only.",
         meaningfulHumanContribution:
           "The artist composed, arranged, performed, selected, edited, and mixed the work.",
         toolsAndSystems: ["Fictional Sketch Model", "Digital Audio Workstation"],
+        humanRoles: [
+          {
+            name: "Synthetic Dawn Ensemble",
+            role: "artist",
+            contribution: "Composition, arrangement, performance, and mixing",
+            isPublic: true,
+          },
+        ],
+        aiTools: [
+          {
+            name: "Fictional Sketch Model",
+            model: "v2",
+            provider: "Example",
+            purpose: "Ideation",
+            isPublic: true,
+          },
+        ],
         sourceMaterialContext: "No third-party source recording was used.",
         artistSummary: "AI supported ideation; the artist directed and completed the music.",
       });
@@ -804,6 +1122,9 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         submissionId: seedIds.submission,
         version: 1,
         status: "draft",
+        revisionAuthorName: "Synthetic Dawn Ensemble",
+        revisionAuthorEmail: "artist@example.invalid",
+        revisionReason: "Initial seed submission.",
         summary: "Initial fictional process record.",
       })
       .onConflictDoNothing();
@@ -830,7 +1151,11 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         version: 2,
         supersedesId: seedIds.provenanceOne,
         status: "draft",
+        revisionAuthorName: "Synthetic Dawn Ensemble",
+        revisionAuthorEmail: "artist@example.invalid",
+        revisionReason: "Clarified seed provenance.",
         summary: "Revised fictional process and source record with private evidence metadata.",
+        publicNotes: "Public notes intentionally exclude evidence object keys.",
       });
       await tx.insert(provenanceSteps).values({
         id: seedIds.provenanceStep,
@@ -851,12 +1176,26 @@ export async function seedDatabase<TQueryResult extends PgQueryResultHKT>(
         id: seedIds.provenanceEvidence,
         provenanceRecordId: seedIds.provenanceTwo,
         storageProvider: "private-r2",
-        objectKey: "evidence/private/seed-sketch-001.txt",
+        objectKey: "private/evidence/seed-sketch-001.txt",
+        originalFilename: "seed-sketch-001.txt",
         mimeType: "text/plain",
         checksumSha256: "4".repeat(64),
         byteSize: 512,
       });
     }
+    await tx
+      .update(submissions)
+      .set({
+        status: "accepted",
+        submittedAt,
+        reviewedAt,
+        acceptedAt,
+        resultingReleaseId: seedIds.release,
+        acceptedRightsDeclarationId: seedIds.rightsTwo,
+        acceptedCreativeProcessDisclosureId: seedIds.disclosureTwo,
+        acceptedProvenanceRecordId: seedIds.provenanceTwo,
+      })
+      .where(eq(submissions.id, seedIds.submission));
 
     await tx
       .update(provenanceRecords)

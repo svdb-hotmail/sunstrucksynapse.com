@@ -4,12 +4,13 @@ import { Link } from "react-router";
 import { NowPlaying } from "~/components/NowPlaying";
 import { Queue } from "~/components/Queue";
 import { PlaybackCoordinator } from "~/services/playback-coordinator";
+import { recordPlaybackEvent } from "~/services/analytics.client";
 import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
 
 interface PlayerPanelProps {
   item: CatalogueItem | null;
   queue: QueueEntry[];
-  playbackRequest: { itemId: string; sequence: number } | null;
+  playbackRequest: { itemId: string; sequence: number; collectionId?: string } | null;
   onClearQueue: () => void;
   onSelectQueueEntry: (entry: QueueEntry) => void;
   onRemoveQueueEntry: (itemId: string) => void;
@@ -37,6 +38,18 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   ref,
 ) {
   const mediaRef = useRef<HTMLMediaElement>(null);
+  const trackedPlayback = useRef<{
+    itemId: string | null;
+    collectionId?: string;
+    started: boolean;
+    thirtySeconds: boolean;
+    completed: boolean;
+  }>({
+    itemId: item?.id ?? null,
+    started: false,
+    thirtySeconds: false,
+    completed: false,
+  });
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeMedia, setActiveMedia] = useState<{
@@ -65,16 +78,82 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   });
 
   useEffect(() => {
+    const tracked = trackedPlayback.current;
+    if (tracked.itemId && tracked.itemId !== item?.id && tracked.started && !tracked.completed) {
+      recordPlaybackEvent("skip", {
+        trackId: tracked.itemId,
+        ...(tracked.collectionId !== undefined ? { collectionId: tracked.collectionId } : {}),
+        progressSeconds: Math.floor(mediaRef.current?.currentTime ?? 0),
+      });
+    }
+    if (tracked.itemId !== item?.id) {
+      trackedPlayback.current = {
+        itemId: item?.id ?? null,
+        started: false,
+        thirtySeconds: false,
+        completed: false,
+      };
+    }
     coordinator.selectItem(item);
     if (!item || !playbackRequest || playbackRequest.itemId !== item.id) {
       return;
     }
-
+    trackedPlayback.current.collectionId = playbackRequest.collectionId;
+    recordPlaybackEvent("play_requested", {
+      trackId: item.id,
+      ...(playbackRequest.collectionId !== undefined
+        ? { collectionId: playbackRequest.collectionId }
+        : {}),
+    });
     void coordinator.playRequested(item);
   }, [coordinator, item, playbackRequest]);
 
   const handlePlay = () => {
+    const tracked = trackedPlayback.current;
+    if (item) {
+      if (tracked.completed) {
+        recordPlaybackEvent("replay", {
+          trackId: item.id,
+          ...(tracked.collectionId !== undefined ? { collectionId: tracked.collectionId } : {}),
+        });
+        tracked.completed = false;
+        tracked.thirtySeconds = false;
+      } else if (!tracked.started) {
+        recordPlaybackEvent("playback_started", {
+          trackId: item.id,
+          ...(tracked.collectionId !== undefined ? { collectionId: tracked.collectionId } : {}),
+        });
+      }
+      tracked.started = true;
+    }
     void coordinator.handleNativePlay();
+  };
+
+  const handleTimeUpdate = () => {
+    const tracked = trackedPlayback.current;
+    const currentTime = mediaRef.current?.currentTime ?? 0;
+    if (item && tracked.started && !tracked.thirtySeconds && currentTime >= 30) {
+      tracked.thirtySeconds = true;
+      recordPlaybackEvent("listen_30_seconds", {
+        trackId: item.id,
+        ...(tracked.collectionId !== undefined ? { collectionId: tracked.collectionId } : {}),
+        progressSeconds: 30,
+      });
+    }
+  };
+
+  const handleEnded = () => {
+    if (item) {
+      trackedPlayback.current.completed = true;
+      recordPlaybackEvent("completion", {
+        trackId: item.id,
+        ...(trackedPlayback.current.collectionId !== undefined
+          ? { collectionId: trackedPlayback.current.collectionId }
+          : {}),
+        progressSeconds: Math.floor(mediaRef.current?.duration ?? 0),
+      });
+    }
+    onMediaEnded();
   };
 
   const retryPlayback = () => {
@@ -156,14 +235,22 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     preload: "none" as const,
     onContextMenu: preventMediaAction,
     onDragStart: preventMediaAction,
-    onEnded: onMediaEnded,
+    onEnded: handleEnded,
     onPlay: handlePlay,
+    onTimeUpdate: handleTimeUpdate,
     onLoadStart: () => setIsLoading(true),
     onLoadedMetadata: () => setIsLoading(false),
     onCanPlay: () => setIsLoading(false),
     onError: () => {
       setIsLoading(false);
       setPlaybackError("This preview could not be loaded. Check your connection and retry.");
+      if (item) {
+        const tracked = trackedPlayback.current;
+        recordPlaybackEvent("playback_error", {
+          trackId: item.id,
+          ...(tracked.collectionId !== undefined ? { collectionId: tracked.collectionId } : {}),
+        });
+      }
     },
   };
   const activeMediaSrc =
@@ -254,6 +341,9 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       <footer className="panel-footer">
         <Link to="/#about">About</Link>
         <Link to="/#contact">Contact</Link>
+        <Link to="/privacy">Privacy</Link>
+        <Link to="/submission-terms">Terms</Link>
+        <Link to="/takedown">Takedown</Link>
       </footer>
     </aside>
   );

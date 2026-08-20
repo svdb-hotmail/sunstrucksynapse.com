@@ -27,12 +27,31 @@ export const uploadAssetKind = pgEnum("upload_asset_kind", ["artwork", "audio"])
 
 export const submissionStatus = pgEnum("submission_status", [
   "draft",
-  "submitted",
-  "under_review",
-  "changes_requested",
+  "received",
+  "eligibility_review",
+  "listening",
+  "clarification_requested",
   "accepted",
   "rejected",
   "withdrawn",
+]);
+
+export const submissionKind = pgEnum("submission_kind", ["track", "release"]);
+
+export const submissionActorRole = pgEnum("submission_actor_role", [
+  "submitter",
+  "curator",
+  "system",
+]);
+
+export const submissionActivityType = pgEnum("submission_activity_type", [
+  "status_change",
+  "assignment",
+  "note",
+  "clarification_question",
+  "clarification_response",
+  "email",
+  "evidence_access",
 ]);
 
 export const authorityBasis = pgEnum("authority_basis", [
@@ -56,4 +75,16 @@ export const provenanceSourceType = pgEnum("provenance_source_type", [
   "public_domain",
   "generated_material",
   "other",
+]);
+
+export const evidenceMalwareStatus = pgEnum("evidence_malware_status", [
+  "pending_review",
+  "cleared",
+  "quarantined",
+  "rejected",
+]);
+
+export const evidenceAccessAction = pgEnum("evidence_access_action", [
+  "grant_created",
+  "downloaded",
 ]);

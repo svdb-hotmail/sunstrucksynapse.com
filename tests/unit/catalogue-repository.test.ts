@@ -4,7 +4,10 @@ import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
 
 import * as schema from "../../app/db/schema";
-import { createCatalogueRepository } from "../../app/repositories/catalogue.server";
+import {
+  createCatalogueRepository,
+  createStaticCatalogueRepository,
+} from "../../app/repositories/catalogue.server";
 import { seedDatabase } from "../../scripts/seed-data";
 
 describe("catalogue repository", () => {
@@ -107,6 +110,171 @@ describe("catalogue repository", () => {
     expect(track?.item.media?.src).toBe(
       "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3",
     );
+    expect(track?.reviewedDisclosureHref).toBe(
+      "/tracks/phase-zero-transmissions/revolution-will-be-televised/disclosure",
+    );
+  });
+
+  it("returns the pinned public disclosure revision without exposing private evidence keys", async () => {
+    const disclosure = await repository.findPublicTrackDisclosure(
+      "phase-zero-transmissions",
+      "revolution-will-be-televised",
+    );
+
+    expect(disclosure).toMatchObject({
+      artistName: "Sunstruck Synapse",
+      rights: {
+        authorityBasis: "original_author",
+        territories: ["Worldwide"],
+      },
+      process: {
+        aiUsed: true,
+      },
+    });
+    expect(JSON.stringify(disclosure)).not.toContain("private/evidence/");
+  });
+
+  it("filters private disclosure entries from the database-backed public DTO", async () => {
+    await client.exec(`
+      update creative_process_disclosures
+      set human_roles = '[
+        {"name":"Sunstruck Synapse","role":"artist","contribution":"Composition and production","isPublic":true},
+        {"name":"Hidden Editor","role":"editor","contribution":"Private revision notes","isPublic":false}
+      ]'::jsonb,
+          ai_tools = '[
+        {"name":"Fictional Sketch Model","model":"v1","provider":"Example","purpose":"Ideation","isPublic":true},
+        {"name":"Hidden Model","model":"v0","provider":"Example","purpose":"Private support","isPublic":false}
+      ]'::jsonb
+      where submission_id = (
+        select id
+        from submissions
+        where resulting_track_id = '30000000-0000-4000-8000-000000000102'
+          and status = 'accepted'
+        limit 1
+      );
+    `);
+
+    const disclosure = await repository.findPublicTrackDisclosure(
+      "phase-zero-transmissions",
+      "revolution-will-be-televised",
+    );
+
+    expect(disclosure?.process.humanRoles).toEqual([
+      {
+        name: "Sunstruck Synapse",
+        role: "artist",
+        contribution: "Composition and production",
+        isPublic: true,
+      },
+    ]);
+    expect(disclosure?.process.aiTools).toEqual([
+      {
+        name: "Fictional Sketch Model",
+        model: "v1",
+        provider: "Example",
+        purpose: "Ideation",
+        isPublic: true,
+      },
+    ]);
+  });
+
+  it("filters private disclosure entries from static public disclosures", async () => {
+    const repository = createStaticCatalogueRepository(
+      [
+        {
+          id: "track-1",
+          slug: "track-slug",
+          release: { slug: "release-slug" },
+        } as never,
+      ],
+      [],
+      {
+        "track-1": {
+          trackTitle: "Track",
+          releaseTitle: "Release",
+          artistName: "Artist",
+          reviewedAt: "2026-08-16T12:00:00.000Z",
+          rights: {
+            authorityBasis: "original_author",
+            publicSummary: "Public rights summary.",
+            publicNotes: null,
+            territories: ["Worldwide"],
+            distributorName: null,
+            distributorReleaseId: null,
+            isrc: null,
+          },
+          process: {
+            aiUsed: true,
+            aiUseDescription: null,
+            meaningfulHumanContribution: "Human direction and performance.",
+            publicSummary: "Public process summary.",
+            humanRoles: [
+              {
+                name: "Artist",
+                role: "artist",
+                contribution: "Composition and production",
+                isPublic: true,
+              },
+              {
+                name: "Private Editor",
+                role: "editor",
+                contribution: "Private revision support",
+                isPublic: false,
+              },
+            ],
+            aiTools: [
+              {
+                name: "Sketcher",
+                model: "v1",
+                provider: "Example",
+                purpose: "Ideation",
+                isPublic: true,
+              },
+              {
+                name: "Hidden Model",
+                model: "v0",
+                provider: "Example",
+                purpose: "Private support",
+                isPublic: false,
+              },
+            ],
+            lyricsUsed: false,
+            lyricsDetails: null,
+            voiceCloneUsed: false,
+            voiceCloneDetails: null,
+            samplesUsed: false,
+            sampleDetails: null,
+            sourceMaterialContext: null,
+          },
+          provenance: {
+            summary: "Summary.",
+            publicNotes: null,
+            sources: [],
+            steps: [],
+          },
+        },
+      },
+    );
+
+    const disclosure = await repository.findPublicTrackDisclosure("release-slug", "track-slug");
+
+    expect(disclosure?.process.humanRoles).toEqual([
+      {
+        name: "Artist",
+        role: "artist",
+        contribution: "Composition and production",
+        isPublic: true,
+      },
+    ]);
+    expect(disclosure?.process.aiTools).toEqual([
+      {
+        name: "Sketcher",
+        model: "v1",
+        provider: "Example",
+        purpose: "Ideation",
+        isPublic: true,
+      },
+    ]);
   });
 
   it("includes a multiply credited track on both published artist pages", async () => {

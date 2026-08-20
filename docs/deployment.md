@@ -11,7 +11,7 @@ Before deployment, an operator must:
 1. Create the production `sunstruck-synapse-media` and preview `sunstruck-synapse-media-preview` R2 buckets.
 2. In the Cloudflare Worker dashboard, configure the `MEDIA_BUCKET` R2 binding and the `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `CURATOR_EMAILS` runtime variables. These values are intentionally not stored in `wrangler.jsonc`.
 3. In the Cloudflare Worker dashboard, configure `DATABASE_URL` and a high-entropy `MEDIA_DELIVERY_SIGNING_SECRET` as secrets. Do not commit their values.
-4. Apply migrations, including `0005_shallow_professor_monster.sql`, before deploying.
+4. Apply every committed migration through `0008_lame_guardian.sql` before deploying.
 5. Verify Access rejection and signed media byte-range delivery.
 
 The configuration retains the `MEDIA_BUCKET` binding and bucket names for deployment consistency, but Cloudflare supplies the actual runtime binding and values. It does not create Access policies, buckets, DNS, or secrets.
