@@ -95,7 +95,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       };
     }
     coordinator.selectItem(item);
-    if (playbackRequest?.itemId === item?.id && item) {
+    if (playbackRequest && playbackRequest.itemId === item?.id && item) {
       trackedPlayback.current.collectionId = playbackRequest.collectionId;
       recordPlaybackEvent("play_requested", {
         trackId: item.id,
