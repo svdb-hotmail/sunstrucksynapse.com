@@ -10,10 +10,15 @@ import type {
 import type { CuratorIdentity } from "~/types/curator";
 
 export type CuratorErrorCode =
-  "conflict" | "invalid" | "not_found" | "referenced" | "transition_conflict";
+  | "conflict"
+  | "invalid"
+  | "not_found"
+  | "referenced"
+  | "transition_conflict";
 
 export type CuratorResult<T> =
-  { ok: true; value: T } | { ok: false; error: { code: CuratorErrorCode; message: string } };
+  | { ok: true; value: T }
+  | { ok: false; error: { code: CuratorErrorCode; message: string } };
 
 export function curatorHttpStatus(code: CuratorErrorCode): number {
   switch (code) {

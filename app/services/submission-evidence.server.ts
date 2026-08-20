@@ -14,7 +14,8 @@ import type {
 import { sha256Hex } from "./submission-security.server";
 
 export type EvidenceResult<T> =
-  { ok: true; value: T } | { ok: false; status: 400 | 404 | 409 | 413; message: string };
+  | { ok: true; value: T }
+  | { ok: false; status: 400 | 404 | 409 | 413; message: string };
 
 export const EVIDENCE_MAX_BYTE_SIZE = 20 * 1024 * 1024;
 
