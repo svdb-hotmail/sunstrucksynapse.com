@@ -26,7 +26,8 @@ export interface UploadDeclaration {
 }
 
 export type MediaResult<T> =
-  { ok: true; value: T } | { ok: false; status: 400 | 404 | 409 | 413; message: string };
+  | { ok: true; value: T }
+  | { ok: false; status: 400 | 404 | 409 | 413; message: string };
 
 const limits = {
   artwork: 20 * 1024 * 1024,
