@@ -66,9 +66,11 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
 
   useEffect(() => {
     coordinator.selectItem(item);
-    if (playbackRequest?.itemId === item?.id && item) {
-      void coordinator.playRequested(item);
+    if (!item || !playbackRequest || playbackRequest.itemId !== item.id) {
+      return;
     }
+
+    void coordinator.playRequested(item);
   }, [coordinator, item, playbackRequest]);
 
   const handlePlay = () => {
