@@ -35,4 +35,11 @@ describe("CI quality-gate lifecycle", () => {
     expect(qualityGateScript).toContain("npm run ci");
     expect(packageJson.scripts.ci).toContain("npm run test:e2e");
   });
+
+  it("grants minimum CodeQL permissions including actions: read and does not suppress CodeQL failure", () => {
+    expect(workflow).toContain("actions: read");
+    expect(workflow).toContain("contents: read");
+    expect(workflow).toContain("security-events: write");
+    expect(workflow).not.toContain("continue-on-error");
+  });
 });

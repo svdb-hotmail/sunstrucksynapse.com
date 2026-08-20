@@ -28,6 +28,17 @@ describe("queue operations", () => {
     expect(entries).toEqual([]);
   });
 
+  it("stores collection attribution on queued entries", () => {
+    const item = makeCatalogueItem("solar-nerve");
+
+    const entries = addQueueItem([], item, "collection-123");
+
+    expect(entries[0]).toMatchObject({
+      itemId: item.id,
+      collectionId: "collection-123",
+    });
+  });
+
   it("removes only the selected queue item", () => {
     const entries = [
       ...addQueueItem([], makeCatalogueItem("solar-nerve")),

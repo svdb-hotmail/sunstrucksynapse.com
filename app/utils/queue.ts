@@ -1,18 +1,25 @@
 import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
 
-export function addQueueItem(entries: QueueEntry[], item: CatalogueItem): QueueEntry[] {
+export function addQueueItem(
+  entries: QueueEntry[],
+  item: CatalogueItem,
+  collectionId?: string,
+): QueueEntry[] {
   if (!item.media || entries.some((entry) => entry.itemId === item.id)) {
     return entries;
   }
 
-  return [
-    ...entries,
-    {
-      itemId: item.id,
-      title: item.description.title,
-      subtitle: item.description.subtitle,
-    },
-  ];
+  const queueEntry: QueueEntry = {
+    itemId: item.id,
+    title: item.description.title,
+    subtitle: item.description.subtitle,
+  };
+
+  if (collectionId !== undefined) {
+    queueEntry.collectionId = collectionId;
+  }
+
+  return [...entries, queueEntry];
 }
 
 export function removeQueueItem(entries: QueueEntry[], itemId: string): QueueEntry[] {

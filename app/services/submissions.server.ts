@@ -268,6 +268,12 @@ export class SubmissionService {
     if (!current) {
       return { ok: false, error: { code: "not_found", message: "Submission not found." } } as const;
     }
+    if (current.submission.status !== "listening") {
+      return {
+        ok: false,
+        error: { code: "transition_conflict", message: "Submission changed." },
+      } as const;
+    }
     if (current.rights.authorityBasis === "other") {
       return {
         ok: false,

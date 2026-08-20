@@ -163,6 +163,34 @@ describe("submission service", () => {
     );
   });
 
+  it("rejects direct acceptance while a submission is still received", async () => {
+    const draft = completeDraft();
+
+    const submitted = await service.submit(tokenHash, draft, {
+      honeypotTriggered: false,
+      userAgent: "vitest",
+      ipHash: null,
+    });
+    expect(submitted.ok).toBe(true);
+    if (!submitted.ok) return;
+
+    const accepted = await service.accept({
+      submissionId: submitted.value.submission.id,
+      actor: { id: "curator-1", email: "curator@example.test" },
+      acceptedAt: new Date("2026-08-16T12:07:00Z"),
+      resultingTrackId: null,
+      resultingReleaseId: null,
+    });
+
+    expect(accepted).toMatchObject({
+      ok: false,
+      error: { code: "transition_conflict" },
+    });
+
+    const refreshed = await repository.findCuratorSubmission(submitted.value.submission.id);
+    expect(refreshed?.submission.status).toBe("received");
+  });
+
   it("requires complete reviewed rights/process fields before acceptance", async () => {
     const draft = completeDraft({
       rights: {

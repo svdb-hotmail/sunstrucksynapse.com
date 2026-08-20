@@ -211,6 +211,10 @@ function releaseFromItems(
   };
 }
 
+function publicDisclosureItems<T extends { isPublic: boolean }>(items: T[]): T[] {
+  return items.filter((item) => item.isPublic);
+}
+
 export function createStaticCatalogueRepository(
   items: CatalogueItem[],
   collections: PublicEditorialCollection[] = [],
@@ -258,7 +262,21 @@ export function createStaticCatalogueRepository(
         items.find(
           (candidate) => candidate.release.slug === releaseSlug && candidate.slug === trackSlug,
         ) ?? null;
-      return item ? (disclosures[item.id] ?? null) : null;
+      if (!item) {
+        return null;
+      }
+      const disclosure = disclosures[item.id];
+      if (!disclosure) {
+        return null;
+      }
+      return {
+        ...disclosure,
+        process: {
+          ...disclosure.process,
+          humanRoles: publicDisclosureItems(disclosure.process.humanRoles),
+          aiTools: publicDisclosureItems(disclosure.process.aiTools),
+        },
+      };
     },
   };
 }
@@ -593,8 +611,8 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         aiUseDescription: row.aiUseDescription,
         meaningfulHumanContribution: row.meaningfulHumanContribution,
         publicSummary: row.processSummary,
-        humanRoles: row.humanRoles,
-        aiTools: row.aiTools,
+        humanRoles: publicDisclosureItems(row.humanRoles),
+        aiTools: publicDisclosureItems(row.aiTools),
         lyricsUsed: row.lyricsUsed,
         lyricsDetails: row.lyricsDetails,
         voiceCloneUsed: row.voiceCloneUsed,

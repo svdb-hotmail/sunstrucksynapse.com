@@ -17,6 +17,27 @@ export type EvidenceResult<T> =
   | { ok: true; value: T }
   | { ok: false; status: 400 | 404 | 409 | 413; message: string };
 
+export const EVIDENCE_MAX_BYTE_SIZE = 20 * 1024 * 1024;
+
+const EVIDENCE_ALLOWED_MIME_TYPES = new Set([
+  "text/plain",
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "audio/mpeg",
+  "audio/wav",
+  "audio/ogg",
+]);
+
+export function normalizeEvidenceMimeType(mimeType: string): string {
+  return mimeType.trim().toLowerCase();
+}
+
+export function isSupportedEvidenceMimeType(mimeType: string): boolean {
+  return EVIDENCE_ALLOWED_MIME_TYPES.has(normalizeEvidenceMimeType(mimeType));
+}
+
 function createFixedLengthStream(expectedSize: number): {
   readable: ReadableStream<Uint8Array>;
   writable: WritableStream<Uint8Array>;
@@ -47,21 +68,33 @@ export function parseEvidenceDeclaration(
   ) {
     return { ok: false, status: 400, message: "Invalid evidence declaration." };
   }
-  if (!filename.trim() || !mimeType.trim() || !/^[0-9a-f]{64}$/.test(checksumSha256)) {
+  const normalizedFilename = filename.trim();
+  const normalizedMimeType = normalizeEvidenceMimeType(mimeType);
+  if (!normalizedFilename || !/^[0-9a-f]{64}$/.test(checksumSha256)) {
     return {
       ok: false,
       status: 400,
       message: "Evidence filename, MIME type, and checksum are required.",
     };
   }
+  if (!isSupportedEvidenceMimeType(normalizedMimeType)) {
+    return { ok: false, status: 400, message: "Unsupported evidence MIME type." };
+  }
   if (!Number.isSafeInteger(byteSize) || byteSize < 1) {
     return { ok: false, status: 400, message: "Evidence byte size must be positive." };
+  }
+  if (byteSize > EVIDENCE_MAX_BYTE_SIZE) {
+    return {
+      ok: false,
+      status: 413,
+      message: "Evidence exceeds the 20 MiB limit.",
+    };
   }
   return {
     ok: true,
     value: {
-      filename: filename.trim(),
-      mimeType: mimeType.trim(),
+      filename: normalizedFilename,
+      mimeType: normalizedMimeType,
       checksumSha256,
       byteSize,
     },
@@ -90,7 +123,16 @@ export class SubmissionEvidenceService<TQueryResult extends PgQueryResultHKT = P
     if (session.status !== "pending" || session.expiresAt <= this.clock()) {
       return { ok: false, status: 409, message: "Evidence upload session is no longer active." };
     }
-    if (request.headers.get("content-type")?.split(";")[0] !== session.mimeType) {
+    if (!isSupportedEvidenceMimeType(session.mimeType)) {
+      return { ok: false, status: 400, message: "Unsupported evidence MIME type." };
+    }
+    if (session.byteSize > EVIDENCE_MAX_BYTE_SIZE) {
+      return { ok: false, status: 413, message: "Evidence exceeds the 20 MiB limit." };
+    }
+    if (
+      normalizeEvidenceMimeType(request.headers.get("content-type")?.split(";")[0] ?? "") !==
+      session.mimeType
+    ) {
       return { ok: false, status: 400, message: "Content type does not match the declaration." };
     }
     const contentLength = Number(request.headers.get("content-length"));
@@ -104,7 +146,7 @@ export class SubmissionEvidenceService<TQueryResult extends PgQueryResultHKT = P
     const { readable, writable } = createFixedLengthStream(session.byteSize);
     const hasher = new IncrementalSha256();
     let streamed = 0;
-    let pumpError: Error | null = null;
+    let byteSizeExceeded = false;
     const pump = (async () => {
       const reader = request.body!.getReader();
       const writer = writable.getWriter();
@@ -114,13 +156,17 @@ export class SubmissionEvidenceService<TQueryResult extends PgQueryResultHKT = P
           if (done) break;
           if (value) {
             streamed += value.byteLength;
+            if (streamed > session.byteSize) {
+              byteSizeExceeded = true;
+              throw new Error("Evidence exceeds the declared byte size.");
+            }
             hasher.update(value);
             await writer.write(value);
           }
         }
         await writer.close();
       } catch (error) {
-        pumpError = error instanceof Error ? error : new Error(String(error));
+        const pumpError = error instanceof Error ? error : new Error(String(error));
         await writer.abort(pumpError);
       } finally {
         reader.releaseLock();
@@ -136,18 +182,34 @@ export class SubmissionEvidenceService<TQueryResult extends PgQueryResultHKT = P
       sha256: session.checksumSha256,
     });
 
-    let stored;
-    try {
-      [stored] = await Promise.all([put, pump]);
-    } catch (error) {
-      await this.repository.failEvidenceUploadSession(sessionId, this.clock(), "Upload failed");
-      throw error;
+    const [putResult, pumpResult] = await Promise.allSettled([put, pump]);
+    if (byteSizeExceeded || streamed > session.byteSize) {
+      await this.env.MEDIA_BUCKET.delete(session.objectKey);
+      await this.repository.failEvidenceUploadSession(
+        sessionId,
+        this.clock(),
+        "Byte size mismatch",
+      );
+      return { ok: false, status: 413, message: "Evidence exceeds the declared byte size." };
     }
-
-    if (pumpError) {
+    if (pumpResult.status === "rejected") {
       await this.env.MEDIA_BUCKET.delete(session.objectKey);
       await this.repository.failEvidenceUploadSession(sessionId, this.clock(), "Streaming failed");
       return { ok: false, status: 400, message: "Evidence upload failed." };
+    }
+    if (putResult.status === "rejected") {
+      await this.repository.failEvidenceUploadSession(sessionId, this.clock(), "Upload failed");
+      throw putResult.reason;
+    }
+    const stored = putResult.value;
+    if (stored.size > session.byteSize) {
+      await this.env.MEDIA_BUCKET.delete(session.objectKey);
+      await this.repository.failEvidenceUploadSession(
+        sessionId,
+        this.clock(),
+        "Byte size mismatch",
+      );
+      return { ok: false, status: 413, message: "Evidence exceeds the declared byte size." };
     }
     if (hasher.digestHex() !== session.checksumSha256) {
       await this.env.MEDIA_BUCKET.delete(session.objectKey);

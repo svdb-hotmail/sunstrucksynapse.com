@@ -55,7 +55,15 @@ try {
             where s.resulting_track_id = t.id
               and s.status = 'accepted'
               and s.accepted_rights_declaration_id is not null
-              and s.accepted_process_disclosure_id is not null
+              and s.accepted_creative_process_disclosure_id is not null
+              and s.accepted_provenance_record_id is not null
+          )
+          or exists (
+            select 1 from submissions s
+            where s.resulting_release_id = t.release_id
+              and s.status = 'accepted'
+              and s.accepted_rights_declaration_id is not null
+              and s.accepted_creative_process_disclosure_id is not null
               and s.accepted_provenance_record_id is not null
           )
       ) as missing_review

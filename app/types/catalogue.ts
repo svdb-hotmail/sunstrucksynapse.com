@@ -77,6 +77,7 @@ export interface QueueEntry {
   itemId: CatalogueItem["id"];
   title: string;
   subtitle: string;
+  collectionId?: string;
 }
 
 export interface Offering {
@@ -90,8 +91,8 @@ export interface PlayerOutletContext {
   selectedItemId: CatalogueItem["id"] | null;
   catalogue: CatalogueLoadResult;
   selectItem: (item: CatalogueItem) => void;
-  queueItem: (item: CatalogueItem) => void;
-  playItem: (item: CatalogueItem) => void;
+  queueItem: (item: CatalogueItem, collectionId?: string) => void;
+  playItem: (item: CatalogueItem, collectionId?: string) => void;
 }
 
 export interface PublicArtist {

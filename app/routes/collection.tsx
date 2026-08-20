@@ -64,7 +64,7 @@ export default function CollectionRoute({ loaderData }: Route.ComponentProps) {
         </div>
         <ShareButton title={collection.name} url={canonicalUrl} collectionId={collection.id} />
       </div>
-      <EntityTrackList tracks={collection.items} player={player} />
+      <EntityTrackList tracks={collection.items} player={player} collectionId={collection.id} />
       <Link to="/">Back to catalogue</Link>
     </article>
   );

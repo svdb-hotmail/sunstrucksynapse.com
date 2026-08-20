@@ -6,7 +6,11 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import * as schema from "../../app/db/schema";
 import { submissionInvitations } from "../../app/db/schema";
 import { createSubmissionRepository } from "../../app/repositories/submissions.server";
-import { SubmissionEvidenceService } from "../../app/services/submission-evidence.server";
+import {
+  EVIDENCE_MAX_BYTE_SIZE,
+  SubmissionEvidenceService,
+  parseEvidenceDeclaration,
+} from "../../app/services/submission-evidence.server";
 import { sha256Hex } from "../../app/services/submission-security.server";
 import type { WorkerEnv } from "../../app/config/env.server";
 
@@ -209,6 +213,129 @@ describe("submission evidence service", () => {
   afterEach(async () => {
     await client.close();
   }, 30_000);
+
+  it("enforces the public evidence MIME allowlist and 20 MiB declaration boundary", () => {
+    expect(
+      parseEvidenceDeclaration({
+        filename: "boundary.txt",
+        mimeType: "text/plain",
+        checksumSha256: sha256Hex("boundary evidence"),
+        byteSize: EVIDENCE_MAX_BYTE_SIZE,
+      }),
+    ).toEqual({
+      ok: true,
+      value: {
+        filename: "boundary.txt",
+        mimeType: "text/plain",
+        checksumSha256: sha256Hex("boundary evidence"),
+        byteSize: EVIDENCE_MAX_BYTE_SIZE,
+      },
+    });
+
+    expect(
+      parseEvidenceDeclaration({
+        filename: "vector.svg",
+        mimeType: "image/svg+xml",
+        checksumSha256: sha256Hex("vector evidence"),
+        byteSize: 1,
+      }),
+    ).toEqual({
+      ok: false,
+      status: 400,
+      message: "Unsupported evidence MIME type.",
+    });
+
+    expect(
+      parseEvidenceDeclaration({
+        filename: "archive.zip",
+        mimeType: "application/zip",
+        checksumSha256: sha256Hex("archive evidence"),
+        byteSize: 1,
+      }),
+    ).toEqual({
+      ok: false,
+      status: 400,
+      message: "Unsupported evidence MIME type.",
+    });
+
+    expect(
+      parseEvidenceDeclaration({
+        filename: "oversize.pdf",
+        mimeType: "application/pdf",
+        checksumSha256: sha256Hex("oversize evidence"),
+        byteSize: EVIDENCE_MAX_BYTE_SIZE + 1,
+      }),
+    ).toEqual({
+      ok: false,
+      status: 413,
+      message: "Evidence exceeds the 20 MiB limit.",
+    });
+  });
+
+  it("rejects uploads from declared sessions that are unsupported or oversized", async () => {
+    const service = new SubmissionEvidenceService(
+      db as never,
+      repository,
+      env,
+      () => new Date("2026-08-16T12:00:00Z"),
+    );
+
+    const unsupported = await service.createSession(tokenHash, {
+      filename: "chain-of-title.svg",
+      mimeType: "image/svg+xml",
+      checksumSha256: sha256Hex("unsupported evidence"),
+      byteSize: 1,
+    });
+    expect(unsupported).not.toBeNull();
+    if (!unsupported) return;
+
+    await expect(
+      service.upload(
+        unsupported.id,
+        new Request("https://example.test/upload", {
+          method: "PUT",
+          headers: {
+            "content-type": "image/svg+xml",
+            "content-length": "1",
+          },
+          body: new Blob(["x"]).stream(),
+          duplex: "half",
+        } as RequestInit),
+      ),
+    ).resolves.toEqual({
+      ok: false,
+      status: 400,
+      message: "Unsupported evidence MIME type.",
+    });
+
+    const oversized = await service.createSession(tokenHash, {
+      filename: "too-big.pdf",
+      mimeType: "application/pdf",
+      checksumSha256: sha256Hex("oversized evidence"),
+      byteSize: EVIDENCE_MAX_BYTE_SIZE + 1,
+    });
+    expect(oversized).not.toBeNull();
+    if (!oversized) return;
+
+    await expect(
+      service.upload(
+        oversized.id,
+        new Request("https://example.test/upload", {
+          method: "PUT",
+          headers: {
+            "content-type": "application/pdf",
+            "content-length": String(EVIDENCE_MAX_BYTE_SIZE + 1),
+          },
+          body: new Blob(["x"]).stream(),
+          duplex: "half",
+        } as RequestInit),
+      ),
+    ).resolves.toEqual({
+      ok: false,
+      status: 413,
+      message: "Evidence exceeds the 20 MiB limit.",
+    });
+  });
 
   it("stores private evidence metadata, grants short-lived curator access, and never exposes object keys in repository summaries", async () => {
     const service = new SubmissionEvidenceService(

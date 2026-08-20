@@ -104,6 +104,7 @@ export default function App() {
   const [playbackRequest, setPlaybackRequest] = useState<{
     itemId: string;
     sequence: number;
+    collectionId?: string;
   } | null>(null);
   const [queue, setQueue] = useState<QueueEntry[]>([]);
   const selectedItem = player.selectedItemId
@@ -146,36 +147,43 @@ export default function App() {
     setPlaybackRequest(null);
   }, []);
 
-  const requestPlayback = useCallback((item: CatalogueItem, moveFocus = true) => {
-    userInteractedBeforeRestore.current = true;
-    setPlayer({ selectedItemId: item.id });
-    if (!item.media) {
-      setPlaybackRequest(null);
-      return;
-    }
-    playbackSequence.current += 1;
-    setPlaybackRequest({ itemId: item.id, sequence: playbackSequence.current });
-
-    if (!moveFocus) {
-      return;
-    }
-
-    window.requestAnimationFrame(() => {
-      const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      playerPanelRef.current?.scrollIntoView({
-        behavior: reducedMotion ? "auto" : "smooth",
-        block: "start",
+  const requestPlayback = useCallback(
+    (item: CatalogueItem, moveFocus = true, collectionId?: string) => {
+      userInteractedBeforeRestore.current = true;
+      setPlayer({ selectedItemId: item.id });
+      if (!item.media) {
+        setPlaybackRequest(null);
+        return;
+      }
+      playbackSequence.current += 1;
+      setPlaybackRequest({
+        itemId: item.id,
+        sequence: playbackSequence.current,
+        ...(collectionId !== undefined ? { collectionId } : {}),
       });
-      playerPanelRef.current?.focus({ preventScroll: true });
-    });
-  }, []);
+
+      if (!moveFocus) {
+        return;
+      }
+
+      window.requestAnimationFrame(() => {
+        const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        playerPanelRef.current?.scrollIntoView({
+          behavior: reducedMotion ? "auto" : "smooth",
+          block: "start",
+        });
+        playerPanelRef.current?.focus({ preventScroll: true });
+      });
+    },
+    [],
+  );
 
   const selectQueueEntry = useCallback(
     (entry: QueueEntry) => {
       const item = itemsById.get(entry.itemId);
       setQueue((current) => removeQueueItem(current, entry.itemId));
       if (item?.media) {
-        requestPlayback(item);
+        requestPlayback(item, true, entry.collectionId);
       } else if (item) {
         selectItem(item);
       }
@@ -190,7 +198,7 @@ export default function App() {
         const queuedItem = itemsById.get(nextQueued.itemId);
         setQueue((current) => removeQueueItem(current, nextQueued.itemId));
         if (queuedItem) {
-          requestPlayback(queuedItem, moveFocus);
+          requestPlayback(queuedItem, moveFocus, nextQueued.collectionId);
         }
         return;
       }
@@ -216,9 +224,9 @@ export default function App() {
     }
   }, [catalogueItems, requestPlayback, selectedItem]);
 
-  const queueItem = useCallback((item: CatalogueItem) => {
+  const queueItem = useCallback((item: CatalogueItem, collectionId?: string) => {
     userInteractedBeforeRestore.current = true;
-    setQueue((current) => addQueueItem(current, item));
+    setQueue((current) => addQueueItem(current, item, collectionId));
   }, []);
 
   const hasPrevious = selectedItem
@@ -233,7 +241,7 @@ export default function App() {
     catalogue,
     selectItem,
     queueItem,
-    playItem: requestPlayback,
+    playItem: (item, collectionId) => requestPlayback(item, true, collectionId),
   };
 
   return (

@@ -11,7 +11,10 @@ import {
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import type { SubmissionDraftInput } from "~/repositories/submissions.server";
 import {
+  EVIDENCE_MAX_BYTE_SIZE,
   SubmissionEvidenceService,
+  isSupportedEvidenceMimeType,
+  normalizeEvidenceMimeType,
   parseEvidenceDeclaration,
 } from "~/services/submission-evidence.server";
 import { sha256Hex } from "~/services/submission-security.server";
@@ -409,9 +412,16 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     if (!(file instanceof File) || file.size === 0) {
       return Response.json({ error: "Choose an evidence file." }, { status: 400 });
     }
+    const mimeType = normalizeEvidenceMimeType(file.type);
+    if (!isSupportedEvidenceMimeType(mimeType)) {
+      return Response.json({ error: "Unsupported evidence MIME type." }, { status: 400 });
+    }
+    if (file.size > EVIDENCE_MAX_BYTE_SIZE) {
+      return Response.json({ error: "Evidence exceeds the 20 MiB limit." }, { status: 413 });
+    }
     const declaration = parseEvidenceDeclaration({
       filename: file.name,
-      mimeType: file.type || "application/octet-stream",
+      mimeType,
       checksumSha256: await computeBlobSha256(file),
       byteSize: file.size,
     });

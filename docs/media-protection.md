@@ -21,6 +21,14 @@ Sessions expire after one hour. Upload verifies type, size, and checksum. Comple
 
 Submission evidence uses the private `private/evidence/` namespace inside R2. The application stores metadata, checksum, upload status, malware-review status, and audit records in PostgreSQL, but public catalogue payloads and disclosure pages never serialize evidence object keys or URLs.
 
+Private evidence policy:
+
+- Maximum upload size: 20 MiB per file.
+- Allowed MIME types: `text/plain`, `application/pdf`, `image/jpeg`, `image/png`, `image/webp`, `audio/mpeg`, `audio/wav`, `audio/ogg`.
+- SVG, archive formats, and any MIME type outside the allowlist are rejected.
+- The submission route validates file type and size before hashing.
+- The declared upload session enforces the same MIME and size constraints before accepting bytes.
+
 Curators may mint short-lived access links for specific evidence files. Each grant and each successful read is audited. Evidence defaults to `pending_review`; manual review may mark it `cleared`, `quarantined`, or `rejected`. Quarantined or rejected files are excluded from the short-lived access flow.
 
 Retention remains conservative and explicit: evidence is retained privately for review and audit purposes until a curator schedules deletion. Suspicious files require manual quarantine handling rather than any automated "clean" claim.

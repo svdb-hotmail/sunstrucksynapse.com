@@ -10,7 +10,7 @@ import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
 interface PlayerPanelProps {
   item: CatalogueItem | null;
   queue: QueueEntry[];
-  playbackRequest: { itemId: string; sequence: number } | null;
+  playbackRequest: { itemId: string; sequence: number; collectionId?: string } | null;
   onClearQueue: () => void;
   onSelectQueueEntry: (entry: QueueEntry) => void;
   onRemoveQueueEntry: (itemId: string) => void;
@@ -38,7 +38,13 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   ref,
 ) {
   const mediaRef = useRef<HTMLMediaElement>(null);
-  const trackedPlayback = useRef({
+  const trackedPlayback = useRef<{
+    itemId: string | null;
+    collectionId?: string;
+    started: boolean;
+    thirtySeconds: boolean;
+    completed: boolean;
+  }>({
     itemId: item?.id ?? null,
     started: false,
     thirtySeconds: false,
@@ -76,6 +82,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     if (tracked.itemId && tracked.itemId !== item?.id && tracked.started && !tracked.completed) {
       recordPlaybackEvent("skip", {
         trackId: tracked.itemId,
+        ...(tracked.collectionId !== undefined ? { collectionId: tracked.collectionId } : {}),
         progressSeconds: Math.floor(mediaRef.current?.currentTime ?? 0),
       });
     }
@@ -89,7 +96,11 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     }
     coordinator.selectItem(item);
     if (playbackRequest?.itemId === item?.id && item) {
-      recordPlaybackEvent("play_requested", { trackId: item.id });
+      trackedPlayback.current.collectionId = playbackRequest.collectionId;
+      recordPlaybackEvent("play_requested", {
+        trackId: item.id,
+        ...(playbackRequest.collectionId !== undefined ? { collectionId: playbackRequest.collectionId } : {}),
+      });
       void coordinator.playRequested(item);
     }
   }, [coordinator, item, playbackRequest]);
@@ -98,11 +109,17 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     const tracked = trackedPlayback.current;
     if (item) {
       if (tracked.completed) {
-        recordPlaybackEvent("replay", { trackId: item.id });
+        recordPlaybackEvent("replay", {
+          trackId: item.id,
+          ...(tracked.collectionId !== undefined ? { collectionId: tracked.collectionId } : {}),
+        });
         tracked.completed = false;
         tracked.thirtySeconds = false;
       } else if (!tracked.started) {
-        recordPlaybackEvent("playback_started", { trackId: item.id });
+        recordPlaybackEvent("playback_started", {
+          trackId: item.id,
+          ...(tracked.collectionId !== undefined ? { collectionId: tracked.collectionId } : {}),
+        });
       }
       tracked.started = true;
     }
@@ -116,6 +133,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       tracked.thirtySeconds = true;
       recordPlaybackEvent("listen_30_seconds", {
         trackId: item.id,
+        ...(tracked.collectionId !== undefined ? { collectionId: tracked.collectionId } : {}),
         progressSeconds: 30,
       });
     }
@@ -126,6 +144,9 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       trackedPlayback.current.completed = true;
       recordPlaybackEvent("completion", {
         trackId: item.id,
+        ...(trackedPlayback.current.collectionId !== undefined
+          ? { collectionId: trackedPlayback.current.collectionId }
+          : {}),
         progressSeconds: Math.floor(mediaRef.current?.duration ?? 0),
       });
     }
@@ -220,7 +241,13 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     onError: () => {
       setIsLoading(false);
       setPlaybackError("This preview could not be loaded. Check your connection and retry.");
-      if (item) recordPlaybackEvent("playback_error", { trackId: item.id });
+      if (item) {
+        const tracked = trackedPlayback.current;
+        recordPlaybackEvent("playback_error", {
+          trackId: item.id,
+          ...(tracked.collectionId !== undefined ? { collectionId: tracked.collectionId } : {}),
+        });
+      }
     },
   };
   const activeMediaSrc =
