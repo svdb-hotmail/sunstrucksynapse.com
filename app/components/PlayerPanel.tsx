@@ -95,16 +95,17 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       };
     }
     coordinator.selectItem(item);
-    if (playbackRequest?.itemId === item?.id && item) {
-      trackedPlayback.current.collectionId = playbackRequest.collectionId;
-      recordPlaybackEvent("play_requested", {
-        trackId: item.id,
-        ...(playbackRequest.collectionId !== undefined
-          ? { collectionId: playbackRequest.collectionId }
-          : {}),
-      });
-      void coordinator.playRequested(item);
+    if (!item || !playbackRequest || playbackRequest.itemId !== item.id) {
+      return;
     }
+    trackedPlayback.current.collectionId = playbackRequest.collectionId;
+    recordPlaybackEvent("play_requested", {
+      trackId: item.id,
+      ...(playbackRequest.collectionId !== undefined
+        ? { collectionId: playbackRequest.collectionId }
+        : {}),
+    });
+    void coordinator.playRequested(item);
   }, [coordinator, item, playbackRequest]);
 
   const handlePlay = () => {
