@@ -99,7 +99,9 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       trackedPlayback.current.collectionId = playbackRequest.collectionId;
       recordPlaybackEvent("play_requested", {
         trackId: item.id,
-        ...(playbackRequest.collectionId !== undefined ? { collectionId: playbackRequest.collectionId } : {}),
+        ...(playbackRequest.collectionId !== undefined
+          ? { collectionId: playbackRequest.collectionId }
+          : {}),
       });
       void coordinator.playRequested(item);
     }

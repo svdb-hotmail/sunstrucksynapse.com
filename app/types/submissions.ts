@@ -99,11 +99,7 @@ export interface SubmissionProvenanceStep {
 export interface SubmissionProvenanceSource {
   position: number;
   sourceType:
-    | "original_recording"
-    | "licensed_material"
-    | "public_domain"
-    | "generated_material"
-    | "other";
+    "original_recording" | "licensed_material" | "public_domain" | "generated_material" | "other";
   reference: string;
   rightsContext: string | null;
 }

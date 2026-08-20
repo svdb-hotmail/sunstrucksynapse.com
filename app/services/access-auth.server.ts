@@ -4,8 +4,7 @@ import type { WorkerEnv } from "~/config/env.server";
 import type { CuratorIdentity } from "~/types/curator";
 
 export type AuthResult =
-  | { ok: true; identity: CuratorIdentity }
-  | { ok: false; response: Response };
+  { ok: true; identity: CuratorIdentity } | { ok: false; response: Response };
 
 const TEST_IDENTITY_HEADER = "x-test-curator-identity";
 const jwksByIssuer = new Map<string, ReturnType<typeof createRemoteJWKSet>>();

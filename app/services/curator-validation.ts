@@ -1,8 +1,7 @@
 export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 export type ValidationResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; fieldErrors: Readonly<Record<string, string>> };
+  { ok: true; value: T } | { ok: false; fieldErrors: Readonly<Record<string, string>> };
 
 export interface CatalogueForm {
   slug: string;

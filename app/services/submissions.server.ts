@@ -15,15 +15,10 @@ import type { SubmissionStatus } from "~/types/submissions";
 import type { TransactionalEmailService } from "./transactional-email.server";
 
 export type SubmissionErrorCode =
-  | "invalid"
-  | "not_found"
-  | "conflict"
-  | "forbidden"
-  | "transition_conflict";
+  "invalid" | "not_found" | "conflict" | "forbidden" | "transition_conflict";
 
 export type SubmissionResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; error: { code: SubmissionErrorCode; message: string } };
+  { ok: true; value: T } | { ok: false; error: { code: SubmissionErrorCode; message: string } };
 
 export function submissionHttpStatus(code: SubmissionErrorCode): number {
   switch (code) {
