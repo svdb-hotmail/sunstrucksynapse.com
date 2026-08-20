@@ -96,14 +96,15 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     }
     coordinator.selectItem(item);
     const request = playbackRequest;
-    if (request && request.itemId === item?.id && item) {
-      trackedPlayback.current.collectionId = request.collectionId;
-      recordPlaybackEvent("play_requested", {
-        trackId: item.id,
-        ...(request.collectionId !== undefined ? { collectionId: request.collectionId } : {}),
-      });
-      void coordinator.playRequested(item);
+    if (!item || !request || request.itemId !== item.id) {
+      return;
     }
+    trackedPlayback.current.collectionId = request.collectionId;
+    recordPlaybackEvent("play_requested", {
+      trackId: item.id,
+      ...(request.collectionId !== undefined ? { collectionId: request.collectionId } : {}),
+    });
+    void coordinator.playRequested(item);
   }, [coordinator, item, playbackRequest]);
 
   const handlePlay = () => {
