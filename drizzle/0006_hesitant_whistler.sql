@@ -145,11 +145,15 @@ ALTER TABLE "submissions" ADD COLUMN "rejection_reason" text;--> statement-break
 ALTER TABLE "submissions" ADD COLUMN "accepted_rights_declaration_id" uuid;--> statement-breakpoint
 ALTER TABLE "submissions" ADD COLUMN "accepted_creative_process_disclosure_id" uuid;--> statement-breakpoint
 ALTER TABLE "submissions" ADD COLUMN "accepted_provenance_record_id" uuid;--> statement-breakpoint
+-- This one-time legacy key normalization must update accepted evidence created before Phase 3.
+-- Re-enable the draft-only trigger immediately so the invariant remains enforced after migration.
+ALTER TABLE "provenance_evidence" DISABLE TRIGGER "provenance_evidence_require_draft";--> statement-breakpoint
 UPDATE "provenance_evidence"
 SET
 	"object_key" = regexp_replace("object_key", '^evidence/private/', 'private/evidence/'),
 	"original_filename" = split_part("object_key", '/', array_length(string_to_array("object_key", '/'), 1))
 WHERE "object_key" like 'evidence/private/%';--> statement-breakpoint
+ALTER TABLE "provenance_evidence" ENABLE TRIGGER "provenance_evidence_require_draft";--> statement-breakpoint
 INSERT INTO "submission_invitations" (
 	"id",
 	"public_reference",
@@ -161,7 +165,7 @@ INSERT INTO "submission_invitations" (
 )
 SELECT
 	gen_random_uuid(),
-	'INV-' || upper(substr(replace(s."id"::text, '-', ''), 1, 12)),
+	'INV-' || upper(replace(s."id"::text, '-', '')),
 	repeat(md5(s."id"::text), 2),
 	s."submitter_name",
 	s."submitter_email",
@@ -220,8 +224,57 @@ SET
 		'lastIpHash', null
 	)
 FROM "submission_invitations" i
-WHERE i."public_reference" = 'INV-' || upper(substr(replace(s."id"::text, '-', ''), 1, 12))
+WHERE i."public_reference" = 'INV-' || upper(replace(s."id"::text, '-', ''))
   AND s."invitation_id" is null;--> statement-breakpoint
+-- Preserve legacy accepted submissions whose detailed Phase 3 declarations were never recorded.
+-- These final records deliberately disclose that the original detail is unavailable.
+INSERT INTO "creative_process_disclosures" (
+	"submission_id", "version", "status", "revision_author_role", "revision_author_name",
+	"revision_author_email", "revision_reason", "ai_used", "meaningful_human_contribution",
+	"tools_and_systems", "human_roles", "ai_tools", "artist_summary", "finalized_at"
+)
+SELECT
+	s."id", 1, 'draft'::"versioned_record_status", 'submitter'::"submission_actor_role",
+	COALESCE(NULLIF(btrim(s."submitter_name"), ''), 'Legacy submitter'),
+	COALESCE(NULLIF(btrim(s."submitter_email"), ''), 'legacy@example.invalid'),
+	'Phase 3 legacy acceptance backfill', false,
+	'Legacy accepted submission; detailed contribution declaration was not recorded.',
+	'{}'::text[], '[]'::jsonb, '[]'::jsonb,
+	'Legacy accepted submission; detailed creative-process declaration unavailable.',
+	NULL
+FROM "submissions" s
+WHERE s."status" = 'accepted'
+  AND NOT EXISTS (
+	SELECT 1 FROM "creative_process_disclosures" c WHERE c."submission_id" = s."id"
+  );--> statement-breakpoint
+INSERT INTO "provenance_records" (
+	"submission_id", "version", "status", "revision_author_role", "revision_author_name",
+	"revision_author_email", "revision_reason", "summary", "finalized_at"
+)
+SELECT
+	s."id", 1, 'draft'::"versioned_record_status", 'submitter'::"submission_actor_role",
+	COALESCE(NULLIF(btrim(s."submitter_name"), ''), 'Legacy submitter'),
+	COALESCE(NULLIF(btrim(s."submitter_email"), ''), 'legacy@example.invalid'),
+	'Phase 3 legacy acceptance backfill',
+	'Legacy accepted submission; detailed provenance declaration unavailable.',
+	NULL
+FROM "submissions" s
+WHERE s."status" = 'accepted'
+  AND NOT EXISTS (
+	SELECT 1 FROM "provenance_records" p WHERE p."submission_id" = s."id"
+  );--> statement-breakpoint
+UPDATE "creative_process_disclosures" c
+SET "status" = 'finalized', "finalized_at" = COALESCE(s."accepted_at", s."reviewed_at", s."updated_at", s."created_at", now())
+FROM "submissions" s
+WHERE c."submission_id" = s."id"
+  AND c."revision_reason" = 'Phase 3 legacy acceptance backfill'
+  AND c."status" = 'draft';--> statement-breakpoint
+UPDATE "provenance_records" p
+SET "status" = 'finalized', "finalized_at" = COALESCE(s."accepted_at", s."reviewed_at", s."updated_at", s."created_at", now())
+FROM "submissions" s
+WHERE p."submission_id" = s."id"
+  AND p."revision_reason" = 'Phase 3 legacy acceptance backfill'
+  AND p."status" = 'draft';--> statement-breakpoint
 UPDATE "submissions" s
 SET
 	"accepted_rights_declaration_id" = (
@@ -302,7 +355,7 @@ ALTER TABLE "submissions" ADD CONSTRAINT "submissions_acceptance_pins_check" CHE
         and "submissions"."accepted_creative_process_disclosure_id" is not null
         and "submissions"."accepted_provenance_record_id" is not null
       ));--> statement-breakpoint
-ALTER TABLE "submissions" ADD CONSTRAINT "submissions_reviewed_timestamp_check" CHECK ("submissions"."status" not in ('eligibility_review', 'listening', 'clarification_requested', 'accepted', 'rejected') or "submissions"."reviewed_at" is not null);--> statement-breakpoint
+ALTER TABLE "submissions" ADD CONSTRAINT "submissions_reviewed_timestamp_check" CHECK ("submissions"."status"::text not in ('eligibility_review', 'listening', 'clarification_requested', 'accepted', 'rejected') or "submissions"."reviewed_at" is not null);--> statement-breakpoint
 CREATE TRIGGER "submission_invitations_set_updated_at" BEFORE UPDATE ON "submission_invitations"
 FOR EACH ROW EXECUTE FUNCTION "set_updated_at"();--> statement-breakpoint
 CREATE TRIGGER "evidence_upload_sessions_set_updated_at" BEFORE UPDATE ON "evidence_upload_sessions"
