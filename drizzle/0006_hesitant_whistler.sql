@@ -302,7 +302,7 @@ ALTER TABLE "submissions" ADD CONSTRAINT "submissions_acceptance_pins_check" CHE
         and "submissions"."accepted_creative_process_disclosure_id" is not null
         and "submissions"."accepted_provenance_record_id" is not null
       ));--> statement-breakpoint
-ALTER TABLE "submissions" ADD CONSTRAINT "submissions_reviewed_timestamp_check" CHECK ("submissions"."status" not in ('eligibility_review', 'listening', 'clarification_requested', 'accepted', 'rejected') or "submissions"."reviewed_at" is not null);--> statement-breakpoint
+ALTER TABLE "submissions" ADD CONSTRAINT "submissions_reviewed_timestamp_check" CHECK ("submissions"."status"::text not in ('eligibility_review', 'listening', 'clarification_requested', 'accepted', 'rejected') or "submissions"."reviewed_at" is not null);--> statement-breakpoint
 CREATE TRIGGER "submission_invitations_set_updated_at" BEFORE UPDATE ON "submission_invitations"
 FOR EACH ROW EXECUTE FUNCTION "set_updated_at"();--> statement-breakpoint
 CREATE TRIGGER "evidence_upload_sessions_set_updated_at" BEFORE UPDATE ON "evidence_upload_sessions"
