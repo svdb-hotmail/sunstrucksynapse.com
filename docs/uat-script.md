@@ -10,7 +10,8 @@ Use this script against a production-like deployment with real, rights-cleared c
 - [ ] Prepare at least 10 reviewed artists, 30 reviewed tracks, and five published collections.
 - [ ] Confirm `npm run catalogue:audit` reports zero missing metadata, media, artwork, and review records.
 - [ ] Prepare one invited submitter, one Cloudflare Access curator, and 20-50 invited listeners.
-- [ ] Prepare one supported desktop browser, one Android browser, one iOS browser, and one native assistive-technology setup.
+- [ ] Prepare desktop Chrome or Edge, Firefox, and Safari/WebKit; Android Chromium; and iOS Safari/WebKit.
+- [ ] Prepare native assistive-technology environments for VoiceOver, TalkBack, and NVDA.
 
 ## 2. Public catalogue and discovery
 
