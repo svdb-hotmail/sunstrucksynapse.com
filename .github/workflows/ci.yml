@@ -40,6 +40,21 @@ jobs:
           node-version: 22.22.0
           cache: npm
 
+      - name: Install dependencies for formatting
+        run: npm ci --no-audit --no-fund
+
+      - name: Format UAT change candidates
+        run: npx prettier --write docs/uat-script.md scripts/generate-uat-report.ts tests/unit/generate-uat-report.test.ts
+
+      - name: Upload formatted UAT change candidates
+        uses: actions/upload-artifact@v4
+        with:
+          name: uat-prettier-output
+          path: |
+            docs/uat-script.md
+            scripts/generate-uat-report.ts
+            tests/unit/generate-uat-report.test.ts
+
       - name: Run Village quality gate
         run: bash .github/scripts/village-ci.sh
 
