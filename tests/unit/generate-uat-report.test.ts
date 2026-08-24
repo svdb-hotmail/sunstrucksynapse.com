@@ -141,7 +141,7 @@ describe("generate-uat-report CLI", () => {
     expect(markdown).toContain("UAT-CAT-02_\\[cover\\]\\#1_annotated\\.png");
     expect(markdown).toContain("%23");
     expect(markdown).toContain("metric\\`name.txt");
-    expect(markdown).toContain("\"starts\":99");
+    expect(markdown).toContain('"starts":99');
 
     expect(html).toContain("Sunstruck Synapse UAT Report");
     expect(html).toContain("Chieftain recommendation");

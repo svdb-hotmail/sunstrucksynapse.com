@@ -338,9 +338,7 @@ function parseResultRecords(results: string): ResultRecord[] {
     if (id) currentTestId = id;
     if (!currentTestId) continue;
     const match =
-      /(?:^|\s)(?:\*\*)?Status(?:\*\*)?\s*:\s*(PASS|FAIL|BLOCKED|DEFERRED|NOT_RUN)\b/i.exec(
-        line,
-      );
+      /(?:^|\s)(?:\*\*)?Status(?:\*\*)?\s*:\s*(PASS|FAIL|BLOCKED|DEFERRED|NOT_RUN)\b/i.exec(line);
     if (match?.[1]) {
       byTestId.set(currentTestId, {
         id: currentTestId,
@@ -625,10 +623,7 @@ function buildHtml(options: {
     evidenceFiles.length === 0
       ? '<p class="empty">No supporting evidence files were found.</p>'
       : `<ul>${evidenceFiles
-          .map(
-            (path) =>
-              `<li>${escapeHtml(displayPath(relativePortable(runDir, path)))}</li>`,
-          )
+          .map((path) => `<li>${escapeHtml(displayPath(relativePortable(runDir, path)))}</li>`)
           .join("")}</ul>`;
 
   return `<!doctype html>
@@ -723,7 +718,10 @@ function buildHtml(options: {
 </html>`;
 }
 
-function validateReportSources(inputs: ReportInputs, resultRecords: ResultRecord[]): {
+function validateReportSources(
+  inputs: ReportInputs,
+  resultRecords: ResultRecord[],
+): {
   executiveSummary: string;
   reentryPlan: string;
 } {
@@ -827,11 +825,7 @@ async function main(): Promise<void> {
   };
 
   const markdownPath = join(reportDir, "uat-report.md");
-  await writeFile(
-    markdownPath,
-    buildReportMarkdown({ ...common, reportDir, screenshots }),
-    "utf8",
-  );
+  await writeFile(markdownPath, buildReportMarkdown({ ...common, reportDir, screenshots }), "utf8");
   const htmlPath = join(reportDir, "uat-report.html");
   await writeFile(
     htmlPath,
