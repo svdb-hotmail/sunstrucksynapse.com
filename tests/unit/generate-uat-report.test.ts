@@ -23,8 +23,14 @@ async function makeRun(): Promise<string> {
       "**Run ID:** 2026-08-24_deadbee_test",
       "**Deployment URL/environment:** https://example.test",
       "**Candidate commit SHA:** deadbeef",
-      "**DevAI recommendation:** ITERATE",
+      "**Chieftain recommendation:** ITERATE",
+      "**Shaman / Warden acceptance evidence:** quality gate pending",
       "**Human maintainer decision:** STOP",
+      "**Known residual risk / follow-up:** artwork retest required",
+      "",
+      "## Executive summary",
+      "",
+      "Catalogue navigation worked, while public artwork inheritance failed and one playback test remains unexecuted.",
     ].join("\n"),
     "utf8",
   );
@@ -43,7 +49,7 @@ async function makeRun(): Promise<string> {
       "| ID | Status | Observed |",
       "| --- | --- | --- |",
       "| UAT-CAT-01 | PASS | Catalogue loaded |",
-      "| UAT-CAT-02 | FAIL | Fallback artwork shown |",
+      "| UAT-CAT-02 | FAIL | Expected PASS artwork state was absent |",
       "| UAT-PB-01 | NOT_RUN | Not attempted |",
     ].join("\n"),
     "utf8",
@@ -54,13 +60,17 @@ async function makeRun(): Promise<string> {
     [
       "# Findings",
       "",
-      "## UAT-F001 — Public track artwork fallback",
+      "## UAT-F001 - Public track artwork fallback",
       "",
       "**Severity:** High",
       "**Type:** DEFECT",
       "**Next increment classification:** FIX",
       "**Definition of resolved:** Public track surfaces inherit the publishable release cover when no track-specific cover exists.",
       "**Acceptance criteria for retest:** UAT-CAT-02 shows the intended cover without duplicate upload.",
+      "",
+      "## Re-entry and regression plan",
+      "",
+      "- Retest UAT-CAT-02 and UAT-PB-01 after the next candidate is deployed.",
     ].join("\n"),
     "utf8",
   );
@@ -71,12 +81,12 @@ async function makeRun(): Promise<string> {
   );
   await writeFile(join(runDir, "screenshots", "raw", "UAT-CAT-02_01_cover_raw.png"), onePixelPng);
   await writeFile(
-    join(runDir, "screenshots", "annotated", "UAT-CAT-02_01_cover_annotated.png"),
+    join(runDir, "screenshots", "annotated", "UAT-CAT-02_[cover]_annotated.png"),
     onePixelPng,
   );
   await writeFile(
     join(runDir, "evidence", "metrics", "playback-summary.json"),
-    JSON.stringify({ attempts: 0 }),
+    JSON.stringify({ attempts: 100, starts: 99, medianStartMs: 920 }),
     "utf8",
   );
 
@@ -103,7 +113,7 @@ afterEach(async () => {
 });
 
 describe("generate-uat-report CLI", () => {
-  it("renders deterministic Markdown and self-contained HTML from a UAT run", async () => {
+  it("renders governed, contract-complete Markdown and self-contained HTML", async () => {
     const runDir = await makeRun();
     const result = runGenerator(runDir);
 
@@ -113,15 +123,24 @@ describe("generate-uat-report CLI", () => {
     const markdown = await readFile(join(reportDir, "uat-report.md"), "utf8");
     const html = await readFile(join(reportDir, "uat-report.html"), "utf8");
 
+    expect(markdown).toContain("**Run ID:** 2026-08-24_deadbee_test");
     expect(markdown).toContain("| PASS | 1 |");
     expect(markdown).toContain("| FAIL | 1 |");
     expect(markdown).toContain("| NOT_RUN | 1 |");
+    expect(markdown).toContain("## Executive summary");
+    expect(markdown).toContain("## Metrics and report-safe supporting evidence");
+    expect(markdown).toContain("## Unexecuted / blocked / deferred coverage");
+    expect(markdown).toContain("## Re-entry and regression plan");
+    expect(markdown).toContain("## Decision record");
     expect(markdown).toContain("UAT-F001");
-    expect(markdown).toContain("UAT-CAT-02_01_cover_annotated.png");
+    expect(markdown).toContain("UAT-CAT-02_\\[cover\\]_annotated\\.png");
+    expect(markdown).toContain("\"starts\":99");
 
     expect(html).toContain("Sunstruck Synapse UAT Report");
+    expect(html).toContain("Chieftain recommendation");
     expect(html).toContain("data:image/png;base64,");
     expect(html).toContain("UAT-F001");
+    expect(html).toContain("medianStartMs");
     expect(html).toContain("screenshots/raw/UAT-CAT-02_01_cover_raw.png");
     expect(html).not.toContain("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC</code>");
   });
@@ -134,5 +153,15 @@ describe("generate-uat-report CLI", () => {
 
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain("missing required ledger file(s): findings.md");
+  });
+
+  it("refuses to generate when a mandatory report source section is missing", async () => {
+    const runDir = await makeRun();
+    await writeFile(join(runDir, "findings.md"), "# Findings\n\nNo re-entry plan.\n", "utf8");
+
+    const result = runGenerator(runDir);
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain("findings.md -> Re-entry and regression plan");
   });
 });
