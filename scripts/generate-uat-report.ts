@@ -1,4 +1,4 @@
-import { access, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises";
 import { basename, extname, join, relative, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -6,6 +6,9 @@ import { chromium, type Browser } from "@playwright/test";
 
 const REQUIRED_LEDGER_FILES = ["run.md", "notes.md", "results.md", "findings.md"] as const;
 const RESULT_STATUSES = ["PASS", "FAIL", "BLOCKED", "DEFERRED", "NOT_RUN"] as const;
+const REPORT_SAFE_TEXT_EXTENSIONS = new Set([".txt", ".md", ".json", ".csv", ".log"]);
+const MAX_EMBEDDED_EVIDENCE_BYTES = 128 * 1024;
+
 type ResultStatus = (typeof RESULT_STATUSES)[number];
 
 type ReportInputs = {
@@ -17,12 +20,25 @@ type ReportInputs = {
 
 type StatusSummary = Record<ResultStatus, number>;
 
+type ResultRecord = {
+  id: string;
+  status: ResultStatus;
+  sourceLine: string;
+};
+
 type ReportMetadata = {
   runId: string;
   environment: string;
   candidate: string;
   humanDecision: string;
-  devAiRecommendation: string;
+  chieftainRecommendation: string;
+  shamanWardenEvidence: string;
+  acceptedRisk: string;
+};
+
+type EmbeddedEvidence = {
+  relativePath: string;
+  content: string;
 };
 
 function usage(): void {
@@ -41,6 +57,14 @@ function escapeHtml(value: string): string {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function escapeMarkdownText(value: string): string {
+  return value.replace(/([\\`*_[\]{}()<>#+.!|\-])/g, "\\$1");
+}
+
+function markdownLinkTarget(value: string): string {
+  return encodeURI(value).replaceAll("(", "%28").replaceAll(")", "%29");
 }
 
 function renderInline(value: string): string {
@@ -224,41 +248,116 @@ function relativePortable(from: string, to: string): string {
 }
 
 function extractField(markdown: string, label: string): string {
-  const pattern = new RegExp(
-    `^\\s*(?:[-*]\\s*)?(?:\\*\\*)?${escapeRegExp(label)}(?:\\*\\*)?\\s*:\\s*(.+?)\\s*$`,
-    "im",
-  );
-  const match = pattern.exec(markdown);
-  return match?.[1]?.replace(/^`|`$/g, "").trim() ?? "Not recorded";
+  const escapedLabel = escapeRegExp(label);
+  const patterns = [
+    new RegExp(`^\\s*(?:[-*]\\s*)?\\*\\*${escapedLabel}:\\*\\*\\s*(.+?)\\s*$`, "im"),
+    new RegExp(`^\\s*(?:[-*]\\s*)?\\*\\*${escapedLabel}\\*\\*\\s*:\\s*(.+?)\\s*$`, "im"),
+    new RegExp(`^\\s*(?:[-*]\\s*)?${escapedLabel}\\s*:\\s*(.+?)\\s*$`, "im"),
+  ];
+  for (const pattern of patterns) {
+    const match = pattern.exec(markdown);
+    if (match?.[1]) return match[1].replace(/^`|`$/g, "").trim();
+  }
+  return "Not recorded";
+}
+
+function extractSection(markdown: string, acceptedHeadings: string[]): string | null {
+  const lines = markdown.replaceAll("\r\n", "\n").split("\n");
+  for (let index = 0; index < lines.length; index += 1) {
+    const match = /^(#{1,6})\s+(.+?)\s*$/.exec(lines[index] ?? "");
+    if (!match) continue;
+    const heading = (match[2] ?? "").replace(/[*_`]/g, "").trim().toLowerCase();
+    if (!acceptedHeadings.some((candidate) => heading === candidate.toLowerCase())) continue;
+    const level = match[1]?.length ?? 6;
+    const body: string[] = [];
+    for (let cursor = index + 1; cursor < lines.length; cursor += 1) {
+      const nextHeading = /^(#{1,6})\s+/.exec(lines[cursor] ?? "");
+      if (nextHeading && (nextHeading[1]?.length ?? 7) <= level) break;
+      body.push(lines[cursor] ?? "");
+    }
+    return body.join("\n").trim();
+  }
+  return null;
 }
 
 function metadataFrom(inputs: ReportInputs): ReportMetadata {
   const combined = `${inputs.run}\n${inputs.results}\n${inputs.findings}`;
   const deployment = extractField(inputs.run, "Deployment URL/environment");
   const candidate = extractField(inputs.run, "Candidate commit SHA");
+  const chieftain = extractField(combined, "Chieftain recommendation");
   return {
     runId: extractField(inputs.run, "Run ID"),
     environment:
       deployment === "Not recorded" ? extractField(inputs.run, "Environment") : deployment,
     candidate: candidate === "Not recorded" ? extractField(inputs.run, "Candidate") : candidate,
     humanDecision: extractField(combined, "Human maintainer decision"),
-    devAiRecommendation: extractField(combined, "DevAI recommendation"),
+    chieftainRecommendation:
+      chieftain === "Not recorded" ? extractField(combined, "DevAI recommendation") : chieftain,
+    shamanWardenEvidence: extractField(combined, "Shaman / Warden acceptance evidence"),
+    acceptedRisk: extractField(combined, "Known residual risk / follow-up"),
   };
 }
 
-function extractStatusSummary(results: string): StatusSummary {
-  const byTestId = new Map<string, ResultStatus>();
-  for (const line of results.split(/\r?\n/)) {
-    const id = /\bUAT-[A-Z0-9-]+\b/i.exec(line)?.[0]?.toUpperCase();
-    if (!id) continue;
-    const status = RESULT_STATUSES.find((candidate) =>
-      new RegExp(`\\b${candidate}\\b`, "i").test(line),
+function parseResultRecords(results: string): ResultRecord[] {
+  const lines = results.replaceAll("\r\n", "\n").split("\n");
+  const byTestId = new Map<string, ResultRecord>();
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index] ?? "";
+    if (
+      !line.trim().startsWith("|") ||
+      index + 1 >= lines.length ||
+      !isTableDivider(lines[index + 1] ?? "")
+    ) {
+      continue;
+    }
+
+    const headers = splitTableRow(line).map((cell) =>
+      cell.replace(/[*_`]/g, "").trim().toLowerCase(),
     );
-    if (status) byTestId.set(id, status);
+    const statusIndex = headers.findIndex((cell) => cell === "status" || cell === "result");
+    const testIndex = headers.findIndex(
+      (cell) => cell === "test" || cell === "test id" || cell === "uat id" || cell === "id",
+    );
+    if (statusIndex < 0 || testIndex < 0) continue;
+
+    index += 2;
+    while (index < lines.length && (lines[index] ?? "").trim().startsWith("|")) {
+      const cells = splitTableRow(lines[index] ?? "");
+      const id = /\bUAT-[A-Z0-9-]+\b/i.exec(cells[testIndex] ?? "")?.[0]?.toUpperCase();
+      const status = (cells[statusIndex] ?? "").replace(/[*_`]/g, "").trim().toUpperCase();
+      if (id && RESULT_STATUSES.includes(status as ResultStatus)) {
+        byTestId.set(id, { id, status: status as ResultStatus, sourceLine: lines[index] ?? "" });
+      }
+      index += 1;
+    }
+    index -= 1;
   }
 
+  let currentTestId: string | null = null;
+  for (const line of lines) {
+    const id = /\bUAT-[A-Z0-9-]+\b/i.exec(line)?.[0]?.toUpperCase();
+    if (id) currentTestId = id;
+    if (!currentTestId) continue;
+    const match =
+      /(?:^|\s)(?:\*\*)?Status(?:\*\*)?\s*:\s*(PASS|FAIL|BLOCKED|DEFERRED|NOT_RUN)\b/i.exec(
+        line,
+      );
+    if (match?.[1]) {
+      byTestId.set(currentTestId, {
+        id: currentTestId,
+        status: match[1].toUpperCase() as ResultStatus,
+        sourceLine: line,
+      });
+    }
+  }
+
+  return [...byTestId.values()];
+}
+
+function statusSummaryFromRecords(records: ResultRecord[]): StatusSummary {
   const summary = Object.fromEntries(RESULT_STATUSES.map((status) => [status, 0])) as StatusSummary;
-  for (const status of byTestId.values()) summary[status] += 1;
+  for (const record of records) summary[record.status] += 1;
   return summary;
 }
 
@@ -302,19 +401,91 @@ function screenshotMarkdown(reportDir: string, screenshots: string[]): string {
   }
   return screenshots
     .map((path) => {
-      const target = relativePortable(reportDir, path);
-      return `### ${basename(path)}\n\n![Annotated UAT evidence: ${basename(path)}](${target})`;
+      const name = escapeMarkdownText(basename(path));
+      const target = markdownLinkTarget(relativePortable(reportDir, path));
+      return `### ${name}\n\n![Annotated UAT evidence: ${name}](${target})`;
     })
     .join("\n\n");
+}
+
+function incompleteCoverageMarkdown(records: ResultRecord[]): string {
+  const incomplete = records.filter((record) =>
+    ["BLOCKED", "DEFERRED", "NOT_RUN"].includes(record.status),
+  );
+  if (incomplete.length === 0) {
+    return "No required tests are recorded as BLOCKED, DEFERRED, or NOT_RUN.";
+  }
+  return [
+    "| Test | Status | Recorded source |",
+    "| --- | --- | --- |",
+    ...incomplete.map(
+      (record) =>
+        `| ${record.id} | ${record.status} | ${escapeMarkdownText(record.sourceLine.trim())} |`,
+    ),
+  ].join("\n");
+}
+
+async function collectReportSafeEvidence(runDir: string, evidenceFiles: string[]): Promise<EmbeddedEvidence[]> {
+  const embedded: EmbeddedEvidence[] = [];
+  for (const path of evidenceFiles) {
+    if (!REPORT_SAFE_TEXT_EXTENSIONS.has(extname(path).toLowerCase())) continue;
+    if ((await stat(path)).size > MAX_EMBEDDED_EVIDENCE_BYTES) continue;
+    embedded.push({
+      relativePath: relativePortable(runDir, path),
+      content: await readFile(path, "utf8"),
+    });
+  }
+  return embedded;
+}
+
+function evidenceMarkdown(evidence: EmbeddedEvidence[]): string {
+  if (evidence.length === 0) {
+    return "No report-safe text metrics/log evidence was available for embedding. See the evidence appendix.";
+  }
+  return evidence
+    .map(({ relativePath, content }) => {
+      const indented = content
+        .replaceAll("\r\n", "\n")
+        .split("\n")
+        .map((line) => `    ${line}`)
+        .join("\n");
+      return `### ${escapeMarkdownText(relativePath)}\n\n${indented || "    (empty file)"}`;
+    })
+    .join("\n\n");
+}
+
+function evidenceHtml(evidence: EmbeddedEvidence[]): string {
+  if (evidence.length === 0) {
+    return '<p class="empty">No report-safe text metrics/log evidence was available for embedding. See the evidence appendix.</p>';
+  }
+  return evidence
+    .map(
+      ({ relativePath, content }) =>
+        `<article class="evidence-text"><h3>${escapeHtml(relativePath)}</h3><pre><code>${escapeHtml(content)}</code></pre></article>`,
+    )
+    .join("\n");
+}
+
+function decisionRecordMarkdown(metadata: ReportMetadata): string {
+  return [
+    `- **Chieftain recommendation:** ${metadata.chieftainRecommendation}`,
+    `- **Shaman / Warden acceptance evidence:** ${metadata.shamanWardenEvidence}`,
+    `- **Human maintainer decision:** ${metadata.humanDecision}`,
+    `- **Known residual risk / follow-up:** ${metadata.acceptedRisk}`,
+  ].join("\n");
 }
 
 function buildReportMarkdown(options: {
   inputs: ReportInputs;
   metadata: ReportMetadata;
   statusSummary: StatusSummary;
+  resultRecords: ResultRecord[];
+  executiveSummary: string;
+  reentryPlan: string;
   reportDir: string;
   screenshots: string[];
   evidenceFiles: string[];
+  reportSafeEvidence: EmbeddedEvidence[];
   runDir: string;
   generatedAt: string;
 }): string {
@@ -322,9 +493,13 @@ function buildReportMarkdown(options: {
     inputs,
     metadata,
     statusSummary,
+    resultRecords,
+    executiveSummary,
+    reentryPlan,
     reportDir,
     screenshots,
     evidenceFiles,
+    reportSafeEvidence,
     runDir,
     generatedAt,
   } = options;
@@ -334,11 +509,13 @@ function buildReportMarkdown(options: {
 **Run ID:** ${metadata.runId}  
 **Environment:** ${metadata.environment}  
 **Candidate:** ${metadata.candidate}  
-**Generated:** ${generatedAt}  
-**DevAI recommendation:** ${metadata.devAiRecommendation}  
-**Human maintainer decision:** ${metadata.humanDecision}
+**Generated:** ${generatedAt}
 
-> Generated deterministically from the preserved UAT run ledger. Source observations remain authoritative; this report does not convert incomplete coverage into a pass.
+> Generated deterministically from the preserved UAT run ledger. Source observations remain authoritative; automated green never converts incomplete UAT coverage into a pass.
+
+## Executive summary
+
+${executiveSummary}
 
 ## Result summary
 
@@ -348,7 +525,7 @@ ${statusSummaryMarkdown(statusSummary)}
 
 ${inputs.run}
 
-## Test results
+## Journey / test results
 
 ${inputs.results}
 
@@ -359,6 +536,22 @@ ${inputs.findings}
 ## Annotated screenshot evidence
 
 ${screenshotMarkdown(reportDir, screenshots)}
+
+## Metrics and report-safe supporting evidence
+
+${evidenceMarkdown(reportSafeEvidence)}
+
+## Unexecuted / blocked / deferred coverage
+
+${incompleteCoverageMarkdown(resultRecords)}
+
+## Re-entry and regression plan
+
+${reentryPlan}
+
+## Decision record
+
+${decisionRecordMarkdown(metadata)}
 
 ## Chronological tester notes
 
@@ -405,13 +598,28 @@ function buildHtml(options: {
   inputs: ReportInputs;
   metadata: ReportMetadata;
   statusSummary: StatusSummary;
+  resultRecords: ResultRecord[];
+  executiveSummary: string;
+  reentryPlan: string;
   screenshotHtml: string;
   evidenceFiles: string[];
+  reportSafeEvidence: EmbeddedEvidence[];
   runDir: string;
   generatedAt: string;
 }): string {
-  const { inputs, metadata, statusSummary, screenshotHtml, evidenceFiles, runDir, generatedAt } =
-    options;
+  const {
+    inputs,
+    metadata,
+    statusSummary,
+    resultRecords,
+    executiveSummary,
+    reentryPlan,
+    screenshotHtml,
+    evidenceFiles,
+    reportSafeEvidence,
+    runDir,
+    generatedAt,
+  } = options;
 
   const manifest =
     evidenceFiles.length === 0
@@ -443,7 +651,7 @@ function buildHtml(options: {
   pre { overflow-wrap: anywhere; white-space: pre-wrap; background: #f6f8fa; border: 1px solid #e1e6ed; border-radius: 8px; padding: 14px; }
   pre code { background: transparent; padding: 0; }
   blockquote { margin: 18px 0; padding: 10px 16px; border-left: 4px solid #74809a; background: #f7f8fb; }
-  .meta-grid { display: grid; grid-template-columns: 170px 1fr; gap: 8px 18px; margin-top: 28px; }
+  .meta-grid { display: grid; grid-template-columns: 190px 1fr; gap: 8px 18px; margin-top: 28px; }
   .meta-label { color: #697386; font-weight: 600; }
   .decision { font-weight: 800; }
   .status-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin: 18px 0; }
@@ -454,7 +662,7 @@ function buildHtml(options: {
   table { width: 100%; border-collapse: collapse; }
   th, td { border: 1px solid #dfe4eb; padding: 8px 9px; vertical-align: top; text-align: left; }
   th { background: #f2f4f7; }
-  .evidence-plate { break-inside: avoid; margin: 0 0 28px; border: 1px solid #dfe4eb; border-radius: 8px; overflow: hidden; }
+  .evidence-plate, .evidence-text { break-inside: avoid; margin: 0 0 28px; }
   .evidence-plate figcaption { font-size: 12px; font-weight: 700; padding: 9px 12px; background: #f2f4f7; border-bottom: 1px solid #dfe4eb; }
   .evidence-plate img { display: block; width: 100%; height: auto; }
   .empty { color: #6d7585; font-style: italic; }
@@ -469,7 +677,7 @@ function buildHtml(options: {
     section { break-before: page; }
     h2, h3 { break-after: avoid; }
     table, pre, blockquote, .status-grid { break-inside: avoid; }
-    .evidence-plate { break-inside: avoid; page-break-inside: avoid; }
+    .evidence-plate, .evidence-text { break-inside: avoid; page-break-inside: avoid; }
   }
 </style>
 </head>
@@ -486,26 +694,53 @@ function buildHtml(options: {
       <div class="meta-label">Environment</div><div>${escapeHtml(metadata.environment)}</div>
       <div class="meta-label">Candidate</div><div><code>${escapeHtml(metadata.candidate)}</code></div>
       <div class="meta-label">Generated</div><div>${escapeHtml(generatedAt)}</div>
-      <div class="meta-label">DevAI recommendation</div><div class="decision">${escapeHtml(metadata.devAiRecommendation)}</div>
+      <div class="meta-label">Chieftain recommendation</div><div class="decision">${escapeHtml(metadata.chieftainRecommendation)}</div>
       <div class="meta-label">Human decision</div><div class="decision">${escapeHtml(metadata.humanDecision)}</div>
     </div>
   </article>
 
+  <section><h2>Executive summary</h2>${renderMarkdown(executiveSummary)}</section>
   <section>
     <h2>Result summary</h2>
     <div class="status-grid">${statusCards(statusSummary)}</div>
-    <p><strong>Coverage note:</strong> BLOCKED, DEFERRED and NOT_RUN are intentionally visible and are never treated as passes.</p>
+    <p><strong>Coverage note:</strong> BLOCKED, DEFERRED and NOT_RUN are visible and never treated as passes.</p>
   </section>
-
   <section><h2>Run identity and context</h2>${renderMarkdown(inputs.run)}</section>
-  <section><h2>Test results</h2>${renderMarkdown(inputs.results)}</section>
+  <section><h2>Journey / test results</h2>${renderMarkdown(inputs.results)}</section>
   <section><h2>Detailed findings and next increment definitions</h2>${renderMarkdown(inputs.findings)}</section>
   <section><h2>Annotated screenshot evidence</h2>${screenshotHtml}</section>
+  <section><h2>Metrics and report-safe supporting evidence</h2>${evidenceHtml(reportSafeEvidence)}</section>
+  <section><h2>Unexecuted / blocked / deferred coverage</h2>${renderMarkdown(incompleteCoverageMarkdown(resultRecords))}</section>
+  <section><h2>Re-entry and regression plan</h2>${renderMarkdown(reentryPlan)}</section>
+  <section><h2>Decision record</h2>${renderMarkdown(decisionRecordMarkdown(metadata))}</section>
   <section><h2>Chronological tester notes</h2>${renderMarkdown(inputs.notes)}</section>
   <section><h2>Evidence appendix</h2>${manifest}</section>
 </main>
 </body>
 </html>`;
+}
+
+function validateReportSources(inputs: ReportInputs, resultRecords: ResultRecord[]): {
+  executiveSummary: string;
+  reentryPlan: string;
+} {
+  const missing: string[] = [];
+  const executiveSummary = extractSection(inputs.run, ["Executive summary"]);
+  const reentryPlan = extractSection(inputs.findings, [
+    "Re-entry and regression plan",
+    "Re-entry/regression plan",
+  ]);
+
+  if (!executiveSummary) missing.push("run.md -> Executive summary");
+  if (!reentryPlan) missing.push("findings.md -> Re-entry and regression plan");
+  if (resultRecords.length === 0) {
+    missing.push("results.md -> at least one UAT result with an explicit Status cell/field");
+  }
+  if (missing.length > 0) {
+    throw new Error(`UAT report refused: missing required report source(s): ${missing.join("; ")}`);
+  }
+
+  return { executiveSummary, reentryPlan };
 }
 
 async function renderPdf(htmlPath: string, pdfPath: string): Promise<void> {
@@ -563,46 +798,50 @@ async function main(): Promise<void> {
     findings: await readFile(join(runDir, "findings.md"), "utf8"),
   };
 
+  const resultRecords = parseResultRecords(inputs.results);
+  const { executiveSummary, reentryPlan } = validateReportSources(inputs, resultRecords);
   const reportDir = join(runDir, "report");
   await mkdir(reportDir, { recursive: true });
 
   const annotatedDir = join(runDir, "screenshots", "annotated");
   const screenshots = (await listFiles(annotatedDir)).filter((path) => imageMime(path));
+  const evidenceOnlyFiles = await listFiles(join(runDir, "evidence"));
   const evidenceFiles = [
-    ...(await listFiles(join(runDir, "evidence"))),
+    ...evidenceOnlyFiles,
     ...(await listFiles(join(runDir, "screenshots", "raw"))),
     ...screenshots,
   ].sort((left, right) => left.localeCompare(right));
+  const reportSafeEvidence = await collectReportSafeEvidence(runDir, evidenceOnlyFiles);
 
   const generatedAt = new Date().toISOString();
   const metadata = metadataFrom(inputs);
-  const statusSummary = extractStatusSummary(inputs.results);
-
-  const markdown = buildReportMarkdown({
+  const statusSummary = statusSummaryFromRecords(resultRecords);
+  const common = {
     inputs,
     metadata,
     statusSummary,
-    reportDir,
-    screenshots,
+    resultRecords,
+    executiveSummary,
+    reentryPlan,
     evidenceFiles,
+    reportSafeEvidence,
     runDir,
     generatedAt,
-  });
+  };
+
   const markdownPath = join(reportDir, "uat-report.md");
-  await writeFile(markdownPath, markdown, "utf8");
+  await writeFile(
+    markdownPath,
+    buildReportMarkdown({ ...common, reportDir, screenshots }),
+    "utf8",
+  );
 
-  const screenshotHtml = await buildScreenshotHtml(screenshots);
-  const html = buildHtml({
-    inputs,
-    metadata,
-    statusSummary,
-    screenshotHtml,
-    evidenceFiles,
-    runDir,
-    generatedAt,
-  });
   const htmlPath = join(reportDir, "uat-report.html");
-  await writeFile(htmlPath, html, "utf8");
+  await writeFile(
+    htmlPath,
+    buildHtml({ ...common, screenshotHtml: await buildScreenshotHtml(screenshots) }),
+    "utf8",
+  );
 
   const pdfPath = join(reportDir, "uat-report.pdf");
   if (!htmlOnly) await renderPdf(htmlPath, pdfPath);
@@ -615,6 +854,7 @@ async function main(): Promise<void> {
         statusSummary,
         annotatedScreenshots: screenshots.length,
         evidenceFiles: evidenceFiles.length,
+        embeddedEvidenceFiles: reportSafeEvidence.length,
         outputs: {
           markdown: markdownPath,
           html: htmlPath,
