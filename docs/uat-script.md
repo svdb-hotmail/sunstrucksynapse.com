@@ -39,7 +39,7 @@ Pause, seek, and resume must work as player controls, but they are not separate 
 
 ## 1. Governed UAT execution
 
-UAT does not introduce a substitute `DevAI` authority. AI-assisted work follows the named Kobold Village roles in `AGENTS.md`.
+UAT does not introduce a substitute generic AI-agent authority. AI-assisted work follows the named Kobold Village roles in `AGENTS.md`.
 
 ### 1.1 Responsibilities
 
