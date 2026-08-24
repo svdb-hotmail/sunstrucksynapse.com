@@ -1,7 +1,8 @@
 import { access, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
 import { basename, extname, join, relative, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 
-import { chromium } from "@playwright/test";
+import { chromium, type Browser } from "@playwright/test";
 
 const REQUIRED_LEDGER_FILES = ["run.md", "notes.md", "results.md", "findings.md"] as const;
 const RESULT_STATUSES = ["PASS", "FAIL", "BLOCKED", "DEFERRED", "NOT_RUN"] as const;
@@ -134,7 +135,7 @@ function renderMarkdown(markdown: string): string {
       flushParagraph();
       closeList();
       const headers = splitTableRow(line);
-      output.push("<div class=\"table-wrap\"><table><thead><tr>");
+      output.push('<div class="table-wrap"><table><thead><tr>');
       output.push(
         headers.map((header) => `<th>${renderInline(header)}</th>`).join(""),
       );
@@ -247,16 +248,14 @@ function extractField(markdown: string, label: string): string {
 
 function metadataFrom(inputs: ReportInputs): ReportMetadata {
   const combined = `${inputs.run}\n${inputs.results}\n${inputs.findings}`;
+  const deployment = extractField(inputs.run, "Deployment URL/environment");
+  const candidate = extractField(inputs.run, "Candidate commit SHA");
   return {
     runId: extractField(inputs.run, "Run ID"),
     environment:
-      extractField(inputs.run, "Deployment URL/environment") === "Not recorded"
-        ? extractField(inputs.run, "Environment")
-        : extractField(inputs.run, "Deployment URL/environment"),
+      deployment === "Not recorded" ? extractField(inputs.run, "Environment") : deployment,
     candidate:
-      extractField(inputs.run, "Candidate commit SHA") === "Not recorded"
-        ? extractField(inputs.run, "Candidate")
-        : extractField(inputs.run, "Candidate commit SHA"),
+      candidate === "Not recorded" ? extractField(inputs.run, "Candidate") : candidate,
     humanDecision: extractField(combined, "Human maintainer decision"),
     devAiRecommendation: extractField(combined, "DevAI recommendation"),
   };
@@ -444,7 +443,10 @@ function buildHtml(options: {
     evidenceFiles.length === 0
       ? '<p class="empty">No supporting evidence files were found.</p>'
       : `<ul>${evidenceFiles
-          .map((path) => `<li><code>${escapeHtml(relativePortable(runDir, path))}</code></li>`)
+          .map(
+            (path) =>
+              `<li><code>${escapeHtml(relativePortable(runDir, path))}</code></li>`,
+          )
           .join("")}</ul>`;
 
   return `<!doctype html>
@@ -454,13 +456,7 @@ function buildHtml(options: {
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Sunstruck Synapse UAT Report — ${escapeHtml(metadata.runId)}</title>
 <style>
-  :root {
-    color-scheme: light;
-    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    line-height: 1.45;
-    color: #172033;
-    background: #eef1f5;
-  }
+  :root { color-scheme: light; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.45; color: #172033; background: #eef1f5; }
   * { box-sizing: border-box; }
   body { margin: 0; background: #eef1f5; }
   main { width: min(1100px, calc(100% - 40px)); margin: 32px auto; }
@@ -530,48 +526,23 @@ function buildHtml(options: {
     <p><strong>Coverage note:</strong> BLOCKED, DEFERRED and NOT_RUN are intentionally visible and are never treated as passes.</p>
   </section>
 
-  <section>
-    <h2>Run identity and context</h2>
-    ${renderMarkdown(inputs.run)}
-  </section>
-
-  <section>
-    <h2>Test results</h2>
-    ${renderMarkdown(inputs.results)}
-  </section>
-
-  <section>
-    <h2>Detailed findings and next increment definitions</h2>
-    ${renderMarkdown(inputs.findings)}
-  </section>
-
-  <section>
-    <h2>Annotated screenshot evidence</h2>
-    ${screenshotHtml}
-  </section>
-
-  <section>
-    <h2>Chronological tester notes</h2>
-    ${renderMarkdown(inputs.notes)}
-  </section>
-
-  <section>
-    <h2>Evidence appendix</h2>
-    ${manifest}
-  </section>
+  <section><h2>Run identity and context</h2>${renderMarkdown(inputs.run)}</section>
+  <section><h2>Test results</h2>${renderMarkdown(inputs.results)}</section>
+  <section><h2>Detailed findings and next increment definitions</h2>${renderMarkdown(inputs.findings)}</section>
+  <section><h2>Annotated screenshot evidence</h2>${screenshotHtml}</section>
+  <section><h2>Chronological tester notes</h2>${renderMarkdown(inputs.notes)}</section>
+  <section><h2>Evidence appendix</h2>${manifest}</section>
 </main>
 </body>
 </html>`;
 }
 
 async function renderPdf(htmlPath: string, pdfPath: string): Promise<void> {
-  let browser;
+  let browser: Browser | undefined;
   try {
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage();
-    await page.goto(`file://${htmlPath.replaceAll("\\", "/")}`, {
-      waitUntil: "load",
-    });
+    await page.goto(pathToFileURL(htmlPath).href, { waitUntil: "load" });
     await page.emulateMedia({ media: "print" });
     await page.pdf({
       path: pdfPath,
