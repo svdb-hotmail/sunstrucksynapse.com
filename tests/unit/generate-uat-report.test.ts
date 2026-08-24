@@ -69,17 +69,9 @@ async function makeRun(): Promise<string> {
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Wl2nWQAAAAASUVORK5CYII=",
     "base64",
   );
+  await writeFile(join(runDir, "screenshots", "raw", "UAT-CAT-02_01_cover_raw.png"), onePixelPng);
   await writeFile(
-    join(runDir, "screenshots", "raw", "UAT-CAT-02_01_cover_raw.png"),
-    onePixelPng,
-  );
-  await writeFile(
-    join(
-      runDir,
-      "screenshots",
-      "annotated",
-      "UAT-CAT-02_01_cover_annotated.png",
-    ),
+    join(runDir, "screenshots", "annotated", "UAT-CAT-02_01_cover_annotated.png"),
     onePixelPng,
   );
   await writeFile(
@@ -94,13 +86,7 @@ async function makeRun(): Promise<string> {
 function runGenerator(runDir: string) {
   return spawnSync(
     process.execPath,
-    [
-      "--import",
-      "tsx",
-      "scripts/generate-uat-report.ts",
-      runDir,
-      "--html-only",
-    ],
+    ["--import", "tsx", "scripts/generate-uat-report.ts", runDir, "--html-only"],
     {
       cwd: process.cwd(),
       encoding: "utf8",
@@ -110,9 +96,9 @@ function runGenerator(runDir: string) {
 
 afterEach(async () => {
   await Promise.all(
-    temporaryDirectories.splice(0).map((directory) =>
-      rm(directory, { recursive: true, force: true }),
-    ),
+    temporaryDirectories
+      .splice(0)
+      .map((directory) => rm(directory, { recursive: true, force: true })),
   );
 });
 
