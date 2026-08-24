@@ -81,12 +81,17 @@ async function makeRun(): Promise<string> {
   );
   await writeFile(join(runDir, "screenshots", "raw", "UAT-CAT-02_01_cover_raw.png"), onePixelPng);
   await writeFile(
-    join(runDir, "screenshots", "annotated", "UAT-CAT-02_[cover]_annotated.png"),
+    join(runDir, "screenshots", "annotated", "UAT-CAT-02_[cover]#1_annotated.png"),
     onePixelPng,
   );
   await writeFile(
     join(runDir, "evidence", "metrics", "playback-summary.json"),
     JSON.stringify({ attempts: 100, starts: 99, medianStartMs: 920 }),
+    "utf8",
+  );
+  await writeFile(
+    join(runDir, "evidence", "metrics", "metric`name.txt"),
+    "sanitized metric evidence with a markdown-sensitive filename",
     "utf8",
   );
 
@@ -133,7 +138,9 @@ describe("generate-uat-report CLI", () => {
     expect(markdown).toContain("## Re-entry and regression plan");
     expect(markdown).toContain("## Decision record");
     expect(markdown).toContain("UAT-F001");
-    expect(markdown).toContain("UAT-CAT-02_\\[cover\\]_annotated\\.png");
+    expect(markdown).toContain("UAT-CAT-02_\\[cover\\]\\#1_annotated\\.png");
+    expect(markdown).toContain("%23");
+    expect(markdown).toContain("metric\\`name.txt");
     expect(markdown).toContain("\"starts\":99");
 
     expect(html).toContain("Sunstruck Synapse UAT Report");
@@ -141,6 +148,7 @@ describe("generate-uat-report CLI", () => {
     expect(html).toContain("data:image/png;base64,");
     expect(html).toContain("UAT-F001");
     expect(html).toContain("medianStartMs");
+    expect(html).toContain("sanitized metric evidence");
     expect(html).toContain("screenshots/raw/UAT-CAT-02_01_cover_raw.png");
     expect(html).not.toContain("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwC</code>");
   });
