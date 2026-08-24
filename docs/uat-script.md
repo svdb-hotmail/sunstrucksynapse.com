@@ -2,33 +2,26 @@
 
 Use this protocol against a production-like Sunstruck Synapse Radio deployment with real, rights-cleared catalogue content.
 
-Before a run, read the current candidate/PR acceptance criteria together with:
+Before a run, read the candidate/PR acceptance criteria together with:
 
-1. `docs/product-scope.md` for the MVP product boundary;
-2. `docs/private-beta-evaluation.md` for the private-beta release thresholds;
-3. `docs/database.md`, `docs/media-protection.md`, and the operations/recovery documentation for infrastructure boundaries;
-4. this protocol for the evidence and co-testing method.
+1. `AGENTS.md`, `VILLAGE_CHARTER.md`, and `village.config.yml` for agent authority;
+2. `docs/product-scope.md` for the MVP product boundary;
+3. `docs/private-beta-evaluation.md` for private-beta release thresholds;
+4. `docs/database.md`, `docs/media-protection.md`, and the operations/recovery documentation for infrastructure boundaries;
+5. this protocol for UAT evidence and reporting.
 
-The repository's automated tests are supporting evidence, not user acceptance. A test is `PASS` only when its expected behavior is actually observed against the identified candidate and evidence is recorded.
+Automated tests and code inspection are supporting evidence, not user acceptance. A UAT test is `PASS` only when the expected behavior is actually observed against the identified candidate and evidence is recorded.
 
-The protocol supports three execution modes:
+## 0. Product and release scope
 
-1. **Human-led UAT** — a human executes the journey and records evidence.
-2. **DevAI-assisted UAT** — the DevAI guides the human one test at a time, preserves notes/screenshots, evaluates observable results, and compiles the report.
-3. **DevAI-executed UAT** — the DevAI executes safe automatable checks and asks a human where credentials, real devices, editorial judgment, policy decisions, or destructive/privileged actions require human participation.
+Sunstruck Synapse Radio is a human-curated listening destination for intentional AI-assisted music. Private-beta UAT must prove the listener, submission, curation, publication, privacy, analytics, recovery, and accessibility experience inside the MVP.
 
-**Release authority:** the DevAI may recommend **GO**, **ITERATE**, or **STOP**, but only the human maintainer records the final release decision.
+Required private-beta thresholds:
 
-## 0. Sunstruck beta scope that this UAT must respect
-
-Sunstruck Synapse Radio is a human-curated listening destination for intentional AI-assisted music. The private-beta UAT must prove the listener, submission, curation, publication, privacy, analytics, recovery, and accessibility experience that is actually inside the MVP.
-
-The following release thresholds come from `docs/private-beta-evaluation.md` and are not DevAI inventions:
-
-- prepared catalogue: **10–20 artists, 30–50 reviewed tracks, five published collections**;
-- invited cohort: **20–50 listeners**;
+- prepared catalogue: **10-20 artists, 30-50 reviewed tracks, five published collections**;
+- invited cohort: **20-50 listeners**;
 - returning-listener gate: **at least 25% of invitees start a second session**;
-- curator release-preparation gate: **a prepared release can be published in under 15 minutes**;
+- curator release-preparation gate: **a prepared release is published in under 15 minutes**;
 - playback-start reliability: **above 98%**;
 - median playback start: **below 1.5 seconds** on the agreed production-like broadband profile;
 - isolated provider/database restore drill: verified;
@@ -36,77 +29,100 @@ The following release thresholds come from `docs/private-beta-evaluation.md` and
 
 ### Public video is not a beta release gate
 
-`docs/product-scope.md` explicitly excludes a **public video catalogue** from the MVP. Therefore:
-
-- public playback reliability/latency UAT is measured against representative **audio** tracks;
-- a video asset or video-capable implementation may be tested as additional evidence when relevant, but inability to provide a public video catalogue does not fail the Sunstruck MVP;
-- no DevAI may reintroduce “audio + video public playback” as a required beta gate unless the product scope is deliberately changed.
+`docs/product-scope.md` excludes a public video catalogue from the MVP. Public playback reliability/latency UAT is therefore measured against representative audio tracks. Video may be tested as additional evidence when relevant, but absence of a public video catalogue is not an MVP failure unless product scope changes.
 
 ### Analytics vocabulary is deliberate
 
-The public analytics contract currently records `catalogue_impression`, `collection_view`, `play_requested`, `playback_started`, `listen_30_seconds`, `completion`, `skip`, `replay`, `playback_error`, `share`, and `outbound_artist_click`.
+The current analytics contract records `catalogue_impression`, `collection_view`, `play_requested`, `playback_started`, `listen_30_seconds`, `completion`, `skip`, `replay`, `playback_error`, `share`, and `outbound_artist_click`.
 
-Pause, seek, and resume must work as player controls, but they are **not** separate analytics event names in the current product. UAT must not invent missing event types as acceptance requirements.
+Pause, seek, and resume must work as player controls, but they are not separate analytics event names. UAT must not invent event types that the product does not define.
 
-## 1. UAT operating contract
+## 1. Governed UAT execution
 
-### 1.1 Roles and authority
+UAT does not introduce a substitute `DevAI` authority. AI-assisted work follows the named Kobold Village roles in `AGENTS.md`.
+
+### 1.1 Responsibilities
 
 **Human tester / maintainer**
 
-- Performs steps requiring real-user/editorial judgment, privileged credentials, physical devices, assistive technology, or destructive infrastructure actions.
-- Can correct a DevAI interpretation, but the original observation remains in the run notes.
-- Owns product trade-offs, accepted risks, and the final `GO / ITERATE / STOP` decision.
+- performs steps requiring real editorial judgment, privileged credentials, physical devices, assistive technology, destructive/provider recovery actions, or human release authority;
+- may correct an agent interpretation, while the original observation remains in the notes;
+- owns product trade-offs, accepted risks, Ready-for-Review transitions, and the final `GO / ITERATE / STOP` decision.
 
-**DevAI**
+**Chieftain**
 
-- Reads the candidate, acceptance criteria, product scope, beta evaluation, and this protocol before testing.
-- Runs automatable checks and browser journeys where the environment permits.
-- In co-test mode gives exactly one actionable step at a time unless the human explicitly asks for a batch.
-- States what to do, what should happen, and what evidence is needed before the action.
-- Appends the human observation/evidence before interpreting or diagnosing it.
-- Preserves every human note and screenshot; normalized report wording never erases the source observation.
-- Never invents an observation, screenshot, metric, browser result, email receipt, analytics event, restore result, or successful playback.
-- Never changes a `FAIL`, `BLOCKED`, `DEFERRED`, or `NOT_RUN` into `PASS` merely because a likely implementation fix is found.
-- May inspect code/logs after a failure to classify it, but code inspection is supporting diagnosis, not UAT evidence.
-- Produces annotated evidence and a human-readable PDF at every explicit UAT checkpoint, including an intentionally stopped partial run.
+- coordinates the UAT run and candidate identity;
+- executes safe automatable checks and browser journeys that do not cross a human-only boundary;
+- co-tests one step at a time with the human when observation/judgment is required;
+- records observations before diagnosis;
+- preserves admissible evidence and compiles checkpoint reports;
+- never converts a non-pass result into `PASS` because a plausible fix was found.
 
-### 1.2 Execution labels
+**Shaman**
 
-- **A — Automatable:** DevAI may execute autonomously when it has the required safe access/environment.
-- **C — Co-test:** DevAI may execute or guide, but human observation/judgment is useful or required.
-- **H — Human:** human action/approval is required.
+- maps active issue/Epic acceptance criteria and Definition of Done to measurable UAT evidence;
+- performs the independent acceptance gate required by the repository workflow;
+- escalates material ambiguity to the human rather than silently redefining acceptance.
 
-### 1.3 Result vocabulary
+**Warden Quality**
+
+- independently challenges whether the evidence would detect a meaningful regression;
+- reviews result classification and testability gaps before the human is asked to consider acceptance.
+
+Use `warden-security`, `warden-canon-data`, or other relevant Wardens when the tested contract crosses their domain. Wardens remain read-only governance guards.
+
+**Taskmaster / Villagers**
+
+- may author bounded test/reproduction code through the normal delegation chain when implementation work is required;
+- Villagers do not execute validation commands, browser checks, builds, or UAT;
+- fixing a UAT finding follows the normal Village implementation workflow and is separate from the acceptance observation that found it.
+
+### 1.2 Execution modes
+
+1. **Human-led** - the human executes; Chieftain records and reports.
+2. **Governed co-test** - Chieftain guides or automates safe parts; the human performs/judges the required step.
+3. **Governed automated check** - Chieftain executes a safe automatable UAT check; Shaman/Warden acceptance remains independent where required.
+
+### 1.3 Execution labels
+
+- **A - Automatable:** Chieftain may execute when safe access/environment exists.
+- **C - Co-test:** Chieftain can automate or guide parts, but human observation/judgment may be needed.
+- **H - Human:** human action/approval is required.
+
+Compound labels have explicit precedence:
+
+- **A/C:** execute as A when no human-only judgment/privileged boundary is crossed; otherwise execute as C.
+- **H/C:** human action is mandatory; Chieftain may co-guide. `H` wins.
+- **A/H:** human authorization/access is mandatory before Chieftain may automate; until authorization exists the test is `BLOCKED`. The human may instead execute the step directly.
+
+### 1.4 Result vocabulary
 
 Every active test ends in exactly one status:
 
-- **PASS** — expected behavior observed and evidence exists.
-- **FAIL** — observed behavior contradicts the requirement.
-- **BLOCKED** — a prerequisite/environment/permission/dependency prevents meaningful execution.
-- **DEFERRED** — the human deliberately postpones the test and records why.
-- **NOT_RUN** — no attempt has been made yet.
+- **PASS** - expected behavior observed and evidence exists.
+- **FAIL** - observed behavior contradicts the requirement.
+- **BLOCKED** - prerequisite/environment/permission/dependency prevents meaningful execution.
+- **DEFERRED** - human maintainer deliberately postpones the test and records why.
+- **NOT_RUN** - no attempt has been made yet.
 
 `BLOCKED`, `DEFERRED`, and `NOT_RUN` never count as passes.
 
-### 1.4 One-step co-test loop
+### 1.5 One-step co-test loop
 
-When co-testing with a human:
+1. Identify the next UAT ID and prerequisite.
+2. State one action.
+3. State the expected result.
+4. State what evidence/observation is needed.
+5. Record the human/system observation before interpretation.
+6. Record status and rationale.
+7. For a material non-pass, create/update a finding and annotated evidence.
+8. Continue only after the current step is recorded.
 
-1. Identify the next UAT test ID and prerequisite.
-2. Give the human one action.
-3. State the expected result in plain language.
-4. State what to observe and whether a screenshot is needed.
-5. Append the response/evidence before interpretation.
-6. Record `PASS / FAIL / BLOCKED / DEFERRED` with a short rationale.
-7. For a material non-pass, create/update a finding and annotate the screenshot when visual evidence exists.
-8. Only then continue.
+If the human says **stop**, stop immediately and compile a checkpoint report. Remaining required tests stay `NOT_RUN`.
 
-If the human says **stop**, stop immediately and compile the checkpoint report. Remaining required tests remain `NOT_RUN`.
+## 2. Run workspace and evidence safety
 
-## 2. Run workspace and evidence retention
-
-Use the already ignored `test-results/` tree:
+Use the ignored run tree:
 
 ```text
 test-results/uat/<RUN_ID>/
@@ -126,101 +142,63 @@ test-results/uat/<RUN_ID>/
     uat-report.pdf
 ```
 
-Recommended `RUN_ID`:
+Recommended `RUN_ID`: `YYYY-MM-DD_<short-sha>_<environment>`.
 
-```text
-YYYY-MM-DD_<short-sha>_<environment>
-```
+`run.md` records candidate/build/environment identity, human tester(s), participating governed roles, browser/device matrix, non-secret configuration state, catalogue/cohort preparation, known pre-existing issues, stop/resume timestamps, Chieftain recommendation, Shaman/Warden gate outcome where applicable, and human maintainer decision.
 
-`run.md` records:
+`notes.md` is chronological and append-oriented. Preserve observations such as "nothing happened", "it scrolled to the top", "the cover art is missing", or "I did not receive an email". Add later diagnosis underneath; never replace the source observation.
 
-```text
-Run ID
-Product: Sunstruck Synapse Radio
-Start date/time and timezone
-Candidate commit SHA
-Candidate PR if applicable
-Deployment URL/environment
-Deployment/build identifier
-Human tester(s)
-DevAI/session identifier if applicable
-Browser/device/OS matrix
-Relevant configuration state without secret values
-Catalogue/cohort preparation state
-Known pre-existing issues
-Stop/resume timestamps
-DevAI recommendation
-Human maintainer decision and signer when available
-```
+### 2.1 Secrets are not evidence
 
-`notes.md` is chronological and append-oriented. Preserve the tester's own meaning, including observations such as “nothing happened”, “it scrolled to the top”, “the cover art is missing”, or “I did not receive an email”. A later diagnosis belongs underneath the original note and never replaces it.
+Never record or retain passwords, database/provider credentials, authorization headers, cookies, invitation tokens, private-evidence bearer URLs/tokens, signed media URLs, or other reusable secrets in the UAT package.
 
-Do not record signed media URLs, invitation tokens, passwords, contact information, private evidence keys, authorization headers, cookies, database credentials, or other secrets.
+Before saving a screenshot/log, screen it for prohibited secrets. If a secret was captured accidentally:
 
-## 3. Screenshot and finding standard
+1. do **not** retain that capture as raw evidence;
+2. remove it from the run tree immediately;
+3. revoke/rotate the credential when it may still be reusable;
+4. recapture the evidence without the secret.
 
-### 3.1 Raw evidence is immutable
+Raw-evidence immutability applies only after the evidence is admissible and secret-free.
 
-For every screenshot supplied by a human or captured by automation:
+Non-secret sensitive information, such as personal information that is necessary to evidence a finding, may be kept in access-controlled raw evidence and represented in the report only through an irreversibly redacted derivative.
 
-- Save the original unchanged in `screenshots/raw/`.
-- Never draw, crop, blur, resize, or overwrite the only raw copy.
-- Use a separate derivative in `screenshots/annotated/` for reporting.
-- A crop may be secondary evidence, but keep the full-context raw screenshot.
-- If sensitive information is visible, keep raw evidence private and create an irreversibly redacted report derivative.
+### 2.2 Screenshot standard
 
-Recommended naming:
+For admissible screenshots:
+
+- preserve the original unchanged in `screenshots/raw/`;
+- create a separate derivative in `screenshots/annotated/`;
+- keep full context even when a crop is additionally useful;
+- use text labels plus visual callouts;
+- redact non-secret sensitive data on the report derivative.
+
+Recommended names:
 
 ```text
 <UAT-ID>_<sequence>_<description>_raw.png
 <UAT-ID>_<sequence>_<description>_annotated.png
 ```
 
-### 3.2 Annotated evidence plate
+Annotated finding plates include finding ID/severity/type, observed, expected, why it matters, next increment (`FIX / REFINE / RETHINK / INSTRUMENT / CONFIGURE`), definition of resolved or rethink decision, and retest acceptance criterion.
 
-Every visual finding used in the report should include numbered boxes/arrows/callouts without hiding the relevant UI. The annotation panel must contain:
+### 2.3 Finding record
 
-```text
-Finding ID + severity
-Finding type
-Observed
-Expected
-Why it matters
-Next increment: FIX / REFINE / RETHINK / INSTRUMENT / CONFIGURE
-Definition of resolved OR rethink decision needed
-Retest acceptance criterion
-```
-
-For a defect, **Definition of resolved** describes the required observable outcome, not a speculative patch.
-
-For product/design ambiguity, use **Rethink decision needed** and state the product question, problematic behavior, desired user outcome, constraints, and evidence needed to accept the next design.
-
-### 3.3 Finding types
-
-- **DEFECT** — behavior violates an agreed expectation.
-- **PRODUCT_GAP** — a necessary capability/state is absent.
-- **UX_FRICTION** — the journey works but is confusing, misleading, inefficient, or error-prone.
-- **DESIGN_RETHINK** — the interaction/model requires a product decision before implementation.
-- **TESTABILITY_GAP** — behavior cannot be proven reliably because observability/data/tooling is missing.
-- **ENVIRONMENT_CONFIG** — deployment/configuration prevents intended behavior.
-
-### 3.4 Finding record
-
-Every material non-pass gets a record in `findings.md`:
+Each material non-pass in `findings.md` records:
 
 ```text
 Finding ID
 Source UAT test ID(s)
 Status: OPEN / ACCEPTED_RISK / FIXED_PENDING_RETEST / CLOSED
 Severity: Critical / High / Medium / Low
-Type
+Type: DEFECT / PRODUCT_GAP / UX_FRICTION / DESIGN_RETHINK / TESTABILITY_GAP / ENVIRONMENT_CONFIG
 Observed behavior
 Expected behavior
 User/product impact
 Evidence references
 Reproduction steps
 Environment/candidate
-Verified technical diagnosis, if known
+Verified diagnosis, if known
 Next increment classification
 Definition of resolved OR rethink decision needed
 Acceptance criteria for retest
@@ -230,465 +208,176 @@ Issue/PR link
 Human owner/decision when required
 ```
 
-## 4. Setup and private-beta preflight
+## 3. Setup and private-beta preflight
 
-### UAT-SET-01 — Production-like environment (A/C)
+- **UAT-SET-01 (A/C):** identify candidate/build and production-like Neon/PostgreSQL, R2 `MEDIA_BUCKET`, Cloudflare Access, transactional email, and analytics configuration. Expected: every required boundary is available without exposing secrets.
+- **UAT-SET-02 (A/C):** prepare 10-20 reviewed artists, 30-50 reviewed tracks, and five published editorial collections.
+- **UAT-SET-03 (A):** run `npm run catalogue:audit`. Expected: zero missing required metadata, media, artwork, and review records.
+- **UAT-SET-04 (H/C):** prepare one invited submitter, one authorized curator, and 20-50 invited listeners without tokens/credentials in evidence.
+- **UAT-SET-05 (H/C):** record desktop Chrome/Edge, Firefox, Safari/WebKit, Android Chromium, and iOS Safari/WebKit coverage.
+- **UAT-SET-06 (H/C):** prepare VoiceOver, TalkBack, and NVDA or record the relevant check `BLOCKED`/`DEFERRED`.
 
-**Action:** identify the approved candidate and deploy/verify production-like Neon/PostgreSQL, R2 `MEDIA_BUCKET`, Cloudflare Access, transactional email, and analytics configuration.
+## 4. Public catalogue and discovery
 
-**Expected:** candidate/build identity is unambiguous and every required service boundary needed by active UAT is available without exposing secret values.
+- **UAT-CAT-01 (A/C):** home page exposes published catalogue only.
+- **UAT-CAT-02 (A/C):** representative artist/release/track pages have stable URLs, correct title/artwork/credits, and playable public audio.
+- **UAT-CAT-03 (A/C):** known artist/release/track search returns the intended results.
+- **UAT-CAT-04 (A/C):** genre/mood/process/applicable media filters survive reload/share through URL state; media filtering does not imply public-video MVP scope.
+- **UAT-CAT-05 (A/C):** all five collections preserve order and each track is playable or intentionally unavailable with a clear state.
+- **UAT-CAT-06 (A/C):** accepted-track disclosure exposes public rights/process/provenance context but not private notes, hidden data, evidence, object keys, curator data, or private evidence.
 
-### UAT-SET-02 — Catalogue volume (A/C)
+**Blocker:** unpublished/private exposure, required published content missing unexpectedly, or public disclosure of non-public data.
 
-**Action:** prepare the private-beta catalogue.
+## 5. Audio playback, queue, analytics, and recovery
 
-**Expected:** 10–20 reviewed artists, 30–50 reviewed tracks, and five published editorial collections exist.
+- **UAT-PB-01 (A/C):** start representative published audio. Expected: native audio controls work and successful starts record `playback_started`.
+- **UAT-PB-02 (A/C):** queue two collection tracks and play first. Expected: order persists and collection attribution remains on relevant analytics.
+- **UAT-PB-03 (A/C):** pause, seek, resume, skip, replay, pass 30 seconds, and complete. Expected: controls work; implemented `listen_30_seconds`, `skip`, `replay`, and `completion` occur at correct moments without duplication. No pause/seek/resume events are required.
+- **UAT-PB-04 (A/C):** unavailable asset has clear unavailable state and no false successful playback event.
+- **UAT-PB-05 (A/C):** exercise network/expired-delivery recovery without retaining signed URLs. Expected: Retry obtains fresh playable delivery without losing selected item/queue.
+- **UAT-PB-06 (A):** run 100 explicit play attempts across representative audio. Expected: **more than 98%** produce `playback_started`; record attempts, successes, failures, median, p95, and failure classes.
+- **UAT-PB-07 (A):** median request-to-start for the same sample/profile is **below 1.5 seconds**.
+- **UAT-PB-08 (A):** request `Range: bytes=0-1023` from fresh signed delivery without retaining URL/headers. Expected: `206`, valid `Content-Range`, exactly 1,024 bytes.
 
-### UAT-SET-03 — Catalogue audit (A)
+**Blocker:** start reliability is not above 98%, median is >=1.5 seconds, recovery fails, or analytics/logs leak secret delivery data.
 
-**Action:** run `npm run catalogue:audit` against the intended candidate/data set.
+## 6. Submission and curator review
 
-**Expected:** zero missing required metadata, media, artwork, and review records.
+- **UAT-SUB-01 (H/C):** invitation-backed complete draft persists through the intended invitation boundary.
+- **UAT-SUB-02 (H/C):** submit required declarations. Expected: status becomes `received` and configured acknowledgement email is actually received.
+- **UAT-SUB-03 (A/C):** direct acceptance before required listening/review is rejected with no acceptance recorded.
+- **UAT-SUB-04 (H/C):** eligibility review -> listening -> acceptance works and reviewed declaration revisions/curator activity remain immutable/auditable.
+- **UAT-SUB-05 (H/C):** allowed 20 MiB private evidence upload succeeds and remains private.
+- **UAT-SUB-06 (A/C):** SVG/archive/unsupported MIME and >20 MiB evidence are rejected before storage/hash completion with understandable errors.
+- **UAT-SUB-07 (A/C):** accepted public disclosure excludes private evidence/notes, invitation details, and non-public role/tool declarations.
 
-### UAT-SET-04 — UAT identities/cohort (H/C)
+Invitation tokens and private-evidence URLs are bearer credentials. They must not exist in retained screenshots, raw evidence, notes, or the PDF. If accidentally captured, follow section 2.1 and recapture.
 
-**Action:** prepare one invited submitter, one authorized Cloudflare Access curator, and 20–50 invited listeners.
+**Blocker:** public invitation/evidence access, successful invalid transition, missing immutable review history, or private data appearing publicly.
 
-**Expected:** required identities/cohort exist without credentials/tokens appearing in evidence.
+## 7. Curator access, publication, policy, and recovery
 
-### UAT-SET-05 — Browser/device matrix (H/C)
+- **UAT-CUR-01 (A/C):** curator routes deny unauthorized access.
+- **UAT-CUR-02 (H/C):** authorized curator functions work and harmless actions record actor/timestamp.
+- **UAT-CUR-03 (A/C):** `/privacy`, `/submission-terms`, and `/takedown` load publicly and links remain usable. Accessibility is tested behaviorally; no phantom standalone accessibility page is required.
+- **UAT-CUR-04 (H):** use a **protected Neon restore point or protected database backup** and restore to an explicitly isolated environment. A catalogue export is supplemental evidence only and is never accepted as the restore source. Validate migrations, catalogue audit, public audio, private-evidence isolation, curator Access, governance/publication history, and required row/count/checksum checks.
+- **UAT-CUR-05 (H/C):** record provider/restore reference, operator, start/end/elapsed time, validation results, and isolated cleanup confirmation without credentials.
+- **UAT-CUR-06 (H/C):** time a human curator from a prepared/reviewed release through final publication. Expected: correctly published in **under 15 minutes**, audit history records the action, public release/track surfaces are correct, and elapsed time is stored in `evidence/metrics/`. For scheduled publication, prove intended instant/timezone and actual batch publication; `scheduled` state alone is not success.
 
-**Action:** prepare desktop Chrome or Edge, Firefox, Safari/WebKit, Android Chromium, and iOS Safari/WebKit.
+The agent must not initiate a destructive production reset/provider restore without explicit human authorization.
 
-**Expected:** tested environments are recorded explicitly.
+**Blocker:** unauthorized curator access, missing policy access, failed isolated restore, or publication time >=15 minutes.
 
-### UAT-SET-06 — Native assistive technology (H/C)
+## 8. Accessibility and browser review
 
-**Action:** prepare VoiceOver, TalkBack, and NVDA environments/testers.
+- **UAT-A11Y-01 (C):** keyboard journey in Chrome/Edge, Firefox, Safari/WebKit. Expected: visible focus, logical order, usable search/filter/player/queue/forms, no blocking overflow.
+- **UAT-A11Y-02 (H/C):** Android/iOS browse/search/queue/play/navigation remains usable.
+- **UAT-A11Y-03 (A/C):** reduced-motion preference is respected.
+- **UAT-A11Y-04 (H/C):** VoiceOver, TalkBack, and NVDA can complete representative discovery/playback/form journeys with understandable labels/status/errors/media controls/focus.
 
-**Expected:** environments are available or explicitly recorded as `BLOCKED`/`DEFERRED`.
+**Blocker:** unresolved Critical/High accessibility defect blocks a required journey. Automated scans support but do not replace real keyboard/AT evidence.
 
-A missing prerequisite stays visible in the report; it is never silently dropped.
+## 9. Invited listener cohort and analytics
 
-## 5. Public catalogue and discovery
+- **UAT-COHORT-01 (H):** invite 20-50 listeners with evaluation scope, privacy notice, supported browsers, troubleshooting, product feedback route, and separate incident route.
+- **UAT-COHORT-02 (H):** run the agreed evaluation window and capture incidents/feedback through intended routes.
+- **UAT-COHORT-03 (A/H):** export the protected aggregate evaluation dataset only after required human authorization/access. Expected: no low-volume participant-level data is published or included in the report.
+- **UAT-COHORT-04 (A/C):** record invited count, first/second sessions, playback sample, starts/failures, median/p95, failure classes, curator publication time, accessibility findings, feedback themes, and incidents.
+- **UAT-COHORT-05 (A):** calculate second-session return rate. Expected: **at least 25%** of invitees start a second session.
 
-### UAT-CAT-01 — Published catalogue only (A/C)
+**Blocker:** return below 25%, missing aggregate evidence, privacy boundary failure, or unresolved Critical/High issue.
 
-Open the home page.
+## 10. From observation to next increment
 
-**Expected:** published catalogue loads and unpublished/archived/private material does not appear.
+Classify each material finding exactly once:
 
-### UAT-CAT-02 — Public entity pages (A/C)
+- **FIX:** clear expected behavior is implemented incorrectly. Define target outcome, acceptance criteria, regression surface, and retest IDs.
+- **REFINE:** flow works but causes avoidable friction/ambiguity. Define desired improvement, constraints, measurable acceptance hypothesis, retest IDs.
+- **RETHINK:** evidence suggests the interaction/workflow/model is wrong. Define the decision, evidence, affected journey, desired outcome, invariants, decision needed, and how next UAT proves it.
+- **INSTRUMENT:** behavior may work but cannot be proven. Define missing signal, evidence gap, minimum telemetry/diagnostics, and testability criterion.
+- **CONFIGURE:** environment/deployment configuration blocks behavior. Define missing/incorrect config, affected environments, safe verification, and retest IDs.
 
-Open representative artist, release, and track pages.
+## 11. PDF report contract
 
-**Expected:** stable URL, correct title/artwork/credits, and a playable public audio asset appear.
+A human-readable PDF is mandatory for every completed or explicitly stopped UAT checkpoint. Build it from the preserved run ledger, not session memory.
 
-### UAT-CAT-03 — Search (A/C)
-
-Search for a known artist, release, and track.
-
-**Expected:** each query returns the intended result.
-
-### UAT-CAT-04 — URL-backed filters (A/C)
-
-Apply genre, mood, process, and applicable media filters; reload/share the URL.
-
-**Expected:** results and active filters remain represented in the URL. A media filter does not imply a required public video catalogue.
-
-### UAT-CAT-05 — Editorial collections (A/C)
-
-Open all five prepared editorial collections.
-
-**Expected:** ordered published tracks load and each track is playable or intentionally unavailable with a clear state.
-
-### UAT-CAT-06 — Public disclosure/privacy (A/C)
-
-Open the reviewed disclosure for an accepted track.
-
-**Expected:** public rights/process/provenance context appears; private notes, hidden roles/tools, evidence, object keys, curator data, and private evidence do not.
-
-**Catalogue blocker:** unpublished/private content exposure, unexpected absence of required published content, or disclosure of non-public data.
-
-For missing/fallback artwork, wrong credits, misleading controls, or layout breakage, capture a full screenshot and annotate it even if the underlying diagnosis is already known.
-
-## 6. Audio playback, queue, analytics, and recovery
-
-### UAT-PB-01 — Start public audio (A/C)
-
-Start representative published audio tracks from the catalogue/entity pages.
-
-**Expected:** native audio controls enable and `playback_started` is recorded for successful starts.
-
-### UAT-PB-02 — Queue and collection attribution (A/C)
-
-Queue two tracks from an editorial collection and play the first.
-
-**Expected:** queue order is retained and collection attribution remains attached to relevant lifecycle analytics.
-
-### UAT-PB-03 — Playback lifecycle (A/C)
-
-Pause, seek, resume, skip, replay, continue beyond 30 seconds, and complete representative audio playback.
-
-**Expected:** pause/seek/resume work as player controls. The implemented semantic events are observed at the correct moments without duplication: `listen_30_seconds`, `skip`, `replay`, and `completion` as applicable. No separate pause/seek/resume analytics events are required.
-
-### UAT-PB-04 — Unavailable asset (A/C)
-
-Attempt to play a deliberately unavailable track/asset fixture when available.
-
-**Expected:** a clear unavailable state is shown and no false successful playback event is emitted.
-
-### UAT-PB-05 — Signed URL/network recovery (A/C)
-
-Interrupt the network or exercise the documented expired-delivery retry path without persisting a signed URL in evidence.
-
-**Expected:** failure is explained and Retry obtains fresh playable delivery without losing the selected item/queue.
-
-### UAT-PB-06 — Playback-start reliability sample (A)
-
-Run 100 explicit play attempts across representative **audio** tracks/assets in the production-like environment.
-
-**Expected:** more than 98% produce `playback_started`. Record attempt count, successful starts, failures, median, p95, and failure classes in `evidence/metrics/`.
-
-### UAT-PB-07 — Median start latency (A)
-
-Measure request-to-start timing for the same agreed sample/profile.
-
-**Expected:** median playback start is below 1.5 seconds.
-
-### UAT-PB-08 — Byte range delivery (A)
-
-Request `Range: bytes=0-1023` from a fresh signed audio-media URL without persisting the URL or credentials.
-
-**Expected:** response is `206`, has a valid `Content-Range`, and returns exactly 1,024 bytes.
-
-**Playback blocker:** start reliability is not above 98%, median start is 1.5 seconds or more, recovery fails, or listener analytics/logs leak a signed URL/private request data.
-
-## 7. Submission and curator review
-
-### UAT-SUB-01 — Invitation-backed draft (H/C)
-
-Open an invitation and save a complete draft.
-
-**Expected:** draft persists and is accessible only through the intended invitation boundary.
-
-### UAT-SUB-02 — Submit and acknowledge (H/C)
-
-Submit with all required declarations.
-
-**Expected:** submission becomes `received` and the submitter receives the configured acknowledgement email.
-
-### UAT-SUB-03 — Invalid lifecycle transition (A/C)
-
-Attempt direct acceptance before the required listening/review path.
-
-**Expected:** transition is rejected and no acceptance is recorded.
-
-### UAT-SUB-04 — Curator lifecycle and audit (H/C)
-
-Move a valid submission through eligibility review to listening and acceptance.
-
-**Expected:** permitted transitions succeed; accepted declaration revisions and curator activity remain immutable/auditable.
-
-### UAT-SUB-05 — Allowed private evidence at the limit (H/C)
-
-Upload a 20 MiB allowed-MIME private evidence file.
-
-**Expected:** upload succeeds and remains private.
-
-### UAT-SUB-06 — Invalid private evidence (A/C)
-
-Attempt SVG/archive/unsupported MIME and a file over 20 MiB.
-
-**Expected:** invalid upload is rejected before storage/hash completion with an understandable error.
-
-### UAT-SUB-07 — Accepted public disclosure (A/C)
-
-Open public disclosure after acceptance.
-
-**Expected:** private evidence, private notes, invitation details, and non-public role/tool declarations remain excluded.
-
-**Submission blocker:** public invitation/evidence access, successful invalid transition, missing required immutable review history, or private data appearing publicly.
-
-Never embed invitation tokens or private-evidence URLs in the report PDF. Redact report derivatives while keeping private raw evidence securely.
-
-## 8. Curator access, timed publication, policy, and recovery
-
-### UAT-CUR-01 — Unauthorized curator access (A/C)
-
-Visit curator routes without authorized Cloudflare Access identity.
-
-**Expected:** access is denied.
-
-### UAT-CUR-02 — Authorized curator access/audit (H/C)
-
-Visit curator routes with the authorized curator identity and perform a harmless auditable action.
-
-**Expected:** curator functions are available and actor/timestamp are recorded.
-
-### UAT-CUR-03 — Public policy routes (A/C)
-
-Open the actual public policy routes in the application: `/privacy`, `/submission-terms`, and `/takedown`.
-
-**Expected:** each required policy route loads without curator authentication and its navigation/link remains usable. Accessibility is evaluated through the accessibility UAT section; the current product does not require a separate standalone accessibility-policy route.
-
-### UAT-CUR-04 — Isolated restore drill (H)
-
-Follow the documented provider/database recovery procedure: create/use a protected backup/restore point and restore to an explicitly isolated environment.
-
-**Expected:** migrations, catalogue audit, public audio playback, private-evidence isolation, curator Access, governance/publication history, and required row/count/checksum checks validate in the restored environment.
-
-The DevAI must not initiate a destructive production reset or provider restore without explicit human authorization.
-
-### UAT-CUR-05 — Recovery exercise record (H/C)
-
-Record restore point/provider reference, operator, start/end time, elapsed time, validation results, and isolated-environment cleanup confirmation.
-
-**Expected:** recovery evidence is sufficient for a maintainer to understand what was actually restored and verified without exposing credentials.
-
-### UAT-CUR-06 — Prepared release publication under 15 minutes (H/C)
-
-Start from a prepared/reviewed release that is ready for the curator publication workflow and time the human curator through the required final publication steps.
-
-**Expected:** the prepared release becomes correctly published in **under 15 minutes**, the publication/audit history records the action, the public release/track surfaces become correct, and elapsed time is saved under `evidence/metrics/`.
-
-If scheduled publication is used, verify the intended instant/timezone and actual batch-publication result rather than treating “scheduled” state as publication success.
-
-**Curator/recovery blocker:** unauthorized curator access, missing required policy access, failed isolated restore validation, or prepared-release publication taking 15 minutes or more.
-
-## 9. Accessibility and browser review
-
-### UAT-A11Y-01 — Desktop keyboard/engines (C)
-
-Use Chrome/Edge, Firefox, and Safari/WebKit; navigate the critical public and applicable form/player journeys by keyboard.
-
-**Expected:** visible focus, logical heading/navigation order, usable search/filter/player/queue/forms, and no blocking horizontal overflow.
-
-### UAT-A11Y-02 — Android/iOS usability (H/C)
-
-Browse, search, queue, play, and navigate the relevant public journey on Android Chromium and iOS Safari/WebKit.
-
-**Expected:** controls remain usable and layouts do not block the journey.
-
-### UAT-A11Y-03 — Reduced motion (A/C)
-
-Enable reduced-motion preference.
-
-**Expected:** scrolling/focus/animated behavior respects the preference.
-
-### UAT-A11Y-04 — Native assistive technology (H/C)
-
-Use VoiceOver, TalkBack, and NVDA to complete representative discovery and playback/form journeys.
-
-**Expected:** labels, status/error announcements, media controls, and focus changes are understandable.
-
-**Accessibility blocker:** any unresolved Critical/High accessibility defect prevents navigation, selection, playback, queue/recovery, form completion, or policy access.
-
-Automated accessibility scans support these checks but do not replace real keyboard/AT evidence.
-
-## 10. Invited listener cohort and analytics
-
-### UAT-COHORT-01 — Invite 20–50 listeners (H)
-
-Send the private-evaluation invitation with scope, privacy notice, supported browsers, playback troubleshooting, product-feedback route, and separate technical-incident route.
-
-**Expected:** cohort size and communication scope are recorded.
-
-### UAT-COHORT-02 — Run the agreed evaluation window (H)
-
-Run the agreed cohort period.
-
-**Expected:** evaluation window completes and technical incidents/product feedback are captured through the intended routes.
-
-### UAT-COHORT-03 — Aggregate analytics only (A/H)
-
-Export the protected aggregate evaluation dataset/dashboard.
-
-**Expected:** no low-volume participant-level data is published or included in the report.
-
-### UAT-COHORT-04 — Evaluation dataset completeness (A/C)
-
-Record invited count, first sessions, second sessions, playback sample size, starts/failures, median/p95 start, failure classes, curator publication time, accessibility findings, product-feedback themes, and incidents.
-
-**Expected:** the private-beta decision dataset is complete.
-
-### UAT-COHORT-05 — Returning-listener threshold (A)
-
-Calculate second-session return rate from the invited cohort.
-
-**Expected:** at least 25% of invitees start a second session.
-
-**Cohort blocker:** return below 25%, missing required aggregate evidence, privacy boundary failure, or unresolved Critical/High issue.
-
-## 11. From observation to the next product increment
-
-Every material finding gets exactly one primary next-increment classification.
-
-### FIX
-
-Use when the expected behavior is clear and implementation is wrong.
-
-```text
-Target user-visible/system outcome
-Acceptance criteria
-Regression surface
-Retest UAT ID(s)
-```
-
-### REFINE
-
-Use when the flow works but causes avoidable friction or ambiguity.
-
-```text
-Observed friction
-Desired experience improvement
-Constraints that remain true
-Acceptance hypothesis / measurable outcome
-Retest UAT ID(s)
-```
-
-### RETHINK
-
-Use when a local patch could preserve a wrong product/workflow assumption.
-
-```text
-Decision/question to resolve
-Evidence triggering rethink
-Affected users/journey
-Outcome revised design must achieve
-Constraints/invariants
-Decision required before implementation
-How next UAT proves the decision
-```
-
-### INSTRUMENT
-
-Use when the product may work but cannot be proven reliably.
-
-```text
-Missing observable signal
-Why current evidence is insufficient
-Minimum telemetry/diagnostic capability
-Testability acceptance criterion
-```
-
-### CONFIGURE
-
-Use when environment/deployment configuration is the primary blocker.
-
-```text
-Missing/incorrect configuration
-Environment affected
-Verification method without secrets
-Retest UAT ID(s)
-```
-
-## 12. PDF report contract
-
-A human-readable PDF is mandatory for every completed or explicitly stopped UAT checkpoint. Build it from the preserved run ledger, not chat/session memory.
-
-Generate the deterministic report with:
+Generate with:
 
 ```bash
 npm run uat:report -- test-results/uat/<RUN_ID>
 ```
 
-Keep all three reproducible forms:
+Keep `uat-report.md`, `uat-report.html`, and `uat-report.pdf` under the run's `report/` directory.
 
-```text
-report/uat-report.md
-report/uat-report.html
-report/uat-report.pdf
-```
+Required report sections:
 
-### 12.1 Required report sections
+1. cover/run identity;
+2. executive summary - proven/unproven scope, major findings, Chieftain recommendation, human decision;
+3. result summary - all result counts and beta gate matrix;
+4. journey/test results - every required UAT ID, expected/observed/status/note/evidence;
+5. detailed findings;
+6. annotated screenshot evidence;
+7. metrics - catalogue, playback, curator publication, cohort/return where active;
+8. unexecuted/blocked/deferred coverage and re-entry condition;
+9. re-entry/regression plan;
+10. decision record - Chieftain/Shaman/Warden evidence where applicable plus human decision/accepted risks;
+11. evidence appendix with sanitized summaries only.
 
-1. **Cover / run identity** — product, environment, candidate, run ID, dates/timezone, testers, browser/device scope.
-2. **Executive summary** — what was proven/unproven, major failures/gaps, DevAI recommendation, human decision.
-3. **Result summary** — counts of `PASS / FAIL / BLOCKED / DEFERRED / NOT_RUN` and private-beta gate matrix.
-4. **Journey/test results** — every required UAT ID with expected/observed/status/note/evidence.
-5. **Detailed findings** — severity/type/impact, observed vs expected, reproduction, annotated screenshots, next-increment definition, retest criteria, issue/PR link.
-6. **Annotated screenshot evidence** — readable size, finding-ID callouts, next-iteration definition, report-safe redaction.
-7. **Metrics** — catalogue volume, playback reliability/latency sample, curator elapsed publication time, cohort/return figures where active.
-8. **Unexecuted/blocked/deferred coverage** — reason, dependency, re-entry condition.
-9. **Re-entry/regression plan** — exact findings and UAT IDs to rerun plus automated regression coverage where appropriate.
-10. **Decision record** — DevAI recommendation, human decision, accepted risks.
-11. **Evidence appendix** — manifest, sanitized metric/log summaries; never secrets/private URLs/tokens.
+A stakeholder who did not attend must be able to determine what was tested, what actually worked, what remains unproven, whether public/private boundaries held, whether publication was <15 minutes, whether playback exceeded 98% and median stayed <1.5s, what the human observed, how each finding is classified, what must change, and whether release is supportable.
 
-### 12.2 Report quality bar
+## 12. Final decision record
 
-A stakeholder who did not attend the run must be able to answer:
+Record `pass / fail / incomplete` with evidence/findings for:
 
-```text
-What did we test and against which candidate/environment?
-What listener/submission/curation journey actually worked?
-What failed or remains unproven?
-Did public/private boundaries hold?
-Did the prepared release publish in under 15 minutes?
-Did audio playback exceed 98% starts and stay below 1.5s median start?
-What did the human observe and where is the screenshot evidence?
-Is each issue a fix, refinement, rethink, instrumentation, or configuration problem?
-What outcome is required next and how will we prove it?
-Can we release now?
-```
+- catalogue readiness: 10-20 artists, 30-50 tracks, five collections;
+- public catalogue/disclosure privacy boundary;
+- audio playback start reliability >98% and median <1.5s;
+- queue/lifecycle analytics and delivery recovery;
+- submission/curator workflow including actual transactional acknowledgement;
+- curator Access/private-evidence boundary;
+- prepared release publication <15 minutes;
+- isolated protected-backup/restore drill;
+- accessibility/browser review with no unresolved Critical/High blocker;
+- 20-50 listener cohort and >=25% second-session return.
 
-The report must not bury failures in logs, omit screenshots because a textual diagnosis exists, or convert uncertainty into confident prose.
+**Chieftain recommendation:** GO / ITERATE / STOP
 
-## 13. Final decision record
-
-Record these gates as `pass / fail / incomplete` with evidence and findings:
-
-- Catalogue readiness: 10–20 artists, 30–50 reviewed tracks, five collections.
-- Public catalogue/disclosure privacy boundary.
-- Audio playback-start reliability above 98% and median start below 1.5 seconds.
-- Queue/lifecycle analytics and signed-delivery recovery.
-- Submission and curator workflow including transactional acknowledgement.
-- Curator Access/private-evidence boundary.
-- **Prepared release publication in under 15 minutes.**
-- Isolated restore drill.
-- Accessibility/browser review with no unresolved Critical/High blocker.
-- Listener cohort of 20–50 and at least 25% second-session return.
-
-**DevAI recommendation:** GO / ITERATE / STOP
+**Shaman / Warden acceptance evidence:**
 
 **Human maintainer decision:** GO / ITERATE / STOP
 
 **Decision date and signer:**
 
-**Known residual risk and follow-up issues:**
+**Known residual risk / follow-up:**
 
-### Decision rules
+Decision rules:
 
-- **GO** only when every required private-beta gate has measured evidence, no unresolved blocker contradicts the criteria, and the human maintainer accepts documented residual risk.
-- **ITERATE** when a meaningful product slice is proven but defects, product gaps, UX/design issues, or incomplete evidence require another increment.
-- **STOP** when a Critical privacy/access failure, release-blocking defect, failed foundational recovery/playback gate, or insufficient evidence makes release evaluation unsupported.
+- **GO** only when every required private-beta gate has measured evidence, independent governance gates required by `AGENTS.md` are satisfied, no unresolved blocker contradicts criteria, and the human accepts residual risk.
+- **ITERATE** when a meaningful slice is proven but defects, gaps, UX/design issues, or incomplete evidence require another increment.
+- **STOP** when Critical privacy/access failure, release-blocking defect, failed recovery/playback gate, governance breach, or insufficient evidence makes release evaluation unsupported.
 
-A partial run may still produce a strong **ITERATE** or **STOP** checkpoint report. Never force the run to completion merely to obtain a final-looking PDF.
+A partial run may produce a strong `ITERATE` or `STOP`. Never force completion merely to make the report look final.
 
-## 14. DevAI completion checklist
+## 13. Completion checklist
 
-Before declaring the UAT checkpoint complete:
+Before declaring a UAT checkpoint complete:
 
 - [ ] Candidate SHA/environment/build identity is recorded.
-- [ ] `docs/product-scope.md` and `docs/private-beta-evaluation.md` were used for product/release gates.
-- [ ] Every attempted UAT step has a status and evidence reference.
-- [ ] Every unattempted required step is explicitly `NOT_RUN` or `DEFERRED`.
-- [ ] Human notes are preserved before diagnosis.
-- [ ] Raw screenshots are preserved unchanged.
-- [ ] Material visual findings have annotated screenshot derivatives.
-- [ ] Annotated screenshots identify the issue and next-increment resolution/rethink definition.
-- [ ] Every material non-pass observation maps to a finding.
-- [ ] Every finding has impact, classification, and retest acceptance criteria.
-- [ ] Metrics/log evidence is summarized without exposing secrets/signed URLs/private participant data.
-- [ ] Public video is not treated as a required MVP gate unless product scope changes.
-- [ ] Analytics checks use the event vocabulary actually implemented by the product.
-- [ ] Public policy-route checks match `/privacy`, `/submission-terms`, and `/takedown`; accessibility is tested as behavior, not a phantom page.
-- [ ] Catalogue volume is measured against 10–20 artists, 30–50 reviewed tracks, and five collections.
-- [ ] Curator publication time under 15 minutes is measured.
-- [ ] Audio playback start reliability and latency thresholds are measured.
-- [ ] Cohort/return gate is measured when making the beta release decision.
-- [ ] PDF contains results, findings, screenshots, metrics, unresolved coverage, and re-entry criteria.
-- [ ] DevAI recommendation and human release authority remain clearly separated.
-- [ ] `uat-report.md`, `uat-report.html`, and `uat-report.pdf` are saved under the run directory.
+- [ ] Product scope/private-beta criteria and repository agent authority were used.
+- [ ] Active acceptance criteria map to UAT/evidence.
+- [ ] Every attempted step has status/evidence; every required unattempted step is `NOT_RUN`/`DEFERRED`.
+- [ ] Human observations were preserved before diagnosis.
+- [ ] No bearer secret/credential was retained as evidence; accidental captures were removed and rotated/revoked when needed.
+- [ ] Admissible raw screenshots are unchanged and visual findings have annotated report-safe derivatives.
+- [ ] Every material non-pass maps to a finding with classification and retest criteria.
+- [ ] Public video is not a required MVP gate unless scope changes.
+- [ ] Analytics checks use the implemented event vocabulary.
+- [ ] Public policy checks match `/privacy`, `/submission-terms`, `/takedown`.
+- [ ] Catalogue volume, <15-minute publication, playback reliability/latency, and cohort/return gates are measured when required.
+- [ ] Restore evidence uses a protected database restore source, never a catalogue export as the source.
+- [ ] Required Shaman/Warden acceptance evidence is recorded.
+- [ ] PDF includes results, findings, screenshots, metrics, unresolved coverage, and re-entry criteria.
+- [ ] Human release authority remains distinct from agent recommendations.
+- [ ] All three report forms exist under the run directory.
 
-The DevAI must not state **UAT complete**, **release ready**, or **GO** while any required item above is knowingly false.
+No agent may state **UAT complete**, **release ready**, or **GO** while a required item above is knowingly false.
