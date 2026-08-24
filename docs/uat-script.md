@@ -211,14 +211,14 @@ Do not turn a finding into an implementation prescription unless the evidence ac
 
 ## 2. Setup and preflight
 
-| ID | Mode | Step | Expected result | Result / evidence |
-| --- | --- | --- | --- | --- |
-| UAT-SET-01 | A/C | Deploy the approved build with production-like Neon, R2, Cloudflare Access, transactional email, and analytics bindings. | Candidate/build is identifiable and required bindings are present. | |
-| UAT-SET-02 | A/C | Prepare at least 10 reviewed artists, 30 reviewed tracks, and five published collections. | Required catalogue volume exists. | |
-| UAT-SET-03 | A | Run `npm run catalogue:audit`. | Zero missing metadata, media, artwork, and review records. | |
-| UAT-SET-04 | H/C | Prepare one invited submitter, one Cloudflare Access curator, and 20-50 invited listeners. | Required UAT identities/cohort are available without exposing credentials in evidence. | |
-| UAT-SET-05 | H/C | Prepare desktop Chrome or Edge, Firefox, and Safari/WebKit; Android Chromium; and iOS Safari/WebKit. | Browser/device matrix is recorded. | |
-| UAT-SET-06 | H/C | Prepare native assistive-technology environments for VoiceOver, TalkBack, and NVDA. | AT environments/testers are available or explicitly recorded as blocked/deferred. | |
+| ID         | Mode | Step                                                                                                                     | Expected result                                                                        | Result / evidence |
+| ---------- | ---- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------- | ----------------- |
+| UAT-SET-01 | A/C  | Deploy the approved build with production-like Neon, R2, Cloudflare Access, transactional email, and analytics bindings. | Candidate/build is identifiable and required bindings are present.                     |                   |
+| UAT-SET-02 | A/C  | Prepare at least 10 reviewed artists, 30 reviewed tracks, and five published collections.                                | Required catalogue volume exists.                                                      |                   |
+| UAT-SET-03 | A    | Run `npm run catalogue:audit`.                                                                                           | Zero missing metadata, media, artwork, and review records.                             |                   |
+| UAT-SET-04 | H/C  | Prepare one invited submitter, one Cloudflare Access curator, and 20-50 invited listeners.                               | Required UAT identities/cohort are available without exposing credentials in evidence. |                   |
+| UAT-SET-05 | H/C  | Prepare desktop Chrome or Edge, Firefox, and Safari/WebKit; Android Chromium; and iOS Safari/WebKit.                     | Browser/device matrix is recorded.                                                     |                   |
+| UAT-SET-06 | H/C  | Prepare native assistive-technology environments for VoiceOver, TalkBack, and NVDA.                                      | AT environments/testers are available or explicitly recorded as blocked/deferred.      |                   |
 
 A missing prerequisite does not disappear from the report. Record the affected setup test as `FAIL`, `BLOCKED`, or `DEFERRED`, then mark dependent tests accordingly.
 
@@ -226,14 +226,14 @@ A missing prerequisite does not disappear from the report. Record the affected s
 
 ## 3. Public catalogue and discovery
 
-| ID | Mode | Step | Expected result | Result / evidence |
-| --- | --- | --- | --- | --- |
-| UAT-CAT-01 | A/C | Open the home page. | Published catalogue loads; no unpublished or archived work appears. | |
-| UAT-CAT-02 | A/C | Open artist, release, and track pages. | Stable URL, correct title/artwork/credits, and a playable public asset appear. | |
-| UAT-CAT-03 | A/C | Search for a known artist, release, and track. | Each query returns the correct result. | |
-| UAT-CAT-04 | A/C | Apply genre, mood, process, and media filters; reload/share URL. | Results and active filters remain represented in the URL. | |
-| UAT-CAT-05 | A/C | Open each editorial collection. | Ordered tracks load and each track is playable or intentionally unavailable. | |
-| UAT-CAT-06 | A/C | Open the reviewed disclosure for one accepted track. | Public rights/process/provenance summary appears; private notes, hidden roles/tools, evidence, object keys, and curator data do not appear. | |
+| ID         | Mode | Step                                                             | Expected result                                                                                                                             | Result / evidence |
+| ---------- | ---- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| UAT-CAT-01 | A/C  | Open the home page.                                              | Published catalogue loads; no unpublished or archived work appears.                                                                         |                   |
+| UAT-CAT-02 | A/C  | Open artist, release, and track pages.                           | Stable URL, correct title/artwork/credits, and a playable public asset appear.                                                              |                   |
+| UAT-CAT-03 | A/C  | Search for a known artist, release, and track.                   | Each query returns the correct result.                                                                                                      |                   |
+| UAT-CAT-04 | A/C  | Apply genre, mood, process, and media filters; reload/share URL. | Results and active filters remain represented in the URL.                                                                                   |                   |
+| UAT-CAT-05 | A/C  | Open each editorial collection.                                  | Ordered tracks load and each track is playable or intentionally unavailable.                                                                |                   |
+| UAT-CAT-06 | A/C  | Open the reviewed disclosure for one accepted track.             | Public rights/process/provenance summary appears; private notes, hidden roles/tools, evidence, object keys, and curator data do not appear. |                   |
 
 **Blocker:** unpublished/private content is exposed, published content is missing unexpectedly, or public disclosure exposes non-public data.
 
@@ -243,16 +243,16 @@ For visually wrong catalogue states—missing artwork, fallback artwork, wrong c
 
 ## 4. Playback, queue, and recovery
 
-| ID | Mode | Step | Expected result | Result / evidence |
-| --- | --- | --- | --- | --- |
-| UAT-PB-01 | A/C | Start one audio track and one video track. | Native controls enable and `playback_started` is recorded. | |
-| UAT-PB-02 | A/C | Queue two tracks from a collection, then play the first. | Queue order is retained; collection attribution remains on lifecycle analytics for queued collection tracks. | |
-| UAT-PB-03 | A/C | Pause, seek, resume, skip, replay, and complete playback. | Controls work; corresponding lifecycle events are captured once with sensible progress. | |
-| UAT-PB-04 | A/C | Start an unavailable track. | Clear unavailable state; no false successful playback event. | |
-| UAT-PB-05 | A/C | Interrupt network or use an expired signed URL, then Retry. | Failure is explained; Retry obtains a fresh playable URL without losing selected item/queue. | |
-| UAT-PB-06 | A | Run 100 explicit play attempts across representative audio/video assets. | At least 98 produce `playback_started`; record successes, failures, median, and p95 request-to-start time. | |
-| UAT-PB-07 | A | Inspect median start latency. | Median is below 1.5 seconds on the agreed broadband profile. | |
-| UAT-PB-08 | A | Request `Range: bytes=0-1023` from a fresh signed media URL without persisting the URL. | `206`, valid `Content-Range`, and exactly 1,024 bytes are returned. | |
+| ID        | Mode | Step                                                                                    | Expected result                                                                                              | Result / evidence |
+| --------- | ---- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ----------------- |
+| UAT-PB-01 | A/C  | Start one audio track and one video track.                                              | Native controls enable and `playback_started` is recorded.                                                   |                   |
+| UAT-PB-02 | A/C  | Queue two tracks from a collection, then play the first.                                | Queue order is retained; collection attribution remains on lifecycle analytics for queued collection tracks. |                   |
+| UAT-PB-03 | A/C  | Pause, seek, resume, skip, replay, and complete playback.                               | Controls work; corresponding lifecycle events are captured once with sensible progress.                      |                   |
+| UAT-PB-04 | A/C  | Start an unavailable track.                                                             | Clear unavailable state; no false successful playback event.                                                 |                   |
+| UAT-PB-05 | A/C  | Interrupt network or use an expired signed URL, then Retry.                             | Failure is explained; Retry obtains a fresh playable URL without losing selected item/queue.                 |                   |
+| UAT-PB-06 | A    | Run 100 explicit play attempts across representative audio/video assets.                | At least 98 produce `playback_started`; record successes, failures, median, and p95 request-to-start time.   |                   |
+| UAT-PB-07 | A    | Inspect median start latency.                                                           | Median is below 1.5 seconds on the agreed broadband profile.                                                 |                   |
+| UAT-PB-08 | A    | Request `Range: bytes=0-1023` from a fresh signed media URL without persisting the URL. | `206`, valid `Content-Range`, and exactly 1,024 bytes are returned.                                          |                   |
 
 **Blocker:** start rate is below 98%, median start is 1.5 seconds or more, playback recovery fails, or listener activity leaks a signed URL.
 
@@ -262,15 +262,15 @@ Metrics belong in `evidence/metrics/` and must be summarized in the PDF; do not 
 
 ## 5. Submission and curator review
 
-| ID | Mode | Step | Expected result | Result / evidence |
-| --- | --- | --- | --- | --- |
-| UAT-SUB-01 | H/C | Open an invitation link and save a complete draft. | Draft persists and is accessible only via its invitation link. | |
-| UAT-SUB-02 | H/C | Submit with all required declarations. | Submission changes to `received`; submitter receives the configured acknowledgement. | |
-| UAT-SUB-03 | A/C | Attempt direct acceptance before listening. | Rejected with a transition conflict; no acceptance is recorded. | |
-| UAT-SUB-04 | H/C | Curator moves a valid submission through eligibility review to listening, then accepts it. | Permitted transitions work; accepted declaration revisions and curator activity are immutable/auditable. | |
-| UAT-SUB-05 | H/C | Upload private evidence at 20 MiB with an allowed MIME type. | Upload succeeds and remains private. | |
-| UAT-SUB-06 | A/C | Upload SVG, archive, unsupported MIME, or a file over 20 MiB. | Upload is rejected before storage/hash completion with an understandable error. | |
-| UAT-SUB-07 | A/C | Open public disclosure after acceptance. | Public view excludes private evidence, private notes, and non-public role/tool declarations. | |
+| ID         | Mode | Step                                                                                       | Expected result                                                                                          | Result / evidence |
+| ---------- | ---- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------- | ----------------- |
+| UAT-SUB-01 | H/C  | Open an invitation link and save a complete draft.                                         | Draft persists and is accessible only via its invitation link.                                           |                   |
+| UAT-SUB-02 | H/C  | Submit with all required declarations.                                                     | Submission changes to `received`; submitter receives the configured acknowledgement.                     |                   |
+| UAT-SUB-03 | A/C  | Attempt direct acceptance before listening.                                                | Rejected with a transition conflict; no acceptance is recorded.                                          |                   |
+| UAT-SUB-04 | H/C  | Curator moves a valid submission through eligibility review to listening, then accepts it. | Permitted transitions work; accepted declaration revisions and curator activity are immutable/auditable. |                   |
+| UAT-SUB-05 | H/C  | Upload private evidence at 20 MiB with an allowed MIME type.                               | Upload succeeds and remains private.                                                                     |                   |
+| UAT-SUB-06 | A/C  | Upload SVG, archive, unsupported MIME, or a file over 20 MiB.                              | Upload is rejected before storage/hash completion with an understandable error.                          |                   |
+| UAT-SUB-07 | A/C  | Open public disclosure after acceptance.                                                   | Public view excludes private evidence, private notes, and non-public role/tool declarations.             |                   |
 
 **Blocker:** invitation or evidence access is public, an invalid lifecycle transition succeeds, or private data appears publicly.
 
@@ -280,13 +280,13 @@ Never embed invitation tokens or private-evidence URLs in screenshots used in th
 
 ## 6. Curator access, policy, and recovery
 
-| ID | Mode | Step | Expected result | Result / evidence |
-| --- | --- | --- | --- | --- |
-| UAT-CUR-01 | A/C | Visit curator routes without Cloudflare Access. | Access is denied. | |
-| UAT-CUR-02 | H/C | Visit curator routes with authorized Access identity. | Curator functions are available; actions record actor and timestamp. | |
-| UAT-CUR-03 | A/C | Open privacy, terms, and accessibility/policy pages. | Pages load and policy links are usable without authentication. | |
-| UAT-CUR-04 | H | Create a protected Neon restore point/export and restore to an isolated environment. | Migration, catalogue audit, public playback, private-evidence isolation, curator Access, and publication history all validate. | |
-| UAT-CUR-05 | H/C | Record recovery exercise. | Restore point, operator, elapsed time, row counts, checksums, outcome, and cleanup confirmation are captured. | |
+| ID         | Mode | Step                                                                                 | Expected result                                                                                                                | Result / evidence |
+| ---------- | ---- | ------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ | ----------------- |
+| UAT-CUR-01 | A/C  | Visit curator routes without Cloudflare Access.                                      | Access is denied.                                                                                                              |                   |
+| UAT-CUR-02 | H/C  | Visit curator routes with authorized Access identity.                                | Curator functions are available; actions record actor and timestamp.                                                           |                   |
+| UAT-CUR-03 | A/C  | Open privacy, terms, and accessibility/policy pages.                                 | Pages load and policy links are usable without authentication.                                                                 |                   |
+| UAT-CUR-04 | H    | Create a protected Neon restore point/export and restore to an isolated environment. | Migration, catalogue audit, public playback, private-evidence isolation, curator Access, and publication history all validate. |                   |
+| UAT-CUR-05 | H/C  | Record recovery exercise.                                                            | Restore point, operator, elapsed time, row counts, checksums, outcome, and cleanup confirmation are captured.                  |                   |
 
 **Blocker:** unauthorized curator access, unavailable policy pages, or a failed isolated restore drill.
 
@@ -296,12 +296,12 @@ The DevAI must not initiate destructive production recovery actions without expl
 
 ## 7. Accessibility and browser review
 
-| ID | Mode | Step | Expected result | Result / evidence |
-| --- | --- | --- | --- | --- |
-| UAT-A11Y-01 | C | Desktop Chrome/Edge, Firefox, and Safari/WebKit: navigate by keyboard. | Visible focus, logical heading/navigation order, operable search/filter/player/queue controls, and no horizontal overflow. | |
-| UAT-A11Y-02 | H/C | Android and iOS: browse, queue, play, and navigate. | Controls remain usable; page does not overflow horizontally. | |
-| UAT-A11Y-03 | A/C | Enable reduced-motion preference. | Scrolling/focus movement respects reduced motion. | |
-| UAT-A11Y-04 | H/C | VoiceOver, TalkBack, and NVDA: complete discovery and playback journey. | Labels, status/error announcements, native media controls, and focus changes are understandable. | |
+| ID          | Mode | Step                                                                    | Expected result                                                                                                            | Result / evidence |
+| ----------- | ---- | ----------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| UAT-A11Y-01 | C    | Desktop Chrome/Edge, Firefox, and Safari/WebKit: navigate by keyboard.  | Visible focus, logical heading/navigation order, operable search/filter/player/queue controls, and no horizontal overflow. |                   |
+| UAT-A11Y-02 | H/C  | Android and iOS: browse, queue, play, and navigate.                     | Controls remain usable; page does not overflow horizontally.                                                               |                   |
+| UAT-A11Y-03 | A/C  | Enable reduced-motion preference.                                       | Scrolling/focus movement respects reduced motion.                                                                          |                   |
+| UAT-A11Y-04 | H/C  | VoiceOver, TalkBack, and NVDA: complete discovery and playback journey. | Labels, status/error announcements, native media controls, and focus changes are understandable.                           |                   |
 
 **Blocker:** any critical/high defect prevents navigation, selection, playback control, queue control, recovery, form completion, or policy access.
 
@@ -311,13 +311,13 @@ Automated accessibility scans may support these tests but do not replace real ke
 
 ## 8. Invited listener cohort and analytics
 
-| ID | Mode | Step | Expected result | Result / evidence |
-| --- | --- | --- | --- | --- |
-| UAT-COHORT-01 | H | Invite 20-50 listeners with the private-evaluation scope, privacy notice, supported browsers, troubleshooting link, feedback route, and separate technical-incident route. | Cohort and communication scope are recorded. | |
-| UAT-COHORT-02 | H | Run the agreed cohort period. | Cohort period completes with technical incidents recorded. | |
-| UAT-COHORT-03 | A/H | Export only aggregate dashboard data. | No low-volume participant-level data is published. | |
-| UAT-COHORT-04 | A/C | Record invited count, first sessions, second sessions, playback sample size, starts, failures, median/p95 start time, failure classes, curator preparation time, accessibility defects, feedback themes, and incidents. | Required evaluation dataset is complete. | |
-| UAT-COHORT-05 | A | Calculate second-session return rate. | At least 25% of invited listeners start a second session. | |
+| ID            | Mode | Step                                                                                                                                                                                                                    | Expected result                                            | Result / evidence |
+| ------------- | ---- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------- |
+| UAT-COHORT-01 | H    | Invite 20-50 listeners with the private-evaluation scope, privacy notice, supported browsers, troubleshooting link, feedback route, and separate technical-incident route.                                              | Cohort and communication scope are recorded.               |                   |
+| UAT-COHORT-02 | H    | Run the agreed cohort period.                                                                                                                                                                                           | Cohort period completes with technical incidents recorded. |                   |
+| UAT-COHORT-03 | A/H  | Export only aggregate dashboard data.                                                                                                                                                                                   | No low-volume participant-level data is published.         |                   |
+| UAT-COHORT-04 | A/C  | Record invited count, first sessions, second sessions, playback sample size, starts, failures, median/p95 start time, failure classes, curator preparation time, accessibility defects, feedback themes, and incidents. | Required evaluation dataset is complete.                   |                   |
+| UAT-COHORT-05 | A    | Calculate second-session return rate.                                                                                                                                                                                   | At least 25% of invited listeners start a second session.  |                   |
 
 **Blocker:** return rate below 25%, missing aggregate evidence, or unresolved critical/high issues.
 
@@ -503,16 +503,16 @@ The report must not bury failures in raw logs, omit screenshots because a textua
 
 ## 11. Final decision record
 
-| Gate | Pass / fail / incomplete | Evidence | Findings / follow-up |
-| --- | --- | --- | --- |
-| Catalogue readiness | | | |
-| Public privacy boundary | | | |
-| Playback reliability and latency | | | |
-| Submission and curator workflow | | | |
-| Access and private evidence boundary | | | |
-| Restore drill | | | |
-| Accessibility and browser review | | | |
-| Listener cohort and return rate | | | |
+| Gate                                 | Pass / fail / incomplete | Evidence | Findings / follow-up |
+| ------------------------------------ | ------------------------ | -------- | -------------------- |
+| Catalogue readiness                  |                          |          |                      |
+| Public privacy boundary              |                          |          |                      |
+| Playback reliability and latency     |                          |          |                      |
+| Submission and curator workflow      |                          |          |                      |
+| Access and private evidence boundary |                          |          |                      |
+| Restore drill                        |                          |          |                      |
+| Accessibility and browser review     |                          |          |                      |
+| Listener cohort and return rate      |                          |          |                      |
 
 **DevAI recommendation:** GO / ITERATE / STOP
 

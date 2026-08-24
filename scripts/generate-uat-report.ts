@@ -26,9 +26,7 @@ type ReportMetadata = {
 };
 
 function usage(): never {
-  console.error(
-    "Usage: npm run uat:report -- test-results/uat/<RUN_ID> [--html-only]",
-  );
+  console.error("Usage: npm run uat:report -- test-results/uat/<RUN_ID> [--html-only]");
   process.exit(2);
 }
 
@@ -50,10 +48,7 @@ function renderInline(value: string): string {
   rendered = rendered.replace(/`([^`]+)`/g, "<code>$1</code>");
   rendered = rendered.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   rendered = rendered.replace(/\*([^*]+)\*/g, "<em>$1</em>");
-  rendered = rendered.replace(
-    /\[([^\]]+)]\((https?:\/\/[^)]+)\)/g,
-    '<a href="$2">$1</a>',
-  );
+  rendered = rendered.replace(/\[([^\]]+)]\((https?:\/\/[^)]+)\)/g, '<a href="$2">$1</a>');
   return rendered;
 }
 
@@ -68,10 +63,7 @@ function splitTableRow(line: string): string[] {
 
 function isTableDivider(line: string): boolean {
   const cells = splitTableRow(line);
-  return (
-    cells.length > 0 &&
-    cells.every((cell) => /^:?-{3,}:?$/.test(cell.replaceAll(" ", "")))
-  );
+  return cells.length > 0 && cells.every((cell) => /^:?-{3,}:?$/.test(cell.replaceAll(" ", "")));
 }
 
 function renderMarkdown(markdown: string): string {
@@ -96,12 +88,8 @@ function renderMarkdown(markdown: string): string {
   };
 
   const flushCode = () => {
-    const className = codeLanguage
-      ? ` class="language-${escapeHtml(codeLanguage)}"`
-      : "";
-    output.push(
-      `<pre><code${className}>${escapeHtml(codeLines.join("\n"))}</code></pre>`,
-    );
+    const className = codeLanguage ? ` class="language-${escapeHtml(codeLanguage)}"` : "";
+    output.push(`<pre><code${className}>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
     codeLines = [];
     codeLanguage = "";
   };
@@ -136,9 +124,7 @@ function renderMarkdown(markdown: string): string {
       closeList();
       const headers = splitTableRow(line);
       output.push('<div class="table-wrap"><table><thead><tr>');
-      output.push(
-        headers.map((header) => `<th>${renderInline(header)}</th>`).join(""),
-      );
+      output.push(headers.map((header) => `<th>${renderInline(header)}</th>`).join(""));
       output.push("</tr></thead><tbody>");
       index += 2;
       while (index < lines.length && (lines[index] ?? "").trim().startsWith("|")) {
@@ -254,8 +240,7 @@ function metadataFrom(inputs: ReportInputs): ReportMetadata {
     runId: extractField(inputs.run, "Run ID"),
     environment:
       deployment === "Not recorded" ? extractField(inputs.run, "Environment") : deployment,
-    candidate:
-      candidate === "Not recorded" ? extractField(inputs.run, "Candidate") : candidate,
+    candidate: candidate === "Not recorded" ? extractField(inputs.run, "Candidate") : candidate,
     humanDecision: extractField(combined, "Human maintainer decision"),
     devAiRecommendation: extractField(combined, "DevAI recommendation"),
   };
@@ -272,9 +257,7 @@ function extractStatusSummary(results: string): StatusSummary {
     if (status) byTestId.set(id, status);
   }
 
-  const summary = Object.fromEntries(
-    RESULT_STATUSES.map((status) => [status, 0]),
-  ) as StatusSummary;
+  const summary = Object.fromEntries(RESULT_STATUSES.map((status) => [status, 0])) as StatusSummary;
   for (const status of byTestId.values()) summary[status] += 1;
   return summary;
 }
@@ -310,9 +293,7 @@ function statusSummaryMarkdown(summary: StatusSummary): string {
 
 function evidenceManifestMarkdown(runDir: string, evidenceFiles: string[]): string {
   if (evidenceFiles.length === 0) return "No supporting evidence files were found.";
-  return evidenceFiles
-    .map((path) => `- \`${relativePortable(runDir, path)}\``)
-    .join("\n");
+  return evidenceFiles.map((path) => `- \`${relativePortable(runDir, path)}\``).join("\n");
 }
 
 function screenshotMarkdown(reportDir: string, screenshots: string[]): string {
@@ -429,24 +410,14 @@ function buildHtml(options: {
   runDir: string;
   generatedAt: string;
 }): string {
-  const {
-    inputs,
-    metadata,
-    statusSummary,
-    screenshotHtml,
-    evidenceFiles,
-    runDir,
-    generatedAt,
-  } = options;
+  const { inputs, metadata, statusSummary, screenshotHtml, evidenceFiles, runDir, generatedAt } =
+    options;
 
   const manifest =
     evidenceFiles.length === 0
       ? '<p class="empty">No supporting evidence files were found.</p>'
       : `<ul>${evidenceFiles
-          .map(
-            (path) =>
-              `<li><code>${escapeHtml(relativePortable(runDir, path))}</code></li>`,
-          )
+          .map((path) => `<li><code>${escapeHtml(relativePortable(runDir, path))}</code></li>`)
           .join("")}</ul>`;
 
   return `<!doctype html>
