@@ -25,7 +25,7 @@ type ReportMetadata = {
   devAiRecommendation: string;
 };
 
-function usage(): never {
+function usage(): void {
   console.error("Usage: npm run uat:report -- test-results/uat/<RUN_ID> [--html-only]");
   process.exit(2);
 }
@@ -279,8 +279,8 @@ function imageMime(path: string): string | null {
 async function imageDataUri(path: string): Promise<string | null> {
   const mime = imageMime(path);
   if (!mime) return null;
-  const bytes = await readFile(path);
-  return `data:${mime};base64,${bytes.toString("base64")}`;
+  const base64 = await readFile(path, "base64");
+  return `data:${mime};base64,${base64}`;
 }
 
 function statusSummaryMarkdown(summary: StatusSummary): string {
@@ -538,7 +538,7 @@ async function renderPdf(htmlPath: string, pdfPath: string): Promise<void> {
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const htmlOnly = args.includes("--html-only");
-  const positional = args.filter((arg) => !arg.startsWith("--"));
+  const positional = args.filter((arg: string) => !arg.startsWith("--"));
   if (positional.length !== 1) usage();
 
   const runDir = resolve(positional[0] ?? "");
