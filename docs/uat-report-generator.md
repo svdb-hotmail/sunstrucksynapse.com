@@ -1,6 +1,6 @@
 # UAT report generator
 
-The UAT protocol in `docs/uat-script.md` uses a deterministic repository-local report generator.
+The UAT protocol in `docs/uat-script.md` uses a deterministic repository-local report generator implemented in `scripts/generate-uat-report.ts`.
 
 ## Command
 
