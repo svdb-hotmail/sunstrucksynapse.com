@@ -81,3 +81,7 @@ The generator assembles evidence; it does not invent or reinterpret it. Before r
 - defining explicit acceptance criteria for retest.
 
 The report generator deliberately keeps the ledger text in the report so that a polished PDF cannot replace or erase the underlying tester observations.
+
+## Verification
+
+`tests/unit/generate-uat-report.test.ts` exercises the actual CLI in `--html-only` mode against a temporary UAT ledger. It verifies result counting, report creation, annotated screenshot embedding, evidence-manifest inclusion, and failure when a required ledger file is missing. The normal repository CI therefore guards the deterministic assembly path without making the unit-test phase depend on a local browser install.
