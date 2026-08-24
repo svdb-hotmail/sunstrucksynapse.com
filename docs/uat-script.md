@@ -42,6 +42,12 @@ The following release thresholds come from `docs/private-beta-evaluation.md` and
 - a video asset or video-capable implementation may be tested as additional evidence when relevant, but inability to provide a public video catalogue does not fail the Sunstruck MVP;
 - no DevAI may reintroduce “audio + video public playback” as a required beta gate unless the product scope is deliberately changed.
 
+### Analytics vocabulary is deliberate
+
+The public analytics contract currently records `catalogue_impression`, `collection_view`, `play_requested`, `playback_started`, `listen_30_seconds`, `completion`, `skip`, `replay`, `playback_error`, `share`, and `outbound_artist_click`.
+
+Pause, seek, and resume must work as player controls, but they are **not** separate analytics event names in the current product. UAT must not invent missing event types as acceptance requirements.
+
 ## 1. UAT operating contract
 
 ### 1.1 Roles and authority
@@ -322,9 +328,9 @@ Queue two tracks from an editorial collection and play the first.
 
 ### UAT-PB-03 — Playback lifecycle (A/C)
 
-Pause, seek, resume, skip, replay, and complete representative audio playback.
+Pause, seek, resume, skip, replay, continue beyond 30 seconds, and complete representative audio playback.
 
-**Expected:** controls behave correctly and semantic lifecycle events are captured once with sensible progress.
+**Expected:** pause/seek/resume work as player controls. The implemented semantic events are observed at the correct moments without duplication: `listen_30_seconds`, `skip`, `replay`, and `completion` as applicable. No separate pause/seek/resume analytics events are required.
 
 ### UAT-PB-04 — Unavailable asset (A/C)
 
@@ -420,11 +426,11 @@ Visit curator routes with the authorized curator identity and perform a harmless
 
 **Expected:** curator functions are available and actor/timestamp are recorded.
 
-### UAT-CUR-03 — Public policy pages (A/C)
+### UAT-CUR-03 — Public policy routes (A/C)
 
-Open privacy, submission/terms, takedown, accessibility, and other required policy links.
+Open the actual public policy routes in the application: `/privacy`, `/submission-terms`, and `/takedown`.
 
-**Expected:** required public policy pages load and remain usable without curator authentication where intended.
+**Expected:** each required policy route loads without curator authentication and its navigation/link remains usable. Accessibility is evaluated through the accessibility UAT section; the current product does not require a separate standalone accessibility-policy route.
 
 ### UAT-CUR-04 — Isolated restore drill (H)
 
@@ -675,6 +681,8 @@ Before declaring the UAT checkpoint complete:
 - [ ] Every finding has impact, classification, and retest acceptance criteria.
 - [ ] Metrics/log evidence is summarized without exposing secrets/signed URLs/private participant data.
 - [ ] Public video is not treated as a required MVP gate unless product scope changes.
+- [ ] Analytics checks use the event vocabulary actually implemented by the product.
+- [ ] Public policy-route checks match `/privacy`, `/submission-terms`, and `/takedown`; accessibility is tested as behavior, not a phantom page.
 - [ ] Catalogue volume is measured against 10–20 artists, 30–50 reviewed tracks, and five collections.
 - [ ] Curator publication time under 15 minutes is measured.
 - [ ] Audio playback start reliability and latency thresholds are measured.
