@@ -59,12 +59,23 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function displayPath(value: string): string {
+  return value.replaceAll("\r", "\\r").replaceAll("\n", "\\n").replaceAll("\t", "\\t");
+}
+
 function escapeMarkdownText(value: string): string {
-  return value.replace(/([\\`*_[\]{}()<>#+.!|\-])/g, "\\$1");
+  return displayPath(value).replace(/([\\`*_[\]{}()<>#+.!|\-])/g, "\\$1");
+}
+
+function escapeMarkdownListText(value: string): string {
+  return displayPath(value).replace(/([\\`*_[\]<>#|])/g, "\\$1");
 }
 
 function markdownLinkTarget(value: string): string {
-  return encodeURI(value).replaceAll("(", "%28").replaceAll(")", "%29");
+  return value
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/");
 }
 
 function renderInline(value: string): string {
@@ -120,7 +131,6 @@ function renderMarkdown(markdown: string): string {
 
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? "";
-
     if (line.trimStart().startsWith("```")) {
       flushParagraph();
       closeList();
@@ -133,12 +143,10 @@ function renderMarkdown(markdown: string): string {
       }
       continue;
     }
-
     if (codeFence) {
       codeLines.push(line);
       continue;
     }
-
     if (
       line.trim().startsWith("|") &&
       index + 1 < lines.length &&
@@ -162,7 +170,6 @@ function renderMarkdown(markdown: string): string {
       index -= 1;
       continue;
     }
-
     const heading = /^(#{1,6})\s+(.+)$/.exec(line);
     if (heading) {
       flushParagraph();
@@ -171,14 +178,12 @@ function renderMarkdown(markdown: string): string {
       output.push(`<h${level}>${renderInline(heading[2] ?? "")}</h${level}>`);
       continue;
     }
-
     if (/^\s*---+\s*$/.test(line)) {
       flushParagraph();
       closeList();
       output.push("<hr>");
       continue;
     }
-
     const unordered = /^\s*[-*]\s+(.+)$/.exec(line);
     const ordered = /^\s*\d+[.)]\s+(.+)$/.exec(line);
     if (unordered || ordered) {
@@ -198,7 +203,6 @@ function renderMarkdown(markdown: string): string {
       output.push(`<li>${renderInline(item)}</li>`);
       continue;
     }
-
     const quote = /^\s*>\s?(.*)$/.exec(line);
     if (quote) {
       flushParagraph();
@@ -206,13 +210,11 @@ function renderMarkdown(markdown: string): string {
       output.push(`<blockquote>${renderInline(quote[1] ?? "")}</blockquote>`);
       continue;
     }
-
     if (line.trim() === "") {
       flushParagraph();
       closeList();
       continue;
     }
-
     paragraph.push(line.trim());
   }
 
@@ -301,7 +303,6 @@ function metadataFrom(inputs: ReportInputs): ReportMetadata {
 function parseResultRecords(results: string): ResultRecord[] {
   const lines = results.replaceAll("\r\n", "\n").split("\n");
   const byTestId = new Map<string, ResultRecord>();
-
   for (let index = 0; index < lines.length; index += 1) {
     const line = lines[index] ?? "";
     if (
@@ -311,7 +312,6 @@ function parseResultRecords(results: string): ResultRecord[] {
     ) {
       continue;
     }
-
     const headers = splitTableRow(line).map((cell) =>
       cell.replace(/[*_`]/g, "").trim().toLowerCase(),
     );
@@ -320,7 +320,6 @@ function parseResultRecords(results: string): ResultRecord[] {
       (cell) => cell === "test" || cell === "test id" || cell === "uat id" || cell === "id",
     );
     if (statusIndex < 0 || testIndex < 0) continue;
-
     index += 2;
     while (index < lines.length && (lines[index] ?? "").trim().startsWith("|")) {
       const cells = splitTableRow(lines[index] ?? "");
@@ -333,7 +332,6 @@ function parseResultRecords(results: string): ResultRecord[] {
     }
     index -= 1;
   }
-
   let currentTestId: string | null = null;
   for (const line of lines) {
     const id = /\bUAT-[A-Z0-9-]+\b/i.exec(line)?.[0]?.toUpperCase();
@@ -351,7 +349,6 @@ function parseResultRecords(results: string): ResultRecord[] {
       });
     }
   }
-
   return [...byTestId.values()];
 }
 
@@ -392,7 +389,9 @@ function statusSummaryMarkdown(summary: StatusSummary): string {
 
 function evidenceManifestMarkdown(runDir: string, evidenceFiles: string[]): string {
   if (evidenceFiles.length === 0) return "No supporting evidence files were found.";
-  return evidenceFiles.map((path) => `- \`${relativePortable(runDir, path)}\``).join("\n");
+  return evidenceFiles
+    .map((path) => `- ${escapeMarkdownListText(relativePortable(runDir, path))}`)
+    .join("\n");
 }
 
 function screenshotMarkdown(reportDir: string, screenshots: string[]): string {
@@ -425,7 +424,10 @@ function incompleteCoverageMarkdown(records: ResultRecord[]): string {
   ].join("\n");
 }
 
-async function collectReportSafeEvidence(runDir: string, evidenceFiles: string[]): Promise<EmbeddedEvidence[]> {
+async function collectReportSafeEvidence(
+  runDir: string,
+  evidenceFiles: string[],
+): Promise<EmbeddedEvidence[]> {
   const embedded: EmbeddedEvidence[] = [];
   for (const path of evidenceFiles) {
     if (!REPORT_SAFE_TEXT_EXTENSIONS.has(extname(path).toLowerCase())) continue;
@@ -461,7 +463,7 @@ function evidenceHtml(evidence: EmbeddedEvidence[]): string {
   return evidence
     .map(
       ({ relativePath, content }) =>
-        `<article class="evidence-text"><h3>${escapeHtml(relativePath)}</h3><pre><code>${escapeHtml(content)}</code></pre></article>`,
+        `<article class="evidence-text"><h3>${escapeHtml(displayPath(relativePath))}</h3><pre><code>${escapeHtml(content)}</code></pre></article>`,
     )
     .join("\n");
 }
@@ -503,7 +505,6 @@ function buildReportMarkdown(options: {
     runDir,
     generatedAt,
   } = options;
-
   return `# Sunstruck Synapse UAT Report
 
 **Run ID:** ${metadata.runId}  
@@ -567,15 +568,15 @@ async function buildScreenshotHtml(screenshots: string[]): Promise<string> {
   if (screenshots.length === 0) {
     return '<p class="empty">No annotated screenshots were present when this report was generated.</p>';
   }
-
   const blocks: string[] = [];
   for (const path of screenshots) {
     const uri = await imageDataUri(path);
     if (!uri) continue;
+    const name = displayPath(basename(path));
     blocks.push(`
       <figure class="evidence-plate">
-        <figcaption>${escapeHtml(basename(path))}</figcaption>
-        <img src="${uri}" alt="Annotated UAT evidence: ${escapeHtml(basename(path))}">
+        <figcaption>${escapeHtml(name)}</figcaption>
+        <img src="${uri}" alt="Annotated UAT evidence: ${escapeHtml(name)}">
       </figure>
     `);
   }
@@ -620,12 +621,14 @@ function buildHtml(options: {
     runDir,
     generatedAt,
   } = options;
-
   const manifest =
     evidenceFiles.length === 0
       ? '<p class="empty">No supporting evidence files were found.</p>'
       : `<ul>${evidenceFiles
-          .map((path) => `<li><code>${escapeHtml(relativePortable(runDir, path))}</code></li>`)
+          .map(
+            (path) =>
+              `<li>${escapeHtml(displayPath(relativePortable(runDir, path)))}</li>`,
+          )
           .join("")}</ul>`;
 
   return `<!doctype html>
@@ -730,7 +733,6 @@ function validateReportSources(inputs: ReportInputs, resultRecords: ResultRecord
     "Re-entry and regression plan",
     "Re-entry/regression plan",
   ]);
-
   if (!executiveSummary) missing.push("run.md -> Executive summary");
   if (!reentryPlan) missing.push("findings.md -> Re-entry and regression plan");
   if (resultRecords.length === 0) {
@@ -739,7 +741,6 @@ function validateReportSources(inputs: ReportInputs, resultRecords: ResultRecord
   if (missing.length > 0) {
     throw new Error(`UAT report refused: missing required report source(s): ${missing.join("; ")}`);
   }
-
   return { executiveSummary, reentryPlan };
 }
 
@@ -775,11 +776,8 @@ async function main(): Promise<void> {
   const htmlOnly = args.includes("--html-only");
   const positional = args.filter((arg: string) => !arg.startsWith("--"));
   if (positional.length !== 1) usage();
-
   const runDir = resolve(positional[0] ?? "");
-  if (!(await fileExists(runDir))) {
-    throw new Error(`UAT run directory does not exist: ${runDir}`);
-  }
+  if (!(await fileExists(runDir))) throw new Error(`UAT run directory does not exist: ${runDir}`);
 
   const missing: string[] = [];
   for (const file of REQUIRED_LEDGER_FILES) {
@@ -797,7 +795,6 @@ async function main(): Promise<void> {
     results: await readFile(join(runDir, "results.md"), "utf8"),
     findings: await readFile(join(runDir, "findings.md"), "utf8"),
   };
-
   const resultRecords = parseResultRecords(inputs.results);
   const { executiveSummary, reentryPlan } = validateReportSources(inputs, resultRecords);
   const reportDir = join(runDir, "report");
@@ -835,14 +832,12 @@ async function main(): Promise<void> {
     buildReportMarkdown({ ...common, reportDir, screenshots }),
     "utf8",
   );
-
   const htmlPath = join(reportDir, "uat-report.html");
   await writeFile(
     htmlPath,
     buildHtml({ ...common, screenshotHtml: await buildScreenshotHtml(screenshots) }),
     "utf8",
   );
-
   const pdfPath = join(reportDir, "uat-report.pdf");
   if (!htmlOnly) await renderPdf(htmlPath, pdfPath);
 
