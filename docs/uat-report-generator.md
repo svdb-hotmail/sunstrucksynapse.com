@@ -82,7 +82,7 @@ Current reports distinguish:
 - **Shaman / Warden acceptance evidence** where applicable;
 - **human maintainer decision**.
 
-The generator accepts `DevAI recommendation` only as a backward-compatible fallback for older run ledgers. New runs should use the governed role names from `AGENTS.md` and `docs/uat-script.md`.
+`DevAI recommendation` is accepted only as a backward-compatible fallback for older run ledgers. New runs use the governed role names from `AGENTS.md` and `docs/uat-script.md`.
 
 ## Report sections
 
