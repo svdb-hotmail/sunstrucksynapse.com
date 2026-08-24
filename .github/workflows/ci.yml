@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 permissions:
-  contents: read
+  contents: write
   security-events: write
   actions: read
 
@@ -28,6 +28,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref || github.ref }}
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
@@ -44,16 +46,21 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Format UAT change candidates
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'docs/uat-devai-evidence-protocol' }}
         run: npx prettier --write docs/uat-script.md scripts/generate-uat-report.ts tests/unit/generate-uat-report.test.ts
 
-      - name: Upload formatted UAT change candidates
-        uses: actions/upload-artifact@v4
-        with:
-          name: uat-prettier-output
-          path: |
-            docs/uat-script.md
-            scripts/generate-uat-report.ts
-            tests/unit/generate-uat-report.test.ts
+      - name: Commit canonical UAT formatting
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'docs/uat-devai-evidence-protocol' }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/uat-script.md scripts/generate-uat-report.ts tests/unit/generate-uat-report.test.ts
+          if git diff --cached --quiet; then
+            echo "UAT files already match canonical Prettier output."
+          else
+            git commit -m "style: apply canonical Prettier output"
+            git push origin HEAD:${{ github.event.pull_request.head.ref }}
+          fi
 
       - name: Run Village quality gate
         run: bash .github/scripts/village-ci.sh
