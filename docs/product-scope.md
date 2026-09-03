@@ -1,12 +1,14 @@
-# Sunstruck Synapse Radio product scope
+# SunSyn Radio product scope
 
 ## Product statement
 
-Sunstruck Synapse Radio is a human-curated listening destination for intentional AI-assisted music:
+SunSyn Radio is a human-curated listening destination for intentional AI-assisted music:
 
 > Exceptional music made with AI in the process, selected by humans.
 
 The product leads with musical quality. AI is part of the disclosed creative process, while people remain accountable for making, submitting, evaluating, and publishing the work. The aim is a focused listening catalogue, not catalogue scale comparable to a general-purpose streaming service.
+
+SunSyn Radio is the platform identity and public listening experience. **Sunstruck Synapse** is the credited artist/catalogue identity used by existing catalogue records and media; those data identities must remain unchanged when the platform is renamed.
 
 ## Target audiences
 
@@ -68,13 +70,13 @@ The MVP does not include:
 
 These exclusions keep the first release focused on catalogue quality, real playback, and evidence of repeat listening. They are boundaries for the MVP, not promises that every excluded capability will or will not be built later.
 
-## Sunstruck Synapse Radio and LEMM
+## SunSyn Radio and LEMM
 
-Sunstruck Synapse Radio is the public listening, editorial, and curation product.
+SunSyn Radio is the public listening, editorial, and curation product.
 
-LEMM is a broader, creator-first generative-music initiative concerned with trusted infrastructure, provenance, governance, and creator interests. It is a separate initiative, not an alternate name for Sunstruck Synapse Radio.
+LEMM is a broader, creator-first generative-music initiative concerned with trusted infrastructure, provenance, governance, and creator interests. It is a separate initiative, not an alternate name for SunSyn Radio.
 
-The Sunstruck Synapse Radio MVP may express compatible principles, especially transparent provenance and enforceable trust. It must not technically depend on future LEMM infrastructure. This repository does not currently implement LEMM functionality, and product documentation must not imply otherwise.
+The SunSyn Radio MVP may express compatible principles, especially transparent provenance and enforceable trust. It must not technically depend on future LEMM infrastructure. This repository does not currently implement LEMM functionality, and product documentation must not imply otherwise.
 
 ## Initial success metrics
 

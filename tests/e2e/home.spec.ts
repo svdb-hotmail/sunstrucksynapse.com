@@ -34,7 +34,7 @@ test("loads the database catalogue and controls the correct media", async ({ pag
 
   await page.goto("/");
 
-  await expect(page).toHaveTitle(/Sunstruck Synapse/);
+  await expect(page).toHaveTitle(/SunSyn Radio/);
   await expect(
     page.getByRole("heading", { name: "A radio for music made with intent." }),
   ).toBeVisible();
@@ -164,7 +164,7 @@ test("serves canonical artist, release and track pages with global-player action
   ).toBeVisible();
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     "href",
-    /\/releases\/phase-zero-transmissions$/,
+    "https://sunsyn.art/releases/phase-zero-transmissions",
   );
 
   await page.goto("/tracks/phase-zero-transmissions/revolution-will-be-televised");
@@ -251,7 +251,7 @@ test("supports keyboard activation and reduced-motion focus movement", async ({ 
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/revolution-will-be-televised$/);
 
-  await page.getByRole("link", { name: "Sunstruck Synapse Radio home" }).click();
+  await page.getByRole("link", { name: "SunSyn Radio home" }).click();
   await cardFor(page, revolutionTitle)
     .getByRole("button", { name: `Play ${revolutionTitle}` })
     .click();
@@ -304,4 +304,23 @@ test("scrolls router hash links without replacing the persistent player", async 
     "data-hash-navigation-probe",
     "kept",
   );
+});
+
+test("keeps the intermediate header visible without horizontal overflow", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 800 });
+  await page.goto("/");
+
+  await expect(page.getByRole("banner")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeHidden();
+  await expect(page.getByRole("button", { name: "Light mode" })).toBeVisible();
+  await expect(page.locator(".site-logo span:last-child")).toBeHidden();
+  await expect(page.locator(".theme-toggle__label")).toBeHidden();
+  await expect(page.locator(".subscribe")).toBeHidden();
+  await expect(
+    page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "About" }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(() => document.body.scrollWidth <= document.documentElement.clientWidth),
+  ).toBe(true);
 });

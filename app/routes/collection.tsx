@@ -3,6 +3,7 @@ import { Link, useOutletContext } from "react-router";
 
 import { EntityTrackList } from "~/components/EntityTrackList";
 import { ShareButton } from "~/components/ShareButton";
+import { SITE_NAME, SITE_URL } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { collectionSeo } from "~/services/seo.server";
 import { serializeJsonLd } from "~/utils/json-ld";
@@ -11,7 +12,7 @@ import { recordPlaybackEvent } from "~/services/analytics.client";
 
 import type { Route } from "./+types/collection";
 
-export async function loader({ context, params, request }: Route.LoaderArgs) {
+export async function loader({ context, params }: Route.LoaderArgs) {
   const { catalogueRepository } = context.get(cloudflareContext);
   const collection = await catalogueRepository.findPublishedCollection(params.collectionSlug);
   if (!collection) {
@@ -23,14 +24,14 @@ export async function loader({ context, params, request }: Route.LoaderArgs) {
   const seo = collectionSeo(collection);
   return {
     collection,
-    canonicalUrl: new URL(seo.canonicalPath, request.url).href,
+    canonicalUrl: new URL(seo.canonicalPath, SITE_URL).href,
     seo,
   };
 }
 
 export const meta: Route.MetaFunction = ({ loaderData }) => {
   if (!loaderData) {
-    return [{ title: "Collection not found | Sunstruck Synapse Radio" }];
+    return [{ title: `Collection not found | ${SITE_NAME}` }];
   }
   return [
     { title: loaderData.seo.title },

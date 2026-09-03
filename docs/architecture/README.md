@@ -1,6 +1,6 @@
 # MVP architecture
 
-This document describes the intended production architecture for the Sunstruck Synapse Radio MVP.
+This document describes the intended production architecture for the SunSyn Radio MVP. The platform name is SunSyn Radio; Sunstruck Synapse remains the artist/catalogue identity in existing media, fixtures, rights records, and architecture history.
 
 Phase 0 issue #15 implemented the application foundation: React Router 8 framework mode, strict TypeScript, reusable responsive components, a persistent application and player shell, a Cloudflare Worker entry, and Cloudflare Vite configuration for development, builds, and local production preview.
 
@@ -16,6 +16,8 @@ The accepted architecture decisions are:
 6. [Postmark for transactional email](decisions/0006-postmark-transactional-email.md)
 7. [First-party, privacy-conscious analytics](decisions/0007-first-party-analytics.md)
 8. [No Kubernetes dependency](decisions/0008-no-kubernetes.md)
+
+The implementation-facing design-system contract is documented in [Design system, tokens, theming, and Storybook](../design-system.md). It defines how the application shell and production components consume visual tokens without changing the data and media boundaries above.
 
 ## Intended production shape
 

@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 
+import { SITE_NAME } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 
 import type { Route } from "./+types/track-disclosure";
@@ -16,9 +17,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   return { disclosure };
 }
 
-export const meta: Route.MetaFunction = () => [
-  { title: "Reviewed disclosure | Sunstruck Synapse Radio" },
-];
+export const meta: Route.MetaFunction = () => [{ title: `Reviewed disclosure | ${SITE_NAME}` }];
 
 export default function TrackDisclosureRoute({ loaderData }: Route.ComponentProps) {
   const { disclosure } = loaderData;

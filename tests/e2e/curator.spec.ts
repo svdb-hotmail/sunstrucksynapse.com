@@ -14,7 +14,7 @@ test("keeps public routes available while curator mutations require Access", asy
   request,
 }) => {
   await page.goto("/");
-  await expect(page).toHaveTitle(/Sunstruck Synapse/);
+  await expect(page).toHaveTitle(/SunSyn Radio/);
 
   const curator = await request.get("/curator");
   expect(curator.status()).toBe(401);

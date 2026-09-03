@@ -1,6 +1,6 @@
 # Privacy-conscious catalogue analytics
 
-Sunstruck Synapse Radio collects only first-party events needed to understand catalogue
+SunSyn Radio collects only first-party events needed to understand catalogue
 discovery and playback. It does not use advertising identifiers, cookies, IP addresses,
 email addresses, or Cloudflare Access identities for listener analytics.
 

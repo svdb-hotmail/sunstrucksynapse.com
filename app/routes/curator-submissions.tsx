@@ -7,6 +7,7 @@ import {
   type LoaderFunctionArgs,
 } from "react-router";
 
+import { SITE_NAME } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { requireCuratorIdentity } from "~/services/access-auth.server";
 import { SubmissionEvidenceService } from "~/services/submission-evidence.server";
@@ -165,9 +166,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
   return bad("Unsupported submission action.");
 }
 
-export const meta: Route.MetaFunction = () => [
-  { title: "Curator submissions | Sunstruck Synapse Radio" },
-];
+export const meta: Route.MetaFunction = () => [{ title: `Curator submissions | ${SITE_NAME}` }];
 
 export default function CuratorSubmissionsRoute() {
   const data = useLoaderData<typeof loader>();

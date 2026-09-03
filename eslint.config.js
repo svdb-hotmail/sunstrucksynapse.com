@@ -10,6 +10,7 @@ export default tseslint.config(
       ".react-router/**",
       ".wrangler/**",
       "build/**",
+      "storybook-static/**",
       "drizzle/meta/**",
       "worker-configuration.d.ts",
     ],

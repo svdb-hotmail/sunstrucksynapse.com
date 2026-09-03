@@ -53,6 +53,7 @@ node_modules/
 # Framework and build output
 .react-router/
 build/
+storybook-static/
 .wrangler/
 playwright-report/
 test-results/

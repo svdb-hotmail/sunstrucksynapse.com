@@ -8,6 +8,7 @@ import {
   type LoaderFunctionArgs,
 } from "react-router";
 
+import { SITE_NAME } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import type { SubmissionDraftInput } from "~/repositories/submissions.server";
 import {
@@ -533,9 +534,7 @@ function DraftTextArea({
   );
 }
 
-export const meta: Route.MetaFunction = () => [
-  { title: "Invitation submission | Sunstruck Synapse Radio" },
-];
+export const meta: Route.MetaFunction = () => [{ title: `Invitation submission | ${SITE_NAME}` }];
 
 export default function SubmissionRoute() {
   const data = useLoaderData<typeof loader>();

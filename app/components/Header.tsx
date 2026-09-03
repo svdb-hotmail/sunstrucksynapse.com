@@ -1,11 +1,14 @@
 import { Link } from "react-router";
 
+import { SITE_MARK, SITE_NAME } from "~/config/brand";
+import { ThemeToggle } from "~/design-system/ThemeToggle";
+
 export function Header() {
   return (
     <header className="topbar">
-      <Link className="site-logo" to="/" aria-label="Sunstruck Synapse Radio home">
-        <span className="mini-orb">SS</span>
-        <span>Sunstruck Synapse Radio</span>
+      <Link className="site-logo" to="/" aria-label={`${SITE_NAME} home`}>
+        <span className="mini-orb">{SITE_MARK}</span>
+        <span>{SITE_NAME}</span>
       </Link>
 
       <nav className="desktop-nav" aria-label="Primary">
@@ -17,9 +20,12 @@ export function Header() {
         <Link to="/#contact">Contact</Link>
       </nav>
 
-      <Link className="subscribe" to="/#about">
-        About the radio
-      </Link>
+      <div className="topbar-actions">
+        <ThemeToggle />
+        <Link className="subscribe" to="/#about">
+          About the radio
+        </Link>
+      </div>
     </header>
   );
 }

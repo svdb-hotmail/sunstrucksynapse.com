@@ -4,6 +4,8 @@ The application targets Cloudflare Workers through React Router framework mode a
 
 Production deployment, account setup, custom-domain changes, and secrets are intentionally outside the current application migration. The repository contains no Cloudflare account or resource identifiers.
 
+The intended SunSyn Radio public domain remains `sunsyn.art`; this document does not claim that the domain is currently deployed or healthy.
+
 ## Manual Phase 2 prerequisites
 
 Before deployment, an operator must:

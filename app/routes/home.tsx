@@ -4,6 +4,7 @@ import { CatalogueSection } from "~/components/CatalogueSection";
 import { Contact } from "~/components/Contact";
 import { Intro } from "~/components/Intro";
 import { Offerings } from "~/components/Offerings";
+import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "~/config/brand";
 import { offerings } from "~/data/site";
 import { buildCatalogueSections, catalogueStateCopy } from "~/services/catalogue";
 import type { CatalogueLoadResult } from "~/types/catalogue";
@@ -12,12 +13,13 @@ import type { PlayerOutletContext } from "~/types/catalogue";
 import type { Route } from "./+types/home";
 
 export const meta: Route.MetaFunction = () => [
-  { title: "Sunstruck Synapse Radio" },
+  { title: SITE_NAME },
   {
     name: "description",
-    content:
-      "Sunstruck Synapse Radio is a human-curated listening destination for intentional AI-assisted music.",
+    content: SITE_DESCRIPTION,
   },
+  { tagName: "link", rel: "canonical", href: SITE_URL },
+  { property: "og:url", content: SITE_URL },
 ];
 
 export default function Home() {

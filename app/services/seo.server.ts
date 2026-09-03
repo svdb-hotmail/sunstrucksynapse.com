@@ -1,3 +1,4 @@
+import { SITE_NAME } from "~/config/brand";
 import type {
   PublicArtist,
   PublicEditorialCollection,
@@ -14,7 +15,7 @@ export interface SeoMetadata {
 
 export function artistSeo(artist: PublicArtist): SeoMetadata {
   return {
-    title: `${artist.name} | Sunstruck Synapse Radio`,
+    title: `${artist.name} | ${SITE_NAME}`,
     description: artist.biography ?? `Listen to published music by ${artist.name}.`,
     canonicalPath: artist.href,
     jsonLd: {
@@ -28,7 +29,7 @@ export function artistSeo(artist: PublicArtist): SeoMetadata {
 
 export function releaseSeo(release: PublicRelease): SeoMetadata {
   return {
-    title: `${release.title} | Sunstruck Synapse Radio`,
+    title: `${release.title} | ${SITE_NAME}`,
     description: `Listen to ${release.title} by ${release.artists.map(({ name }) => name).join(", ")}.`,
     canonicalPath: release.href,
     jsonLd: {
@@ -43,7 +44,7 @@ export function releaseSeo(release: PublicRelease): SeoMetadata {
 
 export function trackSeo(track: PublicTrack): SeoMetadata {
   return {
-    title: `${track.item.description.title} | Sunstruck Synapse Radio`,
+    title: `${track.item.description.title} | ${SITE_NAME}`,
     description: `Listen to ${track.item.description.title} by ${track.artist.name}.`,
     canonicalPath: track.item.href,
     jsonLd: {
@@ -58,8 +59,8 @@ export function trackSeo(track: PublicTrack): SeoMetadata {
 
 export function collectionSeo(collection: PublicEditorialCollection): SeoMetadata {
   return {
-    title: `${collection.name} | Sunstruck Synapse Radio`,
-    description: collection.description ?? `A curated selection from Sunstruck Synapse Radio.`,
+    title: `${collection.name} | ${SITE_NAME}`,
+    description: collection.description ?? `A curated selection from ${SITE_NAME}.`,
     canonicalPath: `/collections/${collection.slug}`,
     jsonLd: {
       "@context": "https://schema.org",

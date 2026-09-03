@@ -1,0 +1,314 @@
+/*
+ * SunSyn Radio design tokens
+ *
+ * Keep this file framework-independent so it can be loaded by the app or by
+ * Storybook on its own. Primitive values are never consumed by components
+ * directly: semantic tokens describe intent and component tokens describe the
+ * surfaces that use that intent.
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* Primitive values ----------------------------------------------------- */
+  --primitive-ink-950: #0d0d14;
+  --primitive-ink-900: #11111a;
+  --primitive-ink-850: #12121c;
+  --primitive-ink-800: #151522;
+  --primitive-ink-750: #191925;
+  --primitive-ink-700: #232332;
+  --primitive-ink-650: #2a2938;
+  --primitive-paper-50: #f6f3ee;
+  --primitive-white: #ffffff;
+  --primitive-black: #000000;
+
+  --primitive-sun: #f3c35c;
+  --primitive-pink: #ff4d88;
+  --primitive-violet: #7957ff;
+  --primitive-cyan: #28d8ff;
+  --primitive-green: #78ffcb;
+  --primitive-danger: #8b2635;
+  --primitive-muted-dark: #9b98ac;
+  --primitive-light-bg: #faf8f4;
+  --primitive-light-bg-deep: #f1eee8;
+  --primitive-light-shell: #ebe8e2;
+  --primitive-light-panel: #f5f2ed;
+  --primitive-light-card: #ffffff;
+  --primitive-light-card-soft: #f0ede7;
+  --primitive-light-text: #241f2b;
+  --primitive-light-muted: #625d6d;
+  --primitive-light-on-accent: var(--primitive-white);
+  --primitive-light-sun: #966700;
+  --primitive-light-pink: #b42560;
+  --primitive-light-violet: #5b40c2;
+  --primitive-light-cyan: #007b95;
+  --primitive-light-green: #087653;
+  --primitive-light-danger: #8b2635;
+  --primitive-light-border-accent: rgba(0, 125, 150, 0.34);
+  --primitive-light-shadow: rgba(42, 34, 52, 0.16);
+  --primitive-light-shadow-card: rgba(42, 34, 52, 0.12);
+  --primitive-light-brand-shadow: rgba(180, 37, 96, 0.2);
+  --primitive-light-input: rgba(255, 255, 255, 0.9);
+  --primitive-light-header: rgba(250, 248, 244, 0.84);
+  --primitive-light-mobile-nav: rgba(245, 242, 237, 0.94);
+  --primitive-light-control: rgba(36, 31, 43, 0.05);
+  --primitive-light-control-strong: rgba(36, 31, 43, 0.08);
+  --primitive-light-alpha-pink-11: rgba(180, 37, 96, 0.11);
+  --primitive-light-alpha-cyan-09: rgba(0, 123, 149, 0.09);
+  --primitive-light-alpha-cyan-10: rgba(0, 123, 149, 0.1);
+  --primitive-light-alpha-white-40: rgba(255, 255, 255, 0.4);
+  --primitive-light-alpha-white-60: rgba(255, 255, 255, 0.6);
+  --primitive-light-alpha-white-68: rgba(255, 255, 255, 0.68);
+  --primitive-light-alpha-white-70: rgba(255, 255, 255, 0.7);
+  --primitive-light-alpha-white-82: rgba(255, 255, 255, 0.82);
+  --primitive-light-alpha-white-84: rgba(255, 255, 255, 0.84);
+  --primitive-light-alpha-white-92: rgba(255, 255, 255, 0.92);
+  --primitive-light-alpha-white-100: rgba(255, 255, 255, 1);
+
+  --primitive-alpha-white-03: rgba(255, 255, 255, 0.03);
+  --primitive-alpha-white-05: rgba(255, 255, 255, 0.05);
+  --primitive-alpha-white-025: rgba(255, 255, 255, 0.025);
+  --primitive-alpha-white-035: rgba(255, 255, 255, 0.035);
+  --primitive-alpha-white-055: rgba(255, 255, 255, 0.055);
+  --primitive-alpha-white-06: rgba(255, 255, 255, 0.06);
+  --primitive-alpha-white-08: rgba(255, 255, 255, 0.08);
+  --primitive-alpha-white-14: rgba(255, 255, 255, 0.14);
+  --primitive-alpha-white-84: rgba(255, 255, 255, 0.84);
+  --primitive-alpha-black-20: rgba(0, 0, 0, 0.2);
+  --primitive-alpha-black-25: rgba(0, 0, 0, 0.25);
+  --primitive-alpha-black-32: rgba(0, 0, 0, 0.32);
+  --primitive-alpha-black-35: rgba(0, 0, 0, 0.35);
+  --primitive-alpha-black-76: rgba(17, 17, 26, 0.76);
+  --primitive-alpha-black-90: rgba(18, 18, 28, 0.9);
+  --primitive-alpha-pink-16: rgba(255, 77, 136, 0.16);
+  --primitive-alpha-pink-35: rgba(255, 77, 136, 0.35);
+  --primitive-alpha-cyan-08: rgba(40, 216, 255, 0.08);
+  --primitive-alpha-cyan-12: rgba(40, 216, 255, 0.12);
+  --primitive-alpha-cyan-35: rgba(40, 216, 255, 0.35);
+  --primitive-alpha-line-dark: rgba(255, 255, 255, 0.09);
+  --primitive-alpha-line-light: rgba(30, 26, 40, 0.16);
+  --primitive-alpha-shadow: rgba(0, 0, 0, 0.35);
+  --primitive-alpha-shadow-card: rgba(0, 0, 0, 0.22);
+  --primitive-alpha-overlay: rgba(0, 0, 0, 0.2);
+
+  --primitive-font-sans:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --primitive-space-1: 4px;
+  --primitive-space-2: 8px;
+  --primitive-space-3: 12px;
+  --primitive-space-4: 16px;
+  --primitive-space-5: 18px;
+  --primitive-space-6: 22px;
+  --primitive-space-7: 28px;
+  --primitive-space-8: 42px;
+  --primitive-radius-sm: 10px;
+  --primitive-radius-md: 12px;
+  --primitive-radius-lg: 18px;
+  --primitive-radius-pill: 999px;
+  --primitive-shadow-shell: 0 20px 70px var(--primitive-alpha-shadow);
+  --primitive-shadow-card: 0 14px 40px var(--primitive-alpha-shadow-card);
+
+  /* Semantic aliases: dark is the default theme ------------------------ */
+  --color-bg: var(--primitive-ink-900);
+  --color-bg-deep: var(--primitive-ink-950);
+  --color-surface-shell: var(--primitive-ink-850);
+  --color-surface-panel: var(--primitive-ink-750);
+  --color-surface-card: var(--primitive-ink-700);
+  --color-surface-card-soft: var(--primitive-ink-650);
+  --color-surface-input: var(--primitive-alpha-black-20);
+  --color-content-primary: var(--primitive-paper-50);
+  --color-content-secondary: var(--primitive-muted-dark);
+  --color-content-on-accent: var(--primitive-ink-900);
+  --color-content-inverse: var(--primitive-white);
+  --color-border-subtle: var(--primitive-alpha-line-dark);
+  --color-border-accent: var(--primitive-alpha-cyan-35);
+  --color-accent-sun: var(--primitive-sun);
+  --color-accent-pink: var(--primitive-pink);
+  --color-accent-violet: var(--primitive-violet);
+  --color-accent-cyan: var(--primitive-cyan);
+  --color-accent-green: var(--primitive-green);
+  --color-status-danger: var(--primitive-danger);
+  --color-focus-ring: var(--color-accent-cyan);
+
+  /* Typography, spacing, radii and elevation ---------------------------- */
+  --type-font-family-body: var(--primitive-font-sans);
+  --space-1: var(--primitive-space-1);
+  --space-2: var(--primitive-space-2);
+  --space-3: var(--primitive-space-3);
+  --space-4: var(--primitive-space-4);
+  --space-5: var(--primitive-space-5);
+  --space-6: var(--primitive-space-6);
+  --space-7: var(--primitive-space-7);
+  --space-8: var(--primitive-space-8);
+  --radius-sm: var(--primitive-radius-sm);
+  --radius-md: var(--primitive-radius-md);
+  --radius-lg: var(--primitive-radius-lg);
+  --radius-pill: var(--primitive-radius-pill);
+  --border-subtle: 1px solid var(--color-border-subtle);
+  --shadow: var(--primitive-shadow-shell);
+  --shadow-card: var(--primitive-shadow-card);
+  --shadow-brand: 0 0 60px var(--primitive-alpha-pink-35);
+  --sidebar-width: 315px;
+  --content-padding: clamp(18px, 4vw, 48px);
+
+  /* Surface recipes ----------------------------------------------------- */
+  --surface-page-background:
+    radial-gradient(circle at 20% 0%, var(--primitive-alpha-pink-16), transparent 34%),
+    radial-gradient(circle at 100% 10%, var(--primitive-alpha-cyan-08), transparent 28%),
+    linear-gradient(180deg, var(--color-bg-deep) 0%, var(--color-bg) 100%);
+  --surface-panel-background:
+    linear-gradient(180deg, var(--primitive-alpha-white-03), transparent),
+    var(--color-surface-shell);
+  --surface-content-background:
+    radial-gradient(circle at 50% 0%, var(--primitive-alpha-white-05), transparent 36%),
+    linear-gradient(180deg, var(--primitive-alpha-white-03), transparent);
+  --surface-header-background: var(--primitive-alpha-black-76);
+  --surface-card-background: linear-gradient(
+    180deg,
+    var(--primitive-alpha-white-055),
+    var(--primitive-alpha-white-025)
+  );
+  --surface-card-hover-background: linear-gradient(
+    180deg,
+    var(--primitive-alpha-white-08),
+    var(--primitive-alpha-white-035)
+  );
+  --surface-status-background: linear-gradient(
+    180deg,
+    var(--primitive-alpha-white-06),
+    var(--primitive-alpha-white-025)
+  );
+  --surface-protection-background:
+    radial-gradient(circle at 10% 20%, var(--primitive-alpha-cyan-12), transparent 28%),
+    var(--surface-status-background);
+  --surface-input-background: var(--color-surface-input);
+  --surface-mobile-nav-background: var(--primitive-alpha-black-90);
+
+  /* Component aliases --------------------------------------------------- */
+  --component-shell-background: var(--surface-page-background);
+  --component-content-background: var(--surface-content-background);
+  --component-brand-orb-core: radial-gradient(
+    circle at center,
+    var(--primitive-alpha-white-14) 0 46%,
+    transparent 47%
+  );
+  --component-brand-orb-border: var(--primitive-alpha-white-84);
+  --component-brand-orb-sun: var(--color-accent-sun);
+  --component-brand-orb-pink: var(--color-accent-pink);
+  --component-brand-orb-violet: var(--color-accent-violet);
+  --component-brand-orb-cyan: var(--color-accent-cyan);
+  --component-hero-overlay: linear-gradient(180deg, transparent, var(--color-surface-shell));
+  --component-player-background: var(--surface-panel-background);
+  --component-player-media-background: var(--primitive-alpha-black-32);
+  --component-player-control-background: var(--primitive-alpha-white-06);
+  --component-control-background: var(--primitive-alpha-black-35);
+  --component-header-background: var(--surface-header-background);
+  --component-header-border: var(--color-border-subtle);
+  --component-catalogue-card-background: var(--surface-card-background);
+  --component-catalogue-card-hover-background: var(--surface-card-hover-background);
+  --component-catalogue-surface-background: var(--surface-status-background);
+  --component-transmission-background: var(--surface-status-background);
+  --component-transmission-control-background: var(--component-player-control-background);
+  --component-transmission-active-background: var(--color-accent-cyan);
+  --component-transmission-active-content: var(--color-content-on-accent);
+  --component-form-background: var(--surface-input-background);
+  --component-form-surface-background: var(--surface-status-background);
+  --component-queue-background: transparent;
+  --component-status-background: var(--surface-status-background);
+  --component-status-danger-background: var(--color-status-danger);
+  --component-submit-background: linear-gradient(
+    135deg,
+    var(--color-accent-cyan),
+    var(--color-accent-green)
+  );
+  --component-control-border: var(--color-border-subtle);
+  --component-control-focus: var(--color-focus-ring);
+
+  /* Compatibility aliases for existing selectors ---------------------- */
+  --bg: var(--color-bg);
+  --panel: var(--color-surface-panel);
+  --panel-deep: var(--color-surface-shell);
+  --card: var(--color-surface-card);
+  --card-soft: var(--color-surface-card-soft);
+  --text: var(--color-content-primary);
+  --muted: var(--color-content-secondary);
+  --line: var(--color-border-subtle);
+  --sun: var(--color-accent-sun);
+  --pink: var(--color-accent-pink);
+  --violet: var(--color-accent-violet);
+  --cyan: var(--color-accent-cyan);
+  --green: var(--color-accent-green);
+  --panel-strong: var(--color-surface-card);
+  --font-sans: var(--type-font-family-body);
+}
+
+/* Light theme keeps the semantic names stable while changing their values. */
+[data-theme="light"] {
+  color-scheme: light;
+  --color-bg: var(--primitive-light-bg);
+  --color-bg-deep: var(--primitive-light-bg-deep);
+  --color-surface-shell: var(--primitive-light-shell);
+  --color-surface-panel: var(--primitive-light-panel);
+  --color-surface-card: var(--primitive-light-card);
+  --color-surface-card-soft: var(--primitive-light-card-soft);
+  --color-surface-input: var(--primitive-light-input);
+  --color-content-primary: var(--primitive-light-text);
+  --color-content-secondary: var(--primitive-light-muted);
+  --color-content-on-accent: var(--primitive-light-on-accent);
+  --color-content-inverse: var(--primitive-white);
+  --color-border-subtle: var(--primitive-alpha-line-light);
+  --color-border-accent: var(--primitive-light-border-accent);
+  --color-accent-sun: var(--primitive-light-sun);
+  --color-accent-pink: var(--primitive-light-pink);
+  --color-accent-violet: var(--primitive-light-violet);
+  --color-accent-cyan: var(--primitive-light-cyan);
+  --color-accent-green: var(--primitive-light-green);
+  --color-status-danger: var(--primitive-light-danger);
+  --shadow: 0 20px 70px var(--primitive-light-shadow);
+  --shadow-card: 0 14px 40px var(--primitive-light-shadow-card);
+  --shadow-brand: 0 0 60px var(--primitive-light-brand-shadow);
+
+  --surface-page-background:
+    radial-gradient(circle at 20% 0%, var(--primitive-light-alpha-pink-11), transparent 34%),
+    radial-gradient(circle at 100% 10%, var(--primitive-light-alpha-cyan-09), transparent 28%),
+    linear-gradient(180deg, var(--color-bg-deep) 0%, var(--color-bg) 100%);
+  --surface-panel-background:
+    linear-gradient(180deg, var(--primitive-light-alpha-white-70), transparent),
+    var(--color-surface-shell);
+  --surface-content-background:
+    radial-gradient(circle at 50% 0%, var(--primitive-light-alpha-white-68), transparent 36%),
+    linear-gradient(180deg, var(--primitive-light-alpha-white-40), transparent);
+  --surface-header-background: var(--primitive-light-header);
+  --surface-card-background: linear-gradient(
+    180deg,
+    var(--primitive-light-alpha-white-92),
+    var(--primitive-light-alpha-white-68)
+  );
+  --surface-card-hover-background: linear-gradient(
+    180deg,
+    var(--primitive-light-alpha-white-100),
+    var(--primitive-light-alpha-white-82)
+  );
+  --surface-status-background: linear-gradient(
+    180deg,
+    var(--primitive-light-alpha-white-84),
+    var(--primitive-light-alpha-white-60)
+  );
+  --surface-protection-background:
+    radial-gradient(circle at 10% 20%, var(--primitive-light-alpha-cyan-10), transparent 28%),
+    var(--surface-status-background);
+  --surface-input-background: var(--color-surface-input);
+  --surface-mobile-nav-background: var(--primitive-light-mobile-nav);
+  --component-brand-orb-sun: var(--color-accent-sun);
+  --component-brand-orb-pink: var(--primitive-pink);
+  --component-brand-orb-violet: var(--primitive-violet);
+  --component-brand-orb-cyan: var(--primitive-cyan);
+  --component-player-control-background: var(--primitive-light-control);
+  --component-control-background: var(--primitive-light-control-strong);
+  --component-hero-overlay: linear-gradient(180deg, transparent, var(--color-surface-shell));
+  --component-submit-background: linear-gradient(
+    135deg,
+    var(--color-accent-cyan),
+    var(--color-accent-green)
+  );
+}

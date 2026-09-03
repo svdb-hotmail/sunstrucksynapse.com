@@ -1,6 +1,6 @@
 # Database foundation
 
-Sunstruck Synapse Radio uses PostgreSQL with reviewed, code-first Drizzle migrations. Production is intended for Neon. The Worker creates a request-scoped Drizzle client through `@neondatabase/serverless` Neon HTTP; database connections and credentials never enter browser code.
+SunSyn Radio uses PostgreSQL with reviewed, code-first Drizzle migrations. Production is intended for Neon. The Worker creates a request-scoped Drizzle client through `@neondatabase/serverless` Neon HTTP; database connections and credentials never enter browser code.
 
 The pinned data packages are `@neondatabase/serverless` 1.1.0, `drizzle-orm` 0.45.2, `drizzle-kit` 0.31.10, `postgres` 3.4.9 (Node-only seed transport), and `@electric-sql/pglite` 0.5.5 (local in-process validation only). The authoritative schema export is `app/db/schema/index.ts`.
 

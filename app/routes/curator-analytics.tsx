@@ -1,5 +1,6 @@
 import { Form, Link } from "react-router";
 
+import { SITE_NAME } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import type { AnalyticsGroup } from "~/repositories/analytics.server";
 import { requireCuratorIdentity } from "~/services/access-auth.server";
@@ -39,6 +40,8 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     rows: await runtime.analyticsRepository.summarize(group, from, to),
   };
 }
+
+export const meta = () => [{ title: `Catalogue analytics | ${SITE_NAME}` }];
 
 export default function CuratorAnalyticsRoute({ loaderData }: Route.ComponentProps) {
   return (

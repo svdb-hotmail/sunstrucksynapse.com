@@ -12,6 +12,13 @@ import {
 
 import { ApplicationShell } from "~/components/ApplicationShell";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
+import { SITE_NAME } from "~/config/brand";
+import {
+  DEFAULT_THEME,
+  getDocumentTheme,
+  THEME_COLORS,
+  THEME_INIT_SCRIPT,
+} from "~/design-system/theme";
 import { loadPublicCatalogue } from "~/repositories/catalogue.server";
 import { catalogueLoadingMessage, findCatalogueItem } from "~/services/catalogue";
 import type {
@@ -40,13 +47,24 @@ export async function loader({ context }: Route.LoaderArgs) {
   return loadPublicCatalogue(catalogueRepository);
 }
 
+function getThemeColorForDocument(): string {
+  if (typeof document === "undefined") {
+    return THEME_COLORS[DEFAULT_THEME];
+  }
+
+  return THEME_COLORS[getDocumentTheme(document)];
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
+  const themeColor = getThemeColorForDocument();
+
   return (
-    <html lang="en">
+    <html lang="en" data-theme={DEFAULT_THEME} suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#11111a" />
+        <meta name="theme-color" content={themeColor} suppressHydrationWarning />
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <Meta />
         <Links />
       </head>
@@ -294,7 +312,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
 
   return (
     <main className="error-page">
-      <p className="eyebrow">Sunstruck Synapse</p>
+      <p className="eyebrow">{SITE_NAME}</p>
       <h1>{title}</h1>
       <p>{message}</p>
       <a href="/">Return home</a>
