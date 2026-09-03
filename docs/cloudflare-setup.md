@@ -1,6 +1,6 @@
 # Cloudflare Configuration Guide
 
-This guide documents the recommended Cloudflare settings for **sunstrucksynapse.com** to balance performance, security, and media protection.
+This guide documents the recommended Cloudflare settings for the SunSyn Radio public domain, **sunsyn.art**, to balance performance, security, and media protection.
 
 The application now targets Cloudflare Workers rather than a static Pages upload. This document is advisory only: production account changes, deployment, bindings, and secrets remain outside the application migration. Revalidate every caching recommendation against route-specific behavior before enabling it.
 

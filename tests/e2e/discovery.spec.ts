@@ -12,8 +12,11 @@ test("searches and filters the published catalogue with URL-backed controls", as
   await expect(page.getByText("The Mushroom Circle (Gnome Revolution)")).toBeVisible();
 
   await page.getByRole("link", { name: "Clear filters" }).click();
+  await expect(page).toHaveURL(/\/search$/);
+  await expect(page.getByLabel("Search artists, releases and tracks")).toHaveValue("");
   await page.getByLabel("Search artists, releases and tracks").fill("Gone Fishing");
   await page.getByRole("button", { name: "Search" }).click();
+  await expect(page).toHaveURL(/q=Gone(?:\+|%20)Fishing/);
   await expect(page.locator(".entity-track-list > li")).toHaveCount(1);
   await expect(page.getByText("1 matching track.")).toBeVisible();
 

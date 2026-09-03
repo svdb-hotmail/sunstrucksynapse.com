@@ -3,6 +3,7 @@ import { Link } from "react-router";
 
 import { NowPlaying } from "~/components/NowPlaying";
 import { Queue } from "~/components/Queue";
+import { SITE_MARK, SITE_NAME } from "~/config/brand";
 import { PlaybackCoordinator } from "~/services/playback-coordinator";
 import { recordPlaybackEvent } from "~/services/analytics.client";
 import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
@@ -259,13 +260,13 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   return (
     <aside ref={ref} className="player-panel" aria-label="Featured media player" tabIndex={-1}>
       <div className="brand-orb" aria-hidden="true">
-        <span>SS</span>
+        <span>{SITE_MARK}</span>
       </div>
 
       <div className="hero-art">
         <img
           src={playerArtwork}
-          alt={item?.artwork.alt ?? "Sunstruck Synapse Radio artwork"}
+          alt={item?.artwork.alt ?? `${SITE_NAME} artwork`}
           draggable={false}
           onContextMenu={preventMediaAction}
           onDragStart={preventMediaAction}

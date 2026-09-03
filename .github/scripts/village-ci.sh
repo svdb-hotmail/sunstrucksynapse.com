@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Sunstruck Synapse Radio comprehensive quality gate.
+# SunSyn Radio comprehensive quality gate.
 # Pull-request execution is suppressed while the PR is Draft.
 
 npm ci --no-audit --no-fund

@@ -1,7 +1,7 @@
 version: 1
 
 project:
-  name: Sunstruck Synapse Radio
+  name: SunSyn Radio
   repository: svdb-hotmail/sunstrucksynapse.com
   default_branch: main
   issue_system: github

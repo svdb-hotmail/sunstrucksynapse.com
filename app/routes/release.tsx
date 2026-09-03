@@ -2,6 +2,7 @@ import { Link, useOutletContext } from "react-router";
 
 import { EntityTrackList } from "~/components/EntityTrackList";
 import { ShareButton } from "~/components/ShareButton";
+import { SITE_NAME, SITE_URL } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { releaseSeo } from "~/services/seo.server";
 import { serializeJsonLd } from "~/utils/json-ld";
@@ -9,26 +10,26 @@ import type { PlayerOutletContext } from "~/types/catalogue";
 
 import type { Route } from "./+types/release";
 
-export async function loader({ context, params, request }: Route.LoaderArgs) {
+export async function loader({ context, params }: Route.LoaderArgs) {
   const { catalogueRepository } = context.get(cloudflareContext);
   const release = await catalogueRepository.findPublishedRelease(params.releaseSlug);
   if (!release) {
     throw new Response("Release not found.", { status: 404, statusText: "Release not found" });
   }
   const seo = releaseSeo(release);
-  const canonicalUrl = new URL(seo.canonicalPath, request.url).href;
+  const canonicalUrl = new URL(seo.canonicalPath, SITE_URL).href;
   return { release, canonicalUrl, seo };
 }
 
 export const meta: Route.MetaFunction = ({ loaderData }) => {
   if (!loaderData) {
-    return [{ title: "Release not found | Sunstruck Synapse Radio" }];
+    return [{ title: `Release not found | ${SITE_NAME}` }];
   }
   const data = loaderData;
   const artistNames = data.release.artists.map((artist) => artist.name).join(", ");
   const description = `Listen to ${data.release.title} by ${artistNames}.`;
   return [
-    { title: `${data.release.title} | Sunstruck Synapse Radio` },
+    { title: `${data.release.title} | ${SITE_NAME}` },
     { name: "description", content: description },
     { tagName: "link", rel: "canonical", href: data.canonicalUrl },
     { property: "og:type", content: "music.album" },

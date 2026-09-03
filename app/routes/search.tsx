@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { data, Form, Link, useOutletContext } from "react-router";
 
 import { EntityTrackList } from "~/components/EntityTrackList";
+import { SITE_NAME } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { discoveryOptions, filterCatalogue, type DiscoveryFilters } from "~/services/discovery";
 import type { PlayerOutletContext } from "~/types/catalogue";
@@ -34,6 +35,8 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     },
   );
 }
+
+export const meta = () => [{ title: `Search | ${SITE_NAME}` }];
 
 export default function SearchRoute({ loaderData }: Route.ComponentProps) {
   const player = useOutletContext<PlayerOutletContext>();

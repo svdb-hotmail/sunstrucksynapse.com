@@ -10,6 +10,7 @@ import {
   type LoaderFunctionArgs,
 } from "react-router";
 
+import { SITE_NAME } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import type {
   CuratorCollectionItem,
@@ -521,6 +522,8 @@ function MediaUpload({
     </form>
   );
 }
+
+export const meta = () => [{ title: `Catalogue management | ${SITE_NAME}` }];
 
 export default function CuratorWorkspace() {
   const data = useLoaderData<typeof loader>();

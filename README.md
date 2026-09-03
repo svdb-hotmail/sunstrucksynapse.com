@@ -1,10 +1,12 @@
-# Sunstruck Synapse Radio
+# SunSyn Radio
 
-Sunstruck Synapse Radio is intended to become a human-curated listening destination for intentional AI-assisted music:
+SunSyn Radio is intended to become a human-curated listening destination for intentional AI-assisted music:
 
 > Exceptional music made with AI in the process, selected by humans.
 
 Music quality, deliberate human selection, and clear creative-process context define the product. "AI-assisted" describes a range of creative methods; it is not a genre or a substitute for editorial judgment.
+
+SunSyn Radio is the platform name and its public domain is [sunsyn.art](https://sunsyn.art). **Sunstruck Synapse** remains the artist and catalogue identity represented by existing tracks, artwork, fixtures, and historical records; it is not an alternate platform name.
 
 ## Current repository state
 
@@ -14,7 +16,7 @@ The first five rights-cleared listener tracks and their publishable media metada
 
 ## Intended product
 
-Sunstruck Synapse Radio will be the public listening, editorial, and curation product for carefully selected AI-assisted music. It is for listeners seeking considered work, artists using AI as part of an intentional creative process, and curators assessing musical quality, rights information, and creative-process disclosures.
+SunSyn Radio will be the public listening, editorial, and curation product for carefully selected AI-assisted music. It is for listeners seeking considered work, artists using AI as part of an intentional creative process, and curators assessing musical quality, rights information, and creative-process disclosures.
 
 The MVP is curator-led and invitation-oriented. Publication will require deliberate human editorial selection rather than automated ranking or unrestricted uploading.
 
@@ -28,7 +30,7 @@ Phases 1 and 2 implement the catalogue, playback, queue, public entity pages, cu
 
 ## Future possibilities
 
-Later phases may evaluate broader creator workflows, richer provenance integrations, additional presentation formats, or capabilities associated with LEMM. These are possibilities rather than commitments. The Sunstruck Synapse Radio MVP will not depend technically on future LEMM infrastructure, and this repository does not contain LEMM functionality.
+Later phases may evaluate broader creator workflows, richer provenance integrations, additional presentation formats, or capabilities associated with LEMM. These are possibilities rather than commitments. The SunSyn Radio MVP will not depend technically on future LEMM infrastructure, and this repository does not contain LEMM functionality.
 
 ## Repository structure overview
 
@@ -40,6 +42,7 @@ sunstrucksynapse.com/
 |   |-- components/
 |   |-- config/
 |   |-- data/
+|   |-- design-system/
 |   |-- db/
 |   |-- routes/
 |   |-- styles/
@@ -65,6 +68,7 @@ sunstrucksynapse.com/
     |-- architecture/
     |   |-- README.md
     |   `-- decisions/
+    |-- design-system.md
     |-- product-scope.md
     |-- deployment.md
     |-- media-protection.md
@@ -150,6 +154,7 @@ this change.
 ## Documentation
 
 - [Product scope, terminology, and non-goals](docs/product-scope.md)
+- [Design system, tokens, theming, and Storybook](docs/design-system.md)
 - [MVP architecture and accepted decisions](docs/architecture/README.md)
 - [Deployment guidance](docs/deployment.md)
 - [Content integration guide](docs/content-guide.md)

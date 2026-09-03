@@ -2,6 +2,7 @@ import { Link, useOutletContext } from "react-router";
 
 import { EntityTrackList } from "~/components/EntityTrackList";
 import { ShareButton } from "~/components/ShareButton";
+import { SITE_NAME, SITE_URL } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { artistSeo } from "~/services/seo.server";
 import { serializeJsonLd } from "~/utils/json-ld";
@@ -9,26 +10,25 @@ import type { PlayerOutletContext } from "~/types/catalogue";
 
 import type { Route } from "./+types/artist";
 
-export async function loader({ context, params, request }: Route.LoaderArgs) {
+export async function loader({ context, params }: Route.LoaderArgs) {
   const { catalogueRepository } = context.get(cloudflareContext);
   const artist = await catalogueRepository.findPublishedArtist(params.artistSlug);
   if (!artist) {
     throw new Response("Artist not found.", { status: 404, statusText: "Artist not found" });
   }
   const seo = artistSeo(artist);
-  const canonicalUrl = new URL(seo.canonicalPath, request.url).href;
+  const canonicalUrl = new URL(seo.canonicalPath, SITE_URL).href;
   return { artist, canonicalUrl, seo };
 }
 
 export const meta: Route.MetaFunction = ({ loaderData }) => {
   if (!loaderData) {
-    return [{ title: "Artist not found | Sunstruck Synapse Radio" }];
+    return [{ title: `Artist not found | ${SITE_NAME}` }];
   }
   const data = loaderData;
-  const description =
-    data.artist.biography ?? `Listen to ${data.artist.name} on Sunstruck Synapse Radio.`;
+  const description = data.artist.biography ?? `Listen to ${data.artist.name} on ${SITE_NAME}.`;
   return [
-    { title: `${data.artist.name} | Sunstruck Synapse Radio` },
+    { title: `${data.artist.name} | ${SITE_NAME}` },
     { name: "description", content: description },
     { tagName: "link", rel: "canonical", href: data.canonicalUrl },
     { property: "og:type", content: "profile" },

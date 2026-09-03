@@ -1,5 +1,9 @@
 import { Link } from "react-router";
 
+import { SITE_NAME } from "~/config/brand";
+
+export const meta = () => [{ title: `Content takedown | ${SITE_NAME}` }];
+
 export default function TakedownRoute() {
   return (
     <article className="entity-page legal-page">

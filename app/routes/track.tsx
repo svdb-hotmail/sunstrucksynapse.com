@@ -1,6 +1,7 @@
 import { Link, useOutletContext } from "react-router";
 
 import { ShareButton } from "~/components/ShareButton";
+import { SITE_NAME, SITE_URL } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { trackSeo } from "~/services/seo.server";
 import { serializeJsonLd } from "~/utils/json-ld";
@@ -8,26 +9,26 @@ import type { PlayerOutletContext } from "~/types/catalogue";
 
 import type { Route } from "./+types/track";
 
-export async function loader({ context, params, request }: Route.LoaderArgs) {
+export async function loader({ context, params }: Route.LoaderArgs) {
   const { catalogueRepository } = context.get(cloudflareContext);
   const track = await catalogueRepository.findPublishedTrack(params.releaseSlug, params.trackSlug);
   if (!track) {
     throw new Response("Track not found.", { status: 404, statusText: "Track not found" });
   }
   const seo = trackSeo(track);
-  const canonicalUrl = new URL(seo.canonicalPath, request.url).href;
+  const canonicalUrl = new URL(seo.canonicalPath, SITE_URL).href;
   return { track, canonicalUrl, seo };
 }
 
 export const meta: Route.MetaFunction = ({ loaderData }) => {
   if (!loaderData) {
-    return [{ title: "Track not found | Sunstruck Synapse Radio" }];
+    return [{ title: `Track not found | ${SITE_NAME}` }];
   }
   const data = loaderData;
   const { item } = data.track;
   const description = `Listen to ${item.description.title} by ${item.creator.name}.`;
   return [
-    { title: `${item.description.title} | Sunstruck Synapse Radio` },
+    { title: `${item.description.title} | ${SITE_NAME}` },
     { name: "description", content: description },
     { tagName: "link", rel: "canonical", href: data.canonicalUrl },
     { property: "og:type", content: "music.song" },

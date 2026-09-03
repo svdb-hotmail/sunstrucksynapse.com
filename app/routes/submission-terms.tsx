@@ -1,5 +1,9 @@
 import { Link } from "react-router";
 
+import { SITE_NAME } from "~/config/brand";
+
+export const meta = () => [{ title: `Submission terms | ${SITE_NAME}` }];
+
 export default function SubmissionTermsRoute() {
   return (
     <article className="entity-page legal-page">
