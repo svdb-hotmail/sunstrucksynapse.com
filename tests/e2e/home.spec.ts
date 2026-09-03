@@ -310,7 +310,7 @@ test("keeps the intermediate header visible without horizontal overflow", async 
   await page.setViewportSize({ width: 900, height: 800 });
   await page.goto("/");
 
-  await expect(page.getByRole("banner")).toBeVisible();
+  await expect(page.locator("header.topbar")).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeHidden();
   await expect(page.getByRole("button", { name: "Light mode" })).toBeVisible();
