@@ -19,7 +19,8 @@ The design-system surface has three layers in `app/design-system/tokens.css`:
    and motion values. They are the smallest reusable choices, such as a color step
    or spacing unit, and do not describe a component or page.
 2. **Semantic tokens** describe intent and meaning: page background, surface,
-   text, muted text, border, accent, focus ring, success, warning, and danger.
+   text, muted text, divider and control borders, accent, focus ring, success,
+   warning, and danger.
    Components should consume semantic tokens rather than reaching into the raw
    palette.
 3. **Component tokens** are aliases for repeated component contracts, such as a
@@ -90,6 +91,10 @@ the Worker entry, server routes, database repositories, Cloudflare bindings,
 private-media services, or deployment environment values. If a component requires
 runtime data, provide a typed fixture at the story boundary. Keep stories
 network-free and safe to run without production credentials.
+
+Theme selection is scoped with `data-theme` on each story frame. Preview decorators
+must not mutate the shared document root: autodocs renders multiple stories in one
+document and each frame must retain its own light or dark token mapping.
 
 Use the repository's Storybook scripts:
 

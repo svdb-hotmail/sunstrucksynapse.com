@@ -87,6 +87,8 @@
   --primitive-alpha-cyan-35: rgba(40, 216, 255, 0.35);
   --primitive-alpha-line-dark: rgba(255, 255, 255, 0.09);
   --primitive-alpha-line-light: rgba(30, 26, 40, 0.16);
+  --primitive-control-border-dark: #726f7d;
+  --primitive-control-border-light: #817a89;
   --primitive-alpha-shadow: rgba(0, 0, 0, 0.35);
   --primitive-alpha-shadow-card: rgba(0, 0, 0, 0.22);
   --primitive-alpha-overlay: rgba(0, 0, 0, 0.2);
@@ -121,6 +123,7 @@
   --color-content-on-accent: var(--primitive-ink-900);
   --color-content-inverse: var(--primitive-white);
   --color-border-subtle: var(--primitive-alpha-line-dark);
+  --color-border-control: var(--primitive-control-border-dark);
   --color-border-accent: var(--primitive-alpha-cyan-35);
   --color-accent-sun: var(--primitive-sun);
   --color-accent-pink: var(--primitive-pink);
@@ -221,7 +224,7 @@
     var(--color-accent-cyan),
     var(--color-accent-green)
   );
-  --component-control-border: var(--color-border-subtle);
+  --component-control-border: 1px solid var(--color-border-control);
   --component-control-focus: var(--color-focus-ring);
 
   /* Compatibility aliases for existing selectors ---------------------- */
@@ -257,6 +260,7 @@
   --color-content-on-accent: var(--primitive-light-on-accent);
   --color-content-inverse: var(--primitive-white);
   --color-border-subtle: var(--primitive-alpha-line-light);
+  --color-border-control: var(--primitive-control-border-light);
   --color-border-accent: var(--primitive-light-border-accent);
   --color-accent-sun: var(--primitive-light-sun);
   --color-accent-pink: var(--primitive-light-pink);

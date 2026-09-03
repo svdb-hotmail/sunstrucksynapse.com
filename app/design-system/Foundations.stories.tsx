@@ -8,6 +8,7 @@ const colorTokens = [
   ["--color-content-primary", "Text"],
   ["--color-content-secondary", "Muted text"],
   ["--color-border-subtle", "Subtle border"],
+  ["--color-border-control", "Control border"],
   ["--color-accent-sun", "Sun accent"],
   ["--color-accent-pink", "Pink accent"],
   ["--color-accent-violet", "Violet accent"],
