@@ -199,7 +199,7 @@ video.protected-media {
 
 audio.protected-media {
   min-height: 42px;
-  accent-color: var(--cyan);
+  accent-color: var(--color-accent-cyan);
 }
 
 audio.protected-media,
@@ -408,7 +408,7 @@ video.protected-media {
   padding: 8px 12px;
   border: var(--border-subtle);
   border-radius: var(--radius-pill);
-  color: var(--text);
+  color: var(--color-content-primary);
   background: var(--component-transmission-control-background);
   cursor: pointer;
   text-transform: uppercase;
@@ -432,7 +432,7 @@ video.protected-media {
 }
 
 .theme-toggle__icon {
-  color: var(--sun);
+  color: var(--color-accent-sun);
   font-size: 1rem;
   line-height: 1;
 }
@@ -474,7 +474,7 @@ video.protected-media {
 .media-mode-tabs button {
   border: 0;
   border-radius: var(--radius-pill);
-  color: var(--muted);
+  color: var(--color-content-secondary);
   background: transparent;
   padding: 7px 12px;
   cursor: pointer;

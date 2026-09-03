@@ -87,6 +87,29 @@ test.describe("SunSyn Radio theme", () => {
     );
   });
 
+  test("keeps an explicit in-session choice when storage is blocked", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.addInitScript(() => {
+      Storage.prototype.setItem = () => {
+        throw new DOMException("Storage is blocked", "SecurityError");
+      };
+    });
+    await page.goto("/");
+
+    const themeToggle = page.getByRole("button", { name: "Light mode" });
+    await themeToggle.click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect
+      .poll(() => page.evaluate((key) => window.localStorage.getItem(key), themeStorageKey))
+      .toBeNull();
+
+    await page.emulateMedia({ colorScheme: "light" });
+    await page.emulateMedia({ colorScheme: "dark" });
+
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(themeToggle).toHaveAttribute("aria-pressed", "true");
+  });
+
   test("keeps the persistent player and queue through a theme toggle", async ({ page }) => {
     const revolutionTitle = "Sunstruck Synapse (Revolution will be televised)";
     const revolutionSource = "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3";

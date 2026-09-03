@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   applyTheme,
@@ -14,6 +14,7 @@ import {
 
 export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
+  const explicitSessionTheme = useRef<Theme | null>(null);
 
   useEffect(() => {
     const syncTheme = () => {
@@ -31,6 +32,10 @@ export function ThemeToggle() {
       }
     })();
     const onSystemThemeChange = () => {
+      if (explicitSessionTheme.current) {
+        return;
+      }
+
       let storageTheme: Theme | null = null;
       try {
         storageTheme = readStoredTheme(window.localStorage);
@@ -70,6 +75,7 @@ export function ThemeToggle() {
 
   function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark";
+    explicitSessionTheme.current = next;
     applyTheme(next, document);
     persistTheme(
       (() => {
