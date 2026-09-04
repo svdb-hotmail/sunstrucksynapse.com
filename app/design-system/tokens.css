@@ -237,8 +237,7 @@
   --component-note-content: #2b231a;
   --component-note-accent: #8b2718;
   --component-note-background:
-    repeating-linear-gradient(24deg, transparent 0 3px, rgba(75, 45, 20, 0.035) 3px 4px),
-    #e7d4b8;
+    repeating-linear-gradient(24deg, transparent 0 3px, rgba(75, 45, 20, 0.035) 3px 4px), #e7d4b8;
   --component-note-border: rgba(67, 49, 32, 0.18);
   --component-note-tape: rgba(202, 178, 139, 0.64);
   --component-note-shadow: 0 9px 22px rgba(0, 0, 0, 0.22);
