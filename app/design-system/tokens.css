@@ -11,46 +11,46 @@
   color-scheme: dark;
 
   /* Primitive values ----------------------------------------------------- */
-  --primitive-ink-950: #0d0d14;
-  --primitive-ink-900: #11111a;
-  --primitive-ink-850: #12121c;
-  --primitive-ink-800: #151522;
-  --primitive-ink-750: #191925;
-  --primitive-ink-700: #232332;
-  --primitive-ink-650: #2a2938;
-  --primitive-paper-50: #f6f3ee;
+  --primitive-ink-950: #050808;
+  --primitive-ink-900: #080b0b;
+  --primitive-ink-850: #0b0f0f;
+  --primitive-ink-800: #101413;
+  --primitive-ink-750: #151918;
+  --primitive-ink-700: #1c211f;
+  --primitive-ink-650: #242a27;
+  --primitive-paper-50: #dcc4a8;
   --primitive-white: #ffffff;
   --primitive-black: #000000;
 
-  --primitive-sun: #f3c35c;
-  --primitive-pink: #ff4d88;
-  --primitive-violet: #7957ff;
-  --primitive-cyan: #28d8ff;
-  --primitive-green: #78ffcb;
-  --primitive-danger: #8b2635;
-  --primitive-muted-dark: #9b98ac;
-  --primitive-light-bg: #faf8f4;
-  --primitive-light-bg-deep: #f1eee8;
-  --primitive-light-shell: #ebe8e2;
-  --primitive-light-panel: #f5f2ed;
-  --primitive-light-card: #ffffff;
-  --primitive-light-card-soft: #f0ede7;
-  --primitive-light-text: #241f2b;
-  --primitive-light-muted: #625d6d;
+  --primitive-sun: #c47b1d;
+  --primitive-pink: #df3b21;
+  --primitive-violet: #9a6242;
+  --primitive-cyan: #168fe5;
+  --primitive-green: #87995c;
+  --primitive-danger: #b52f20;
+  --primitive-muted-dark: #a89178;
+  --primitive-light-bg: #f1e7d4;
+  --primitive-light-bg-deep: #e8dbc4;
+  --primitive-light-shell: #eadfcf;
+  --primitive-light-panel: #f5ecdc;
+  --primitive-light-card: #f8efdf;
+  --primitive-light-card-soft: #e9dcc7;
+  --primitive-light-text: #171715;
+  --primitive-light-muted: #62594d;
   --primitive-light-on-accent: var(--primitive-white);
-  --primitive-light-sun: #966700;
-  --primitive-light-pink: #b42560;
-  --primitive-light-violet: #5b40c2;
-  --primitive-light-cyan: #007b95;
-  --primitive-light-green: #087653;
-  --primitive-light-danger: #8b2635;
-  --primitive-light-border-accent: rgba(0, 125, 150, 0.34);
-  --primitive-light-shadow: rgba(42, 34, 52, 0.16);
-  --primitive-light-shadow-card: rgba(42, 34, 52, 0.12);
-  --primitive-light-brand-shadow: rgba(180, 37, 96, 0.2);
-  --primitive-light-input: rgba(255, 255, 255, 0.9);
-  --primitive-light-header: rgba(250, 248, 244, 0.84);
-  --primitive-light-mobile-nav: rgba(245, 242, 237, 0.94);
+  --primitive-light-sun: #9c5c12;
+  --primitive-light-pink: #a52b1b;
+  --primitive-light-violet: #764f38;
+  --primitive-light-cyan: #00609c;
+  --primitive-light-green: #586b36;
+  --primitive-light-danger: #a12e20;
+  --primitive-light-border-accent: rgba(216, 59, 34, 0.42);
+  --primitive-light-shadow: rgba(55, 38, 20, 0.2);
+  --primitive-light-shadow-card: rgba(55, 38, 20, 0.14);
+  --primitive-light-brand-shadow: rgba(216, 59, 34, 0.16);
+  --primitive-light-input: rgba(255, 250, 240, 0.82);
+  --primitive-light-header: rgba(241, 231, 212, 0.92);
+  --primitive-light-mobile-nav: rgba(245, 236, 220, 0.96);
   --primitive-light-control: rgba(36, 31, 43, 0.05);
   --primitive-light-control-strong: rgba(36, 31, 43, 0.08);
   --primitive-light-alpha-pink-11: rgba(180, 37, 96, 0.11);
@@ -87,14 +87,17 @@
   --primitive-alpha-cyan-35: rgba(40, 216, 255, 0.35);
   --primitive-alpha-line-dark: rgba(255, 255, 255, 0.09);
   --primitive-alpha-line-light: rgba(30, 26, 40, 0.16);
-  --primitive-control-border-dark: #726f7d;
-  --primitive-control-border-light: #817a89;
+  --primitive-control-border-dark: #78634f;
+  --primitive-control-border-light: #877865;
   --primitive-alpha-shadow: rgba(0, 0, 0, 0.35);
   --primitive-alpha-shadow-card: rgba(0, 0, 0, 0.22);
   --primitive-alpha-overlay: rgba(0, 0, 0, 0.2);
 
   --primitive-font-sans:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    "Arial Narrow", "Roboto Condensed", "Aptos Narrow", ui-sans-serif, system-ui, sans-serif;
+  --primitive-font-display: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+  --primitive-font-mono: "Courier New", Courier, ui-monospace, monospace;
+  --primitive-font-script: "Segoe Print", "Bradley Hand", cursive;
   --primitive-space-1: 4px;
   --primitive-space-2: 8px;
   --primitive-space-3: 12px;
@@ -103,9 +106,9 @@
   --primitive-space-6: 22px;
   --primitive-space-7: 28px;
   --primitive-space-8: 42px;
-  --primitive-radius-sm: 10px;
-  --primitive-radius-md: 12px;
-  --primitive-radius-lg: 18px;
+  --primitive-radius-sm: 2px;
+  --primitive-radius-md: 5px;
+  --primitive-radius-lg: 8px;
   --primitive-radius-pill: 999px;
   --primitive-shadow-shell: 0 20px 70px var(--primitive-alpha-shadow);
   --primitive-shadow-card: 0 14px 40px var(--primitive-alpha-shadow-card);
@@ -135,6 +138,9 @@
 
   /* Typography, spacing, radii and elevation ---------------------------- */
   --type-font-family-body: var(--primitive-font-sans);
+  --type-font-family-display: var(--primitive-font-display);
+  --type-font-family-mono: var(--primitive-font-mono);
+  --type-font-family-script: var(--primitive-font-script);
   --space-1: var(--primitive-space-1);
   --space-2: var(--primitive-space-2);
   --space-3: var(--primitive-space-3);
@@ -156,8 +162,8 @@
 
   /* Surface recipes ----------------------------------------------------- */
   --surface-page-background:
-    radial-gradient(circle at 20% 0%, var(--primitive-alpha-pink-16), transparent 34%),
-    radial-gradient(circle at 100% 10%, var(--primitive-alpha-cyan-08), transparent 28%),
+    radial-gradient(circle at 18% 8%, rgba(196, 123, 29, 0.06), transparent 28%),
+    repeating-linear-gradient(24deg, transparent 0 3px, rgba(255, 255, 255, 0.012) 3px 4px),
     linear-gradient(180deg, var(--color-bg-deep) 0%, var(--color-bg) 100%);
   --surface-panel-background:
     linear-gradient(180deg, var(--primitive-alpha-white-03), transparent),
@@ -165,7 +171,7 @@
   --surface-content-background:
     radial-gradient(circle at 50% 0%, var(--primitive-alpha-white-05), transparent 36%),
     linear-gradient(180deg, var(--primitive-alpha-white-03), transparent);
-  --surface-header-background: var(--primitive-alpha-black-76);
+  --surface-header-background: rgba(8, 11, 11, 0.94);
   --surface-card-background: linear-gradient(
     180deg,
     var(--primitive-alpha-white-055),
@@ -219,13 +225,22 @@
   --component-queue-background: transparent;
   --component-status-background: var(--surface-status-background);
   --component-status-danger-background: var(--color-status-danger);
-  --component-submit-background: linear-gradient(
-    135deg,
-    var(--color-accent-cyan),
-    var(--color-accent-green)
-  );
+  --component-submit-background: var(--color-accent-pink);
   --component-control-border: 1px solid var(--color-border-control);
   --component-control-focus: var(--color-focus-ring);
+  --component-signal-content: var(--color-accent-sun);
+  --component-signal-background:
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.018) 0 2px, transparent 2px 7px),
+    #0a0d0c;
+  --component-signal-border: color-mix(in srgb, var(--color-accent-sun), transparent 48%);
+  --component-signal-needle: var(--color-accent-pink);
+  --component-note-content: #2b231a;
+  --component-note-accent: #8b2718;
+  --component-note-background:
+    repeating-linear-gradient(24deg, transparent 0 3px, rgba(75, 45, 20, 0.035) 3px 4px), #e7d4b8;
+  --component-note-border: rgba(67, 49, 32, 0.18);
+  --component-note-tape: rgba(202, 178, 139, 0.64);
+  --component-note-shadow: 0 9px 22px rgba(0, 0, 0, 0.22);
 
   /* Compatibility aliases for existing selectors ---------------------- */
   --bg: var(--color-bg);
@@ -273,9 +288,9 @@
   --shadow-brand: 0 0 60px var(--primitive-light-brand-shadow);
 
   --surface-page-background:
-    radial-gradient(circle at 20% 0%, var(--primitive-light-alpha-pink-11), transparent 34%),
-    radial-gradient(circle at 100% 10%, var(--primitive-light-alpha-cyan-09), transparent 28%),
-    linear-gradient(180deg, var(--color-bg-deep) 0%, var(--color-bg) 100%);
+    radial-gradient(circle at 12% 2%, rgba(255, 255, 255, 0.5), transparent 25%),
+    repeating-linear-gradient(24deg, transparent 0 3px, rgba(82, 58, 33, 0.025) 3px 4px),
+    linear-gradient(180deg, var(--color-bg) 0%, var(--color-bg-deep) 100%);
   --surface-panel-background:
     linear-gradient(180deg, var(--primitive-light-alpha-white-70), transparent),
     var(--color-surface-shell);
@@ -310,9 +325,5 @@
   --component-player-control-background: var(--primitive-light-control);
   --component-control-background: var(--primitive-light-control-strong);
   --component-hero-overlay: linear-gradient(180deg, transparent, var(--color-surface-shell));
-  --component-submit-background: linear-gradient(
-    135deg,
-    var(--color-accent-cyan),
-    var(--color-accent-green)
-  );
+  --component-submit-background: var(--color-accent-pink);
 }

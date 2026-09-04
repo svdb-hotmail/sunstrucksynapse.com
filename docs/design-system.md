@@ -11,6 +11,19 @@ artist records, track titles, media filenames, fixtures and seeds, rights and
 disclosure notes, and historical architecture or repository identifiers. A visual
 or copy change must not rename those data values.
 
+## Editorial broadcast direction
+
+The production visual language combines an independent music journal with analogue broadcast equipment. Both themes use the same layout and component recipes:
+
+- condensed display type for artist-scale headlines;
+- monospaced transmission labels, navigation, metadata, and controls;
+- a restrained handwritten face only for the station line and curator notes;
+- signal red for primary playback and editorial emphasis, broadcast amber for meters, and blue for AI-process disclosure;
+- thin etched borders, compact radii, physical-paper notes, and low-contrast surface texture; and
+- list-style catalogue rows and a persistent transport dock rather than generic card grids.
+
+The light theme maps those roles onto warm archival paper and near-black ink. The dark theme maps them onto a near-black broadcast room with parchment-colored type. Components must consume the shared semantic roles so switching theme changes the material and contrast without changing hierarchy or behavior.
+
 ## Architecture
 
 The design-system surface has three layers in `app/design-system/tokens.css`:
