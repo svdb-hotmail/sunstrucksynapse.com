@@ -1944,12 +1944,19 @@ body {
     padding-bottom: 230px;
   }
 
+  .app-shell {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: clip;
+  }
+
   .topbar,
   .player-panel,
   .media-section,
   .offerings,
   .contact {
-    width: min(100% - 32px, 100%);
+    width: calc(100% - 32px);
+    max-width: calc(100% - 32px);
   }
 
   .topbar {
@@ -1993,6 +2000,10 @@ body {
   .radio-hero {
     grid-template-columns: 1fr;
     gap: 24px;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: clip;
     padding: 20px 0 30px;
   }
 
@@ -2008,6 +2019,8 @@ body {
   .signal-stack {
     grid-column: auto;
     grid-template-columns: 1fr;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .curator-note {
@@ -2020,6 +2033,8 @@ body {
 
   .media-card-body {
     grid-template-columns: minmax(0, 1fr) auto;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .media-card-kind {
@@ -2028,6 +2043,7 @@ body {
 
   .card-actions {
     grid-column: 2;
+    min-width: 0;
   }
 
   .card-actions > a:first-child {
@@ -2036,6 +2052,27 @@ body {
 
   .mobile-tabs {
     z-index: 100;
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
+    overflow: hidden;
+    isolation: isolate;
+    pointer-events: auto;
+  }
+
+  .mobile-tabs > * {
+    min-width: 0;
+  }
+
+  .player-panel {
+    pointer-events: none;
+  }
+
+  .player-panel a,
+  .player-panel button,
+  .player-panel input,
+  .player-panel audio,
+  .player-panel video {
+    pointer-events: auto;
   }
 
   .player-dock {
