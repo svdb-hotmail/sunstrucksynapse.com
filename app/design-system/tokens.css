@@ -39,9 +39,9 @@
   --primitive-light-muted: #62594d;
   --primitive-light-on-accent: var(--primitive-white);
   --primitive-light-sun: #9c5c12;
-  --primitive-light-pink: #d83b22;
+  --primitive-light-pink: #a52b1b;
   --primitive-light-violet: #764f38;
-  --primitive-light-cyan: #087bc7;
+  --primitive-light-cyan: #00609c;
   --primitive-light-green: #586b36;
   --primitive-light-danger: #a12e20;
   --primitive-light-border-accent: rgba(216, 59, 34, 0.42);
@@ -228,6 +228,20 @@
   --component-submit-background: var(--color-accent-pink);
   --component-control-border: 1px solid var(--color-border-control);
   --component-control-focus: var(--color-focus-ring);
+  --component-signal-content: var(--color-accent-sun);
+  --component-signal-background:
+    repeating-linear-gradient(115deg, rgba(255, 255, 255, 0.018) 0 2px, transparent 2px 7px),
+    #0a0d0c;
+  --component-signal-border: color-mix(in srgb, var(--color-accent-sun), transparent 48%);
+  --component-signal-needle: var(--color-accent-pink);
+  --component-note-content: #2b231a;
+  --component-note-accent: #8b2718;
+  --component-note-background:
+    repeating-linear-gradient(24deg, transparent 0 3px, rgba(75, 45, 20, 0.035) 3px 4px),
+    #e7d4b8;
+  --component-note-border: rgba(67, 49, 32, 0.18);
+  --component-note-tape: rgba(202, 178, 139, 0.64);
+  --component-note-shadow: 0 9px 22px rgba(0, 0, 0, 0.22);
 
   /* Compatibility aliases for existing selectors ---------------------- */
   --bg: var(--color-bg);

@@ -1,7 +1,9 @@
 import { Link } from "react-router";
 
-import { SITE_NAME } from "~/config/brand";
+import { SITE_NAME, SITE_URL } from "~/config/brand";
 import { ThemeToggle } from "~/design-system/ThemeToggle";
+
+const SITE_HOSTNAME = new URL(SITE_URL).hostname.replace(/^www\./, "");
 
 export function Header() {
   return (
@@ -11,7 +13,7 @@ export function Header() {
           <span className="mini-orb" aria-hidden="true">
             ☼
           </span>
-          <span className="site-wordmark">sunsyn.art</span>
+          <span className="site-wordmark">{SITE_HOSTNAME}</span>
         </Link>
         <h2>A radio for music made with intent.</h2>
       </div>

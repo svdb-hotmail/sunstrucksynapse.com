@@ -69,6 +69,8 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
   const [activeMedia, setActiveMedia] = useState<{
     itemId: string;
     src: string;
@@ -93,6 +95,14 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   useEffect(() => {
     coordinator.attachMedia(mediaRef.current);
   });
+
+  useEffect(() => {
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setVolume(1);
+    setIsMuted(false);
+  }, [item?.id]);
 
   useEffect(() => {
     const tracked = trackedPlayback.current;
@@ -192,6 +202,26 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     }
   };
 
+  const toggleMute = () => {
+    const media = mediaRef.current;
+    if (!media) {
+      return;
+    }
+    media.muted = !media.muted;
+    setIsMuted(media.muted);
+  };
+
+  const changeVolume = (nextVolume: number) => {
+    const media = mediaRef.current;
+    if (!media) {
+      return;
+    }
+    media.volume = nextVolume;
+    media.muted = nextVolume === 0;
+    setVolume(nextVolume);
+    setIsMuted(media.muted);
+  };
+
   useEffect(() => {
     if (!item?.media || !("mediaSession" in navigator)) {
       return;
@@ -262,8 +292,6 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
 
   const mediaProps = {
     className: "protected-media",
-    controls: true,
-    controlsList: "nodownload noplaybackrate",
     preload: "none" as const,
     onContextMenu: preventMediaAction,
     onDragStart: preventMediaAction,
@@ -271,6 +299,13 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     onPlay: handlePlay,
     onPause: () => setIsPlaying(false),
     onTimeUpdate: handleTimeUpdate,
+    onVolumeChange: () => {
+      const media = mediaRef.current;
+      if (media) {
+        setVolume(media.volume);
+        setIsMuted(media.muted);
+      }
+    },
     onLoadStart: () => setIsLoading(true),
     onLoadedMetadata: () => {
       setIsLoading(false);
@@ -366,6 +401,8 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
                   ref={mediaRef as React.RefObject<HTMLVideoElement>}
                   aria-label={`${item.description.title} video player`}
                   poster={item.media.poster ?? "/assets/posters/video-poster.svg"}
+                  controls
+                  controlsList="nodownload noplaybackrate"
                   disablePictureInPicture
                   {...mediaProps}
                 >
@@ -441,6 +478,26 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
             }}
           />
           <span>{formatTime(duration)}</span>
+        </div>
+        <div className="dock-volume">
+          <button
+            type="button"
+            onClick={toggleMute}
+            disabled={!item?.media}
+            aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
+          >
+            <span aria-hidden="true">{isMuted || volume === 0 ? "🔇" : "🔊"}</span>
+          </button>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={isMuted ? 0 : volume}
+            disabled={!item?.media}
+            aria-label="Volume"
+            onChange={(event) => changeVolume(Number(event.currentTarget.value))}
+          />
         </div>
         <a className="dock-queue-link" href="#queue">
           Queue <span aria-hidden="true">☷</span>
