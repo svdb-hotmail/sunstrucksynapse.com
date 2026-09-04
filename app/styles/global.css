@@ -1450,6 +1450,8 @@ body {
 
 .signal-monitor {
   position: relative;
+  width: 100%;
+  min-width: 0;
   min-height: 212px;
   overflow: hidden;
   padding: 26px 28px;
@@ -1564,6 +1566,8 @@ body {
   left: 16px;
   z-index: 1;
   width: calc(100% - 32px);
+  max-width: calc(100% - 32px);
+  min-width: 0;
   height: 54px;
   opacity: 1;
 }
@@ -2031,17 +2035,32 @@ body {
   }
 
   .mobile-tabs {
-    z-index: 40;
+    z-index: 100;
   }
 
   .player-dock {
     left: 10px;
     right: 10px;
-    bottom: 76px;
+    bottom: 80px;
     grid-template-columns: minmax(0, 1fr) auto;
     gap: 12px;
+    width: calc(100vw - 20px);
+    max-width: calc(100vw - 20px);
     min-height: 72px;
+    overflow: hidden;
     padding: 8px 12px;
+    pointer-events: none;
+  }
+
+  .player-dock > * {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .player-dock a,
+  .player-dock button:not(:disabled),
+  .player-dock input:not(:disabled) {
+    pointer-events: auto;
   }
 
   .dock-track img {
@@ -2053,8 +2072,13 @@ body {
     grid-column: 1 / -1;
   }
 
+  .dock-progress input {
+    min-width: 0;
+    max-width: 100%;
+  }
+
   .dock-volume {
-    grid-column: 1 / -1;
+    display: none;
   }
 
   .player-transport {
