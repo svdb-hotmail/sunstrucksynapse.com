@@ -29,6 +29,12 @@ const layoutTokens = [
   ["--space-8", "42px"],
 ] as const;
 
+const typographyTokens = [
+  ["--type-font-family-display", "Display", "ARTIST VOICE / 01"],
+  ["--type-font-family-mono", "Transmission", "Selected by human ears."],
+  ["--type-font-family-script", "Curator hand", "Made with intent."],
+] as const;
+
 function TokenValue({ name }: { name: string }) {
   return (
     <code
@@ -115,6 +121,29 @@ function Foundations() {
                 />
                 <TokenValue name={name} />
               </div>
+            ))}
+          </div>
+        </section>
+
+        <section aria-labelledby="type-tokens" style={{ marginTop: "2.5rem" }}>
+          <h2 id="type-tokens">Editorial typography</h2>
+          <div style={{ display: "grid", gap: "1rem" }}>
+            {typographyTokens.map(([name, label, sample]) => (
+              <article
+                key={name}
+                style={{
+                  background: "var(--panel)",
+                  border: "1px solid var(--line)",
+                  borderRadius: "var(--radius-md)",
+                  padding: "1rem 1.25rem",
+                }}
+              >
+                <strong>{label}</strong>
+                <p style={{ fontFamily: `var(${name})`, fontSize: "1.5rem", margin: "0.7rem 0" }}>
+                  {sample}
+                </p>
+                <TokenValue name={name} />
+              </article>
             ))}
           </div>
         </section>

@@ -39,6 +39,7 @@ export function ApplicationShell({
   return (
     <>
       <div className="app-shell">
+        <Header />
         <PlayerPanel
           ref={playerPanelRef}
           item={item}
@@ -53,10 +54,7 @@ export function ApplicationShell({
           canNext={canNext}
           onMediaEnded={onMediaEnded}
         />
-        <main className="content-panel">
-          <Header />
-          {children}
-        </main>
+        <main className="content-panel">{children}</main>
       </div>
       <MobileNav />
     </>
