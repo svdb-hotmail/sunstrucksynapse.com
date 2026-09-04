@@ -391,6 +391,8 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
                   key={item.id}
                   ref={mediaRef as React.RefObject<HTMLAudioElement>}
                   aria-label={`${item.description.title} audio player`}
+                  controls
+                  controlsList="nodownload noplaybackrate"
                   {...mediaProps}
                 >
                   <source src={activeMediaSrc ?? item.media.src} type={item.media.mimeType} />

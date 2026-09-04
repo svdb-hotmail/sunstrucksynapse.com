@@ -1559,9 +1559,13 @@ body {
 
 .protected-player audio.protected-media {
   position: absolute;
-  width: 2px;
-  height: 2px;
-  opacity: 0.01;
+  right: 16px;
+  bottom: 16px;
+  left: 16px;
+  z-index: 1;
+  width: calc(100% - 32px);
+  height: 54px;
+  opacity: 1;
 }
 
 .protected-player video.protected-media {
@@ -2022,8 +2026,12 @@ body {
     grid-column: 2;
   }
 
-  .card-actions button:first-child {
+  .card-actions > a:first-child {
     display: none;
+  }
+
+  .mobile-tabs {
+    z-index: 40;
   }
 
   .player-dock {
