@@ -30,4 +30,25 @@ CREATE TABLE "curation_outbox" (
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX "curation_outbox_idempotency_key_unique" ON "curation_outbox" USING btree ("idempotency_key");--> statement-breakpoint
-CREATE INDEX "curation_outbox_claim_idx" ON "curation_outbox" USING btree ("status","available_at","lease_expires_at");
+CREATE INDEX "curation_outbox_claim_idx" ON "curation_outbox" USING btree ("status","available_at","lease_expires_at");--> statement-breakpoint
+CREATE FUNCTION "curation_outbox_protect_succeeded"() RETURNS trigger
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF OLD.status = 'succeeded' THEN
+    RAISE EXCEPTION 'Curation outbox succeeded rows are immutable.';
+  END IF;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;--> statement-breakpoint
+CREATE TRIGGER "curation_outbox_protect_succeeded"
+BEFORE UPDATE OR DELETE ON "curation_outbox"
+FOR EACH ROW EXECUTE FUNCTION "curation_outbox_protect_succeeded"();--> statement-breakpoint
+CREATE TRIGGER "curation_outbox_set_updated_at"
+BEFORE UPDATE ON "curation_outbox"
+FOR EACH ROW EXECUTE FUNCTION "set_updated_at"();

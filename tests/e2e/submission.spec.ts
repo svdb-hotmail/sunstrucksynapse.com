@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("submits an invited draft and lets a curator review it through acceptance without auto-publishing", async ({
+test("submits an invited draft and prevents a curator decision without private review audio", async ({
   browser,
   page,
 }) => {
@@ -62,8 +62,8 @@ test("submits an invited draft and lets a curator review it through acceptance w
   await submissionCard.getByRole("button", { name: "Assign me" }).click();
   await submissionCard.getByRole("button", { name: "Move to eligibility review" }).click();
   await submissionCard.getByRole("button", { name: "Move to listening" }).click();
-  await submissionCard.getByRole("button", { name: "Accept" }).click();
-
-  await expect(submissionCard).toContainText("accepted");
+  await expect(submissionCard.getByText("Waiting for private review audio.")).toBeVisible();
+  await expect(submissionCard.getByRole("button", { name: "Finalize decision" })).toBeDisabled();
+  await expect(submissionCard).toContainText("listening");
   await curatorContext.close();
 });

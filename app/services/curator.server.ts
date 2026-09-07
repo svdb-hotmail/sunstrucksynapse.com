@@ -218,6 +218,22 @@ export class CuratorService {
         error: { code: "invalid", message: "Publishing and archiving require a reason." },
       };
     }
+    if (
+      type === "track" &&
+      (to === "scheduled" || to === "published") &&
+      this.repository.publicationBlockers
+    ) {
+      const blockers = await this.repository.publicationBlockers(type, id);
+      if (blockers.length > 0) {
+        return {
+          ok: false,
+          error: {
+            code: "invalid",
+            message: `Track is not publication-ready: ${blockers.join(", ")}.`,
+          },
+        };
+      }
+    }
     const now = this.clock();
     const scheduledFor = options.scheduledFor ?? null;
     if (

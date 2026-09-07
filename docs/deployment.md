@@ -25,8 +25,17 @@ Before deployment, an operator must:
 1. Create the production `sunstruck-synapse-media` and preview `sunstruck-synapse-media-preview` R2 buckets.
 2. In the Cloudflare Worker dashboard, configure the `MEDIA_BUCKET` R2 binding and the `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `CURATOR_EMAILS` runtime variables. These values are intentionally not stored in `wrangler.jsonc`.
 3. In the Cloudflare Worker dashboard, configure `DATABASE_URL` and a high-entropy `MEDIA_DELIVERY_SIGNING_SECRET` as secrets. Do not commit their values.
-4. Apply every committed migration through `0008_lame_guardian.sql` before deploying.
-5. Verify Access rejection and signed media byte-range delivery.
+4. To enable browser-to-R2 private review-audio uploads, create an R2 API token limited to
+   object read/write for the bound media bucket. Configure `R2_ACCOUNT_ID`,
+   `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_BUCKET_NAME` as Worker secrets or
+   encrypted deployment variables. The application fails closed when this set is absent or
+   incomplete.
+5. Configure R2 CORS for the submission origin. Permit `PUT`, permit the `Content-Type`,
+   `x-amz-meta-checksum-sha256`, and `x-amz-meta-upload-session-id` request headers, and expose
+   `ETag`. Scope `AllowedOrigins` to the real submission origins rather than `*`.
+6. Apply every committed migration through `0010_cool_human_cannonball.sql` before deploying.
+7. Verify Access rejection, curator review-audio byte-range delivery, and the scheduled outbox
+   dispatcher.
 
 The configuration retains the `MEDIA_BUCKET` binding and bucket names for deployment consistency, but Cloudflare supplies the actual runtime binding and values. It does not create Access policies, buckets, DNS, or secrets.
 

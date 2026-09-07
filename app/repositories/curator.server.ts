@@ -108,6 +108,7 @@ export interface CuratorRepository {
   homepagePositionInUse(collectionId: string, homepagePosition: number): Promise<boolean>;
   listAudit(): Promise<CuratorAuditEntry[]>;
   publishScheduled(now: Date): Promise<number>;
+  publicationBlockers?(type: CuratorEntityType, id: string): Promise<string[]>;
 }
 
 const artistSelection = {
@@ -571,6 +572,7 @@ export function createCuratorRepository(db: Database): CuratorRepository {
         .where(and(eq(table.lifecycleStatus, "scheduled"), lte(table.scheduledFor, now)))
         .orderBy(asc(table.scheduledFor), asc(table.id));
       for (const { id } of due) {
+        if (type === "track" && (await publicationBlockers(type, id)).length > 0) continue;
         if (
           await setLifecycle(
             type,
@@ -587,6 +589,49 @@ export function createCuratorRepository(db: Database): CuratorRepository {
       }
     }
     return count;
+  }
+
+  async function publicationBlockers(type: CuratorEntityType, id: string): Promise<string[]> {
+    if (type !== "track") return [];
+    const result = await db.execute<Record<string, boolean>>(sql`
+      select
+        exists (
+          select 1 from submissions submission
+          join curation_reviews review on review.submission_id = submission.id
+          join submission_review_audio audio on audio.id = review.review_audio_id
+          where submission.resulting_track_id = ${id}::uuid
+            and submission.status = 'accepted' and review.final_grade in ('A', 'B')
+        ) as "hasAcceptedReview",
+        exists (
+          select 1 from audio_assets audio where audio.track_id = ${id}::uuid
+            and audio.scope = 'publishable_derivative' and audio.status = 'ready'
+          union all
+          select 1 from video_assets video where video.track_id = ${id}::uuid
+            and video.scope = 'publishable_derivative' and video.status = 'ready'
+        ) as "hasMedia",
+        exists (
+          select 1 from track_artwork_assets link
+          join artwork_assets artwork on artwork.id = link.artwork_asset_id
+          where link.track_id = ${id}::uuid and link.role = 'primary'
+            and artwork.scope = 'publishable_derivative' and artwork.status = 'ready'
+        ) as "hasArtwork",
+        exists (
+          select 1 from tracks track
+          join releases release on release.id = track.release_id
+          where track.id = ${id}::uuid and release.lifecycle_status = 'published'
+            and track.genre is not null and cardinality(track.moods) > 0
+            and cardinality(track.creative_process_tags) > 0
+        ) as "hasMetadataAndRelease"
+    `);
+    const rows = (result as { rows?: Record<string, boolean>[] }).rows ?? [];
+    const readiness = rows[0];
+    if (!readiness) return ["readiness could not be determined"];
+    return [
+      !readiness.hasAcceptedReview ? "accepted A/B review and sealed private listening copy" : null,
+      !readiness.hasMedia ? "ready public media derivative" : null,
+      !readiness.hasArtwork ? "ready primary artwork" : null,
+      !readiness.hasMetadataAndRelease ? "genre, moods, process tags, and published release" : null,
+    ].filter((value): value is string => Boolean(value));
   }
 
   return {
@@ -607,5 +652,6 @@ export function createCuratorRepository(db: Database): CuratorRepository {
     homepagePositionInUse,
     listAudit,
     publishScheduled,
+    publicationBlockers,
   };
 }

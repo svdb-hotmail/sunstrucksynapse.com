@@ -9,6 +9,9 @@ import {
 
 import { SITE_NAME } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
+import { CurationScorecard } from "~/components/CurationScorecard";
+import { createCurationWorkflowRepository } from "~/repositories/curation-workflow.server";
+import { createCurationOutboxRepository } from "~/repositories/curation-outbox.server";
 import { requireCuratorIdentity } from "~/services/access-auth.server";
 import { SubmissionEvidenceService } from "~/services/submission-evidence.server";
 import { SubmissionService, submissionHttpStatus } from "~/services/submissions.server";
@@ -30,17 +33,29 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     status: (url.searchParams.get("status") ?? "all") as SubmissionStatus | "all",
     assignedTo: url.searchParams.get("assignedTo") ?? "all",
   };
-  const [submissions, releases, tracks] = await Promise.all([
-    runtime.submissionRepository.listCuratorSubmissions(filter),
-    runtime.curatorRepository.list("release"),
-    runtime.curatorRepository.list("track"),
-  ]);
+  const workflow = runtime.db ? createCurationWorkflowRepository(runtime.db) : null;
+  const outboxPromise = runtime.db
+    ? createCurationOutboxRepository(runtime.db).statusCounts()
+    : Promise.resolve(null);
+  const submissions = await runtime.submissionRepository.listCuratorSubmissions(filter);
+  const reviewAudio = workflow
+    ? Object.fromEntries(
+        await Promise.all(
+          submissions.map(
+            async ({ submission }) =>
+              [submission.id, await workflow.currentAudioForSubmission(submission.id)] as const,
+          ),
+        ),
+      )
+    : {};
+  const outbox = await outboxPromise;
   return {
     identity: auth.identity,
     submissions,
-    releases,
-    tracks,
     flash: url.searchParams.get("flash"),
+    reviewAudio,
+    outbox,
+    workflowAvailable: Boolean(workflow),
   };
 }
 
@@ -60,12 +75,60 @@ export async function action({ request, context }: ActionFunctionArgs) {
     createTransactionalEmailService(runtime.env),
   );
   const form = await request.formData();
+  const intent = String(form.get("intent") ?? "");
+  if (intent === "claim-next") {
+    if (!runtime.db) return bad("Curation workflow unavailable.", 503);
+    const submissionId = await createCurationWorkflowRepository(runtime.db).claimNextSubmission(
+      auth.identity,
+      new Date(),
+    );
+    return submissionId
+      ? redirect(`/curator/submissions?flash=ready#submission-${submissionId}`)
+      : redirect("/curator/submissions?flash=no-ready-submissions");
+  }
   const submissionIdResult = validateUuid(form.get("submissionId"), "submissionId");
   if (!submissionIdResult.ok) return bad(submissionIdResult.fieldErrors.submissionId);
   const submissionId = submissionIdResult.value;
-  const intent = String(form.get("intent") ?? "");
+
+  if (intent === "grade") {
+    if (!runtime.db) return bad("Curation workflow unavailable.", 503);
+    const score = (name: string) => Number(form.get(name));
+    const artisticQuality = score("artisticQuality");
+    const originalityIntent = score("originalityIntent");
+    const productionReadiness = score("productionReadiness");
+    const editorialFit = score("editorialFit");
+    if (
+      ![artisticQuality, originalityIntent, productionReadiness, editorialFit].every(
+        (value) => Number.isInteger(value) && value >= 1 && value <= 5,
+      )
+    ) {
+      return bad("Every assessment score must be between 1 and 5.");
+    }
+    const finalGrade = String(form.get("finalGrade") ?? "");
+    if (finalGrade !== "A" && finalGrade !== "B" && finalGrade !== "C") {
+      return bad("Choose final grade A, B, or C.");
+    }
+    const rationale = String(form.get("rationale") ?? "").trim();
+    if (!rationale) return bad("Decision rationale is required.");
+    const result = await createCurationWorkflowRepository(runtime.db).finalizeReview(
+      {
+        submissionId,
+        artisticQuality,
+        originalityIntent,
+        productionReadiness,
+        editorialFit,
+        finalGrade,
+        rationale,
+      },
+      auth.identity,
+      new Date(),
+    );
+    if (!result) return bad("Submission changed or is not ready for a final decision.", 409);
+    return redirect(`/curator/submissions?flash=${result.status}`);
+  }
 
   if (intent === "assign") {
+    if (runtime.db) return bad("Use Review next for an exclusive queue claim.");
     await service.assignCurator(submissionId, auth.identity);
     return redirect("/curator/submissions?flash=assigned");
   }
@@ -103,33 +166,8 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (!result.ok) return bad(result.error.message, submissionHttpStatus(result.error.code));
     return redirect("/curator/submissions?flash=clarification");
   }
-  if (intent === "accept") {
-    const releaseValue = String(form.get("resultingReleaseId") ?? "").trim();
-    const trackValue = String(form.get("resultingTrackId") ?? "").trim();
-    const releaseId = releaseValue ? validateUuid(releaseValue, "resultingReleaseId") : null;
-    const trackId = trackValue ? validateUuid(trackValue, "resultingTrackId") : null;
-    if (releaseId && !releaseId.ok) return bad(releaseId.fieldErrors.resultingReleaseId);
-    if (trackId && !trackId.ok) return bad(trackId.fieldErrors.resultingTrackId);
-    const result = await service.accept({
-      submissionId,
-      actor: auth.identity,
-      acceptedAt: new Date(),
-      note: String(form.get("message") ?? "").trim() || null,
-      resultingReleaseId: releaseId?.ok ? releaseId.value : null,
-      resultingTrackId: trackId?.ok ? trackId.value : null,
-    });
-    if (!result.ok) return bad(result.error.message, submissionHttpStatus(result.error.code));
-    return redirect("/curator/submissions?flash=accepted");
-  }
-  if (intent === "reject") {
-    const result = await service.reject({
-      submissionId,
-      actor: auth.identity,
-      rejectedAt: new Date(),
-      reason: String(form.get("reason") ?? "").trim(),
-    });
-    if (!result.ok) return bad(result.error.message, submissionHttpStatus(result.error.code));
-    return redirect("/curator/submissions?flash=rejected");
+  if (intent === "accept" || intent === "reject") {
+    return bad("Use the listening scorecard to finalize an editorial decision.");
   }
   if (intent === "malware") {
     const evidenceId = validateUuid(form.get("evidenceId"), "evidenceId");
@@ -176,6 +214,12 @@ export default function CuratorSubmissionsRoute() {
       <p className="eyebrow">Curator workspace</p>
       <h1>Submission review</h1>
       <p>Signed in as {data.identity.email}</p>
+      {data.outbox ? (
+        <p className="curation-operations" role={data.outbox.failed ? "alert" : undefined}>
+          Notifications: {data.outbox.pending} pending · {data.outbox.processing} sending ·{" "}
+          {data.outbox.failed} failed
+        </p>
+      ) : null}
       {data.flash ? <p role="status">{data.flash}</p> : null}
       {actionData?.error ? <p role="alert">{actionData.error}</p> : null}
       {actionData?.grantUrl ? (
@@ -185,9 +229,22 @@ export default function CuratorSubmissionsRoute() {
         </p>
       ) : null}
       <section>
-        <h2>Queue</h2>
+        <div className="curation-queue-heading">
+          <div>
+            <p className="eyebrow">Near-zero-touch queue</p>
+            <h2>Queue</h2>
+          </div>
+          <Form method="post">
+            <input type="hidden" name="intent" value="claim-next" />
+            <button type="submit">Review next ready submission</button>
+          </Form>
+        </div>
         {data.submissions.map((submission) => (
-          <article key={submission.submission.id} className="curator-record">
+          <article
+            id={`submission-${submission.submission.id}`}
+            key={submission.submission.id}
+            className="curator-record"
+          >
             <h3>
               {submission.submission.publicReference} · {submission.submission.title}
             </h3>
@@ -198,12 +255,21 @@ export default function CuratorSubmissionsRoute() {
                 : ""}
             </p>
             <p>{submission.rights.publicSummary}</p>
+            {submission.submission.status === "listening" &&
+            submission.submission.assignedCuratorId === data.identity.id ? (
+              <CurationScorecard
+                submissionId={submission.submission.id}
+                audio={data.reviewAudio[submission.submission.id] ?? null}
+              />
+            ) : null}
             <div className="curator-actions">
-              <Form method="post">
-                <input type="hidden" name="intent" value="assign" />
-                <input type="hidden" name="submissionId" value={submission.submission.id} />
-                <button type="submit">Assign me</button>
-              </Form>
+              {!data.workflowAvailable ? (
+                <Form method="post">
+                  <input type="hidden" name="intent" value="assign" />
+                  <input type="hidden" name="submissionId" value={submission.submission.id} />
+                  <button type="submit">Assign me</button>
+                </Form>
+              ) : null}
               {["eligibility_review", "listening", "withdrawn"].map((status) => (
                 <Form method="post" key={`${submission.submission.id}-${status}`}>
                   <input type="hidden" name="intent" value="transition" />
@@ -234,52 +300,6 @@ export default function CuratorSubmissionsRoute() {
                 <textarea name="message" rows={3} />
               </label>
               <button type="submit">Request clarification</button>
-            </Form>
-            <Form method="post" className="curator-form">
-              <input type="hidden" name="intent" value="accept" />
-              <input type="hidden" name="submissionId" value={submission.submission.id} />
-              <label>
-                Resulting release
-                <select
-                  name="resultingReleaseId"
-                  defaultValue={submission.submission.resultingReleaseId ?? ""}
-                >
-                  <option value="">No linked release</option>
-                  {data.releases.map((release) => (
-                    <option key={release.id} value={release.id}>
-                      {release.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Resulting track
-                <select
-                  name="resultingTrackId"
-                  defaultValue={submission.submission.resultingTrackId ?? ""}
-                >
-                  <option value="">No linked track</option>
-                  {data.tracks.map((track) => (
-                    <option key={track.id} value={track.id}>
-                      {track.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Acceptance note
-                <textarea name="message" rows={2} defaultValue="" />
-              </label>
-              <button type="submit">Accept</button>
-            </Form>
-            <Form method="post" className="curator-form">
-              <input type="hidden" name="intent" value="reject" />
-              <input type="hidden" name="submissionId" value={submission.submission.id} />
-              <label>
-                Rejection reason
-                <textarea name="reason" rows={2} />
-              </label>
-              <button type="submit">Reject</button>
             </Form>
             <h4>Evidence</h4>
             {submission.evidence.length ? (

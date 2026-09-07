@@ -1,6 +1,5 @@
 import { sql, type SQL } from "drizzle-orm";
 
-import type { Database } from "~/db/client.server";
 import { curationOutbox } from "~/db/schema";
 
 export const CURATION_OUTBOX_MAX_IDEMPOTENCY_KEY_LENGTH = 200;
@@ -35,7 +34,13 @@ export interface CurationOutboxClaimedRow {
   updatedAt: Date;
 }
 
-interface RawClaimedRow {
+export interface CurationOutboxExecutor {
+  execute<T extends Record<string, unknown>>(query: SQL): PromiseLike<{ rows: T[] } | T[]>;
+}
+
+type IdRow = { id: string };
+
+type RawClaimedRow = {
   id: string;
   idempotencyKey: string;
   kind: string;
@@ -47,7 +52,7 @@ interface RawClaimedRow {
   leaseExpiresAt: Date | string;
   createdAt: Date | string;
   updatedAt: Date | string;
-}
+};
 
 function assertJsonValue(value: unknown, seen: Set<object>): void {
   if (value === null || typeof value === "string" || typeof value === "boolean") return;
@@ -114,6 +119,8 @@ function validateEnqueueInput(input: CurationOutboxEnqueueInput) {
   } catch {
     throw new TypeError("Curation outbox payload must be JSON-serializable.");
   }
+  // This compact representation rejects oversized input early. PostgreSQL's
+  // jsonb::text CHECK remains authoritative because its canonical form can differ.
   if (new TextEncoder().encode(serialized).byteLength > CURATION_OUTBOX_MAX_PAYLOAD_BYTES) {
     throw new TypeError("Curation outbox payload is too large.");
   }
@@ -147,12 +154,8 @@ function validateErrorCode(value: string): string {
   return value;
 }
 
-function resultRows<T>(result: unknown): T[] {
-  if (Array.isArray(result)) return result as T[];
-  if (result && typeof result === "object" && Array.isArray((result as { rows?: unknown }).rows)) {
-    return (result as { rows: T[] }).rows;
-  }
-  return [];
+function resultRows<T extends Record<string, unknown>>(result: { rows: T[] } | T[]): T[] {
+  return Array.isArray(result) ? result : result.rows;
 }
 
 function parsedDate(value: Date | string): Date {
@@ -161,6 +164,10 @@ function parsedDate(value: Date | string): Date {
     throw new TypeError("Curation outbox returned an invalid timestamp.");
   }
   return parsed;
+}
+
+function isPayloadRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function parsedPayload(value: Record<string, unknown> | string): Record<string, unknown> {
@@ -172,10 +179,10 @@ function parsedPayload(value: Record<string, unknown> | string): Record<string, 
       throw new TypeError("Curation outbox returned an invalid payload.");
     }
   }
-  if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+  if (!isPayloadRecord(parsed)) {
     throw new TypeError("Curation outbox returned an invalid payload.");
   }
-  return parsed as Record<string, unknown>;
+  return parsed;
 }
 
 export function buildCurationOutboxInsert(input: CurationOutboxEnqueueInput): SQL {
@@ -188,11 +195,26 @@ export function buildCurationOutboxInsert(input: CurationOutboxEnqueueInput): SQ
   `;
 }
 
-export function createCurationOutboxRepository(db: Database) {
+export function createCurationOutboxRepository(db: CurationOutboxExecutor) {
   return {
+    async statusCounts(): Promise<
+      Record<"pending" | "processing" | "succeeded" | "failed", number>
+    > {
+      const result = await db.execute<{ status: string; count: number | string }>(sql`
+        select status, count(*)::integer as count
+        from ${curationOutbox}
+        group by status
+      `);
+      const counts = { pending: 0, processing: 0, succeeded: 0, failed: 0 };
+      for (const row of resultRows(result)) {
+        if (row.status in counts) counts[row.status as keyof typeof counts] = Number(row.count);
+      }
+      return counts;
+    },
+
     async enqueue(input: CurationOutboxEnqueueInput): Promise<string | null> {
-      const result = await db.execute<{ id: string }>(buildCurationOutboxInsert(input));
-      return resultRows<{ id: string }>(result)[0]?.id ?? null;
+      const result = await db.execute<IdRow>(buildCurationOutboxInsert(input));
+      return resultRows(result)[0]?.id ?? null;
     },
 
     async claim(
@@ -211,8 +233,17 @@ export function createCurationOutboxRepository(db: Database) {
         "lease duration",
       );
       const result = await db.execute<RawClaimedRow>(sql`
-        with exhausted as (
-          update ${curationOutbox}
+        with expired_exhausted as (
+          select id
+          from ${curationOutbox}
+          where status = 'processing'
+            and lease_expires_at <= now()
+            and attempts >= ${CURATION_OUTBOX_MAX_ATTEMPTS}
+          order by lease_expires_at, id
+          limit ${limit}
+          for update skip locked
+        ), exhausted as (
+          update ${curationOutbox} as outbox
           set
             status = 'failed',
             completed_at = now(),
@@ -220,10 +251,9 @@ export function createCurationOutboxRepository(db: Database) {
             lease_token = null,
             lease_expires_at = null,
             updated_at = now()
-          where status = 'processing'
-            and lease_expires_at <= now()
-            and attempts >= ${CURATION_OUTBOX_MAX_ATTEMPTS}
-          returning id
+          from expired_exhausted
+          where outbox.id = expired_exhausted.id
+          returning outbox.id
         ), candidates as (
           select id
           from ${curationOutbox}
@@ -274,10 +304,15 @@ export function createCurationOutboxRepository(db: Database) {
       }));
     },
 
+    /**
+     * Returns true only for the guarded processing-to-succeeded transition.
+     * Repeating an acknowledged lease returns false without changing terminal state;
+     * the completed row intentionally no longer retains its lease token.
+     */
     async acknowledge(id: string, leaseToken: string): Promise<boolean> {
       validateUuid(id, "id");
       validateUuid(leaseToken, "lease token");
-      const result = await db.execute<{ id: string }>(sql`
+      const result = await db.execute<IdRow>(sql`
         update ${curationOutbox}
         set
           status = 'succeeded',
@@ -292,7 +327,7 @@ export function createCurationOutboxRepository(db: Database) {
           and lease_expires_at > now()
         returning id
       `);
-      return resultRows<{ id: string }>(result).length > 0;
+      return resultRows(result).length > 0;
     },
 
     async retry(
@@ -305,7 +340,7 @@ export function createCurationOutboxRepository(db: Database) {
       validateUuid(leaseToken, "lease token");
       const safeErrorCode = validateErrorCode(errorCode);
       const delay = boundedInteger(delaySeconds, 0, 86_400, "retry delay");
-      const result = await db.execute<{ id: string }>(sql`
+      const result = await db.execute<IdRow>(sql`
         update ${curationOutbox}
         set
           status = case when attempts < ${CURATION_OUTBOX_MAX_ATTEMPTS} then 'pending' else 'failed' end,
@@ -328,7 +363,7 @@ export function createCurationOutboxRepository(db: Database) {
           and lease_expires_at > now()
         returning id
       `);
-      return resultRows<{ id: string }>(result).length > 0;
+      return resultRows(result).length > 0;
     },
   };
 }

@@ -17,6 +17,9 @@ import {
   createMemoryRateLimitRepository,
   createRateLimitRepository,
 } from "../app/repositories/rate-limit.server";
+import { createCurationWorkflowRepository } from "../app/repositories/curation-workflow.server";
+import { dispatchCurationOutbox } from "../app/services/curation-outbox-dispatch.server";
+import { createTransactionalEmailService } from "../app/services/transactional-email.server";
 
 const requestHandler = createRequestHandler(
   () => import("virtual:react-router/server-build"),
@@ -158,11 +161,20 @@ export default {
     const curatorRepository = createCuratorRepository(db);
     const analyticsRepository = createAnalyticsRepository(db);
     const rateLimitRepository = createRateLimitRepository(db);
+    const curationWorkflowRepository = createCurationWorkflowRepository(db);
     const now = controller?.scheduledTime ? new Date(controller.scheduledTime) : new Date();
+    const expiredAudioKeys = await curationWorkflowRepository.abandonExpiredAudioUploads(now);
     await Promise.all([
       curatorRepository.publishScheduled(now),
       analyticsRepository.purgeBefore(new Date(now.valueOf() - 90 * 86_400_000)),
       rateLimitRepository.purgeBefore(new Date(now.valueOf() - 86_400_000)),
+      dispatchCurationOutbox(db, createTransactionalEmailService(validatedEnv)),
+      Promise.all(
+        expiredAudioKeys.map(async (key) => {
+          await validatedEnv.MEDIA_BUCKET.delete(key);
+          await curationWorkflowRepository.markAudioUploadCleaned(key, now);
+        }),
+      ),
     ]);
   },
 } satisfies ExportedHandler<Env>;
