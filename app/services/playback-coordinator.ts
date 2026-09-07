@@ -17,9 +17,16 @@ export interface PlaybackCoordinatorOptions {
   onLoadingChange?: (loading: boolean) => void;
 }
 
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === "object" && error !== null && "name" in error && error.name === "AbortError"
+  );
+}
+
 export class PlaybackCoordinator {
   private item: CatalogueItem | null = null;
   private media: PlaybackMediaElement | null = null;
+  private generation = 0;
   private isInternalPlay = false;
   private resolveUrl: (src: string) => Promise<string>;
   private onActiveSrcChange?: (src: string | null, itemId: string | null) => void;
@@ -38,6 +45,12 @@ export class PlaybackCoordinator {
   }
 
   selectItem(item: CatalogueItem | null): void {
+    if (this.itemsMatch(this.item, item)) {
+      this.item = item;
+      return;
+    }
+
+    this.generation += 1;
     this.item = item;
     this.isInternalPlay = false;
     this.onErrorChange?.(null);
@@ -46,6 +59,8 @@ export class PlaybackCoordinator {
     if (!item?.media) {
       this.onActiveSrcChange?.(null, item?.id ?? null);
       if (this.media) {
+        this.media.pause();
+        this.media.currentTime = 0;
         this.media.src = "";
       }
       return;
@@ -55,17 +70,25 @@ export class PlaybackCoordinator {
     // Do NOT trigger media loading on selection
     this.onActiveSrcChange?.(item.media.src, item.id);
     if (this.media) {
+      this.media.pause();
+      this.media.currentTime = 0;
       this.media.src = item.media.src;
     }
   }
 
   async playRequested(item: CatalogueItem): Promise<void> {
+    this.selectItem(item);
     this.item = item;
+    const generation = ++this.generation;
+    const media = this.media;
+    this.isInternalPlay = false;
     this.onErrorChange?.(null);
     this.onLoadingChange?.(true);
 
     if (!item.media) {
-      this.onLoadingChange?.(false);
+      if (this.generation === generation) {
+        this.onLoadingChange?.(false);
+      }
       return;
     }
 
@@ -73,30 +96,36 @@ export class PlaybackCoordinator {
       let activeSrc = item.media.src;
       if (isR2MediaUrl(activeSrc)) {
         activeSrc = await this.resolveUrl(activeSrc);
-        if (this.item?.id !== item.id) {
+        if (this.generation !== generation || this.media !== media) {
           return;
         }
         this.onActiveSrcChange?.(activeSrc, item.id);
       }
 
-      if (this.media) {
+      if (media && this.generation === generation && this.media === media) {
         if (isR2MediaUrl(item.media.src)) {
-          this.media.src = activeSrc;
+          media.src = activeSrc;
         }
-        this.media.load();
+        media.load();
         this.isInternalPlay = true;
         try {
-          await this.media.play();
+          await media.play();
         } finally {
-          this.isInternalPlay = false;
+          if (this.generation === generation) {
+            this.isInternalPlay = false;
+          }
         }
       }
-    } catch {
-      this.onErrorChange?.(
-        "Playback could not be loaded or started automatically. Use the player controls to begin.",
-      );
+    } catch (error) {
+      if (this.generation === generation && !isAbortError(error)) {
+        this.onErrorChange?.(
+          "Playback could not be loaded or started automatically. Use the player controls to begin.",
+        );
+      }
     } finally {
-      this.onLoadingChange?.(false);
+      if (this.generation === generation) {
+        this.onLoadingChange?.(false);
+      }
     }
   }
 
@@ -113,6 +142,7 @@ export class PlaybackCoordinator {
     this.onLoadingChange?.(true);
     const media = this.media;
     const itemId = this.item.id;
+    const generation = ++this.generation;
 
     try {
       const savedTime = media ? media.currentTime : 0;
@@ -121,7 +151,7 @@ export class PlaybackCoordinator {
       }
 
       const freshUrl = await this.resolveUrl(this.item.media.src);
-      if (this.item?.id !== itemId) {
+      if (this.generation !== generation || this.item?.id !== itemId || this.media !== media) {
         return;
       }
       this.onActiveSrcChange?.(freshUrl, itemId);
@@ -136,13 +166,19 @@ export class PlaybackCoordinator {
         try {
           await media.play();
         } finally {
-          this.isInternalPlay = false;
+          if (this.generation === generation) {
+            this.isInternalPlay = false;
+          }
         }
       }
-    } catch {
-      this.onErrorChange?.("This preview could not be loaded. Check your connection and retry.");
+    } catch (error) {
+      if (this.generation === generation && !isAbortError(error)) {
+        this.onErrorChange?.("This preview could not be loaded. Check your connection and retry.");
+      }
     } finally {
-      this.onLoadingChange?.(false);
+      if (this.generation === generation) {
+        this.onLoadingChange?.(false);
+      }
     }
   }
 
@@ -156,19 +192,20 @@ export class PlaybackCoordinator {
     this.onLoadingChange?.(true);
     const media = this.media;
     const itemMedia = item.media;
+    const generation = ++this.generation;
 
     try {
       const itemId = item.id;
       let freshSrc = itemMedia.src;
       if (isR2MediaUrl(freshSrc)) {
         freshSrc = await this.resolveUrl(freshSrc);
-        if (this.item?.id !== itemId) {
+        if (this.generation !== generation || this.item?.id !== itemId || this.media !== media) {
           return;
         }
         this.onActiveSrcChange?.(freshSrc, itemId);
       }
 
-      if (media) {
+      if (media && this.generation === generation && this.media === media) {
         const savedTime = media.currentTime;
         if (isR2MediaUrl(itemMedia.src)) {
           media.src = freshSrc;
@@ -181,13 +218,28 @@ export class PlaybackCoordinator {
         try {
           await media.play();
         } finally {
-          this.isInternalPlay = false;
+          if (this.generation === generation) {
+            this.isInternalPlay = false;
+          }
         }
       }
-    } catch {
-      this.onErrorChange?.("Playback is still unavailable. Check your connection and try again.");
+    } catch (error) {
+      if (this.generation === generation && !isAbortError(error)) {
+        this.onErrorChange?.("Playback is still unavailable. Check your connection and try again.");
+      }
     } finally {
-      this.onLoadingChange?.(false);
+      if (this.generation === generation) {
+        this.onLoadingChange?.(false);
+      }
     }
+  }
+
+  private itemsMatch(left: CatalogueItem | null, right: CatalogueItem | null): boolean {
+    return (
+      left?.id === right?.id &&
+      left?.mediaKind === right?.mediaKind &&
+      left?.media?.src === right?.media?.src &&
+      left?.media?.mimeType === right?.media?.mimeType
+    );
   }
 }

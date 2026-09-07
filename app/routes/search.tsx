@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { data, Form, Link, useOutletContext } from "react-router";
 
 import { EntityTrackList } from "~/components/EntityTrackList";
+import { DiscoveryFacet } from "~/components/DiscoveryFacet";
 import { SITE_NAME } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { discoveryOptions, filterCatalogue, type DiscoveryFilters } from "~/services/discovery";
@@ -62,42 +63,34 @@ export default function SearchRoute({ loaderData }: Route.ComponentProps) {
           Search artists, releases and tracks
           <input name="q" defaultValue={filters.query} type="search" />
         </label>
-        <label>
-          Genre
-          <select name="genre" defaultValue={filters.genre}>
-            <option value="">All genres</option>
-            {options.genres.map((value) => (
-              <option key={value}>{value}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Mood
-          <select name="mood" defaultValue={filters.mood}>
-            <option value="">All moods</option>
-            {options.moods.map((value) => (
-              <option key={value}>{value}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Year
-          <select name="year" defaultValue={filters.year ?? ""}>
-            <option value="">All years</option>
-            {options.years.map((value) => (
-              <option key={value}>{value}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Creative process
-          <select name="process" defaultValue={filters.process}>
-            <option value="">All processes</option>
-            {options.processes.map((value) => (
-              <option key={value}>{value}</option>
-            ))}
-          </select>
-        </label>
+        <DiscoveryFacet
+          name="genre"
+          label="Genre"
+          allLabel="All genres"
+          options={options.genres}
+          selectedValue={filters.genre}
+        />
+        <DiscoveryFacet
+          name="mood"
+          label="Mood"
+          allLabel="All moods"
+          options={options.moods}
+          selectedValue={filters.mood}
+        />
+        <DiscoveryFacet
+          name="year"
+          label="Year"
+          allLabel="All years"
+          options={options.years}
+          selectedValue={filters.year}
+        />
+        <DiscoveryFacet
+          name="process"
+          label="Creative process"
+          allLabel="All processes"
+          options={options.processes}
+          selectedValue={filters.process}
+        />
         <button type="submit">Search</button>
         {active ? <Link to="/search">Clear filters</Link> : null}
       </Form>

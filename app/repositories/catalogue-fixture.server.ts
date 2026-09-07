@@ -149,7 +149,7 @@ const items = [
   item(6, "quiet-machines", "Quiet Machines", "audio", null, null, "/assets/thumbs/thumb-06.svg"),
 ].map((catalogueItem, index) => ({ ...catalogueItem, discovery: discovery[index] }));
 
-export function createE2eCatalogueRepository() {
+export function createE2eCatalogueRepository(scenario?: string | null) {
   const disclosures: Record<string, PublicTrackDisclosure> = {
     [items[1].id]: {
       trackTitle: items[1].description.title,
@@ -216,6 +216,29 @@ export function createE2eCatalogueRepository() {
       },
     },
   };
+  if (scenario === "sparse-r2") {
+    const revolution = { ...items[1] };
+    Reflect.deleteProperty(revolution, "discovery");
+    const sparseRevolution = {
+      ...revolution,
+      mediaKind: "audio" as const,
+      media: { src: "/media/audio/e2e-revolution", mimeType: "audio/mpeg" as const },
+    };
+    return createStaticCatalogueRepository(
+      [sparseRevolution],
+      [
+        {
+          id: "60000000-0000-4000-8000-000000000101",
+          slug: "stillith",
+          name: "Stillith",
+          description: "A focused listening path for the continuity journey.",
+          items: [sparseRevolution],
+        },
+      ],
+      disclosures,
+    );
+  }
+
   return createStaticCatalogueRepository(
     items,
     [
