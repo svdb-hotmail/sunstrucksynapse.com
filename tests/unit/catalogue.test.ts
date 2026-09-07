@@ -55,6 +55,20 @@ describe("catalogue service", () => {
     expect(findCatalogueItem(catalogueItems, "missing")).toBeUndefined();
   });
 
+  it("renders published items when a ready catalogue has no editorial collections", () => {
+    const sections = buildCatalogueSections(catalogueItems, []);
+
+    expect(sections).toEqual([
+      {
+        id: "catalogue-fallback",
+        title: "Catalogue",
+        icon: "✺",
+        href: "/#catalogue",
+        items: catalogueItems,
+      },
+    ]);
+  });
+
   it("reports ready and empty repository states", async () => {
     await expect(
       loadPublicCatalogue(createStaticCatalogueRepository(catalogueItems)),

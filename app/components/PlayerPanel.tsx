@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import { NowPlaying } from "~/components/NowPlaying";
 import { Queue } from "~/components/Queue";
 import { SITE_NAME } from "~/config/brand";
+import { isR2MediaUrl } from "~/services/media-signing";
 import { PlaybackCoordinator } from "~/services/playback-coordinator";
 import { recordPlaybackEvent } from "~/services/analytics.client";
 import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
@@ -33,6 +34,12 @@ function formatTime(seconds: number): string {
   }
   const minutes = Math.floor(seconds / 60);
   return `${String(minutes).padStart(2, "0")}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+}
+
+export function shouldClearLoadingOnPause(
+  coordinator: Pick<PlaybackCoordinator, "isLoading">,
+): boolean {
+  return !coordinator.isLoading();
 }
 
 export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function PlayerPanel(
@@ -71,6 +78,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   const [duration, setDuration] = useState(0);
   const [volume, setVolume] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
+  const consumedPlaybackRequest = useRef<{ itemId: string; sequence: number } | null>(null);
   const [activeMedia, setActiveMedia] = useState<{
     itemId: string;
     src: string;
@@ -86,7 +94,12 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       onActiveSrcChange: (src, itemId) => {
         setActiveMedia(src && itemId ? { itemId, src } : null);
       },
-      onErrorChange: setPlaybackError,
+      onErrorChange: (error) => {
+        setPlaybackError(error);
+        if (error) {
+          setIsPlaying(false);
+        }
+      },
       onLoadingChange: setIsLoading,
     });
   }
@@ -122,9 +135,20 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       };
     }
     coordinator.selectItem(item);
-    if (!item || !playbackRequest || playbackRequest.itemId !== item.id) {
+    if (
+      !item ||
+      !item.media ||
+      !playbackRequest ||
+      playbackRequest.itemId !== item.id ||
+      (consumedPlaybackRequest.current?.itemId === playbackRequest.itemId &&
+        consumedPlaybackRequest.current.sequence === playbackRequest.sequence)
+    ) {
       return;
     }
+    consumedPlaybackRequest.current = {
+      itemId: playbackRequest.itemId,
+      sequence: playbackRequest.sequence,
+    };
     trackedPlayback.current.collectionId = playbackRequest.collectionId;
     recordPlaybackEvent("play_requested", {
       trackId: item.id,
@@ -196,7 +220,38 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       return;
     }
     if (media.paused) {
-      void media.play();
+      if (isR2MediaUrl(item.media.src)) {
+        void coordinator.handleNativePlay();
+        return;
+      }
+      try {
+        void media.play().catch((error: unknown) => {
+          if (
+            typeof error === "object" &&
+            error !== null &&
+            "name" in error &&
+            error.name === "AbortError"
+          ) {
+            return;
+          }
+          setIsPlaying(false);
+          setIsLoading(false);
+          setPlaybackError("Playback could not be loaded or started automatically. Try again.");
+        });
+      } catch (error) {
+        if (
+          !(
+            typeof error === "object" &&
+            error !== null &&
+            "name" in error &&
+            error.name === "AbortError"
+          )
+        ) {
+          setIsPlaying(false);
+          setIsLoading(false);
+          setPlaybackError("Playback could not be loaded or started automatically. Try again.");
+        }
+      }
     } else {
       media.pause();
     }
@@ -297,7 +352,18 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     onDragStart: preventMediaAction,
     onEnded: handleEnded,
     onPlay: handlePlay,
-    onPause: () => setIsPlaying(false),
+    onPause: () => {
+      setIsPlaying(false);
+      if (shouldClearLoadingOnPause(coordinator)) {
+        setIsLoading(false);
+      }
+    },
+    onEmptied: () => {
+      setIsPlaying(false);
+      setIsLoading(false);
+      setCurrentTime(0);
+      setDuration(0);
+    },
     onTimeUpdate: handleTimeUpdate,
     onVolumeChange: () => {
       const media = mediaRef.current;
@@ -313,6 +379,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     },
     onCanPlay: () => setIsLoading(false),
     onError: () => {
+      setIsPlaying(false);
       setIsLoading(false);
       setPlaybackError("This preview could not be loaded. Check your connection and retry.");
       if (item) {

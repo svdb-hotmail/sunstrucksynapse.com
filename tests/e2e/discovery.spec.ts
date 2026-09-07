@@ -25,6 +25,83 @@ test("searches and filters the published catalogue with URL-backed controls", as
   await expect(page.getByText(/No matching tracks/)).toBeVisible();
 });
 
+test("explains unavailable sparse-catalogue facets without blocking text search", async ({
+  page,
+}) => {
+  await page.setExtraHTTPHeaders({ "x-test-catalogue-scenario": "sparse-r2" });
+  await page.goto("/search");
+  for (const label of ["Genre", "Mood", "Year", "Creative process"]) {
+    const select = page.getByRole("combobox", { name: label, exact: true });
+    await expect(select).toBeDisabled();
+    await expect(select.locator("option")).toHaveCount(1);
+    await expect(select).toHaveAccessibleDescription(
+      `No ${label.toLowerCase()} values are available for published tracks.`,
+    );
+    const helpId = await select.getAttribute("aria-describedby");
+    expect(helpId).toBeTruthy();
+    await expect(
+      page.locator("p").filter({
+        hasText: `No ${label.toLowerCase()} values are available for published tracks.`,
+      }),
+    ).toBeVisible();
+  }
+  await page.getByLabel("Search artists, releases and tracks", { exact: true }).fill("Revolution");
+  await page.getByRole("button", { name: "Search", exact: true }).click();
+  await expect(page).toHaveURL(/q=Revolution/);
+  await expect(page.locator(".entity-track-list > li")).toHaveCount(1);
+  await page.getByRole("link", { name: "Clear filters", exact: true }).click();
+  await expect(page).toHaveURL(/\/search$/);
+});
+
+for (const sparse of [false, true]) {
+  test(`preserves unknown URL filters through submission and reset (${sparse ? "sparse" : "standard"} catalogue)`, async ({
+    page,
+  }) => {
+    if (sparse) await page.setExtraHTTPHeaders({ "x-test-catalogue-scenario": "sparse-r2" });
+    const selected = {
+      genre: "unknown-genre",
+      mood: "unknown-mood",
+      year: "1901",
+      process: "unknown-process",
+    };
+    const params = new URLSearchParams({ q: "Revolution", ...selected });
+    await page.goto(`/search?${params}`);
+    for (const [name, value] of Object.entries(selected)) {
+      const select = page.locator(`select[name="${name}"]`);
+      await expect(select).toBeEnabled();
+      await expect(select).toHaveValue(value);
+      await expect(select.locator(`option[value="${value}"]`)).toHaveText(`${value} (unavailable)`);
+      await expect(select).toHaveAccessibleDescription(/The selected value is not available/);
+    }
+    await expect(page.getByText(/No matching tracks/)).toBeVisible();
+    await page.getByRole("button", { name: "Search", exact: true }).click();
+    await expect
+      .poll(() => Object.fromEntries(new URL(page.url()).searchParams))
+      .toEqual({ q: "Revolution", ...selected });
+    for (const [name, value] of Object.entries(selected))
+      await expect(page.locator(`select[name="${name}"]`)).toHaveValue(value);
+    for (const name of Object.keys(selected))
+      await page.locator(`select[name="${name}"]`).selectOption("");
+    await page.getByRole("button", { name: "Search", exact: true }).click();
+    await expect(
+      page.getByLabel("Search artists, releases and tracks", { exact: true }),
+    ).toHaveValue("Revolution");
+    await expect(page.getByText(/No matching tracks/)).toHaveCount(0);
+    for (const name of Object.keys(selected))
+      await expect(page.locator(`select[name="${name}"]`)).toHaveValue("");
+    await page.getByRole("link", { name: "Clear filters", exact: true }).click();
+    await expect(page).toHaveURL(/\/search$/);
+    await expect(
+      page.getByLabel("Search artists, releases and tracks", { exact: true }),
+    ).toHaveValue("");
+    for (const name of Object.keys(selected)) {
+      const select = page.locator(`select[name="${name}"]`);
+      if (sparse) await expect(select).toBeDisabled();
+      else await expect(select).toBeEnabled();
+    }
+  });
+}
+
 test("accepts anonymous events, rejects malformed payloads, and protects analytics", async ({
   request,
 }) => {

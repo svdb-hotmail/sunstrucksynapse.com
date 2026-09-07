@@ -3,10 +3,12 @@ import type { Ref } from "react";
 import { Header } from "~/components/Header";
 import { MobileNav } from "~/components/MobileNav";
 import { PlayerPanel } from "~/components/PlayerPanel";
+import { defaultCatalogueNavigation, type CatalogueNavigationEntry } from "~/services/catalogue";
 import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
 
 interface ApplicationShellProps {
   children: React.ReactNode;
+  navigation?: CatalogueNavigationEntry[];
   item: CatalogueItem | null;
   queue: QueueEntry[];
   playerPanelRef: Ref<HTMLElement>;
@@ -23,6 +25,7 @@ interface ApplicationShellProps {
 
 export function ApplicationShell({
   children,
+  navigation = defaultCatalogueNavigation,
   item,
   queue,
   playerPanelRef,
@@ -39,7 +42,7 @@ export function ApplicationShell({
   return (
     <>
       <div className="app-shell">
-        <Header />
+        <Header navigation={navigation} />
         <PlayerPanel
           ref={playerPanelRef}
           item={item}
@@ -56,7 +59,7 @@ export function ApplicationShell({
         />
         <main className="content-panel">{children}</main>
       </div>
-      <MobileNav />
+      <MobileNav navigation={navigation} />
     </>
   );
 }

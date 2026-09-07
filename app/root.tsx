@@ -20,7 +20,12 @@ import {
   THEME_INIT_SCRIPT,
 } from "~/design-system/theme";
 import { loadPublicCatalogue } from "~/repositories/catalogue.server";
-import { catalogueLoadingMessage, findCatalogueItem } from "~/services/catalogue";
+import {
+  buildCatalogueNavigation,
+  buildCatalogueSections,
+  catalogueLoadingMessage,
+  findCatalogueItem,
+} from "~/services/catalogue";
 import type {
   CatalogueItem,
   PlayerOutletContext,
@@ -106,6 +111,11 @@ function HashNavigation() {
 export default function App() {
   const catalogue = useLoaderData<typeof loader>();
   const catalogueItems = catalogue.items;
+  const navigation = buildCatalogueNavigation(
+    catalogue.status === "ready"
+      ? buildCatalogueSections(catalogueItems, catalogue.collections)
+      : [],
+  );
   const itemsById = useMemo(
     () => new Map(catalogueItems.map((item) => [item.id, item])),
     [catalogueItems],
@@ -266,6 +276,7 @@ export default function App() {
     <>
       <HashNavigation />
       <ApplicationShell
+        navigation={navigation}
         item={selectedItem ?? null}
         queue={queue}
         playerPanelRef={playerPanelRef}

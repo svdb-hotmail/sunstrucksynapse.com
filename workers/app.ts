@@ -103,7 +103,9 @@ export default {
     const context = new RouterContextProvider();
     if (import.meta.env.MODE === "test") {
       context.set(cloudflareContext, {
-        catalogueRepository: createE2eCatalogueRepository(),
+        catalogueRepository: createE2eCatalogueRepository(
+          request.headers.get("x-test-catalogue-scenario"),
+        ),
         curatorRepository: e2eCuratorRepository,
         submissionRepository: e2eSubmissionRepository,
         analyticsRepository: e2eAnalyticsRepository,
