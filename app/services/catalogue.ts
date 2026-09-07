@@ -46,9 +46,21 @@ export function catalogueStateCopy(state: Exclude<CatalogueLoadResult, { status:
 }
 
 export function buildCatalogueSections(
-  _items: CatalogueItem[],
+  items: CatalogueItem[],
   collections: PublicEditorialCollection[],
 ): CatalogueSection[] {
+  if (collections.length === 0 && items.length > 0) {
+    return [
+      {
+        id: "catalogue-fallback",
+        title: "Catalogue",
+        icon: "✺",
+        href: "/#catalogue",
+        items,
+      },
+    ];
+  }
+
   return collections.map((collection) => ({
     id:
       collection.slug === "latest-transmissions"

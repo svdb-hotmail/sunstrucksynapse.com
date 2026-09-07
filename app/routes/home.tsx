@@ -30,7 +30,7 @@ export default function Home() {
   return (
     <>
       <Intro />
-      <div id="catalogue">
+      <div id="catalogue" className="catalogue-anchor">
         {catalogue.status === "ready" ? (
           catalogueSections.map((section) => (
             <CatalogueSection

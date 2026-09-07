@@ -28,6 +28,7 @@ export class PlaybackCoordinator {
   private media: PlaybackMediaElement | null = null;
   private generation = 0;
   private isInternalPlay = false;
+  private loading = false;
   private resolveUrl: (src: string) => Promise<string>;
   private onActiveSrcChange?: (src: string | null, itemId: string | null) => void;
   private onErrorChange?: (error: string | null) => void;
@@ -44,6 +45,10 @@ export class PlaybackCoordinator {
     this.media = media;
   }
 
+  isLoading(): boolean {
+    return this.loading;
+  }
+
   selectItem(item: CatalogueItem | null): void {
     if (this.itemsMatch(this.item, item)) {
       this.item = item;
@@ -54,7 +59,7 @@ export class PlaybackCoordinator {
     this.item = item;
     this.isInternalPlay = false;
     this.onErrorChange?.(null);
-    this.onLoadingChange?.(false);
+    this.setLoading(false);
 
     if (!item?.media) {
       this.onActiveSrcChange?.(null, item?.id ?? null);
@@ -83,11 +88,11 @@ export class PlaybackCoordinator {
     const media = this.media;
     this.isInternalPlay = false;
     this.onErrorChange?.(null);
-    this.onLoadingChange?.(true);
+    this.setLoading(true);
 
     if (!item.media) {
       if (this.generation === generation) {
-        this.onLoadingChange?.(false);
+        this.setLoading(false);
       }
       return;
     }
@@ -124,7 +129,7 @@ export class PlaybackCoordinator {
       }
     } finally {
       if (this.generation === generation) {
-        this.onLoadingChange?.(false);
+        this.setLoading(false);
       }
     }
   }
@@ -139,7 +144,7 @@ export class PlaybackCoordinator {
     }
 
     this.onErrorChange?.(null);
-    this.onLoadingChange?.(true);
+    this.setLoading(true);
     const media = this.media;
     const itemId = this.item.id;
     const generation = ++this.generation;
@@ -177,7 +182,7 @@ export class PlaybackCoordinator {
       }
     } finally {
       if (this.generation === generation) {
-        this.onLoadingChange?.(false);
+        this.setLoading(false);
       }
     }
   }
@@ -189,7 +194,7 @@ export class PlaybackCoordinator {
     }
 
     this.onErrorChange?.(null);
-    this.onLoadingChange?.(true);
+    this.setLoading(true);
     const media = this.media;
     const itemMedia = item.media;
     const generation = ++this.generation;
@@ -229,7 +234,7 @@ export class PlaybackCoordinator {
       }
     } finally {
       if (this.generation === generation) {
-        this.onLoadingChange?.(false);
+        this.setLoading(false);
       }
     }
   }
@@ -241,5 +246,10 @@ export class PlaybackCoordinator {
       left?.media?.src === right?.media?.src &&
       left?.media?.mimeType === right?.media?.mimeType
     );
+  }
+
+  private setLoading(loading: boolean): void {
+    this.loading = loading;
+    this.onLoadingChange?.(loading);
   }
 }

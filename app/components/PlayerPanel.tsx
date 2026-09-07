@@ -348,7 +348,9 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     onPlay: handlePlay,
     onPause: () => {
       setIsPlaying(false);
-      setIsLoading(false);
+      if (!coordinator.isLoading()) {
+        setIsLoading(false);
+      }
     },
     onEmptied: () => {
       setIsPlaying(false);

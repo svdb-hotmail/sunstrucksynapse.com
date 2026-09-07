@@ -180,6 +180,25 @@ describe("player playback behavior and coordinator lifecycle", () => {
     expect(media.playCalls).toBe(2);
   });
 
+  it("keeps loading feedback active while native play waits for a signed URL", async () => {
+    const item = createR2Track("r2-pending-play", "pending-play-asset");
+    const result = deferred<string>();
+    const media = createMockMediaElement();
+    const coordinator = new PlaybackCoordinator({
+      resolveUrl: vi.fn(() => result.promise),
+    });
+    coordinator.attachMedia(media);
+    coordinator.selectItem(item);
+
+    const request = coordinator.handleNativePlay();
+    media.pause();
+
+    expect(coordinator.isLoading()).toBe(true);
+    result.resolve("/media/audio/pending-play-asset?signature=fresh");
+    await request;
+    expect(coordinator.isLoading()).toBe(false);
+  });
+
   it("proves retry after 403 or playback error calls refresh again and updates media source", async () => {
     const assetId = "asset-retry-test-88";
     const r2Item = createR2Track("r2-retry-item", assetId);
