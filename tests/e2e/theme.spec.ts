@@ -18,7 +18,7 @@ test.describe("SunSyn Radio theme", () => {
     await page.goto("/");
 
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#faf8f4");
+    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#f1e7d4");
     await expect(page.getByRole("link", { name: "SunSyn Radio home" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Light mode" })).toHaveAttribute(
       "aria-pressed",
@@ -140,7 +140,7 @@ test.describe("SunSyn Radio theme", () => {
     await expect(themedAudio).toHaveAttribute("data-theme-toggle-persistence-probe", "kept");
     await expect(themedAudio.locator("source")).toHaveAttribute("src", revolutionSource);
     await expect(
-      page.getByRole("heading", { name: `Sunstruck Synapse - ${revolutionTitle}` }),
+      page.getByRole("heading", { name: "Sunstruck Synapse featured transmission" }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: `Play ${mushroomTitle} from queue` }),

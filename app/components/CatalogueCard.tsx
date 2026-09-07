@@ -31,8 +31,11 @@ export function CatalogueCard({ item, isSelected, onSelect, onQueue, onPlay }: C
         />
       </button>
       <div className="media-card-body">
-        <strong className="media-card-title">{item.description.title}</strong>
-        <span className="media-card-description">{item.description.subtitle}</span>
+        <Link className="media-card-title" to={item.href}>
+          {item.description.title}
+        </Link>
+        <span className="media-card-description">{item.creator.name}</span>
+        <span className="media-card-kind">{item.mediaKind === "audio" ? "Audio" : "Watch"}</span>
         <div className="card-actions">
           <Link to={item.href}>View track</Link>
           <button
@@ -45,7 +48,7 @@ export function CatalogueCard({ item, isSelected, onSelect, onQueue, onPlay }: C
             onClick={() => onQueue(item)}
             disabled={!item.media}
           >
-            Queue
+            + Queue
           </button>
           <button
             type="button"
@@ -57,7 +60,8 @@ export function CatalogueCard({ item, isSelected, onSelect, onQueue, onPlay }: C
             onClick={() => onPlay(item)}
             disabled={!item.media}
           >
-            {item.media ? "Play" : "Preview coming soon."}
+            <span aria-hidden="true">▶</span>
+            <span className="visually-hidden">{item.media ? "Play" : "Preview coming soon."}</span>
           </button>
         </div>
       </div>

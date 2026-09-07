@@ -3,7 +3,8 @@ import { Link } from "react-router";
 
 import { NowPlaying } from "~/components/NowPlaying";
 import { Queue } from "~/components/Queue";
-import { SITE_MARK, SITE_NAME } from "~/config/brand";
+import { SITE_NAME } from "~/config/brand";
+import { isR2MediaUrl } from "~/services/media-signing";
 import { PlaybackCoordinator } from "~/services/playback-coordinator";
 import { recordPlaybackEvent } from "~/services/analytics.client";
 import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
@@ -20,6 +21,25 @@ interface PlayerPanelProps {
   canPrevious: boolean;
   canNext: boolean;
   onMediaEnded: () => void;
+}
+
+const signalBars = [
+  18, 32, 24, 48, 30, 62, 38, 72, 44, 28, 54, 36, 66, 42, 78, 50, 34, 64, 40, 58, 28, 46, 34, 70,
+  44, 30, 60, 38, 74, 48, 32, 56, 42, 68, 36, 52, 26, 44, 30, 62,
+];
+
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) {
+    return "00:00";
+  }
+  const minutes = Math.floor(seconds / 60);
+  return `${String(minutes).padStart(2, "0")}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+}
+
+export function shouldClearLoadingOnPause(
+  coordinator: Pick<PlaybackCoordinator, "isLoading">,
+): boolean {
+  return !coordinator.isLoading();
 }
 
 export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function PlayerPanel(
@@ -53,6 +73,12 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   });
   const [playbackError, setPlaybackError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [volume, setVolume] = useState(1);
+  const [isMuted, setIsMuted] = useState(false);
+  const consumedPlaybackRequest = useRef<{ itemId: string; sequence: number } | null>(null);
   const [activeMedia, setActiveMedia] = useState<{
     itemId: string;
     src: string;
@@ -68,7 +94,12 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       onActiveSrcChange: (src, itemId) => {
         setActiveMedia(src && itemId ? { itemId, src } : null);
       },
-      onErrorChange: setPlaybackError,
+      onErrorChange: (error) => {
+        setPlaybackError(error);
+        if (error) {
+          setIsPlaying(false);
+        }
+      },
       onLoadingChange: setIsLoading,
     });
   }
@@ -77,6 +108,14 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   useEffect(() => {
     coordinator.attachMedia(mediaRef.current);
   });
+
+  useEffect(() => {
+    setIsPlaying(false);
+    setCurrentTime(0);
+    setDuration(0);
+    setVolume(1);
+    setIsMuted(false);
+  }, [item?.id]);
 
   useEffect(() => {
     const tracked = trackedPlayback.current;
@@ -96,9 +135,20 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       };
     }
     coordinator.selectItem(item);
-    if (!item || !playbackRequest || playbackRequest.itemId !== item.id) {
+    if (
+      !item ||
+      !item.media ||
+      !playbackRequest ||
+      playbackRequest.itemId !== item.id ||
+      (consumedPlaybackRequest.current?.itemId === playbackRequest.itemId &&
+        consumedPlaybackRequest.current.sequence === playbackRequest.sequence)
+    ) {
       return;
     }
+    consumedPlaybackRequest.current = {
+      itemId: playbackRequest.itemId,
+      sequence: playbackRequest.sequence,
+    };
     trackedPlayback.current.collectionId = playbackRequest.collectionId;
     recordPlaybackEvent("play_requested", {
       trackId: item.id,
@@ -110,6 +160,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   }, [coordinator, item, playbackRequest]);
 
   const handlePlay = () => {
+    setIsPlaying(true);
     const tracked = trackedPlayback.current;
     if (item) {
       if (tracked.completed) {
@@ -133,6 +184,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   const handleTimeUpdate = () => {
     const tracked = trackedPlayback.current;
     const currentTime = mediaRef.current?.currentTime ?? 0;
+    setCurrentTime(currentTime);
     if (item && tracked.started && !tracked.thirtySeconds && currentTime >= 30) {
       tracked.thirtySeconds = true;
       recordPlaybackEvent("listen_30_seconds", {
@@ -144,6 +196,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   };
 
   const handleEnded = () => {
+    setIsPlaying(false);
     if (item) {
       trackedPlayback.current.completed = true;
       recordPlaybackEvent("completion", {
@@ -159,6 +212,69 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
 
   const retryPlayback = () => {
     void coordinator.retry();
+  };
+
+  const togglePlayback = () => {
+    const media = mediaRef.current;
+    if (!media || !item?.media) {
+      return;
+    }
+    if (media.paused) {
+      if (isR2MediaUrl(item.media.src)) {
+        void coordinator.handleNativePlay();
+        return;
+      }
+      try {
+        void media.play().catch((error: unknown) => {
+          if (
+            typeof error === "object" &&
+            error !== null &&
+            "name" in error &&
+            error.name === "AbortError"
+          ) {
+            return;
+          }
+          setIsPlaying(false);
+          setIsLoading(false);
+          setPlaybackError("Playback could not be loaded or started automatically. Try again.");
+        });
+      } catch (error) {
+        if (
+          !(
+            typeof error === "object" &&
+            error !== null &&
+            "name" in error &&
+            error.name === "AbortError"
+          )
+        ) {
+          setIsPlaying(false);
+          setIsLoading(false);
+          setPlaybackError("Playback could not be loaded or started automatically. Try again.");
+        }
+      }
+    } else {
+      media.pause();
+    }
+  };
+
+  const toggleMute = () => {
+    const media = mediaRef.current;
+    if (!media) {
+      return;
+    }
+    media.muted = !media.muted;
+    setIsMuted(media.muted);
+  };
+
+  const changeVolume = (nextVolume: number) => {
+    const media = mediaRef.current;
+    if (!media) {
+      return;
+    }
+    media.volume = nextVolume;
+    media.muted = nextVolume === 0;
+    setVolume(nextVolume);
+    setIsMuted(media.muted);
   };
 
   useEffect(() => {
@@ -231,18 +347,39 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
 
   const mediaProps = {
     className: "protected-media",
-    controls: true,
-    controlsList: "nodownload noplaybackrate",
     preload: "none" as const,
     onContextMenu: preventMediaAction,
     onDragStart: preventMediaAction,
     onEnded: handleEnded,
     onPlay: handlePlay,
+    onPause: () => {
+      setIsPlaying(false);
+      if (shouldClearLoadingOnPause(coordinator)) {
+        setIsLoading(false);
+      }
+    },
+    onEmptied: () => {
+      setIsPlaying(false);
+      setIsLoading(false);
+      setCurrentTime(0);
+      setDuration(0);
+    },
     onTimeUpdate: handleTimeUpdate,
+    onVolumeChange: () => {
+      const media = mediaRef.current;
+      if (media) {
+        setVolume(media.volume);
+        setIsMuted(media.muted);
+      }
+    },
     onLoadStart: () => setIsLoading(true),
-    onLoadedMetadata: () => setIsLoading(false),
+    onLoadedMetadata: () => {
+      setIsLoading(false);
+      setDuration(mediaRef.current?.duration ?? 0);
+    },
     onCanPlay: () => setIsLoading(false),
     onError: () => {
+      setIsPlaying(false);
       setIsLoading(false);
       setPlaybackError("This preview could not be loaded. Check your connection and retry.");
       if (item) {
@@ -259,85 +396,191 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
 
   return (
     <aside ref={ref} className="player-panel" aria-label="Featured media player" tabIndex={-1}>
-      <div className="brand-orb" aria-hidden="true">
-        <span>{SITE_MARK}</span>
-      </div>
-
-      <div className="hero-art">
-        <img
-          src={playerArtwork}
-          alt={item?.artwork.alt ?? `${SITE_NAME} artwork`}
-          draggable={false}
-          onContextMenu={preventMediaAction}
-          onDragStart={preventMediaAction}
-        />
-      </div>
-
-      <div className="now-playing">
-        {item ? (
-          <NowPlaying item={item} />
-        ) : (
-          <>
-            <p className="kicker">Now playing</p>
-            <h1>Catalogue unavailable</h1>
-            <p className="subtitle">Select a published track when the catalogue returns.</p>
-          </>
-        )}
-
-        <div className="protected-player" aria-busy={isLoading}>
-          {!item?.media ? (
-            <p className="player-placeholder">Preview coming soon.</p>
-          ) : item.mediaKind === "audio" ? (
-            <audio
-              key={item.id}
-              ref={mediaRef as React.RefObject<HTMLAudioElement>}
-              aria-label={`${item.description.title} audio player`}
-              {...mediaProps}
-            >
-              <source src={activeMediaSrc ?? item.media.src} type={item.media.mimeType} />
-            </audio>
+      <div className="radio-hero">
+        <div className="now-playing">
+          {item ? (
+            <NowPlaying item={item} />
           ) : (
-            <video
-              key={item.id}
-              ref={mediaRef as React.RefObject<HTMLVideoElement>}
-              aria-label={`${item.description.title} video player`}
-              poster={item.media.poster ?? "/assets/posters/video-poster.svg"}
-              disablePictureInPicture
-              {...mediaProps}
-            >
-              <source src={activeMediaSrc ?? item.media.src} type={item.media.mimeType} />
-            </video>
+            <>
+              <p className="kicker">Featured transmission</p>
+              <h1>Signal unavailable</h1>
+              <p className="subtitle">Select a published track when the catalogue returns.</p>
+            </>
           )}
-          {isLoading ? (
-            <p className="player-loading" role="status">
-              Loading media…
-            </p>
-          ) : null}
-          {playbackError ? (
-            <div className="player-error" role="alert">
-              <p>{playbackError}</p>
-              <button type="button" onClick={retryPlayback}>
-                Retry
-              </button>
+          <button
+            type="button"
+            className="hero-play"
+            onClick={togglePlayback}
+            disabled={!item?.media}
+            aria-label={isPlaying ? "Pause featured transmission" : "Play featured transmission"}
+          >
+            <span className="hero-play-icon" aria-hidden="true">
+              {isPlaying ? "Ⅱ" : "▶"}
+            </span>
+            <span>
+              <strong>{isPlaying ? "Pause transmission" : "Play transmission"}</strong>
+              <small>Curated for intentional listening.</small>
+            </span>
+          </button>
+        </div>
+
+        <div className="hero-art">
+          <img
+            src={playerArtwork}
+            alt={item?.artwork.alt ?? `${SITE_NAME} artwork`}
+            draggable={false}
+            onContextMenu={preventMediaAction}
+            onDragStart={preventMediaAction}
+          />
+        </div>
+
+        <div className="signal-stack">
+          <div className="signal-monitor">
+            <div className="frequency-scale" aria-hidden="true">
+              <span>88</span>
+              <span>92</span>
+              <span>96</span>
+              <span>100</span>
+              <span>104</span>
+              <span>108</span>
             </div>
-          ) : null}
+            <div className="signal-wave" aria-hidden="true">
+              {signalBars.map((height, index) => (
+                <span key={index} style={{ height: `${height}%` }} />
+              ))}
+            </div>
+            <div className="signal-needle" aria-hidden="true" />
+            <div className="protected-player" aria-busy={isLoading}>
+              {!item?.media ? (
+                <p className="player-placeholder">Preview coming soon.</p>
+              ) : item.mediaKind === "audio" ? (
+                <audio
+                  key={item.id}
+                  ref={mediaRef as React.RefObject<HTMLAudioElement>}
+                  aria-label={`${item.description.title} audio player`}
+                  controls
+                  controlsList="nodownload noplaybackrate"
+                  {...mediaProps}
+                >
+                  <source src={activeMediaSrc ?? item.media.src} type={item.media.mimeType} />
+                </audio>
+              ) : (
+                <video
+                  key={item.id}
+                  ref={mediaRef as React.RefObject<HTMLVideoElement>}
+                  aria-label={`${item.description.title} video player`}
+                  poster={item.media.poster ?? "/assets/posters/video-poster.svg"}
+                  controls
+                  controlsList="nodownload noplaybackrate"
+                  disablePictureInPicture
+                  {...mediaProps}
+                >
+                  <source src={activeMediaSrc ?? item.media.src} type={item.media.mimeType} />
+                </video>
+              )}
+              {isLoading ? (
+                <p className="player-loading" role="status">
+                  Loading media…
+                </p>
+              ) : null}
+              {playbackError ? (
+                <div className="player-error" role="alert">
+                  <p>{playbackError}</p>
+                  <button type="button" onClick={retryPlayback}>
+                    Retry
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          </div>
+          <blockquote className="curator-note">
+            <strong>Curator’s note</strong>
+            <p>
+              Selected for musical character, clear intent, and a human hand you can still hear.
+            </p>
+            <cite>— SunSyn</cite>
+          </blockquote>
+        </div>
+      </div>
+
+      <div className="player-dock" aria-label="Playback controls">
+        <div className="dock-track">
+          <img src={playerArtwork} alt="" aria-hidden="true" />
+          <span>
+            <strong>{item?.description.title ?? "No transmission selected"}</strong>
+            <small>{item?.creator.name ?? SITE_NAME}</small>
+          </span>
         </div>
         <div className="player-transport" aria-label="Playback navigation">
           <button type="button" onClick={onPrevious} disabled={!canPrevious}>
-            Previous
+            <span aria-hidden="true">|◀</span>
+            <span className="visually-hidden">Previous</span>
+          </button>
+          <button
+            type="button"
+            className="dock-play"
+            onClick={togglePlayback}
+            disabled={!item?.media}
+            aria-label={isPlaying ? "Pause" : "Play"}
+          >
+            <span aria-hidden="true">{isPlaying ? "Ⅱ" : "▶"}</span>
           </button>
           <button type="button" onClick={onNext} disabled={!canNext}>
-            Next
+            <span aria-hidden="true">▶|</span>
+            <span className="visually-hidden">Next</span>
           </button>
         </div>
+        <div className="dock-progress">
+          <span>{formatTime(currentTime)}</span>
+          <input
+            type="range"
+            min="0"
+            max={duration || 0}
+            step="0.1"
+            value={Math.min(currentTime, duration || 0)}
+            disabled={!duration}
+            aria-label="Playback position"
+            onChange={(event) => {
+              if (mediaRef.current) {
+                mediaRef.current.currentTime = Number(event.currentTarget.value);
+              }
+            }}
+          />
+          <span>{formatTime(duration)}</span>
+        </div>
+        <div className="dock-volume">
+          <button
+            type="button"
+            onClick={toggleMute}
+            disabled={!item?.media}
+            aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
+          >
+            <span aria-hidden="true">{isMuted || volume === 0 ? "🔇" : "🔊"}</span>
+          </button>
+          <input
+            type="range"
+            min="0"
+            max="1"
+            step="0.05"
+            value={isMuted ? 0 : volume}
+            disabled={!item?.media}
+            aria-label="Volume"
+            onChange={(event) => changeVolume(Number(event.currentTarget.value))}
+          />
+        </div>
+        <a className="dock-queue-link" href="#queue">
+          Queue <span aria-hidden="true">☷</span>
+        </a>
       </div>
 
-      <Queue
-        entries={queue}
-        onClear={onClearQueue}
-        onSelect={onSelectQueueEntry}
-        onRemove={onRemoveQueueEntry}
-      />
+      <div id="queue" className="queue-wrap">
+        <Queue
+          entries={queue}
+          onClear={onClearQueue}
+          onSelect={onSelectQueueEntry}
+          onRemove={onRemoveQueueEntry}
+        />
+      </div>
 
       <footer className="panel-footer">
         <Link to="/#about">About</Link>

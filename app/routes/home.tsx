@@ -30,20 +30,22 @@ export default function Home() {
   return (
     <>
       <Intro />
-      {catalogue.status === "ready" ? (
-        catalogueSections.map((section) => (
-          <CatalogueSection
-            section={section}
-            selectedItemId={selectedItemId}
-            onSelect={selectItem}
-            onQueue={queueItem}
-            onPlay={playItem}
-            key={section.id}
-          />
-        ))
-      ) : (
-        <CatalogueState state={catalogue} />
-      )}
+      <div id="catalogue" className="catalogue-anchor">
+        {catalogue.status === "ready" ? (
+          catalogueSections.map((section) => (
+            <CatalogueSection
+              section={section}
+              selectedItemId={selectedItemId}
+              onSelect={selectItem}
+              onQueue={queueItem}
+              onPlay={playItem}
+              key={section.id}
+            />
+          ))
+        ) : (
+          <CatalogueState state={catalogue} />
+        )}
+      </div>
       <Offerings offerings={offerings} />
       <Contact />
     </>

@@ -106,12 +106,58 @@ test("supports queue removal, next priority and automatic advancement", async ({
   await expect(queue.getByText("Queue is clear.")).toBeVisible();
 });
 
-test("keeps playback through internal navigation and restores state without autoplay", async ({
-  page,
-}) => {
+test("keeps active playback through internal navigation", async ({ page }) => {
   await page.goto("/");
   const revolutionCard = cardFor(page, revolutionTitle);
 
+  await revolutionCard.getByRole("button", { name: `Play ${revolutionTitle}` }).click();
+  const audio = page.getByLabel(`${revolutionTitle} audio player`);
+  await audio.evaluate((element: HTMLMediaElement) => {
+    element.dataset.persistenceProbe = "kept";
+    element.dataset.loadStartCount = "0";
+    element.addEventListener("loadstart", () => {
+      element.dataset.loadStartCount = String(Number(element.dataset.loadStartCount ?? "0") + 1);
+    });
+  });
+  await expect
+    .poll(() => audio.evaluate((element: HTMLMediaElement) => element.paused))
+    .toBe(false);
+  await expect
+    .poll(() => audio.evaluate((element: HTMLMediaElement) => element.currentTime))
+    .toBeGreaterThanOrEqual(1);
+  const beforeNavigation = await audio.evaluate((element: HTMLMediaElement) => ({
+    currentSrc: element.currentSrc,
+    currentTime: element.currentTime,
+    loadStartCount: element.dataset.loadStartCount,
+  }));
+  await revolutionCard.getByRole("link", { name: "View track" }).click();
+
+  await expect(page).toHaveURL(/\/tracks\/phase-zero-transmissions\/revolution-will-be-televised$/);
+  const navigatedAudio = page.getByLabel(`${revolutionTitle} audio player`);
+  await expect(navigatedAudio).toHaveAttribute("data-persistence-probe", "kept");
+  await expect
+    .poll(() => navigatedAudio.evaluate((element: HTMLMediaElement) => element.currentSrc))
+    .toBe(beforeNavigation.currentSrc);
+  await expect(navigatedAudio).toHaveAttribute(
+    "data-load-start-count",
+    beforeNavigation.loadStartCount!,
+  );
+  await expect
+    .poll(() => navigatedAudio.evaluate((element: HTMLMediaElement) => element.paused))
+    .toBe(false);
+  expect(
+    await navigatedAudio.evaluate((element: HTMLMediaElement) => element.currentTime),
+  ).toBeGreaterThanOrEqual(beforeNavigation.currentTime);
+  await expect
+    .poll(() => navigatedAudio.evaluate((element: HTMLMediaElement) => element.currentTime))
+    .toBeGreaterThan(beforeNavigation.currentTime);
+  await expect(page.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
+  await expect(page.getByText("Loading media…")).toHaveCount(0);
+});
+
+test("restores the selected track without autoplay after reload", async ({ page }) => {
+  await page.goto("/");
+  const revolutionCard = cardFor(page, revolutionTitle);
   await revolutionCard.getByRole("button", { name: `Play ${revolutionTitle}` }).click();
   await cardFor(page, mushroomTitle)
     .getByRole("button", { name: `Queue ${mushroomTitle}` })
@@ -123,7 +169,6 @@ test("keeps playback through internal navigation and restores state without auto
     element.pause();
   });
   await revolutionCard.getByRole("link", { name: "View track" }).click();
-
   await expect(page).toHaveURL(/\/tracks\/phase-zero-transmissions\/revolution-will-be-televised$/);
   await expect(page.getByLabel(`${revolutionTitle} audio player`)).toHaveAttribute(
     "data-persistence-probe",
