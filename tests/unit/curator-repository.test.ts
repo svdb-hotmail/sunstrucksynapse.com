@@ -95,6 +95,78 @@ describe("curator repository atomic transactions", () => {
     expect(entry).toBeUndefined();
   });
 
+  it("accepts track parents scheduled no later than the track", async () => {
+    const artistId = "a0000000-0000-4000-8000-000000000001";
+    const releaseId = "a0000000-0000-4000-8000-000000000002";
+    const trackId = "a0000000-0000-4000-8000-000000000003";
+    await client.exec(`
+      insert into artists (id, slug, display_name)
+      values ('${artistId}', 'scheduled-parent-artist', 'Scheduled Parent Artist');
+      insert into releases (id, slug, title)
+      values ('${releaseId}', 'scheduled-parent-release', 'Scheduled Parent Release');
+      insert into release_artist_credits (release_id, artist_id, position, credited_as)
+      values ('${releaseId}', '${artistId}', 1, 'Scheduled Parent Artist');
+      insert into tracks (id, release_id, slug, title, position)
+      values ('${trackId}', '${releaseId}', 'scheduled-child-track', 'Scheduled Child Track', 1);
+      insert into track_artist_credits (track_id, artist_id, position, credited_as)
+      values ('${trackId}', '${artistId}', 1, 'Scheduled Parent Artist');
+    `);
+    const now = new Date("2026-08-16T08:00:00Z");
+    const trackSchedule = new Date("2026-08-17T10:00:00Z");
+
+    await expect(
+      repository.publicationBlockers("track", trackId, "scheduled", trackSchedule),
+    ).resolves.toEqual(
+      expect.arrayContaining([
+        "release published or scheduled no later than the track",
+        "credited artists published or scheduled no later than the track",
+      ]),
+    );
+
+    await repository.setLifecycle("artist", artistId, "draft", "in_review", now, null, actor, null);
+    await repository.setLifecycle(
+      "artist",
+      artistId,
+      "in_review",
+      "scheduled",
+      now,
+      new Date("2026-08-17T08:00:00Z"),
+      actor,
+      null,
+    );
+    await repository.setLifecycle(
+      "release",
+      releaseId,
+      "draft",
+      "in_review",
+      now,
+      null,
+      actor,
+      null,
+    );
+    await repository.setLifecycle(
+      "release",
+      releaseId,
+      "in_review",
+      "scheduled",
+      now,
+      new Date("2026-08-17T09:00:00Z"),
+      actor,
+      null,
+    );
+
+    const blockers = await repository.publicationBlockers(
+      "track",
+      trackId,
+      "scheduled",
+      trackSchedule,
+    );
+    expect(blockers).not.toContain("release published or scheduled no later than the track");
+    expect(blockers).not.toContain(
+      "credited artists published or scheduled no later than the track",
+    );
+  });
+
   it("rolls back entity lifecycle change when publication_audit insertion fails constraint check", async () => {
     const collection = await repository.create("collection", {
       slug: "rollback-collection",

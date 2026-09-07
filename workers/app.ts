@@ -18,6 +18,7 @@ import {
   createRateLimitRepository,
 } from "../app/repositories/rate-limit.server";
 import { createCurationWorkflowRepository } from "../app/repositories/curation-workflow.server";
+import { createE2eCurationWorkflowRepository } from "../app/repositories/curation-workflow-fixture.server";
 import { dispatchCurationOutbox } from "../app/services/curation-outbox-dispatch.server";
 import { createTransactionalEmailService } from "../app/services/transactional-email.server";
 
@@ -27,6 +28,8 @@ const requestHandler = createRequestHandler(
 );
 export const e2eCuratorRepository = createE2eCuratorRepository();
 export const e2eSubmissionRepository = createE2eSubmissionRepository();
+export const e2eCurationWorkflowRepository =
+  createE2eCurationWorkflowRepository(e2eSubmissionRepository);
 export const e2eAnalyticsRepository = createMemoryAnalyticsRepository();
 export const e2eRateLimitRepository = createMemoryRateLimitRepository();
 
@@ -110,6 +113,7 @@ export default {
           request.headers.get("x-test-catalogue-scenario"),
         ),
         curatorRepository: e2eCuratorRepository,
+        curationWorkflowRepository: e2eCurationWorkflowRepository,
         submissionRepository: e2eSubmissionRepository,
         analyticsRepository: e2eAnalyticsRepository,
         rateLimitRepository: e2eRateLimitRepository,
@@ -163,17 +167,16 @@ export default {
     const rateLimitRepository = createRateLimitRepository(db);
     const curationWorkflowRepository = createCurationWorkflowRepository(db);
     const now = controller?.scheduledTime ? new Date(controller.scheduledTime) : new Date();
-    const expiredAudioKeys = await curationWorkflowRepository.abandonExpiredAudioUploads(now);
+    await curationWorkflowRepository.abandonExpiredAudioUploads(now);
     await Promise.all([
       curatorRepository.publishScheduled(now),
       analyticsRepository.purgeBefore(new Date(now.valueOf() - 90 * 86_400_000)),
       rateLimitRepository.purgeBefore(new Date(now.valueOf() - 86_400_000)),
-      dispatchCurationOutbox(db, createTransactionalEmailService(validatedEnv)),
-      Promise.all(
-        expiredAudioKeys.map(async (key) => {
-          await validatedEnv.MEDIA_BUCKET.delete(key);
-          await curationWorkflowRepository.markAudioUploadCleaned(key, now);
-        }),
+      dispatchCurationOutbox(
+        db,
+        createTransactionalEmailService(validatedEnv),
+        validatedEnv.MEDIA_BUCKET,
+        now,
       ),
     ]);
   },

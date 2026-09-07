@@ -1,5 +1,7 @@
 import { Form } from "react-router";
 
+import { CURATION_RATIONALE_MAX_CHARACTERS } from "~/types/curation";
+
 export interface CurationScorecardProps {
   submissionId: string;
   audio?: { id: string; filename: string; durationMs: number } | null;
@@ -66,7 +68,13 @@ export function CurationScorecard({
         </fieldset>
         <label>
           Decision rationale
-          <textarea name="rationale" rows={3} required disabled={disabled || !audio} />
+          <textarea
+            name="rationale"
+            rows={3}
+            required
+            maxLength={CURATION_RATIONALE_MAX_CHARACTERS}
+            disabled={disabled || !audio}
+          />
         </label>
         <button type="submit" disabled={disabled || !audio}>
           Finalize decision

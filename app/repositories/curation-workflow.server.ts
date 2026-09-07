@@ -6,6 +6,7 @@ import type { CuratorIdentity } from "~/types/curator";
 export const REVIEW_AUDIO_MAX_BYTES = 500 * 1024 * 1024;
 export const REVIEW_AUDIO_UPLOAD_TTL_MS = 15 * 60 * 1000;
 export const REVIEW_AUDIO_FINALIZE_LEASE_MS = 2 * 60 * 1000;
+export const REVIEW_AUDIO_FINALIZE_LEASE_RENEWAL_MS = 30 * 1000;
 
 export const REVIEW_AUDIO_MIME_TYPES = new Set([
   "audio/mpeg",
@@ -78,7 +79,6 @@ function mapSession(row: Record<string, unknown>): ReviewAudioUploadSession {
     id: String(row.id),
     submissionId: String(row.submissionId),
     stagingObjectKey: String(row.stagingObjectKey),
-    originalFilename: String(row.originalFilename),
     filename: String(row.originalFilename),
     mimeType: String(row.mimeType),
     checksumSha256: String(row.checksumSha256),
@@ -98,7 +98,6 @@ function mapAudio(row: Record<string, unknown>): ReviewAudioRecord {
     submissionId: String(row.submissionId),
     version: Number(row.version),
     objectKey: String(row.objectKey),
-    originalFilename: String(row.originalFilename),
     filename: String(row.originalFilename),
     mimeType: String(row.mimeType),
     checksumSha256: String(row.checksumSha256),
@@ -185,8 +184,17 @@ export function createCurationWorkflowRepository(db: Database) {
             ${declaration.durationMs}, ${declaration.codec}, ${expiresAt.toISOString()}::timestamptz
           from eligible
           returning *
+        ), cleanup as (
+          insert into curation_outbox (idempotency_key, kind, payload, available_at)
+          select 'review-audio-upload:' || inserted.id::text || ':staging-cleanup',
+            'review_audio_staging_cleanup',
+            jsonb_build_object('uploadSessionId', inserted.id),
+            inserted.expires_at
+          from inserted
+          on conflict (idempotency_key) do nothing
+          returning id
         )
-        select ${sessionColumns} from inserted sessions
+        select ${sessionColumns} from inserted sessions, cleanup
       `);
       return rows[0] ? mapSession(rows[0]) : null;
     },
@@ -227,6 +235,25 @@ export function createCurationWorkflowRepository(db: Database) {
         select ${sessionColumns} from claimed sessions
       `);
       return rows[0] ? mapSession(rows[0]) : null;
+    },
+
+    async renewAudioFinalizationLease(
+      sessionId: string,
+      leaseToken: string,
+      now: Date,
+    ): Promise<boolean> {
+      const leaseExpiresAt = new Date(now.getTime() + REVIEW_AUDIO_FINALIZE_LEASE_MS);
+      const rows = await execute<{ id: string }>(sql`
+        update submission_audio_upload_sessions
+        set lease_expires_at = ${leaseExpiresAt.toISOString()}::timestamptz,
+            updated_at = ${now.toISOString()}::timestamptz
+        where id = ${sessionId}::uuid
+          and status = 'finalizing'
+          and lease_token = ${leaseToken}::uuid
+          and lease_expires_at > ${now.toISOString()}::timestamptz
+        returning id
+      `);
+      return rows.length === 1;
     },
 
     async completeAudioFinalization(
@@ -312,6 +339,28 @@ export function createCurationWorkflowRepository(db: Database) {
       return rows[0] ? mapAudio(rows[0]) : null;
     },
 
+    async currentAudioForSubmissions(
+      submissionIds: readonly string[],
+    ): Promise<Record<string, ReviewAudioRecord>> {
+      if (submissionIds.length === 0) return {};
+      const ids = sql.join(
+        submissionIds.map((submissionId) => sql`${submissionId}::uuid`),
+        sql`, `,
+      );
+      const rows = await execute<Record<string, unknown>>(sql`
+        select ${audioColumns}
+        from submission_review_audio_selections selections
+        join submission_review_audio audio on audio.id = selections.audio_id
+        where selections.submission_id in (${ids})
+      `);
+      return Object.fromEntries(
+        rows.map((row) => {
+          const audio = mapAudio(row);
+          return [audio.submissionId, audio];
+        }),
+      );
+    },
+
     async currentAudioByTokenHash(tokenHash: string, now: Date): Promise<ReviewAudioRecord | null> {
       const rows = await execute<Record<string, unknown>>(sql`
         select ${audioColumns}
@@ -334,31 +383,55 @@ export function createCurationWorkflowRepository(db: Database) {
       return rows[0] ? mapAudio(rows[0]) : null;
     },
 
-    async abandonExpiredAudioUploads(now: Date): Promise<string[]> {
-      const rows = await execute<{ stagingObjectKey: string }>(sql`
-        with expired as (
-          update submission_audio_upload_sessions
-          set status = 'abandoned', lease_token = null, lease_expires_at = null,
-              failure_code = 'UPLOAD_EXPIRED', updated_at = ${now.toISOString()}::timestamptz
-          where status in ('pending', 'finalizing') and expires_at <= ${now.toISOString()}::timestamptz
-          returning staging_object_key
-        )
-        select distinct staging_object_key as "stagingObjectKey" from expired
-        union
-        select staging_object_key as "stagingObjectKey"
-        from submission_audio_upload_sessions
-        where status = 'abandoned' and failure_code <> 'UPLOAD_CLEANED'
-      `);
-      return rows.map((row) => row.stagingObjectKey);
-    },
-
-    async markAudioUploadCleaned(stagingObjectKey: string, now: Date): Promise<void> {
-      await execute(sql`
+    async abandonExpiredAudioUploads(now: Date): Promise<number> {
+      const rows = await execute<{ id: string }>(sql`
         update submission_audio_upload_sessions
-        set failure_code = 'UPLOAD_CLEANED', updated_at = ${now.toISOString()}::timestamptz
-        where staging_object_key = ${stagingObjectKey} and status = 'abandoned'
+        set status = 'abandoned', lease_token = null, lease_expires_at = null,
+            failure_code = 'UPLOAD_EXPIRED', updated_at = ${now.toISOString()}::timestamptz
+        where expires_at <= ${now.toISOString()}::timestamptz
+          and (
+            status = 'pending'
+            or (
+              status = 'finalizing'
+              and lease_expires_at <= ${now.toISOString()}::timestamptz
+            )
+          )
         returning id
       `);
+      return rows.length;
+    },
+
+    async audioUploadStagingCleanupTarget(
+      sessionId: string,
+      now: Date,
+    ): Promise<
+      { status: "ready"; stagingObjectKey: string } | { status: "defer" } | { status: "missing" }
+    > {
+      const rows = await execute<{
+        stagingObjectKey: string;
+        status: ReviewAudioUploadSession["status"];
+        leaseExpiresAt: Date | string | null;
+        expiresAt: Date | string;
+      }>(sql`
+        select staging_object_key as "stagingObjectKey", status,
+          lease_expires_at as "leaseExpiresAt", expires_at as "expiresAt"
+        from submission_audio_upload_sessions
+        where id = ${sessionId}::uuid
+      `);
+      const session = rows[0];
+      if (!session) return { status: "missing" };
+      const uploadExpired = date(session.expiresAt)!.getTime() <= now.getTime();
+      const leaseExpired =
+        session.leaseExpiresAt === null || date(session.leaseExpiresAt)!.getTime() <= now.getTime();
+      const ready =
+        session.status === "completed" ||
+        session.status === "abandoned" ||
+        session.status === "failed" ||
+        (uploadExpired && session.status === "pending") ||
+        (uploadExpired && session.status === "finalizing" && leaseExpired);
+      return ready
+        ? { status: "ready", stagingObjectKey: session.stagingObjectKey }
+        : { status: "defer" };
     },
 
     async claimNextSubmission(curator: CuratorIdentity, now: Date): Promise<string | null> {
@@ -530,17 +603,21 @@ export function createCurationWorkflowRepository(db: Database) {
           )
           select decided.id, 'status_change', 'curator', ${curator.id}, ${curator.email},
             'listening', decided.status, ${input.rationale},
-            jsonb_build_object('curationReviewId', ${reviewId}, 'finalGrade', ${input.finalGrade}, 'featureDistinction', ${input.finalGrade === "A"}),
+            jsonb_build_object(
+              'curationReviewId', ${reviewId}::text,
+              'finalGrade', ${input.finalGrade}::text,
+              'featureDistinction', ${input.finalGrade === "A"}::boolean
+            ),
             ${now.toISOString()}::timestamptz
           from decided returning submission_id
         ), queued as (
           insert into curation_outbox (idempotency_key, kind, payload)
-          select 'submission:' || decided.id::text || ':review:' || ${reviewId} || ':decision-email',
+          select 'submission:' || decided.id::text || ':review:' || ${reviewId}::text || ':decision-email',
             'submission_decision_email',
             jsonb_build_object(
               'submissionId', decided.id, 'recipient', decided.submitter_email,
-              'publicReference', decided.public_reference, 'grade', ${input.finalGrade},
-              'status', decided.status, 'rationale', ${input.rationale}
+              'publicReference', decided.public_reference, 'grade', ${input.finalGrade}::text,
+              'status', decided.status, 'rationale', ${input.rationale}::text
             )
           from decided
           on conflict (idempotency_key) do nothing

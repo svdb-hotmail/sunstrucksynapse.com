@@ -165,4 +165,144 @@ describe("curation workflow repository", () => {
     expect((await client.query("select * from tracks")).rows).toHaveLength(0);
     expect((await client.query("select * from curation_outbox")).rows).toHaveLength(0);
   });
+
+  it("creates an expiry cleanup job with each staging upload session", async () => {
+    await client.exec(`update submissions set status = 'clarification_requested'`);
+
+    const upload = await repository.createAudioUploadSession(
+      "a".repeat(64),
+      {
+        filename: "next.flac",
+        mimeType: "audio/flac",
+        checksumSha256: "c".repeat(64),
+        byteSize: 8192,
+        durationMs: 240000,
+        codec: "flac",
+      },
+      new Date("2026-09-07T12:00:00Z"),
+    );
+
+    expect(upload).not.toBeNull();
+    const cleanup = await client.query<{
+      kind: string;
+      payload: { uploadSessionId: string };
+      available_at: string;
+    }>(
+      `select kind, payload, available_at from curation_outbox where kind = 'review_audio_staging_cleanup'`,
+    );
+    expect(cleanup.rows).toHaveLength(1);
+    expect(cleanup.rows[0]).toMatchObject({
+      kind: "review_audio_staging_cleanup",
+      payload: { uploadSessionId: upload?.id },
+    });
+    expect(new Date(cleanup.rows[0]!.available_at)).toEqual(upload?.expiresAt);
+  });
+
+  it("does not abandon a finalization while its lease is still live", async () => {
+    await client.exec(`
+      insert into submission_audio_upload_sessions (
+        id, submission_id, staging_object_key, original_filename, mime_type,
+        checksum_sha256, byte_size, duration_ms, codec, status, lease_token,
+        lease_expires_at, expires_at
+      ) values (
+        '80000000-0000-4000-8000-000000000001',
+        '20000000-0000-4000-8000-000000000001',
+        'private/review-audio/staging/80000000-0000-4000-8000-000000000001',
+        'lease.flac', 'audio/flac', repeat('f', 64), 2048, 120000, 'flac',
+        'finalizing', '80000000-0000-4000-8000-000000000002',
+        '2026-09-07T12:05:00Z', '2026-09-07T11:00:00Z'
+      )
+    `);
+
+    await expect(
+      repository.abandonExpiredAudioUploads(new Date("2026-09-07T12:00:00Z")),
+    ).resolves.toBe(0);
+    await expect(
+      repository.audioUploadStagingCleanupTarget(
+        "80000000-0000-4000-8000-000000000001",
+        new Date("2026-09-07T12:00:00Z"),
+      ),
+    ).resolves.toEqual({ status: "defer" });
+    await expect(
+      repository.abandonExpiredAudioUploads(new Date("2026-09-07T12:06:00Z")),
+    ).resolves.toBe(1);
+    await expect(
+      repository.audioUploadStagingCleanupTarget(
+        "80000000-0000-4000-8000-000000000001",
+        new Date("2026-09-07T12:06:00Z"),
+      ),
+    ).resolves.toMatchObject({ status: "ready" });
+  });
+
+  it("rejects cross-submission pinned governance and upload records", async () => {
+    await client.exec(`
+      insert into submission_invitations (
+        id, public_reference, token_hash, invitee_name, invitee_email, expires_at
+      ) values (
+        '90000000-0000-4000-8000-000000000001', 'INV-CURATION-002', repeat('d', 64),
+        'Other Signal', 'other@example.test', '2030-01-01T00:00:00Z'
+      );
+      insert into submissions (
+        id, invitation_id, public_reference, invitation_reference, submitter_name,
+        submitter_email, title, artist_details, status
+      ) values (
+        '90000000-0000-4000-8000-000000000002',
+        '90000000-0000-4000-8000-000000000001', 'SUB-CURATION-002', 'INV-CURATION-002',
+        'Other Signal', 'other@example.test', 'Other Frequency', '{}'::jsonb, 'draft'
+      );
+      insert into rights_declarations (
+        id, submission_id, version, revision_author_name, revision_author_email,
+        revision_reason, authority_basis, entitlement_statement, public_summary, territories
+      ) values (
+        '90000000-0000-4000-8000-000000000003',
+        '90000000-0000-4000-8000-000000000002', 1, 'Other Signal',
+        'other@example.test', 'Submitted', 'original_author', 'Controlled.',
+        'Original.', array['Worldwide']
+      );
+      insert into submission_audio_upload_sessions (
+        id, submission_id, staging_object_key, original_filename, mime_type,
+        checksum_sha256, byte_size, duration_ms, codec, status, expires_at, completed_at
+      ) values (
+        '90000000-0000-4000-8000-000000000004',
+        '90000000-0000-4000-8000-000000000002',
+        'private/review-audio/staging/90000000-0000-4000-8000-000000000004',
+        'other.flac', 'audio/flac', repeat('e', 64), 1024, 90000, 'flac',
+        'completed', '2026-09-07T11:00:00Z', '2026-09-07T10:10:00Z'
+      );
+    `);
+
+    await expect(
+      client.exec(`
+        insert into curation_reviews (
+          id, submission_id, version, eligibility, artistic_quality, originality_intent,
+          production_readiness, editorial_fit, final_grade, rationale, curator_id,
+          curator_email, rights_declaration_id, creative_process_disclosure_id,
+          provenance_record_id, review_audio_id, finalized_at
+        ) values (
+          '90000000-0000-4000-8000-000000000005',
+          '20000000-0000-4000-8000-000000000001', 1, 'eligible', 4, 4, 4, 4,
+          'B', 'Cross-parent attempt.', 'curator-1', 'curator@example.test',
+          '90000000-0000-4000-8000-000000000003',
+          '40000000-0000-4000-8000-000000000001',
+          '50000000-0000-4000-8000-000000000001',
+          '70000000-0000-4000-8000-000000000001', now()
+        )
+      `),
+    ).rejects.toThrow("Pinned rights declaration must belong to the review submission");
+
+    await expect(
+      client.exec(`
+        insert into submission_review_audio (
+          id, submission_id, upload_session_id, version, object_key, original_filename,
+          mime_type, checksum_sha256, byte_size, duration_ms, codec, finalized_at
+        ) values (
+          '90000000-0000-4000-8000-000000000006',
+          '20000000-0000-4000-8000-000000000001',
+          '90000000-0000-4000-8000-000000000004', 2,
+          'private/review-audio/final/cross-parent', 'other.flac', 'audio/flac',
+          repeat('e', 64), 1024, 90000, 'flac', now()
+        )
+      `),
+    ).rejects.toThrow("Review audio upload session must belong to the same submission");
+  });
 });

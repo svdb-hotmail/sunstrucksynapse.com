@@ -46,7 +46,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
   const headers = new Headers();
   object.writeHttpMetadata(headers);
   headers.set("content-type", audio.mimeType);
-  const safeFilename = audio.originalFilename.replace(/[^a-zA-Z0-9._ -]/g, "_");
+  const safeFilename = audio.filename.replace(/[^a-zA-Z0-9._ -]/g, "_");
   headers.set("content-disposition", `inline; filename="${safeFilename}"`);
   headers.set("accept-ranges", "bytes");
   headers.set("cache-control", "private, no-store");

@@ -2,6 +2,7 @@ import { AwsClient } from "aws4fetch";
 
 import type { WorkerEnv } from "~/config/env.server";
 import {
+  REVIEW_AUDIO_FINALIZE_LEASE_RENEWAL_MS,
   REVIEW_AUDIO_MAX_BYTES,
   REVIEW_AUDIO_MIME_TYPES,
   type CurationWorkflowRepository,
@@ -13,6 +14,20 @@ import { IncrementalSha256 } from "~/utils/sha256";
 export type ReviewAudioResult<T> =
   | { ok: true; value: T }
   | { ok: false; status: 400 | 404 | 409 | 413 | 503; message: string };
+
+export type ReviewAudioRepository = Pick<
+  CurationWorkflowRepository,
+  | "createAudioUploadSession"
+  | "claimAudioFinalization"
+  | "renewAudioFinalizationLease"
+  | "releaseAudioFinalization"
+  | "completeAudioFinalization"
+>;
+
+export type ReviewAudioEnv = Pick<
+  WorkerEnv,
+  "MEDIA_BUCKET" | "R2_ACCOUNT_ID" | "R2_ACCESS_KEY_ID" | "R2_SECRET_ACCESS_KEY" | "R2_BUCKET_NAME"
+>;
 
 function normalizedMime(value: string): string {
   return value.trim().toLowerCase().split(";", 1)[0] ?? "";
@@ -84,7 +99,7 @@ function createFixedLengthStream(expectedSize: number): {
   return { readable: stream.readable, writable: stream.writable };
 }
 
-function s3Configuration(env: WorkerEnv) {
+function s3Configuration(env: ReviewAudioEnv) {
   const values = [
     env.R2_ACCOUNT_ID,
     env.R2_ACCESS_KEY_ID,
@@ -105,8 +120,8 @@ function s3Configuration(env: WorkerEnv) {
 
 export class ReviewAudioService {
   constructor(
-    private readonly repository: CurationWorkflowRepository,
-    private readonly env: WorkerEnv,
+    private readonly repository: ReviewAudioRepository,
+    private readonly env: ReviewAudioEnv,
     private readonly clock: () => Date = () => new Date(),
   ) {}
 
@@ -190,16 +205,47 @@ export class ReviewAudioService {
       );
       return { ok: false, status: 409, message };
     };
-    const head = await this.env.MEDIA_BUCKET.head(session.stagingObjectKey);
+    let head;
+    try {
+      head = await this.env.MEDIA_BUCKET.head(session.stagingObjectKey);
+    } catch {
+      return fail("Uploaded audio is temporarily unavailable.", "R2_HEAD_FAILED");
+    }
     if (!head || head.size !== session.byteSize) {
       return fail("Uploaded audio is incomplete.", "OBJECT_INCOMPLETE");
     }
-    const source = await this.env.MEDIA_BUCKET.get(session.stagingObjectKey, {
-      range: new Headers(),
-    });
+    let source;
+    try {
+      source = await this.env.MEDIA_BUCKET.get(session.stagingObjectKey, {
+        range: new Headers(),
+      });
+    } catch {
+      return fail("Uploaded audio is temporarily unavailable.", "R2_GET_FAILED");
+    }
     if (!source) return fail("Uploaded audio is unavailable.", "OBJECT_MISSING");
 
-    const finalObjectKey = `private/review-audio/final/${session.submissionId}/${session.id}-${session.checksumSha256.slice(0, 16)}`;
+    const fencedFinalObjectKey = `private/review-audio/final/${session.submissionId}/${session.id}-${session.leaseToken}-${session.checksumSha256.slice(0, 16)}`;
+    const cleanupFencedFinal = async () => {
+      try {
+        await this.env.MEDIA_BUCKET.delete(fencedFinalObjectKey);
+      } catch {
+        // The lease-token fence prevents this failed attempt from becoming current.
+      }
+    };
+    let leaseRenewedAt = now.getTime();
+    const renewLease = async (force = false) => {
+      const renewedAt = this.clock();
+      if (!force && renewedAt.getTime() - leaseRenewedAt < REVIEW_AUDIO_FINALIZE_LEASE_RENEWAL_MS) {
+        return true;
+      }
+      const renewed = await this.repository.renewAudioFinalizationLease(
+        session.id,
+        session.leaseToken!,
+        renewedAt,
+      );
+      if (renewed) leaseRenewedAt = renewedAt.getTime();
+      return renewed;
+    };
     const { readable, writable } = createFixedLengthStream(session.byteSize);
     const hasher = new IncrementalSha256();
     let streamed = 0;
@@ -211,6 +257,7 @@ export class ReviewAudioService {
           const { done, value } = await reader.read();
           if (done) break;
           if (value) {
+            if (!(await renewLease())) throw new Error("finalization lease lost");
             streamed += value.byteLength;
             if (streamed > session.byteSize) throw new Error("oversized");
             hasher.update(value);
@@ -225,7 +272,7 @@ export class ReviewAudioService {
         reader.releaseLock();
       }
     })();
-    const put = this.env.MEDIA_BUCKET.put(finalObjectKey, readable, {
+    const put = this.env.MEDIA_BUCKET.put(fencedFinalObjectKey, readable, {
       httpMetadata: { contentType: session.mimeType },
       customMetadata: {
         checksumSha256: session.checksumSha256,
@@ -241,25 +288,39 @@ export class ReviewAudioService {
       streamed !== session.byteSize ||
       hasher.digestHex() !== session.checksumSha256
     ) {
-      await this.env.MEDIA_BUCKET.delete(finalObjectKey);
+      await cleanupFencedFinal();
       return fail("Audio verification failed. Upload the file again.", "VERIFICATION_FAILED");
     }
-    const sealed = await this.env.MEDIA_BUCKET.head(finalObjectKey);
-    if (!sealed || sealed.size !== session.byteSize) {
-      await this.env.MEDIA_BUCKET.delete(finalObjectKey);
+    let sealed;
+    try {
+      sealed = await this.env.MEDIA_BUCKET.head(fencedFinalObjectKey);
+    } catch {
+      await cleanupFencedFinal();
       return fail("Audio sealing failed. Upload the file again.", "SEALING_FAILED");
+    }
+    if (!sealed || sealed.size !== session.byteSize) {
+      await cleanupFencedFinal();
+      return fail("Audio sealing failed. Upload the file again.", "SEALING_FAILED");
+    }
+    if (!(await renewLease(true))) {
+      await cleanupFencedFinal();
+      return fail("Audio finalization lease was lost. Upload the file again.", "LEASE_LOST");
     }
     const audio = await this.repository.completeAudioFinalization(
       session.id,
       session.leaseToken,
-      finalObjectKey,
+      fencedFinalObjectKey,
       this.clock(),
     );
     if (!audio) {
-      await this.env.MEDIA_BUCKET.delete(finalObjectKey);
+      await cleanupFencedFinal();
       return fail("Audio finalization conflicted. Upload the file again.", "FINALIZE_CONFLICT");
     }
-    await this.env.MEDIA_BUCKET.delete(session.stagingObjectKey);
+    try {
+      await this.env.MEDIA_BUCKET.delete(session.stagingObjectKey);
+    } catch {
+      // The upload-session outbox job and R2 lifecycle rule retry staging cleanup.
+    }
     return { ok: true, value: audio };
   }
 }

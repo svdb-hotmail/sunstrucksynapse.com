@@ -1,5 +1,6 @@
 import {
   Form,
+  Link,
   redirect,
   useActionData,
   useLoaderData,
@@ -18,8 +19,11 @@ import { SubmissionService, submissionHttpStatus } from "~/services/submissions.
 import { createTransactionalEmailService } from "~/services/transactional-email.server";
 import { validateUuid } from "~/services/curator-validation";
 import type { SubmissionStatus } from "~/types/submissions";
+import { curationRationaleError } from "~/types/curation";
 
 import type { Route } from "./+types/curator-submissions";
+
+const CURATION_QUEUE_PAGE_SIZE = 25;
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const runtime = context.get(cloudflareContext);
@@ -29,24 +33,25 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     throw new Response("Submission service unavailable.", { status: 503 });
   }
   const url = new URL(request.url);
+  const requestedPage = Number(url.searchParams.get("page") ?? "1");
+  const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
   const filter = {
     status: (url.searchParams.get("status") ?? "all") as SubmissionStatus | "all",
     assignedTo: url.searchParams.get("assignedTo") ?? "all",
+    limit: CURATION_QUEUE_PAGE_SIZE + 1,
+    offset: (page - 1) * CURATION_QUEUE_PAGE_SIZE,
   };
-  const workflow = runtime.db ? createCurationWorkflowRepository(runtime.db) : null;
+  const workflow =
+    runtime.curationWorkflowRepository ??
+    (runtime.db ? createCurationWorkflowRepository(runtime.db) : null);
   const outboxPromise = runtime.db
     ? createCurationOutboxRepository(runtime.db).statusCounts()
     : Promise.resolve(null);
-  const submissions = await runtime.submissionRepository.listCuratorSubmissions(filter);
+  const pageRows = await runtime.submissionRepository.listCuratorSubmissions(filter);
+  const hasNextPage = pageRows.length > CURATION_QUEUE_PAGE_SIZE;
+  const submissions = pageRows.slice(0, CURATION_QUEUE_PAGE_SIZE);
   const reviewAudio = workflow
-    ? Object.fromEntries(
-        await Promise.all(
-          submissions.map(
-            async ({ submission }) =>
-              [submission.id, await workflow.currentAudioForSubmission(submission.id)] as const,
-          ),
-        ),
-      )
+    ? await workflow.currentAudioForSubmissions(submissions.map(({ submission }) => submission.id))
     : {};
   const outbox = await outboxPromise;
   return {
@@ -56,6 +61,9 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     reviewAudio,
     outbox,
     workflowAvailable: Boolean(workflow),
+    filter: { status: filter.status, assignedTo: filter.assignedTo },
+    page,
+    hasNextPage,
   };
 }
 
@@ -74,14 +82,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
     runtime.submissionRepository,
     createTransactionalEmailService(runtime.env),
   );
+  const workflow =
+    runtime.curationWorkflowRepository ??
+    (runtime.db ? createCurationWorkflowRepository(runtime.db) : null);
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "");
   if (intent === "claim-next") {
-    if (!runtime.db) return bad("Curation workflow unavailable.", 503);
-    const submissionId = await createCurationWorkflowRepository(runtime.db).claimNextSubmission(
-      auth.identity,
-      new Date(),
-    );
+    if (!workflow) return bad("Curation workflow unavailable.", 503);
+    const submissionId = await workflow.claimNextSubmission(auth.identity, new Date());
     return submissionId
       ? redirect(`/curator/submissions?flash=ready#submission-${submissionId}`)
       : redirect("/curator/submissions?flash=no-ready-submissions");
@@ -91,7 +99,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const submissionId = submissionIdResult.value;
 
   if (intent === "grade") {
-    if (!runtime.db) return bad("Curation workflow unavailable.", 503);
+    if (!workflow) return bad("Curation workflow unavailable.", 503);
     const score = (name: string) => Number(form.get(name));
     const artisticQuality = score("artisticQuality");
     const originalityIntent = score("originalityIntent");
@@ -109,8 +117,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
       return bad("Choose final grade A, B, or C.");
     }
     const rationale = String(form.get("rationale") ?? "").trim();
-    if (!rationale) return bad("Decision rationale is required.");
-    const result = await createCurationWorkflowRepository(runtime.db).finalizeReview(
+    const rationaleError = curationRationaleError(rationale);
+    if (rationaleError) return bad(rationaleError);
+    const result = await workflow.finalizeReview(
       {
         submissionId,
         artisticQuality,
@@ -128,12 +137,15 @@ export async function action({ request, context }: ActionFunctionArgs) {
   }
 
   if (intent === "assign") {
-    if (runtime.db) return bad("Use Review next for an exclusive queue claim.");
+    if (workflow) return bad("Use Review next for an exclusive queue claim.");
     await service.assignCurator(submissionId, auth.identity);
     return redirect("/curator/submissions?flash=assigned");
   }
   if (intent === "transition") {
     const toStatus = String(form.get("toStatus") ?? "");
+    if (workflow && toStatus === "listening") {
+      return bad("Use Review next for an exclusive queue claim.", 409);
+    }
     const result = await service.transition({
       submissionId,
       actor: auth.identity,
@@ -209,6 +221,13 @@ export const meta: Route.MetaFunction = () => [{ title: `Curator submissions | $
 export default function CuratorSubmissionsRoute() {
   const data = useLoaderData<typeof loader>();
   const actionData = useActionData<{ error?: string; grantUrl?: string; expiresAt?: string }>();
+  const pageHref = (page: number) => {
+    const parameters = new URLSearchParams();
+    if (data.filter.status !== "all") parameters.set("status", data.filter.status);
+    if (data.filter.assignedTo !== "all") parameters.set("assignedTo", data.filter.assignedTo);
+    parameters.set("page", String(page));
+    return `?${parameters.toString()}`;
+  };
   return (
     <main className="curator-workspace">
       <p className="eyebrow">Curator workspace</p>
@@ -270,7 +289,11 @@ export default function CuratorSubmissionsRoute() {
                   <button type="submit">Assign me</button>
                 </Form>
               ) : null}
-              {["eligibility_review", "listening", "withdrawn"].map((status) => (
+              {[
+                "eligibility_review",
+                ...(data.workflowAvailable ? [] : ["listening"]),
+                "withdrawn",
+              ].map((status) => (
                 <Form method="post" key={`${submission.submission.id}-${status}`}>
                   <input type="hidden" name="intent" value="transition" />
                   <input type="hidden" name="submissionId" value={submission.submission.id} />
@@ -344,6 +367,11 @@ export default function CuratorSubmissionsRoute() {
             </ul>
           </article>
         ))}
+        <nav className="curation-pagination" aria-label="Submission queue pages">
+          {data.page > 1 ? <Link to={pageHref(data.page - 1)}>Previous page</Link> : <span />}
+          <span>Page {data.page}</span>
+          {data.hasNextPage ? <Link to={pageHref(data.page + 1)}>Next page</Link> : <span />}
+        </nav>
       </section>
     </main>
   );

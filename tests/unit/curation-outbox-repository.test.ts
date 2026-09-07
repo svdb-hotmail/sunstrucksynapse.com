@@ -5,10 +5,12 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 import * as schema from "../../app/db/schema";
+import type { MediaBucket } from "../../app/config/env.server";
 import {
   buildCurationOutboxInsert,
   createCurationOutboxRepository,
 } from "../../app/repositories/curation-outbox.server";
+import { dispatchCurationOutbox } from "../../app/services/curation-outbox-dispatch.server";
 
 type StoredOutboxRow = {
   id: string;
@@ -296,5 +298,68 @@ describe("curation outbox repository", () => {
       db.execute(sql`with queued as (${rolledBack}) select 1 / 0 from queued`),
     ).rejects.toThrow();
     await expect(stored("rolled-back")).resolves.toBeNull();
+  });
+
+  it("deletes an expired staging object through the bounded outbox dispatcher", async () => {
+    const invitationId = "b0000000-0000-4000-8000-000000000001";
+    const submissionId = "b0000000-0000-4000-8000-000000000002";
+    const uploadSessionId = "b0000000-0000-4000-8000-000000000003";
+    const stagingObjectKey = `private/review-audio/staging/${uploadSessionId}`;
+    await client.exec(`
+      insert into submission_invitations (
+        id, public_reference, token_hash, invitee_name, invitee_email, expires_at
+      ) values (
+        '${invitationId}', 'INV-CLEANUP-001', repeat('b', 64),
+        'Cleanup Artist', 'cleanup@example.test', '2030-01-01T00:00:00Z'
+      );
+      insert into submissions (
+        id, invitation_id, public_reference, invitation_reference, submitter_name,
+        submitter_email, title, artist_details, status
+      ) values (
+        '${submissionId}', '${invitationId}', 'SUB-CLEANUP-001', 'INV-CLEANUP-001',
+        'Cleanup Artist', 'cleanup@example.test', 'Cleanup Track', '{}'::jsonb, 'draft'
+      );
+      insert into submission_audio_upload_sessions (
+        id, submission_id, staging_object_key, original_filename, mime_type,
+        checksum_sha256, byte_size, duration_ms, codec, status, expires_at
+      ) values (
+        '${uploadSessionId}', '${submissionId}', '${stagingObjectKey}',
+        'cleanup.flac', 'audio/flac', repeat('b', 64), 1024, 90000, 'flac',
+        'pending', '2026-09-07T11:00:00Z'
+      );
+    `);
+    await repository.enqueue({
+      idempotencyKey: `review-audio-upload:${uploadSessionId}:staging-cleanup`,
+      kind: "review_audio_staging_cleanup",
+      payload: { uploadSessionId },
+      availableAt: new Date("2026-09-07T11:00:00Z"),
+    });
+    const deleted: string[] = [];
+    const bucket: MediaBucket = {
+      async put() {
+        return { size: 0 };
+      },
+      async head() {
+        return null;
+      },
+      async get() {
+        return null;
+      },
+      async delete(key) {
+        deleted.push(key);
+      },
+    };
+
+    await dispatchCurationOutbox(
+      db as never,
+      { mode: "noop", async send() {} },
+      bucket,
+      new Date("2026-09-07T12:00:00Z"),
+    );
+
+    expect(deleted).toEqual([stagingObjectKey]);
+    expect(await stored(`review-audio-upload:${uploadSessionId}:staging-cleanup`)).toMatchObject({
+      status: "succeeded",
+    });
   });
 });

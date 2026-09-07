@@ -1001,7 +1001,11 @@ form button[type="submit"] {
   border: var(--border-subtle);
   border-radius: var(--radius-lg);
   background:
-    linear-gradient(135deg, color-mix(in srgb, var(--accent) 8%, transparent), transparent 45%),
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-accent-pink) 8%, transparent),
+      transparent 45%
+    ),
     var(--component-form-surface-background);
   box-shadow: var(--shadow-card);
 }
@@ -1045,8 +1049,20 @@ form button[type="submit"] {
 
 .curation-grade-note {
   grid-column: 1 / -1;
-  color: var(--muted);
+  color: var(--color-content-secondary);
   font-size: 0.8rem;
+}
+
+.curation-pagination {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block: var(--space-5);
+}
+
+.curation-pagination > :last-child {
+  justify-self: end;
 }
 
 @media (max-width: 760px) {

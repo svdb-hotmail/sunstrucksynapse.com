@@ -108,7 +108,12 @@ export interface CuratorRepository {
   homepagePositionInUse(collectionId: string, homepagePosition: number): Promise<boolean>;
   listAudit(): Promise<CuratorAuditEntry[]>;
   publishScheduled(now: Date): Promise<number>;
-  publicationBlockers?(type: CuratorEntityType, id: string): Promise<string[]>;
+  publicationBlockers(
+    type: CuratorEntityType,
+    id: string,
+    target: "scheduled" | "published",
+    scheduledFor: Date | null,
+  ): Promise<string[]>;
 }
 
 const artistSelection = {
@@ -572,7 +577,8 @@ export function createCuratorRepository(db: Database): CuratorRepository {
         .where(and(eq(table.lifecycleStatus, "scheduled"), lte(table.scheduledFor, now)))
         .orderBy(asc(table.scheduledFor), asc(table.id));
       for (const { id } of due) {
-        if (type === "track" && (await publicationBlockers(type, id)).length > 0) continue;
+        if (type === "track" && (await publicationBlockers(type, id, "published", null)).length > 0)
+          continue;
         if (
           await setLifecycle(
             type,
@@ -591,8 +597,28 @@ export function createCuratorRepository(db: Database): CuratorRepository {
     return count;
   }
 
-  async function publicationBlockers(type: CuratorEntityType, id: string): Promise<string[]> {
+  async function publicationBlockers(
+    type: CuratorEntityType,
+    id: string,
+    target: "scheduled" | "published",
+    scheduledFor: Date | null,
+  ): Promise<string[]> {
     if (type !== "track") return [];
+    if (target === "scheduled" && !scheduledFor) return ["valid scheduled publication time"];
+    const releaseLifecycleReady =
+      target === "published"
+        ? sql`release.lifecycle_status = 'published'`
+        : sql`(
+            release.lifecycle_status = 'published'
+            or (release.lifecycle_status = 'scheduled' and release.scheduled_for <= ${scheduledFor!.toISOString()}::timestamptz)
+          )`;
+    const artistLifecycleReady =
+      target === "published"
+        ? sql`artist.lifecycle_status = 'published'`
+        : sql`(
+            artist.lifecycle_status = 'published'
+            or (artist.lifecycle_status = 'scheduled' and artist.scheduled_for <= ${scheduledFor!.toISOString()}::timestamptz)
+          )`;
     const result = await db.execute<Record<string, boolean>>(sql`
       select
         exists (
@@ -617,11 +643,22 @@ export function createCuratorRepository(db: Database): CuratorRepository {
         ) as "hasArtwork",
         exists (
           select 1 from tracks track
-          join releases release on release.id = track.release_id
-          where track.id = ${id}::uuid and release.lifecycle_status = 'published'
-            and track.genre is not null and cardinality(track.moods) > 0
+          where track.id = ${id}::uuid and track.genre is not null and cardinality(track.moods) > 0
             and cardinality(track.creative_process_tags) > 0
-        ) as "hasMetadataAndRelease"
+        ) as "hasMetadata",
+        exists (
+          select 1 from tracks track
+          join releases release on release.id = track.release_id
+          where track.id = ${id}::uuid and ${releaseLifecycleReady}
+        ) as "hasReadyRelease",
+        exists (
+          select 1 from track_artist_credits credit
+          where credit.track_id = ${id}::uuid
+        ) and not exists (
+          select 1 from track_artist_credits credit
+          join artists artist on artist.id = credit.artist_id
+          where credit.track_id = ${id}::uuid and not (${artistLifecycleReady})
+        ) as "hasReadyArtists"
     `);
     const rows = (result as { rows?: Record<string, boolean>[] }).rows ?? [];
     const readiness = rows[0];
@@ -630,7 +667,17 @@ export function createCuratorRepository(db: Database): CuratorRepository {
       !readiness.hasAcceptedReview ? "accepted A/B review and sealed private listening copy" : null,
       !readiness.hasMedia ? "ready public media derivative" : null,
       !readiness.hasArtwork ? "ready primary artwork" : null,
-      !readiness.hasMetadataAndRelease ? "genre, moods, process tags, and published release" : null,
+      !readiness.hasMetadata ? "genre, moods, and process tags" : null,
+      !readiness.hasReadyRelease
+        ? target === "scheduled"
+          ? "release published or scheduled no later than the track"
+          : "published release"
+        : null,
+      !readiness.hasReadyArtists
+        ? target === "scheduled"
+          ? "credited artists published or scheduled no later than the track"
+          : "published credited artists"
+        : null,
     ].filter((value): value is string => Boolean(value));
   }
 

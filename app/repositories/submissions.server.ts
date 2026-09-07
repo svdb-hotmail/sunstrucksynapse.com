@@ -92,6 +92,8 @@ export interface SubmissionDraftInput {
 export interface SubmissionFilter {
   status?: SubmissionStatus | "all";
   assignedTo?: string | "all";
+  limit?: number;
+  offset?: number;
 }
 
 export interface SubmissionInvitationRecord {
@@ -1225,7 +1227,9 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
         .select({ id: submissions.id })
         .from(submissions)
         .where(conditions.length > 0 ? and(...conditions) : undefined)
-        .orderBy(desc(submissions.submittedAt), desc(submissions.updatedAt));
+        .orderBy(desc(submissions.submittedAt), desc(submissions.updatedAt))
+        .limit(Math.min(Math.max(filter.limit ?? 100, 1), 101))
+        .offset(Math.max(filter.offset ?? 0, 0));
       const values = await Promise.all(rows.map(({ id }) => buildAggregate(id)));
       return values.filter((value): value is SubmissionAggregate => Boolean(value));
     },
@@ -1254,7 +1258,11 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
     async transitionStatus(input) {
       const aggregate = await buildAggregate(input.submissionId);
       if (!aggregate) return null;
-      await db
+      const assignmentCondition =
+        aggregate.submission.status === "listening" || input.toStatus === "listening"
+          ? eq(submissions.assignedCuratorId, input.actor.id)
+          : undefined;
+      const updated = await db
         .update(submissions)
         .set({
           status: input.toStatus,
@@ -1270,7 +1278,15 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
               : aggregate.submission.withdrawnAt,
           updatedAt: input.transitionedAt,
         })
-        .where(eq(submissions.id, input.submissionId));
+        .where(
+          and(
+            eq(submissions.id, input.submissionId),
+            eq(submissions.status, aggregate.submission.status),
+            assignmentCondition,
+          ),
+        )
+        .returning({ id: submissions.id });
+      if (updated.length !== 1) return null;
       await recordActivity(input.submissionId, "status_change", "curator", input.transitionedAt, {
         actorId: input.actor.id,
         actorEmail: input.actor.email,

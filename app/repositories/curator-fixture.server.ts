@@ -67,6 +67,34 @@ export function createE2eCuratorRepository(): CuratorRepository {
     return true;
   };
 
+  const publicationBlockers: CuratorRepository["publicationBlockers"] = async (
+    type,
+    id,
+    target,
+    scheduledFor,
+  ) => {
+    if (type !== "track") return [];
+    const track = await find("track", id);
+    if (!track) return ["readiness could not be determined"];
+    const parentReady = (parent: CuratorEntity | null) =>
+      parent?.lifecycleStatus === "published" ||
+      (target === "scheduled" &&
+        scheduledFor !== null &&
+        parent?.lifecycleStatus === "scheduled" &&
+        parent.scheduledFor !== null &&
+        parent.scheduledFor <= scheduledFor);
+    const release = track.releaseId ? await find("release", track.releaseId) : null;
+    const artist = track.artistId ? await find("artist", track.artistId) : null;
+    return [
+      "accepted A/B review and sealed private listening copy",
+      "ready public media derivative",
+      "ready primary artwork",
+      "genre, moods, and process tags",
+      !parentReady(release) ? "publication-ready release" : null,
+      !parentReady(artist) ? "publication-ready credited artists" : null,
+    ].filter((value): value is string => Boolean(value));
+  };
+
   return {
     async list(type) {
       return [...entities.get(type)!];
@@ -190,6 +218,12 @@ export function createE2eCuratorRepository(): CuratorRepository {
         );
         for (const entity of due) {
           if (
+            type === "track" &&
+            (await publicationBlockers(type, entity.id, "published", null)).length > 0
+          ) {
+            continue;
+          }
+          if (
             await setLifecycle(
               type,
               entity.id,
@@ -207,5 +241,6 @@ export function createE2eCuratorRepository(): CuratorRepository {
       }
       return published;
     },
+    publicationBlockers,
   };
 }
