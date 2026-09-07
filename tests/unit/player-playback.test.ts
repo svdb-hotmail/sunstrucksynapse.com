@@ -5,6 +5,7 @@ import {
   isR2MediaUrl,
   verifyMediaSignature,
 } from "../../app/services/media-signing";
+import { shouldClearLoadingOnPause } from "../../app/components/PlayerPanel";
 import {
   PlaybackCoordinator,
   type PlaybackMediaElement,
@@ -194,9 +195,11 @@ describe("player playback behavior and coordinator lifecycle", () => {
     media.pause();
 
     expect(coordinator.isLoading()).toBe(true);
+    expect(shouldClearLoadingOnPause(coordinator)).toBe(false);
     result.resolve("/media/audio/pending-play-asset?signature=fresh");
     await request;
     expect(coordinator.isLoading()).toBe(false);
+    expect(shouldClearLoadingOnPause(coordinator)).toBe(true);
   });
 
   it("proves retry after 403 or playback error calls refresh again and updates media source", async () => {

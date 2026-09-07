@@ -36,6 +36,12 @@ function formatTime(seconds: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 }
 
+export function shouldClearLoadingOnPause(
+  coordinator: Pick<PlaybackCoordinator, "isLoading">,
+): boolean {
+  return !coordinator.isLoading();
+}
+
 export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function PlayerPanel(
   {
     item,
@@ -348,7 +354,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     onPlay: handlePlay,
     onPause: () => {
       setIsPlaying(false);
-      if (!coordinator.isLoading()) {
+      if (shouldClearLoadingOnPause(coordinator)) {
         setIsLoading(false);
       }
     },
