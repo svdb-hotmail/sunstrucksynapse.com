@@ -59,11 +59,10 @@ test("submits an invited draft and prevents a curator decision without private r
   const submissionCard = curatorPage.locator(".curator-record").filter({
     hasText: "Playwright Orbit",
   });
-  await submissionCard.getByRole("button", { name: "Assign me" }).click();
   await submissionCard.getByRole("button", { name: "Move to eligibility review" }).click();
-  await submissionCard.getByRole("button", { name: "Move to listening" }).click();
-  await expect(submissionCard.getByText("Waiting for private review audio.")).toBeVisible();
-  await expect(submissionCard.getByRole("button", { name: "Finalize decision" })).toBeDisabled();
-  await expect(submissionCard).toContainText("listening");
+  await expect(submissionCard).toContainText("eligibility_review");
+  await expect(submissionCard.getByRole("button", { name: "Assign me" })).toHaveCount(0);
+  await expect(submissionCard.getByRole("button", { name: "Move to listening" })).toHaveCount(0);
+  await expect(submissionCard.getByRole("button", { name: "Finalize decision" })).toHaveCount(0);
   await curatorContext.close();
 });
