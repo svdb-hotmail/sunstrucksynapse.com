@@ -64,6 +64,13 @@
       "when": 1786926197082,
       "tag": "0008_lame_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1788811776239,
+      "tag": "0009_curation_outbox",
+      "breakpoints": true
     }
   ]
 }
