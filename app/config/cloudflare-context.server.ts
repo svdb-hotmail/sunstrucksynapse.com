@@ -3,6 +3,7 @@ import { createContext } from "react-router";
 import type { Database } from "~/db/client.server";
 import type { CatalogueRepository } from "~/repositories/catalogue.server";
 import type { CuratorRepository } from "~/repositories/curator.server";
+import type { CurationWorkflowRepository } from "~/repositories/curation-workflow.server";
 import type { SubmissionRepository } from "~/repositories/submissions.server";
 import type { AnalyticsRepository } from "~/repositories/analytics.server";
 import type { RateLimitRepository } from "~/repositories/rate-limit.server";
@@ -14,6 +15,10 @@ export interface CloudflareContextValue {
   db?: Database;
   catalogueRepository: CatalogueRepository;
   curatorRepository?: CuratorRepository;
+  curationWorkflowRepository?: Pick<
+    CurationWorkflowRepository,
+    "claimNextSubmission" | "finalizeReview" | "currentAudioForSubmissions"
+  >;
   submissionRepository?: SubmissionRepository;
   analyticsRepository?: AnalyticsRepository;
   rateLimitRepository?: RateLimitRepository;

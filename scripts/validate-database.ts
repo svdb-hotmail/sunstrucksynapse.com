@@ -31,6 +31,8 @@ const expectedTables = [
   "audio_assets",
   "collection_items",
   "creative_process_disclosures",
+  "curation_outbox",
+  "curation_reviews",
   "editorial_collections",
   "evidence_upload_sessions",
   "playback_events",
@@ -47,7 +49,10 @@ const expectedTables = [
   "request_rate_limits",
   "rights_declarations",
   "submission_activities",
+  "submission_audio_upload_sessions",
   "submission_invitations",
+  "submission_review_audio",
+  "submission_review_audio_selections",
   "submissions",
   "track_artist_credits",
   "track_artwork_assets",
@@ -64,6 +69,13 @@ const requiredIndexes = [
   "collection_items_collection_order_idx",
   "collection_items_track_unique",
   "collection_items_release_unique",
+  "curation_outbox_idempotency_key_unique",
+  "curation_outbox_claim_idx",
+  "curation_reviews_submission_version_unique",
+  "submission_audio_upload_sessions_cleanup_idx",
+  "submission_review_audio_object_key_unique",
+  "submission_review_audio_submission_version_unique",
+  "submission_review_audio_selections_audio_unique",
   "submissions_review_queue_idx",
   "submissions_public_reference_unique",
   "rights_declarations_submission_version_unique",
@@ -91,6 +103,22 @@ const requiredChecks = [
   "rights_declarations_self_supersession_check",
   "creative_process_disclosures_parent_check",
   "creative_process_disclosures_revision_author_check",
+  "curation_outbox_idempotency_key_check",
+  "curation_outbox_kind_check",
+  "curation_outbox_payload_check",
+  "curation_outbox_status_check",
+  "curation_outbox_attempts_check",
+  "curation_outbox_lease_check",
+  "curation_outbox_completion_check",
+  "curation_outbox_error_code_check",
+  "curation_outbox_succeeded_error_check",
+  "curation_reviews_scores_check",
+  "curation_reviews_grade_check",
+  "submission_audio_upload_sessions_metadata_check",
+  "submission_audio_upload_sessions_status_check",
+  "submission_audio_upload_sessions_lease_check",
+  "submission_review_audio_key_check",
+  "submission_review_audio_version_check",
   "provenance_records_parent_check",
   "provenance_records_revision_author_check",
   "provenance_evidence_filename_check",
@@ -122,6 +150,14 @@ const requiredTriggers = [
   "submissions_set_updated_at",
   "submission_invitations_set_updated_at",
   "evidence_upload_sessions_set_updated_at",
+  "curation_outbox_protect_succeeded",
+  "curation_outbox_set_updated_at",
+  "curation_reviews_immutable",
+  "submission_review_audio_immutable",
+  "submission_audio_upload_sessions_protect_completed",
+  "submission_audio_upload_sessions_set_updated_at",
+  "submission_review_audio_selections_set_updated_at",
+  "submission_review_audio_selections_parent",
   "rights_declarations_enforce_supersession",
   "creative_process_disclosures_enforce_supersession",
   "provenance_records_enforce_supersession",
@@ -194,7 +230,7 @@ async function verifySchemaObjects(client: PGlite) {
     assert(constraints.get(checkName) === "c", `required check ${checkName} is missing`);
   }
   const foreignKeyCount = constraintResult.rows.filter(({ type }) => type === "f").length;
-  assert(foreignKeyCount === 46, `expected 46 foreign keys, found ${foreignKeyCount}`);
+  assert(foreignKeyCount === 56, `expected 56 foreign keys, found ${foreignKeyCount}`);
 
   const triggerResult = await client.query<{ name: string }>(
     `select tgname as name
@@ -958,7 +994,7 @@ async function validateExistingHistoryGuard() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 9, "expected the original and eight forward migrations");
+    assert(migrations.length === 12, "expected the original and eleven forward migrations");
     for (const statement of migrations[0]!.sql) {
       await client.exec(statement);
     }
@@ -1001,7 +1037,7 @@ async function validateVideoAssetForwardMigration() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 9, "expected the original and eight forward migrations");
+    assert(migrations.length === 12, "expected the original and eleven forward migrations");
     for (const migration of migrations.slice(0, 4)) {
       for (const statement of migration.sql) {
         await client.exec(statement);
@@ -1130,7 +1166,7 @@ async function validateHomepageCollectionsForwardMigration() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 9, "expected the original and eight forward migrations");
+    assert(migrations.length === 12, "expected the original and eleven forward migrations");
     for (const migration of migrations.slice(0, 5)) {
       for (const statement of migration.sql) {
         await client.exec(statement);

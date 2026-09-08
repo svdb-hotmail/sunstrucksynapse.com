@@ -10,6 +10,8 @@ import {
 
 import { SITE_NAME } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
+import { ReviewAudioUploader } from "~/components/ReviewAudioUploader";
+import { createCurationWorkflowRepository } from "~/repositories/curation-workflow.server";
 import type { SubmissionDraftInput } from "~/repositories/submissions.server";
 import {
   EVIDENCE_MAX_BYTE_SIZE,
@@ -310,6 +312,12 @@ export async function loader({ context, params, request }: LoaderFunctionArgs) {
     throw new Response("Submission link unavailable.", { status: 404, statusText: "Not found" });
   }
   const aggregate = await service.loadPublic(tokenHash);
+  const reviewAudio = runtime.db
+    ? await createCurationWorkflowRepository(runtime.db).currentAudioByTokenHash(
+        tokenHash,
+        new Date(),
+      )
+    : null;
   return {
     invitation,
     aggregate,
@@ -365,6 +373,8 @@ export async function loader({ context, params, request }: LoaderFunctionArgs) {
         }
       : blankData(invitation.inviteeName, invitation.inviteeEmail),
     flash: flowMessage(new URL(request.url)),
+    reviewAudio,
+    reviewAudioEndpoint: `/submit/${encodeURIComponent(rawToken)}/review-audio`,
   };
 }
 
@@ -987,6 +997,15 @@ export default function SubmissionRoute() {
           </button>
         </div>
       </Form>
+
+      <ReviewAudioUploader
+        endpoint={data.reviewAudioEndpoint}
+        currentAudio={data.reviewAudio}
+        disabled={
+          !data.aggregate ||
+          (status !== "draft" && status !== "received" && status !== "clarification_requested")
+        }
+      />
 
       <section>
         <h2>Private evidence</h2>

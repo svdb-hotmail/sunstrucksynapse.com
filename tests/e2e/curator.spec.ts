@@ -31,6 +31,38 @@ test("keeps public routes available while curator mutations require Access", asy
   expect(mutation.status()).toBe(401);
 });
 
+test("claims the next ready submission, presents its listening copy, and records a grade", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    extraHTTPHeaders: {
+      "x-test-curator-identity": "review-actor|curator@example.test",
+    },
+  });
+  const page = await context.newPage();
+  await page.goto("/curator/submissions");
+
+  await page.getByRole("button", { name: "Review next ready submission" }).click();
+  const submission = page.locator("article.curator-record").filter({ hasText: "SUB-REVIEW-001" });
+  await expect(submission).toContainText("listening · review@example.test");
+  await expect(submission).toContainText("unwritten-frequency.flac · 180 seconds · private");
+
+  await submission.getByLabel("Artistic quality").selectOption("4");
+  await submission.getByLabel("Originality & intent").selectOption("5");
+  await submission.getByLabel("Production readiness").selectOption("4");
+  await submission.getByLabel("Editorial fit").selectOption("5");
+  await submission.getByLabel(/B · accept$/).check();
+  await submission
+    .getByLabel("Decision rationale")
+    .fill("A deliberate, distinctive signal ready for catalogue preparation.");
+  await submission.getByRole("button", { name: "Finalize decision" }).click();
+
+  await expect(page).toHaveURL(/flash=accepted/);
+  await expect(page.getByText("accepted", { exact: true })).toBeVisible();
+  await expect(submission).toContainText("accepted · review@example.test");
+  await context.close();
+});
+
 test("manages linked catalogue records and surfaces safe form failures", async ({
   browser,
 }, testInfo) => {

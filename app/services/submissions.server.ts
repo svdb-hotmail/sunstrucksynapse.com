@@ -231,6 +231,18 @@ export class SubmissionService {
         },
       };
     }
+    if (
+      (current.submission.status === "listening" || input.toStatus === "listening") &&
+      current.submission.assignedCuratorId !== input.actor.id
+    ) {
+      return {
+        ok: false,
+        error: {
+          code: "forbidden",
+          message: "Only the exclusively assigned curator can change a listening review.",
+        },
+      };
+    }
     const value = await this.repository.transitionStatus(input);
     return value
       ? { ok: true, value }

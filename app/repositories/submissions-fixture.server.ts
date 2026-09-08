@@ -18,6 +18,7 @@ import type {
 } from "~/types/submissions";
 
 export const e2eSubmissionInvitationToken = "phase3-invite-token";
+export const e2eReviewSubmissionId = "70000000-0000-4000-8000-000000000902";
 
 function blankDraft(): SubmissionDraftInput {
   return {
@@ -369,6 +370,44 @@ export function createE2eSubmissionRepository(): SubmissionRepository {
   );
   aggregates.set(accepted.submission.id, accepted);
 
+  const reviewInvitation: SubmissionInvitationRecord = {
+    id: "submission-invite-review",
+    publicReference: "INV-REVIEW-001",
+    inviteeName: "Review Signal",
+    inviteeEmail: "review@example.test",
+    expiresAt: new Date("2030-01-01T00:00:00Z"),
+    revokedAt: null,
+  };
+  invitations.set(reviewInvitation.id, reviewInvitation);
+  const review = clone(accepted);
+  review.invitation = reviewInvitation;
+  Object.assign(review.submission, {
+    id: e2eReviewSubmissionId,
+    invitationId: reviewInvitation.id,
+    publicReference: "SUB-REVIEW-001",
+    invitationReference: reviewInvitation.publicReference,
+    submitterName: "Review Signal",
+    submitterEmail: reviewInvitation.inviteeEmail,
+    title: "Unwritten Frequency",
+    status: "eligibility_review" as const,
+    submittedAt: new Date("2026-09-07T10:00:00Z"),
+    reviewedAt: new Date("2026-09-07T10:05:00Z"),
+    acceptedAt: null,
+    assignedCuratorId: null,
+    assignedCuratorEmail: null,
+    assignedAt: null,
+    resultingReleaseId: null,
+    resultingTrackId: null,
+    acceptedRightsDeclarationId: null,
+    acceptedCreativeProcessDisclosureId: null,
+    acceptedProvenanceRecordId: null,
+  });
+  review.rights.id = "80000000-0000-4000-8000-000000000902";
+  review.process.id = "90000000-0000-4000-8000-000000000902";
+  review.provenance.id = "a0000000-0000-4000-8000-000000000902";
+  review.activities = [];
+  aggregates.set(review.submission.id, review);
+
   function findInvitation(tokenHash: string, now: Date) {
     const id = invitationIdsByHash.get(tokenHash);
     if (!id) return null;
@@ -539,7 +578,11 @@ export function createE2eSubmissionRepository(): SubmissionRepository {
       return clone(stored);
     },
     async listCuratorSubmissions(filter) {
-      return filtered(filter).map(clone);
+      const offset = Math.max(filter?.offset ?? 0, 0);
+      const limit = Math.min(Math.max(filter?.limit ?? 100, 1), 101);
+      return filtered(filter)
+        .slice(offset, offset + limit)
+        .map(clone);
     },
     async findCuratorSubmission(submissionId) {
       const value = findSubmission(submissionId);
