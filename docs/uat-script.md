@@ -45,7 +45,8 @@ Use this script against a production-like deployment with real, rights-cleared c
 
 | Step                                                                                      | Expected result                                                                                          | Result / evidence |
 | ----------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ----------------- |
-| Open an invitation link and save a complete draft                                         | Draft persists and is accessible only via its invitation link.                                           |                   |
+| As a curator, create a private submission link from `/curator/submissions`                | A one-time copyable link and expiry are shown; the raw token is not listed again after leaving the page. |                   |
+| Open the invitation link and save a complete draft                                        | Draft persists and is accessible only via its invitation link.                                           |                   |
 | Submit with all required declarations                                                     | Submission changes to `received`; submitter receives the configured acknowledgement.                     |                   |
 | Attempt direct acceptance before listening                                                | Rejected with a transition conflict; no acceptance is recorded.                                          |                   |
 | Curator moves a valid submission through eligibility review to listening, then accepts it | Permitted transitions work; accepted declaration revisions and curator activity are immutable/auditable. |                   |

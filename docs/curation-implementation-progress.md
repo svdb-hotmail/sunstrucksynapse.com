@@ -13,6 +13,8 @@ presenting the normal independent-gate lineage as completed.
 
 ## Requirement to implementation
 
+- Curator starts intake: `/curator/submissions` issues a time-limited private submission URL;
+  only the token hash is retained and the raw link is shown once for copying.
 - Artist supplies input: invitation-backed drafts now include a direct-to-R2 private review-audio
   uploader with bounded declarations, a 15-minute staged PUT, streaming checksum verification,
   immutable sealed object versions, replacement selection, and expired-staging cleanup.
@@ -37,8 +39,8 @@ presenting the normal independent-gate lineage as completed.
 
 ## Artifacts
 
-- Database: migrations `0009_curation_outbox.sql`, `0010_cool_human_cannonball.sql`, and
-  `0011_enforce_curation_parentage.sql`, schemas,
+- Database: migrations `0009_curation_outbox.sql`, `0010_cool_human_cannonball.sql`,
+  `0011_enforce_curation_parentage.sql`, and `0012_audit_submission_invitations.sql`, schemas,
   repositories, immutability/integrity triggers, and exact inventory updates.
 - Runtime: review-audio signing/sealing service, upload/playback routes, outbox dispatcher, cron
   cleanup/dispatch, atomic grading and draft-catalogue preparation.

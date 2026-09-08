@@ -50,6 +50,7 @@ const expectedTables = [
   "rights_declarations",
   "submission_activities",
   "submission_audio_upload_sessions",
+  "submission_invitation_issuance_audit",
   "submission_invitations",
   "submission_review_audio",
   "submission_review_audio_selections",
@@ -83,6 +84,8 @@ const requiredIndexes = [
   "creative_process_disclosures_supersedes_unique",
   "publication_audit_entity_history_idx",
   "submission_invitations_public_reference_unique",
+  "submission_invitation_issuance_audit_invitation_unique",
+  "submission_invitation_issuance_audit_actor_idx",
   "submission_activities_submission_created_idx",
   "evidence_upload_sessions_cleanup_idx",
   "provenance_evidence_record_storage_ref_unique",
@@ -119,6 +122,8 @@ const requiredChecks = [
   "submission_audio_upload_sessions_lease_check",
   "submission_review_audio_key_check",
   "submission_review_audio_version_check",
+  "submission_invitation_issuance_audit_actor_id_check",
+  "submission_invitation_issuance_audit_actor_email_check",
   "provenance_records_parent_check",
   "provenance_records_revision_author_check",
   "provenance_evidence_filename_check",
@@ -158,6 +163,7 @@ const requiredTriggers = [
   "submission_audio_upload_sessions_set_updated_at",
   "submission_review_audio_selections_set_updated_at",
   "submission_review_audio_selections_parent",
+  "submission_invitation_issuance_audit_immutable",
   "rights_declarations_enforce_supersession",
   "creative_process_disclosures_enforce_supersession",
   "provenance_records_enforce_supersession",
@@ -230,7 +236,7 @@ async function verifySchemaObjects(client: PGlite) {
     assert(constraints.get(checkName) === "c", `required check ${checkName} is missing`);
   }
   const foreignKeyCount = constraintResult.rows.filter(({ type }) => type === "f").length;
-  assert(foreignKeyCount === 56, `expected 56 foreign keys, found ${foreignKeyCount}`);
+  assert(foreignKeyCount === 57, `expected 57 foreign keys, found ${foreignKeyCount}`);
 
   const triggerResult = await client.query<{ name: string }>(
     `select tgname as name
@@ -994,7 +1000,7 @@ async function validateExistingHistoryGuard() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 12, "expected the original and eleven forward migrations");
+    assert(migrations.length === 13, "expected the original and twelve forward migrations");
     for (const statement of migrations[0]!.sql) {
       await client.exec(statement);
     }
@@ -1037,7 +1043,7 @@ async function validateVideoAssetForwardMigration() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 12, "expected the original and eleven forward migrations");
+    assert(migrations.length === 13, "expected the original and twelve forward migrations");
     for (const migration of migrations.slice(0, 4)) {
       for (const statement of migration.sql) {
         await client.exec(statement);
@@ -1166,7 +1172,7 @@ async function validateHomepageCollectionsForwardMigration() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 12, "expected the original and eleven forward migrations");
+    assert(migrations.length === 13, "expected the original and twelve forward migrations");
     for (const migration of migrations.slice(0, 5)) {
       for (const statement of migration.sql) {
         await client.exec(statement);

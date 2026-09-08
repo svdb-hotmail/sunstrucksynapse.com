@@ -12,6 +12,7 @@ import {
   provenanceSteps,
   rightsDeclarations,
   submissionActivities,
+  submissionInvitationIssuanceAudit,
   submissionInvitations,
   submissions,
 } from "~/db/schema";
@@ -103,6 +104,14 @@ export interface SubmissionInvitationRecord {
   inviteeEmail: string;
   expiresAt: Date;
   revokedAt: Date | null;
+}
+
+export interface SubmissionInvitationCreateInput {
+  publicReference: string;
+  tokenHash: string;
+  inviteeName: string | null;
+  inviteeEmail: string;
+  expiresAt: Date;
 }
 
 export interface SubmissionVersionRecord {
@@ -273,6 +282,11 @@ export interface EvidenceAccessRecord {
 }
 
 export interface SubmissionRepository {
+  createInvitation(
+    input: SubmissionInvitationCreateInput,
+    actor: CuratorIdentity,
+    issuedAt: Date,
+  ): Promise<SubmissionInvitationRecord>;
   findInvitationByTokenHash(
     tokenHash: string,
     now: Date,
@@ -1137,6 +1151,32 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
   }
 
   return {
+    async createInvitation(input, actor, issuedAt) {
+      const invitationId = crypto.randomUUID();
+      await db.execute(sql`
+        with inserted_invitation as (
+          insert into ${submissionInvitations} (
+            "id", "public_reference", "token_hash", "invitee_name", "invitee_email", "expires_at"
+          ) values (
+            ${invitationId}, ${input.publicReference}, ${input.tokenHash}, ${input.inviteeName},
+            ${input.inviteeEmail}, ${input.expiresAt}
+          )
+          returning "id"
+        )
+        insert into ${submissionInvitationIssuanceAudit} (
+          "invitation_id", "actor_id", "actor_email", "issued_at"
+        )
+        select "id", ${actor.id}, ${actor.email}, ${issuedAt}
+        from inserted_invitation
+      `);
+      const [invitation] = await db
+        .select()
+        .from(submissionInvitations)
+        .where(eq(submissionInvitations.id, invitationId))
+        .limit(1);
+      if (!invitation) throw new Error("Invitation insert returned no record.");
+      return mapInvitation(invitation);
+    },
     async findInvitationByTokenHash(tokenHash, now) {
       const invitation = await loadValidInvitationByHash(tokenHash, now);
       if (!invitation) return null;

@@ -36,7 +36,7 @@ Before deployment, an operator must:
 6. Keep the enabled `Review audio staging cleanup` lifecycle rule on both media buckets. It
    expires only the `private/review-audio/staging/` prefix after 24 hours; the scheduled outbox
    performs normal cleanup when the 15-minute upload URL expires.
-7. Apply every committed migration through `0011_enforce_curation_parentage.sql` before deploying.
+7. Apply every committed migration through `0012_audit_submission_invitations.sql` before deploying.
 8. Verify Access rejection, curator review-audio byte-range delivery, and the scheduled outbox
    dispatcher.
 

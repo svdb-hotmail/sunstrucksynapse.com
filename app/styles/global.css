@@ -985,6 +985,51 @@ form button[type="submit"] {
   cursor: pointer;
 }
 
+.curation-invitation-panel {
+  display: grid;
+  gap: var(--space-3);
+  margin-block: var(--space-5);
+  padding: clamp(18px, 3vw, 32px);
+  border: var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--component-form-surface-background);
+  box-shadow: var(--shadow-card);
+}
+
+.curation-invitation-panel h2,
+.curation-invitation-panel p {
+  margin-block: 0;
+}
+
+.curation-invitation-form button {
+  align-self: end;
+}
+
+.curation-invitation-result {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-inline-start: 3px solid var(--color-accent-pink);
+  color: var(--color-content-secondary);
+  background: var(--component-form-background);
+}
+
+.curation-invitation-result label {
+  display: grid;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.curation-invitation-result input {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: var(--component-control-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-content-primary);
+  background: var(--component-form-background);
+}
+
 .curation-queue-heading,
 .review-audio-uploader {
   display: flex;
