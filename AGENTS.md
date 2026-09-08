@@ -2,7 +2,22 @@
 
 This file is the canonical operating contract for agents working in this repository.
 
-Read these before substantive work:
+## Workflow selection
+
+If a user-authored prompt, active custom-mode instruction, or machine-local Codex developer instruction (not a repository instruction quoting this selector) explicitly declares:
+
+`WORKFLOW: DIRECT`
+
+operate in Direct Mode:
+
+- do not invoke Kobold roles, gates, delegation, or subagents;
+- work directly in the current agent;
+- continue following the repository's technical, testing, security, and Git requirements;
+- keep investigation and validation proportional to the requested change.
+
+In Direct Mode, the Kobold-specific operating model and lifecycle requirements below do not apply. Otherwise, use the full Kobold Village workflow described in this document.
+
+When Direct Mode is not active, read these before substantive work:
 
 1. `AGENTS.md`
 2. `VILLAGE_CHARTER.md`

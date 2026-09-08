@@ -1,6 +1,8 @@
 # Kobold Village Copilot instructions
 
-Read and follow repository-root `AGENTS.md`, `VILLAGE_CHARTER.md`, and `village.config.yml` before substantive work.
+Read repository-root `AGENTS.md` first and obey its workflow selector. When Direct Mode has been explicitly activated under that selector, the Kobold-specific instructions below do not apply; continue to follow the security requirement in this file.
+
+Otherwise, read and follow `VILLAGE_CHARTER.md` and `village.config.yml` before substantive work.
 
 Use the exact repository custom-agent profiles under `.github/agents/` when their role is required. Do not replace an available Shaman, Warden, Elder, Taskmaster, or Villager gate with informal role-play in the Chieftain context.
 
