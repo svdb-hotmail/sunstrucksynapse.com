@@ -41,6 +41,10 @@ test("sparse catalogue navigation resolves real content from non-home routes", a
   );
   await nav.getByRole("link", { name: "About", exact: true }).click();
   await expect(page).toHaveURL(/\/about$/);
+  await expect(nav.getByRole("link", { name: "About", exact: true })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
   await expect(page.getByRole("heading", { level: 1, name: "About SunSyn Radio" })).toBeVisible();
   await expect(page.locator(".offerings")).toBeVisible();
   await expect(page.locator(".contact")).toBeVisible();

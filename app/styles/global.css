@@ -1185,6 +1185,10 @@ form button[type="submit"] {
     letter-spacing: 0.08em;
     padding: 9px 4px;
   }
+
+  .mobile-tabs a[aria-current] {
+    color: var(--color-content-primary);
+  }
 }
 
 @media (max-width: 440px) {
@@ -1302,11 +1306,11 @@ body {
   letter-spacing: 0.03em;
 }
 
-.desktop-nav a:first-child {
+.desktop-nav a {
   position: relative;
 }
 
-.desktop-nav a:first-child::after {
+.desktop-nav a[aria-current]::after {
   content: "";
   position: absolute;
   left: 0;

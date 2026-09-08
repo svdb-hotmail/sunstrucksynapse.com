@@ -12,6 +12,19 @@ export interface CatalogueNavigationEntry {
   to: "/#latest" | "/#audio" | "/#catalogue" | "/#video" | "/search" | "/about";
 }
 
+export function isCatalogueNavigationEntryActive(
+  entry: CatalogueNavigationEntry,
+  pathname: string,
+  hash: string,
+  isFirstEntry: boolean,
+): boolean {
+  if (entry.to.startsWith("/#")) {
+    return pathname === "/" && (hash === entry.to.slice(1) || (!hash && isFirstEntry));
+  }
+
+  return pathname === entry.to;
+}
+
 export function buildCatalogueNavigation(sections: CatalogueSection[]): CatalogueNavigationEntry[] {
   const sectionIds = new Set(sections.map((section) => section.id));
   const navigation: CatalogueNavigationEntry[] = [];

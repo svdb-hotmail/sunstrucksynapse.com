@@ -53,6 +53,10 @@ test("sparse mobile navigation keeps Listen, Search and About accessible in one 
   );
   await nav.getByRole("link", { name: "About", exact: true }).click();
   await expect(page).toHaveURL(/\/about$/);
+  await expect(nav.getByRole("link", { name: "About", exact: true })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
   await expect(page.getByRole("heading", { level: 1, name: "About SunSyn Radio" })).toBeVisible();
   await expect(page.locator(".offerings")).toBeVisible();
   await expect(page.locator(".contact")).toBeVisible();
@@ -96,6 +100,10 @@ test("all five standard mobile links remain in one row and reach their destinati
   );
   await nav.getByRole("link", { name: "About", exact: true }).click();
   await expect(page).toHaveURL(/\/about$/);
+  await expect(nav.getByRole("link", { name: "About", exact: true })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
   await expect(page.getByRole("heading", { level: 1, name: "About SunSyn Radio" })).toBeVisible();
   await expect(page.locator(".offerings")).toBeVisible();
   await expect(page.locator(".contact")).toBeVisible();

@@ -8,6 +8,7 @@ import Home from "../../app/routes/home";
 import {
   buildCatalogueNavigation,
   buildCatalogueSections,
+  isCatalogueNavigationEntryActive,
   type CatalogueNavigationEntry,
 } from "../../app/services/catalogue";
 import type {
@@ -68,6 +69,27 @@ function renderHome(catalogue: CatalogueLoadResult): string {
 }
 
 describe("catalogue-aware navigation", () => {
+  it("tracks section hashes and standalone routes without leaving the first link active", () => {
+    expect(isCatalogueNavigationEntryActive(standard[0], "/", "", true)).toBe(true);
+    expect(isCatalogueNavigationEntryActive(standard[1], "/", "#audio", false)).toBe(true);
+    expect(isCatalogueNavigationEntryActive(standard[0], "/", "#audio", true)).toBe(false);
+    expect(isCatalogueNavigationEntryActive(standard[4], "/about", "", false)).toBe(true);
+    expect(isCatalogueNavigationEntryActive(standard[0], "/about", "", true)).toBe(false);
+  });
+
+  it("marks About as the current page in desktop and mobile navigation", () => {
+    for (const Navigation of [Header, MobileNav]) {
+      const markup = renderToStaticMarkup(
+        <MemoryRouter initialEntries={["/about"]}>
+          <Navigation navigation={standard} />
+        </MemoryRouter>,
+      );
+
+      expect(markup).toMatch(/<a\b(?=[^>]*href="\/about")(?=[^>]*aria-current="page")[^>]*>/);
+      expect(markup).not.toMatch(/<a\b(?=[^>]*href="\/#latest")(?=[^>]*aria-current)[^>]*>/);
+    }
+  });
+
   it("uses generic Listen for custom Stillith collections without inventing editorial sections", () => {
     expect(navigationFor([collection("stillith")])).toEqual(fallback);
     expect(navigationFor([])).toEqual(fallback);
