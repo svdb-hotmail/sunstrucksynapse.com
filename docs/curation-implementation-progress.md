@@ -13,6 +13,8 @@ presenting the normal independent-gate lineage as completed.
 
 ## Requirement to implementation
 
+- Curator starts intake: `/curator/submissions` issues a time-limited private submission URL;
+  only the token hash is retained and the raw link is shown once for copying.
 - Artist supplies input: invitation-backed drafts now include a direct-to-R2 private review-audio
   uploader with bounded declarations, a 15-minute staged PUT, streaming checksum verification,
   immutable sealed object versions, replacement selection, and expired-staging cleanup.

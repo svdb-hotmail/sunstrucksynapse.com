@@ -25,6 +25,14 @@ import type { Route } from "./+types/curator-submissions";
 
 const CURATION_QUEUE_PAGE_SIZE = 25;
 
+interface CuratorSubmissionActionData {
+  error?: string;
+  grantUrl?: string;
+  invitationUrl?: string;
+  invitationReference?: string;
+  expiresAt?: string;
+}
+
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const runtime = context.get(cloudflareContext);
   const auth = await requireCuratorIdentity(request, runtime.env);
@@ -68,7 +76,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 }
 
 function bad(message: string, status = 400) {
-  return Response.json({ error: message }, { status });
+  return Response.json({ error: message }, { status, headers: { "cache-control": "no-store" } });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -87,6 +95,26 @@ export async function action({ request, context }: ActionFunctionArgs) {
     (runtime.db ? createCurationWorkflowRepository(runtime.db) : null);
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "");
+  if (intent === "create-invitation") {
+    const result = await service.createInvitation({
+      inviteeName: String(form.get("inviteeName") ?? ""),
+      inviteeEmail: String(form.get("inviteeEmail") ?? ""),
+      expiresInDays: Number(form.get("expiresInDays")),
+    });
+    if (!result.ok) return bad(result.error.message, submissionHttpStatus(result.error.code));
+    const invitationUrl = new URL(request.url);
+    invitationUrl.pathname = `/submit/${encodeURIComponent(result.value.token)}`;
+    invitationUrl.search = "";
+    invitationUrl.hash = "";
+    return Response.json(
+      {
+        invitationUrl: invitationUrl.toString(),
+        invitationReference: result.value.invitation.publicReference,
+        expiresAt: result.value.invitation.expiresAt.toISOString(),
+      } satisfies CuratorSubmissionActionData,
+      { headers: { "cache-control": "no-store" } },
+    );
+  }
   if (intent === "claim-next") {
     if (!workflow) return bad("Curation workflow unavailable.", 503);
     const submissionId = await workflow.claimNextSubmission(auth.identity, new Date());
@@ -220,7 +248,7 @@ export const meta: Route.MetaFunction = () => [{ title: `Curator submissions | $
 
 export default function CuratorSubmissionsRoute() {
   const data = useLoaderData<typeof loader>();
-  const actionData = useActionData<{ error?: string; grantUrl?: string; expiresAt?: string }>();
+  const actionData = useActionData<CuratorSubmissionActionData>();
   const pageHref = (page: number) => {
     const parameters = new URLSearchParams();
     if (data.filter.status !== "all") parameters.set("status", data.filter.status);
@@ -247,6 +275,49 @@ export default function CuratorSubmissionsRoute() {
           <a href={actionData.grantUrl}>open evidence</a>
         </p>
       ) : null}
+      <section className="curation-invitation-panel" aria-labelledby="invitation-heading">
+        <p className="eyebrow">Invite-only intake</p>
+        <h2 id="invitation-heading">Create submission link</h2>
+        <p>Create a private, single-submission link. The secret link is shown only once.</p>
+        <Form method="post" className="curator-form curation-invitation-form">
+          <input type="hidden" name="intent" value="create-invitation" />
+          <label>
+            Invitee name
+            <input name="inviteeName" autoComplete="name" maxLength={200} />
+          </label>
+          <label>
+            Invitee email
+            <input name="inviteeEmail" type="email" autoComplete="email" maxLength={320} required />
+          </label>
+          <label>
+            Expires after
+            <select name="expiresInDays" defaultValue="30">
+              <option value="7">7 days</option>
+              <option value="14">14 days</option>
+              <option value="30">30 days</option>
+              <option value="90">90 days</option>
+            </select>
+          </label>
+          <button type="submit">Create private submission link</button>
+        </Form>
+        {actionData?.invitationUrl ? (
+          <div className="curation-invitation-result" role="status">
+            <p>
+              <strong>{actionData.invitationReference}</strong> · expires {actionData.expiresAt}
+            </p>
+            <label>
+              Submission invitation link
+              <input
+                type="url"
+                readOnly
+                value={actionData.invitationUrl}
+                onFocus={(event) => event.currentTarget.select()}
+              />
+            </label>
+            <a href={actionData.invitationUrl}>Open submission form</a>
+          </div>
+        ) : null}
+      </section>
       <section>
         <div className="curation-queue-heading">
           <div>

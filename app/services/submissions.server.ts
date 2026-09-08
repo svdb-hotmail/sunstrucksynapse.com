@@ -11,6 +11,7 @@ import type {
 } from "~/repositories/submissions.server";
 import type { CuratorIdentity } from "~/types/curator";
 import type { SubmissionStatus } from "~/types/submissions";
+import { sha256Hex } from "~/services/submission-security.server";
 
 import type { TransactionalEmailService } from "./transactional-email.server";
 
@@ -50,6 +51,22 @@ const curatorTransitions: Readonly<Record<SubmissionStatus, readonly SubmissionS
   rejected: [],
   withdrawn: [],
 };
+
+const INVITATION_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const MAX_INVITEE_NAME_LENGTH = 200;
+const MAX_INVITEE_EMAIL_LENGTH = 320;
+const MAX_INVITATION_DAYS = 90;
+
+function secureInvitationToken(): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(32));
+  return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+export interface SubmissionInvitationRequest {
+  inviteeName: string;
+  inviteeEmail: string;
+  expiresInDays: number;
+}
 
 function missing(fields: string[]): string {
   return `Complete the required field${fields.length === 1 ? "" : "s"}: ${fields.join(", ")}.`;
@@ -96,6 +113,45 @@ export class SubmissionService {
     private readonly email: TransactionalEmailService,
     private readonly clock: () => Date = () => new Date(),
   ) {}
+
+  async createInvitation(input: SubmissionInvitationRequest) {
+    const inviteeName = input.inviteeName.trim();
+    const inviteeEmail = input.inviteeEmail.trim().toLowerCase();
+    if (inviteeName.length > MAX_INVITEE_NAME_LENGTH) {
+      return {
+        ok: false,
+        error: { code: "invalid", message: "Invitee name is too long." },
+      } as const;
+    }
+    if (!INVITATION_EMAIL.test(inviteeEmail) || inviteeEmail.length > MAX_INVITEE_EMAIL_LENGTH) {
+      return {
+        ok: false,
+        error: { code: "invalid", message: "Enter a valid invitee email." },
+      } as const;
+    }
+    if (
+      !Number.isInteger(input.expiresInDays) ||
+      input.expiresInDays < 1 ||
+      input.expiresInDays > MAX_INVITATION_DAYS
+    ) {
+      return {
+        ok: false,
+        error: { code: "invalid", message: "Invitation expiry must be between 1 and 90 days." },
+      } as const;
+    }
+
+    const now = this.clock();
+    const token = secureInvitationToken();
+    const date = now.toISOString().slice(0, 10).replaceAll("-", "");
+    const invitation = await this.repository.createInvitation({
+      publicReference: `INV-${date}-${token.slice(0, 12).toUpperCase()}`,
+      tokenHash: sha256Hex(token),
+      inviteeName: inviteeName || null,
+      inviteeEmail,
+      expiresAt: new Date(now.getTime() + input.expiresInDays * 24 * 60 * 60 * 1000),
+    });
+    return { ok: true, value: { invitation, token } } as const;
+  }
 
   loadInvitation(tokenHash: string) {
     return this.repository.findInvitationByTokenHash(tokenHash, this.clock());

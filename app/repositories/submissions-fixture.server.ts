@@ -519,6 +519,19 @@ export function createE2eSubmissionRepository(): SubmissionRepository {
   }
 
   return {
+    async createInvitation(input) {
+      const invitation: SubmissionInvitationRecord = {
+        id: crypto.randomUUID(),
+        publicReference: input.publicReference,
+        inviteeName: input.inviteeName,
+        inviteeEmail: input.inviteeEmail,
+        expiresAt: input.expiresAt,
+        revokedAt: null,
+      };
+      invitations.set(invitation.id, invitation);
+      invitationIdsByHash.set(input.tokenHash, invitation.id);
+      return clone(invitation);
+    },
     async findInvitationByTokenHash(tokenHash, _now) {
       const invitation = findInvitation(tokenHash, new Date("2026-08-16T00:00:00Z"));
       return invitation ? clone(invitation) : null;

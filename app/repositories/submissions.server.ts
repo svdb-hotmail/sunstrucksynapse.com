@@ -105,6 +105,14 @@ export interface SubmissionInvitationRecord {
   revokedAt: Date | null;
 }
 
+export interface SubmissionInvitationCreateInput {
+  publicReference: string;
+  tokenHash: string;
+  inviteeName: string | null;
+  inviteeEmail: string;
+  expiresAt: Date;
+}
+
 export interface SubmissionVersionRecord {
   id: string;
   version: number;
@@ -273,6 +281,7 @@ export interface EvidenceAccessRecord {
 }
 
 export interface SubmissionRepository {
+  createInvitation(input: SubmissionInvitationCreateInput): Promise<SubmissionInvitationRecord>;
   findInvitationByTokenHash(
     tokenHash: string,
     now: Date,
@@ -1137,6 +1146,12 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
   }
 
   return {
+    async createInvitation(input) {
+      const rows = await db.insert(submissionInvitations).values(input).returning();
+      const invitation = rows[0];
+      if (!invitation) throw new Error("Invitation insert returned no record.");
+      return mapInvitation(invitation);
+    },
     async findInvitationByTokenHash(tokenHash, now) {
       const invitation = await loadValidInvitationByHash(tokenHash, now);
       if (!invitation) return null;

@@ -138,6 +138,48 @@ describe("submission service", () => {
     );
   });
 
+  it("issues a time-limited invitation while persisting only its token hash", async () => {
+    const created = await service.createInvitation({
+      inviteeName: "New Signal",
+      inviteeEmail: "NEW@EXAMPLE.TEST",
+      expiresInDays: 30,
+    });
+
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    expect(created.value.token).toMatch(/^[0-9a-f]{64}$/);
+    expect(created.value.invitation).toMatchObject({
+      inviteeName: "New Signal",
+      inviteeEmail: "new@example.test",
+      revokedAt: null,
+    });
+    expect(created.value.invitation.expiresAt.toISOString()).toBe("2026-09-15T12:00:00.000Z");
+    expect(
+      await repository.findInvitationByTokenHash(
+        sha256Hex(created.value.token),
+        new Date("2026-08-16T12:01:00Z"),
+      ),
+    ).toMatchObject({ id: created.value.invitation.id });
+    expect(await repository.findInvitationByTokenHash(created.value.token, new Date())).toBeNull();
+  });
+
+  it("rejects invalid invitation email and expiry values", async () => {
+    await expect(
+      service.createInvitation({
+        inviteeName: "New Signal",
+        inviteeEmail: "not-an-email",
+        expiresInDays: 30,
+      }),
+    ).resolves.toMatchObject({ ok: false, error: { code: "invalid" } });
+    await expect(
+      service.createInvitation({
+        inviteeName: "New Signal",
+        inviteeEmail: "new@example.test",
+        expiresInDays: 365,
+      }),
+    ).resolves.toMatchObject({ ok: false, error: { code: "invalid" } });
+  });
+
   it("saves drafts and submits invited work with a stable reference and lifecycle email log", async () => {
     const draft = completeDraft();
 
