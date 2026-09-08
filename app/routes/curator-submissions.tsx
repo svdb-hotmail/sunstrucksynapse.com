@@ -96,11 +96,14 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const form = await request.formData();
   const intent = String(form.get("intent") ?? "");
   if (intent === "create-invitation") {
-    const result = await service.createInvitation({
-      inviteeName: String(form.get("inviteeName") ?? ""),
-      inviteeEmail: String(form.get("inviteeEmail") ?? ""),
-      expiresInDays: Number(form.get("expiresInDays")),
-    });
+    const result = await service.createInvitation(
+      {
+        inviteeName: String(form.get("inviteeName") ?? ""),
+        inviteeEmail: String(form.get("inviteeEmail") ?? ""),
+        expiresInDays: Number(form.get("expiresInDays")),
+      },
+      auth.identity,
+    );
     if (!result.ok) return bad(result.error.message, submissionHttpStatus(result.error.code));
     const invitationUrl = new URL(request.url);
     invitationUrl.pathname = `/submit/${encodeURIComponent(result.value.token)}`;

@@ -519,7 +519,7 @@ export function createE2eSubmissionRepository(): SubmissionRepository {
   }
 
   return {
-    async createInvitation(input) {
+    async createInvitation(input, _actor, _issuedAt) {
       const invitation: SubmissionInvitationRecord = {
         id: crypto.randomUUID(),
         publicReference: input.publicReference,

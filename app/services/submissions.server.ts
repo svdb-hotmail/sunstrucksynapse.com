@@ -57,8 +57,8 @@ const MAX_INVITEE_NAME_LENGTH = 200;
 const MAX_INVITEE_EMAIL_LENGTH = 320;
 const MAX_INVITATION_DAYS = 90;
 
-function secureInvitationToken(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
+function secureRandomHex(byteLength: number): string {
+  const bytes = crypto.getRandomValues(new Uint8Array(byteLength));
   return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
 }
 
@@ -112,9 +112,10 @@ export class SubmissionService {
     private readonly repository: SubmissionRepository,
     private readonly email: TransactionalEmailService,
     private readonly clock: () => Date = () => new Date(),
+    private readonly randomHex: (byteLength: number) => string = secureRandomHex,
   ) {}
 
-  async createInvitation(input: SubmissionInvitationRequest) {
+  async createInvitation(input: SubmissionInvitationRequest, actor: CuratorIdentity) {
     const inviteeName = input.inviteeName.trim();
     const inviteeEmail = input.inviteeEmail.trim().toLowerCase();
     if (inviteeName.length > MAX_INVITEE_NAME_LENGTH) {
@@ -141,15 +142,20 @@ export class SubmissionService {
     }
 
     const now = this.clock();
-    const token = secureInvitationToken();
+    const token = this.randomHex(32);
+    const referenceEntropy = this.randomHex(8).toUpperCase();
     const date = now.toISOString().slice(0, 10).replaceAll("-", "");
-    const invitation = await this.repository.createInvitation({
-      publicReference: `INV-${date}-${token.slice(0, 12).toUpperCase()}`,
-      tokenHash: sha256Hex(token),
-      inviteeName: inviteeName || null,
-      inviteeEmail,
-      expiresAt: new Date(now.getTime() + input.expiresInDays * 24 * 60 * 60 * 1000),
-    });
+    const invitation = await this.repository.createInvitation(
+      {
+        publicReference: `INV-${date}-${referenceEntropy}`,
+        tokenHash: sha256Hex(token),
+        inviteeName: inviteeName || null,
+        inviteeEmail,
+        expiresAt: new Date(now.getTime() + input.expiresInDays * 24 * 60 * 60 * 1000),
+      },
+      actor,
+      now,
+    );
     return { ok: true, value: { invitation, token } } as const;
   }
 

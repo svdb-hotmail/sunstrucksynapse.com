@@ -128,6 +128,7 @@ describe("submission service", () => {
   let repository: ReturnType<typeof createE2eSubmissionRepository>;
   let service: SubmissionService;
   const tokenHash = sha256Hex(e2eSubmissionInvitationToken);
+  const curator = { id: "curator-1", email: "curator@example.test" };
 
   beforeEach(() => {
     repository = createE2eSubmissionRepository();
@@ -139,20 +140,34 @@ describe("submission service", () => {
   });
 
   it("issues a time-limited invitation while persisting only its token hash", async () => {
-    const created = await service.createInvitation({
-      inviteeName: "New Signal",
-      inviteeEmail: "NEW@EXAMPLE.TEST",
-      expiresInDays: 30,
-    });
+    let randomCall = 0;
+    service = new SubmissionService(
+      repository,
+      createTransactionalEmailService(undefined, "test"),
+      () => new Date("2026-08-16T12:00:00Z"),
+      (byteLength) => (randomCall++ === 0 ? "a" : "b").repeat(byteLength * 2),
+    );
+    const created = await service.createInvitation(
+      {
+        inviteeName: "New Signal",
+        inviteeEmail: "NEW@EXAMPLE.TEST",
+        expiresInDays: 30,
+      },
+      curator,
+    );
 
     expect(created.ok).toBe(true);
     if (!created.ok) return;
-    expect(created.value.token).toMatch(/^[0-9a-f]{64}$/);
+    expect(created.value.token).toBe("a".repeat(64));
     expect(created.value.invitation).toMatchObject({
+      publicReference: `INV-20260816-${"B".repeat(16)}`,
       inviteeName: "New Signal",
       inviteeEmail: "new@example.test",
       revokedAt: null,
     });
+    expect(created.value.invitation.publicReference.toLowerCase()).not.toContain(
+      created.value.token.slice(0, 12),
+    );
     expect(created.value.invitation.expiresAt.toISOString()).toBe("2026-09-15T12:00:00.000Z");
     expect(
       await repository.findInvitationByTokenHash(
@@ -165,18 +180,24 @@ describe("submission service", () => {
 
   it("rejects invalid invitation email and expiry values", async () => {
     await expect(
-      service.createInvitation({
-        inviteeName: "New Signal",
-        inviteeEmail: "not-an-email",
-        expiresInDays: 30,
-      }),
+      service.createInvitation(
+        {
+          inviteeName: "New Signal",
+          inviteeEmail: "not-an-email",
+          expiresInDays: 30,
+        },
+        curator,
+      ),
     ).resolves.toMatchObject({ ok: false, error: { code: "invalid" } });
     await expect(
-      service.createInvitation({
-        inviteeName: "New Signal",
-        inviteeEmail: "new@example.test",
-        expiresInDays: 365,
-      }),
+      service.createInvitation(
+        {
+          inviteeName: "New Signal",
+          inviteeEmail: "new@example.test",
+          expiresInDays: 365,
+        },
+        curator,
+      ),
     ).resolves.toMatchObject({ ok: false, error: { code: "invalid" } });
   });
 

@@ -39,8 +39,8 @@ presenting the normal independent-gate lineage as completed.
 
 ## Artifacts
 
-- Database: migrations `0009_curation_outbox.sql`, `0010_cool_human_cannonball.sql`, and
-  `0011_enforce_curation_parentage.sql`, schemas,
+- Database: migrations `0009_curation_outbox.sql`, `0010_cool_human_cannonball.sql`,
+  `0011_enforce_curation_parentage.sql`, and `0012_audit_submission_invitations.sql`, schemas,
   repositories, immutability/integrity triggers, and exact inventory updates.
 - Runtime: review-audio signing/sealing service, upload/playback routes, outbox dispatcher, cron
   cleanup/dispatch, atomic grading and draft-catalogue preparation.
