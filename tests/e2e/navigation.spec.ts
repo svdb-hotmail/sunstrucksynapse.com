@@ -35,19 +35,31 @@ test("sparse catalogue navigation resolves real content from non-home routes", a
   await expect(
     page.getByRole("heading", { name: "Search the collection", exact: true }),
   ).toBeVisible();
+  await expect(nav.getByRole("link", { name: "About", exact: true })).toHaveAttribute(
+    "href",
+    "/about",
+  );
   await nav.getByRole("link", { name: "About", exact: true }).click();
-  await expectHashTarget(page, "about");
+  await expect(page).toHaveURL(/\/about$/);
+  await expect(page.getByRole("heading", { level: 1, name: "About SunSyn Radio" })).toBeVisible();
+  await expect(page.locator(".offerings")).toBeVisible();
+  await expect(page.locator(".contact")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Policy pages" })).toBeVisible();
+  await expect(page.locator(".panel-footer")).toHaveCount(0);
 
-  const terms = page
-    .locator(".topbar-actions")
-    .getByRole("link", { name: "Submission terms", exact: true });
-  await expect(terms).toHaveAttribute("href", "/submission-terms");
-  await expect(
-    page.locator(".topbar-actions").getByRole("link", { name: "Reviewed disclosure" }),
-  ).toHaveCount(0);
-  await terms.click();
-  await expect(page).toHaveURL(/\/submission-terms$/);
-  await expect(page.getByRole("heading", { name: "Submission terms", exact: true })).toBeVisible();
+  const policyNav = page.getByRole("navigation", { name: "Policy pages" });
+  for (const [label, href, heading] of [
+    ["Privacy", "/privacy", "Privacy notice"],
+    ["Submission terms", "/submission-terms", "Submission terms"],
+    ["Takedown", "/takedown", "Content takedown process"],
+  ] as const) {
+    const link = policyNav.getByRole("link", { name: label, exact: true });
+    await expect(link).toHaveAttribute("href", href);
+    await link.click();
+    await expect(page).toHaveURL(new RegExp(`${href}$`));
+    await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
+    await page.goto("/about");
+  }
 });
 
 test("standard catalogue links target the corresponding actual collections", async ({ page }) => {

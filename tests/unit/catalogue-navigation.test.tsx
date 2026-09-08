@@ -21,14 +21,14 @@ const item = makeCatalogueItem("stillith-track");
 const fallback: CatalogueNavigationEntry[] = [
   { label: "Listen", to: "/#catalogue" },
   { label: "Search", to: "/search" },
-  { label: "About", to: "/#about" },
+  { label: "About", to: "/about" },
 ];
 const standard: CatalogueNavigationEntry[] = [
   { label: "Latest", to: "/#latest" },
   { label: "Listen", to: "/#audio" },
   { label: "Watch", to: "/#video" },
   { label: "Search", to: "/search" },
-  { label: "About", to: "/#about" },
+  { label: "About", to: "/about" },
 ];
 
 function collection(slug: string): PublicEditorialCollection {

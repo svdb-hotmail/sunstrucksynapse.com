@@ -47,8 +47,30 @@ test("sparse mobile navigation keeps Listen, Search and About accessible in one 
   await expect(
     page.getByRole("heading", { name: "Search the collection", exact: true }),
   ).toBeVisible();
+  await expect(nav.getByRole("link", { name: "About", exact: true })).toHaveAttribute(
+    "href",
+    "/about",
+  );
   await nav.getByRole("link", { name: "About", exact: true }).click();
-  await expectHashTarget(page, "about");
+  await expect(page).toHaveURL(/\/about$/);
+  await expect(page.getByRole("heading", { level: 1, name: "About SunSyn Radio" })).toBeVisible();
+  await expect(page.locator(".offerings")).toBeVisible();
+  await expect(page.locator(".contact")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Policy pages" })).toBeVisible();
+  await expect(page.locator(".panel-footer")).toHaveCount(0);
+  const policyNav = page.getByRole("navigation", { name: "Policy pages" });
+  for (const [label, href, heading] of [
+    ["Privacy", "/privacy", "Privacy notice"],
+    ["Submission terms", "/submission-terms", "Submission terms"],
+    ["Takedown", "/takedown", "Content takedown process"],
+  ] as const) {
+    const link = policyNav.getByRole("link", { name: label, exact: true });
+    await expect(link).toHaveAttribute("href", href);
+    await link.click();
+    await expect(page).toHaveURL(new RegExp(`${href}$`));
+    await expect(page.getByRole("heading", { name: heading, exact: true })).toBeVisible();
+    await page.goto("/about");
+  }
   await expectSingleRow(nav);
 });
 
@@ -64,11 +86,21 @@ test("all five standard mobile links remain in one row and reach their destinati
     ["Latest", "latest"],
     ["Listen", "audio"],
     ["Watch", "video"],
-    ["About", "about"],
   ]) {
     await nav.getByRole("link", { name: label!, exact: true }).click();
     await expectHashTarget(page, id!);
   }
+  await expect(nav.getByRole("link", { name: "About", exact: true })).toHaveAttribute(
+    "href",
+    "/about",
+  );
+  await nav.getByRole("link", { name: "About", exact: true }).click();
+  await expect(page).toHaveURL(/\/about$/);
+  await expect(page.getByRole("heading", { level: 1, name: "About SunSyn Radio" })).toBeVisible();
+  await expect(page.locator(".offerings")).toBeVisible();
+  await expect(page.locator(".contact")).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Policy pages" })).toBeVisible();
+  await expect(page.locator(".panel-footer")).toHaveCount(0);
   await nav.getByRole("link", { name: "Search", exact: true }).click();
   await expect(page).toHaveURL(/\/search$/);
   await expect(
