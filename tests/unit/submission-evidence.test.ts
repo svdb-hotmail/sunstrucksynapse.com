@@ -251,6 +251,12 @@ describe("submission evidence service", () => {
     });
     expect(submitted?.process.status).toBe("finalized");
     expect(submitted?.provenance.status).toBe("finalized");
+    expect(submitted?.activities[0]).toMatchObject({
+      activityType: "status_change",
+      actorRole: "submitter",
+      fromStatus: "draft",
+      toStatus: "received",
+    });
   });
 
   it("enforces the public evidence MIME allowlist and 20 MiB declaration boundary", () => {
