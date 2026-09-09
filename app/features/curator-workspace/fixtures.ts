@@ -86,6 +86,9 @@ export const curatorQueueFixtures: CuratorQueueItemView[] = [
 
 export const curatorReviewFixture: CuratorReviewView = {
   submission: curatorQueueFixtures[0]!,
+  artistBiography:
+    "An independent electronic artist using generative tools inside a deliberate composition and production practice.",
+  artistLocation: "Brussels, Belgium",
   creativeContribution:
     "Composition, arrangement, vocal direction, editing, sound design, and final mix decisions.",
   aiTools: ["Flow Music", "Sketcher"],
@@ -94,6 +97,17 @@ export const curatorReviewFixture: CuratorReviewView = {
   provenanceSummary:
     "Iterative generation shaped through selection, arrangement, rerecording, and detailed production.",
   evidenceCount: 1,
+  activities: [
+    { id: "activity-1", label: "Submission received", timestamp: "2026-09-09T08:14:00.000Z" },
+    {
+      id: "activity-2",
+      label: "Private listening copy ready",
+      timestamp: "2026-09-09T08:16:00.000Z",
+    },
+  ],
+  files: [
+    { id: "file-1", filename: "midnight-frequency.wav", detail: "WAV · private listening copy" },
+  ],
 };
 
 const fixtureTitles = [

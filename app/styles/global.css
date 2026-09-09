@@ -3318,3 +3318,467 @@ body {
     height: 48px;
   }
 }
+
+/* Curator focused-review prototype ------------------------------------ */
+.curator-page-heading--review {
+  min-height: auto;
+  margin-bottom: var(--space-2);
+}
+
+.curator-review-layout {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(620px, 1fr) minmax(290px, 360px);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.curator-review,
+.curator-review-context {
+  min-width: 0;
+  border: var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--component-curator-panel);
+  box-shadow: var(--shadow-card);
+}
+
+.curator-review {
+  overflow: hidden;
+}
+
+.curator-review__notice {
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  border-bottom: 1px solid color-mix(in srgb, var(--component-curator-success) 35%, transparent);
+  color: var(--component-curator-success);
+  background: color-mix(in srgb, var(--component-curator-success) 9%, transparent);
+  font-size: 0.82rem;
+}
+
+.curator-review__heading {
+  display: grid;
+  grid-template-columns: 176px minmax(0, 1fr);
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-4);
+}
+
+.curator-review__artwork {
+  width: 176px;
+}
+
+.curator-review__status {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--color-content-secondary);
+  font-family: var(--font-family-mono);
+  font-size: 0.75rem;
+}
+
+.curator-review__heading h1 {
+  max-width: 26ch;
+  margin: var(--space-2) 0 0;
+  font-size: clamp(1.75rem, 3vw, 2.8rem);
+  line-height: 1.02;
+}
+
+.curator-review__heading p {
+  margin: var(--space-1) 0;
+  color: var(--color-content-primary);
+  font-size: 1.25rem;
+}
+
+.curator-review__heading small {
+  color: var(--color-content-secondary);
+}
+
+.curator-review-player {
+  display: grid;
+  grid-template-columns: auto minmax(160px, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  border-block: var(--border-subtle);
+  background: color-mix(in srgb, var(--component-curator-canvas) 45%, transparent);
+}
+
+.curator-review-player__play {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--color-accent-pink);
+  border-radius: 50%;
+  color: var(--color-accent-pink);
+  background: transparent;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+.curator-review-player__play:disabled {
+  cursor: not-allowed;
+  opacity: 0.35;
+}
+
+.curator-review-player input[type="range"] {
+  width: 100%;
+  accent-color: var(--color-accent-pink);
+}
+
+.curator-review-player p,
+.curator-review-player > span {
+  margin: var(--space-1) 0 0;
+  color: var(--color-content-secondary);
+  font-family: var(--font-family-mono);
+  font-size: 0.72rem;
+}
+
+.curator-review__assessment {
+  display: grid;
+  grid-template-columns: minmax(340px, 3fr) minmax(240px, 2fr);
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.curator-review__assessment h2,
+.curator-review-context h2 {
+  margin: 0 0 var(--space-3);
+  font-size: 1.05rem;
+}
+
+.curator-score-list {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.curator-score-list fieldset {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto;
+  gap: var(--space-2);
+  align-items: center;
+  margin: 0;
+  padding: var(--space-2);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+}
+
+.curator-score-list fieldset.is-active {
+  border-color: color-mix(in srgb, var(--color-accent-orange) 38%, transparent);
+  background: color-mix(in srgb, var(--color-accent-orange) 5%, transparent);
+}
+
+.curator-score-list legend {
+  display: contents;
+}
+
+.curator-score-list legend strong,
+.curator-score-list legend small {
+  display: block;
+}
+
+.curator-score-list legend small {
+  margin-top: 3px;
+  color: var(--color-content-secondary);
+  font-size: 0.68rem;
+  font-weight: 400;
+}
+
+.curator-score-list fieldset > div,
+.curator-grade-options {
+  display: grid;
+  grid-auto-flow: column;
+  gap: 5px;
+}
+
+.curator-score-list label,
+.curator-grade-options label {
+  position: relative;
+}
+
+.curator-score-list input,
+.curator-grade-options input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.curator-score-list label span,
+.curator-grade-options label span {
+  min-width: 34px;
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+  border: var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--color-content-secondary);
+  background: var(--component-curator-canvas);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.curator-score-list input:focus-visible + span,
+.curator-grade-options input:focus-visible + span {
+  outline: 2px solid var(--component-control-focus);
+  outline-offset: 2px;
+}
+
+.curator-score-list input:checked + span,
+.curator-grade-options input:checked + span {
+  border-color: var(--color-accent-pink);
+  color: var(--color-content-inverse);
+  background: var(--color-accent-pink);
+}
+
+.curator-decision {
+  padding-left: var(--space-4);
+  border-left: var(--border-subtle);
+}
+
+.curator-grade-options {
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-flow: row;
+  margin-bottom: var(--space-3);
+}
+
+.curator-grade-options label span {
+  min-height: 48px;
+}
+
+.curator-decision__rationale {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--color-content-primary);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.curator-decision textarea,
+.curator-dialog textarea,
+.curator-dialog select {
+  width: 100%;
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-md);
+  color: var(--color-content-primary);
+  background: var(--component-curator-canvas);
+  font: inherit;
+}
+
+.curator-decision textarea,
+.curator-dialog textarea {
+  resize: vertical;
+  padding: var(--space-2);
+}
+
+.curator-decision__rationale small {
+  color: var(--color-content-secondary);
+  text-align: right;
+  font-weight: 400;
+}
+
+.curator-review__actions {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-top: var(--border-subtle);
+}
+
+.curator-review__actions > div {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.curator-shortcuts {
+  margin: 0;
+  padding: 0 var(--space-4) var(--space-3);
+  color: var(--color-content-secondary);
+  font-size: 0.68rem;
+}
+
+.curator-shortcuts kbd {
+  padding: 2px 5px;
+  border: var(--border-subtle);
+  border-radius: 4px;
+  color: var(--color-content-primary);
+  background: var(--component-curator-canvas);
+}
+
+.curator-review-context {
+  position: sticky;
+  top: calc(var(--component-curator-header-height) + var(--space-4));
+  overflow: hidden;
+}
+
+.curator-review-context__tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  border-bottom: var(--border-subtle);
+}
+
+.curator-review-context__tabs button {
+  padding: var(--space-3) var(--space-1);
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--color-content-secondary);
+  background: transparent;
+  cursor: pointer;
+  text-transform: capitalize;
+}
+
+.curator-review-context__tabs button[aria-selected="true"] {
+  border-bottom-color: var(--color-accent-pink);
+  color: var(--color-accent-pink);
+}
+
+.curator-review-context__content,
+.curator-review-context__timeline,
+.curator-review-context__files {
+  margin: 0;
+  padding: var(--space-4);
+}
+
+.curator-review-context__content h3 {
+  margin: var(--space-4) 0 var(--space-1);
+  color: var(--color-content-primary);
+  font-size: 0.82rem;
+}
+
+.curator-review-context__content p {
+  margin: 0;
+  color: var(--color-content-secondary);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
+.curator-review-context dl {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.curator-review-context dl div {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: var(--space-2);
+  font-size: 0.78rem;
+}
+
+.curator-review-context dt {
+  color: var(--color-content-secondary);
+}
+
+.curator-review-context dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.curator-review-context__timeline,
+.curator-review-context__files {
+  display: grid;
+  gap: var(--space-3);
+  list-style: none;
+}
+
+.curator-review-context__timeline li,
+.curator-review-context__files li {
+  display: grid;
+  gap: 4px;
+  padding-bottom: var(--space-3);
+  border-bottom: var(--border-subtle);
+  font-size: 0.82rem;
+}
+
+.curator-review-context__timeline small,
+.curator-review-context__files small {
+  color: var(--color-content-secondary);
+}
+
+.curator-dialog-backdrop {
+  position: fixed;
+  z-index: 400;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: var(--space-4);
+  background: rgb(0 0 0 / 72%);
+}
+
+.curator-dialog {
+  width: min(520px, 100%);
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border-control);
+  border-radius: var(--radius-lg);
+  color: var(--color-content-primary);
+  background: var(--component-curator-panel);
+  box-shadow: var(--shadow);
+}
+
+.curator-dialog h2,
+.curator-dialog p {
+  margin: 0;
+}
+
+.curator-dialog p {
+  color: var(--color-content-secondary);
+}
+
+.curator-dialog label {
+  display: grid;
+  gap: var(--space-1);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.curator-dialog select {
+  min-height: 42px;
+  padding: 0 var(--space-2);
+}
+
+.curator-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+@media (max-width: 1100px) {
+  .curator-review-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .curator-review-context {
+    position: static;
+  }
+}
+
+@media (max-width: 720px) {
+  .curator-review__heading,
+  .curator-review__assessment,
+  .curator-review-player {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .curator-review__artwork {
+    width: min(176px, 50vw);
+  }
+
+  .curator-decision {
+    padding: var(--space-3) 0 0;
+    border-top: var(--border-subtle);
+    border-left: 0;
+  }
+
+  .curator-review__actions,
+  .curator-review__actions > div {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .curator-score-list fieldset {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
