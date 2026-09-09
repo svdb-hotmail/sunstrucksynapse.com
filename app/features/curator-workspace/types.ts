@@ -50,12 +50,16 @@ export interface CuratorQueueItemView {
 
 export interface CuratorReviewView {
   submission: CuratorQueueItemView;
+  artistBiography: string;
+  artistLocation: string;
   creativeContribution: string;
   aiTools: string[];
   territories: string[];
   rightsSummary: string;
   provenanceSummary: string;
   evidenceCount: number;
+  activities: Array<{ id: string; label: string; timestamp: string }>;
+  files: Array<{ id: string; filename: string; detail: string }>;
 }
 
 export type CuratorInvitationStatus = "active" | "used" | "expired" | "revoked";
