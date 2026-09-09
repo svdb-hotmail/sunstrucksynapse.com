@@ -1115,13 +1115,19 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
     aggregate: SubmissionAggregate,
     input: SubmissionDraftInput,
     now: Date,
-  ): Promise<boolean> {
+  ): Promise<string | null> {
     const { rights, process, provenance } = aggregate;
+    const activityType =
+      aggregate.submission.status === "draft" ? "status_change" : "clarification_response";
+    const activityMessage =
+      aggregate.submission.status === "clarification_requested"
+        ? "Clarification response submitted."
+        : null;
     // Lock and revalidate the exact latest drafts before changing any status. The
     // data-modifying CTE then finalizes all revisions and transitions the parent
     // as one statement, so a concurrent save either wins first or changes nothing.
     const rows = resultRows(
-      (await db.execute<{ id: string }>(sql`
+      (await db.execute<{ id: string; activityId: string }>(sql`
         with eligible as (
           select
             submission.id as submission_id,
@@ -1186,11 +1192,30 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
             and exists (select 1 from finalized_process)
             and exists (select 1 from finalized_provenance)
           returning target.id
+        ), recorded_activity as (
+          insert into submission_activities (
+            submission_id, activity_type, actor_role, actor_email,
+            from_status, to_status, message, metadata, created_at
+          )
+          select
+            transitioned.id,
+            ${activityType},
+            'submitter',
+            ${input.contact.contactEmail},
+            ${aggregate.submission.status},
+            'received',
+            ${activityMessage},
+            '{}'::jsonb,
+            ${now}
+          from transitioned
+          returning id
         )
-        select id from transitioned
-      `)) as RawRows<{ id: string }>,
+        select transitioned.id, recorded_activity.id as "activityId"
+        from transitioned
+        cross join recorded_activity
+      `)) as RawRows<{ id: string; activityId: string }>,
     );
-    return rows.length === 1;
+    return rows.length === 1 ? rows[0]!.activityId : null;
   }
 
   async function recordActivity(
@@ -1281,22 +1306,45 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
         ["draft", "clarification_requested"],
       );
       if (!aggregate) return null;
-      if (!(await finalizeLatestDrafts(aggregate, sanitized, now))) return null;
-      if (aggregate.submission.status === "draft") {
-        await recordActivity(aggregate.submission.id, "status_change", "submitter", now, {
-          actorEmail: sanitized.contact.contactEmail,
-          fromStatus: "draft",
-          toStatus: "received",
-        });
-      } else if (aggregate.submission.status === "clarification_requested") {
-        await recordActivity(aggregate.submission.id, "clarification_response", "submitter", now, {
-          actorEmail: sanitized.contact.contactEmail,
-          fromStatus: "clarification_requested",
-          toStatus: "received",
-          message: "Clarification response submitted.",
-        });
-      }
-      return buildAggregate(aggregate.submission.id);
+      const activityId = await finalizeLatestDrafts(aggregate, sanitized, now);
+      if (!activityId) return null;
+      const activityType =
+        aggregate.submission.status === "draft" ? "status_change" : "clarification_response";
+      const activityMessage =
+        aggregate.submission.status === "clarification_requested"
+          ? "Clarification response submitted."
+          : null;
+      return {
+        ...aggregate,
+        submission: {
+          ...aggregate.submission,
+          status: "received",
+          submittedAt: aggregate.submission.submittedAt ?? now,
+        },
+        rights: {
+          ...aggregate.rights,
+          status: "attested",
+          attestation: sanitized.rights.attestation,
+        },
+        process: { ...aggregate.process, status: "finalized" },
+        provenance: { ...aggregate.provenance, status: "finalized" },
+        activities: [
+          {
+            id: activityId,
+            activityType,
+            actorRole: "submitter",
+            actorId: null,
+            actorEmail: sanitized.contact.contactEmail,
+            fromStatus: aggregate.submission.status,
+            toStatus: "received",
+            claimKey: null,
+            message: activityMessage,
+            metadata: {},
+            createdAt: now,
+          },
+          ...aggregate.activities,
+        ],
+      };
     },
     async withdrawByInvitationTokenHash(tokenHash, now, message) {
       const aggregate = await currentAggregateFromToken(tokenHash, now);
