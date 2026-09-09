@@ -14,31 +14,21 @@ test("saves a practical invited draft and requires private review audio before s
     .fill("Human composition, editing, and final production.");
   await page.getByLabel("AI tools used (comma separated)").fill("Sketcher");
   await page.getByLabel(/This invitation is mine/).check();
-  await page.getByRole("button", { name: "Save details and continue" }).click();
+  await page.getByRole("button", { name: /Save (details and continue|changes)/ }).click();
 
   await expect(page.getByText("Draft saved.")).toBeVisible();
   await expect(page.getByLabel("Audio file")).toBeEnabled();
-  await expect(page.getByRole("button", { name: "Submit track for review" })).toBeDisabled();
+  const submitButton = page.getByRole("button", { name: "Submit track for review" });
+  await expect(submitButton).toBeDisabled();
 
-  const directSubmit = await page.evaluate(async () => {
-    const form = document.querySelector<HTMLFormElement>("#submission-details-form");
-    if (!form) throw new Error("Submission details form not found.");
-    const body = new FormData(form);
-    body.set("intent", "submit");
-    const response = await fetch(window.location.pathname, {
-      method: "POST",
-      body,
-      redirect: "manual",
-    });
-    return {
-      status: response.status,
-      payload: (await response.json()) as { error?: string },
-    };
+  // Bypass only the presentation lock to prove the action independently enforces the audio gate.
+  await submitButton.evaluate((button) => {
+    (button as HTMLButtonElement).disabled = false;
   });
-  expect(directSubmit).toEqual({
-    status: 409,
-    payload: { error: "Upload a private listening copy before submitting." },
-  });
+  await submitButton.click();
+  await expect(page.getByRole("alert")).toHaveText(
+    "Upload a private listening copy before submitting.",
+  );
 
   const curatorContext = await browser.newContext({
     extraHTTPHeaders: {
