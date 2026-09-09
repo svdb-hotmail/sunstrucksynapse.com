@@ -20,6 +20,26 @@ test("saves a practical invited draft and requires private review audio before s
   await expect(page.getByLabel("Audio file")).toBeEnabled();
   await expect(page.getByRole("button", { name: "Submit track for review" })).toBeDisabled();
 
+  const directSubmit = await page.evaluate(async () => {
+    const form = document.querySelector<HTMLFormElement>("#submission-details-form");
+    if (!form) throw new Error("Submission details form not found.");
+    const body = new FormData(form);
+    body.set("intent", "submit");
+    const response = await fetch(window.location.pathname, {
+      method: "POST",
+      body,
+      redirect: "manual",
+    });
+    return {
+      status: response.status,
+      payload: (await response.json()) as { error?: string },
+    };
+  });
+  expect(directSubmit).toEqual({
+    status: 409,
+    payload: { error: "Upload a private listening copy before submitting." },
+  });
+
   const curatorContext = await browser.newContext({
     extraHTTPHeaders: {
       "x-test-curator-identity": "curator-1|curator@example.test",
@@ -32,8 +52,7 @@ test("saves a practical invited draft and requires private review audio before s
   const submissionCard = curatorPage.locator(".curator-record").filter({
     hasText: "Playwright Orbit",
   });
-  await submissionCard.getByRole("button", { name: "Move to eligibility review" }).click();
-  await expect(submissionCard).toContainText("eligibility_review");
+  await expect(submissionCard).toContainText("draft");
   await expect(submissionCard.getByRole("button", { name: "Assign me" })).toHaveCount(0);
   await expect(submissionCard.getByRole("button", { name: "Move to listening" })).toHaveCount(0);
   await expect(submissionCard.getByRole("button", { name: "Finalize decision" })).toHaveCount(0);

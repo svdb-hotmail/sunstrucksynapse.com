@@ -1146,6 +1146,37 @@ form button[type="submit"] {
   width: 100%;
 }
 
+.submission-disclosure-options {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  border: 0;
+}
+
+.submission-disclosure-options legend {
+  margin-bottom: var(--space-2);
+  color: var(--component-submission-muted-content);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.submission-disclosure-options label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  color: var(--component-submission-content);
+  font-weight: 600;
+}
+
+.submission-disclosure-options input {
+  flex: 0 0 auto;
+  width: 18px;
+  min-height: 18px;
+  height: 18px;
+  margin-top: 2px;
+}
+
 .submission-field-help {
   margin-top: var(--space-1);
 }

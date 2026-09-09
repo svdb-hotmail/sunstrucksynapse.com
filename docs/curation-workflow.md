@@ -3,8 +3,10 @@
 The artist's job is to provide the requested input, not to model the curation database. The
 invitation page therefore has three visible steps:
 
-1. Save the essential track details: artist, title, contact email, a short account of the creative
-   process, AI tools, rights basis and territory, and one combined confirmation.
+1. Enter the essential track details: artist, title, contact email, a short account of the creative
+   process, AI tools, rights basis and territory, explicit sample/voice/third-party flags, and one
+   combined confirmation. Save once to enable audio upload; later final submission includes any
+   edits currently visible in the form.
 2. Upload one private listening copy.
 3. Submit once the listening copy is ready.
 

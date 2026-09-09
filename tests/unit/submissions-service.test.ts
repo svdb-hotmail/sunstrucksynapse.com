@@ -224,6 +224,24 @@ describe("submission service", () => {
     expect(submitted.value.activities.some((activity) => activity.activityType === "email")).toBe(
       true,
     );
+
+    const receiptCount = submitted.value.activities.filter(
+      (activity) => activity.activityType === "email",
+    ).length;
+    const replayed = await service.submit(tokenHash, draft, {
+      honeypotTriggered: false,
+      userAgent: "vitest",
+      ipHash: null,
+    });
+    expect(replayed).toMatchObject({ ok: false, error: { code: "conflict" } });
+
+    const afterReplay = await repository.findByInvitationTokenHash(
+      tokenHash,
+      new Date("2026-08-16T12:01:00Z"),
+    );
+    expect(
+      afterReplay?.activities.filter((activity) => activity.activityType === "email").length,
+    ).toBe(receiptCount);
   });
 
   it("rejects direct acceptance while a submission is still received", async () => {

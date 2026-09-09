@@ -43,7 +43,7 @@ function commaSeparated(value: string): string[] {
     .filter(Boolean);
 }
 
-function readDraft(form: FormData, base: SubmissionDraftInput): SubmissionDraftInput {
+function readDraft(form: FormData, base: SubmissionDraftInput): SubmissionDraftInput | null {
   const artistName = formString(form, "artist.displayName");
   const trackTitle = formString(form, "track.title");
   const creativeSummary = formString(form, "process.creativeSummary");
@@ -52,10 +52,20 @@ function readDraft(form: FormData, base: SubmissionDraftInput): SubmissionDraftI
   const rightsContext = formString(form, "rights.context");
   const confirmed = formBool(form, "ack.confirmed");
   const authorityBasisValue = formString(form, "rights.authorityBasis");
-  const authorityBasis =
-    authorityBasisValue === "licensed" || authorityBasisValue === "public_domain"
-      ? authorityBasisValue
-      : "original_author";
+  let authorityBasis: SubmissionDraftInput["rights"]["authorityBasis"];
+  switch (authorityBasisValue) {
+    case "original_author":
+    case "licensed":
+    case "public_domain":
+    case "other":
+      authorityBasis = authorityBasisValue;
+      break;
+    default:
+      return null;
+  }
+  const samplesUsed = formBool(form, "process.samplesUsed");
+  const voiceCloneUsed = formBool(form, "process.voiceCloneUsed");
+  const thirdPartyMaterialUsed = formBool(form, "rights.containsThirdPartyMaterial");
   const rightsSummary =
     rightsContext ||
     (authorityBasis === "licensed"
@@ -108,7 +118,12 @@ function readDraft(form: FormData, base: SubmissionDraftInput): SubmissionDraftI
       authorityDetails: rightsContext,
       entitlementStatement: rightsSummary,
       publicSummary: rightsSummary,
-      containsThirdPartyMaterial: Boolean(rightsContext),
+      containsThirdPartyMaterial:
+        thirdPartyMaterialUsed ||
+        samplesUsed ||
+        voiceCloneUsed ||
+        authorityBasis === "licensed" ||
+        authorityBasis === "other",
       thirdPartyMaterialDetails: rightsContext,
       territories,
       isrc: formString(form, "rights.isrc"),
@@ -143,6 +158,10 @@ function readDraft(form: FormData, base: SubmissionDraftInput): SubmissionDraftI
       }),
       sourceMaterialContext: rightsContext,
       publicSummary: creativeSummary,
+      voiceCloneUsed,
+      voiceCloneDetails: voiceCloneUsed ? rightsContext : "",
+      samplesUsed,
+      sampleDetails: samplesUsed ? rightsContext : "",
     },
     provenance: {
       ...base.provenance,
@@ -444,7 +463,24 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
   }
   const aggregate = await service.loadPublic(tokenHash);
 
-  if (intent === "submit-saved") {
+  const base = aggregate
+    ? draftFromAggregate(aggregate)
+    : blankData(invitation.inviteeName, invitation.inviteeEmail);
+  const draft = readDraft(form, base);
+  if (!draft) {
+    return Response.json({ error: "Choose a supported rights basis." }, { status: 400 });
+  }
+  if (intent === "save-draft") {
+    const result = await service.saveDraft(tokenHash, draft, abuseMeta);
+    if (!result.ok) {
+      return Response.json(
+        { error: result.error.message },
+        { status: submissionHttpStatus(result.error.code) },
+      );
+    }
+    return redirect(`/submit/${params.invitationToken}?saved=1`);
+  }
+  if (intent === "submit") {
     if (!aggregate) {
       return Response.json({ error: "Save the track details before submitting." }, { status: 409 });
     }
@@ -460,7 +496,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         { status: 409 },
       );
     }
-    const result = await service.submit(tokenHash, draftFromAggregate(aggregate), abuseMeta);
+    const result = await service.submit(tokenHash, draft, abuseMeta);
     if (!result.ok) {
       return Response.json(
         { error: result.error.message },
@@ -468,21 +504,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
       );
     }
     return redirect(`/submit/${params.invitationToken}?submitted=1`);
-  }
-
-  const base = aggregate
-    ? draftFromAggregate(aggregate)
-    : blankData(invitation.inviteeName, invitation.inviteeEmail);
-  const draft = readDraft(form, base);
-  if (intent === "save-draft") {
-    const result = await service.saveDraft(tokenHash, draft, abuseMeta);
-    if (!result.ok) {
-      return Response.json(
-        { error: result.error.message },
-        { status: submissionHttpStatus(result.error.code) },
-      );
-    }
-    return redirect(`/submit/${params.invitationToken}?saved=1`);
   }
   return Response.json({ error: "Unsupported submission action." }, { status: 400 });
 }
@@ -568,7 +589,7 @@ export default function SubmissionRoute() {
         </p>
       ) : null}
 
-      <Form method="post" className="submission-intake-form">
+      <Form id="submission-details-form" method="post" className="submission-intake-form">
         <input type="hidden" name="website" />
         <section className="submission-step-card" aria-labelledby="submission-details-heading">
           <div className="submission-step-heading">
@@ -625,6 +646,7 @@ export default function SubmissionRoute() {
                 <option value="original_author">I made and control the work</option>
                 <option value="licensed">I have permission or a licence</option>
                 <option value="public_domain">The source material is public domain</option>
+                <option value="other">Other — explain below</option>
               </select>
             </label>
             <DraftInput
@@ -634,9 +656,36 @@ export default function SubmissionRoute() {
               required
             />
             <div className="submission-field-full">
+              <fieldset className="submission-disclosure-options">
+                <legend>Does the track include any of these?</legend>
+                <label>
+                  <input
+                    type="checkbox"
+                    name="process.samplesUsed"
+                    defaultChecked={draft.process.samplesUsed}
+                  />
+                  Samples or source recordings
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    name="process.voiceCloneUsed"
+                    defaultChecked={draft.process.voiceCloneUsed}
+                  />
+                  A cloned or synthetic version of a real person&apos;s voice
+                </label>
+                <label>
+                  <input
+                    type="checkbox"
+                    name="rights.containsThirdPartyMaterial"
+                    defaultChecked={draft.rights.containsThirdPartyMaterial}
+                  />
+                  Other third-party material
+                </label>
+              </fieldset>
               <DraftTextArea
                 name="rights.context"
-                label="Samples, licensed material, or cloned voices (only if used)"
+                label="Rights details (required if you selected anything above or chose licensed/other)"
                 defaultValue={draft.rights.authorityDetails}
               />
             </div>
@@ -733,12 +782,15 @@ export default function SubmissionRoute() {
                 ? "Your details and private listening copy are ready."
                 : "Upload the private listening copy to unlock submission."}
             </p>
-            <Form method="post">
-              <input type="hidden" name="website" />
-              <button type="submit" name="intent" value="submit-saved" disabled={!readyToSubmit}>
-                Submit track for review
-              </button>
-            </Form>
+            <button
+              type="submit"
+              form="submission-details-form"
+              name="intent"
+              value="submit"
+              disabled={!readyToSubmit}
+            >
+              Submit track for review
+            </button>
           </>
         )}
       </section>
