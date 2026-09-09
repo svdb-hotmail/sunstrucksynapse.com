@@ -4,6 +4,7 @@ import {
   redirect,
   useActionData,
   useLoaderData,
+  useNavigation,
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "react-router";
@@ -620,6 +621,7 @@ export const meta: Route.MetaFunction = () => [{ title: `Invitation submission |
 export default function SubmissionRoute() {
   const data = useLoaderData<typeof loader>();
   const actionData = useActionData<{ error?: string }>();
+  const navigation = useNavigation();
   const draft = data.initialDraft;
   const status = data.aggregate?.submission.status ?? "draft";
   const detailsEditable =
@@ -628,6 +630,8 @@ export default function SubmissionRoute() {
     Boolean(data.aggregate) && (status === "draft" || status === "clarification_requested");
   const readyToSubmit = audioEditable && Boolean(data.reviewAudio);
   const acknowledgementConfirmed = Object.values(draft.acknowledgements).every(Boolean);
+  const savingDetails =
+    navigation.state === "submitting" && navigation.formData?.get("intent") === "save-draft";
 
   return (
     <main className="entity-page submission-page">
@@ -803,8 +807,17 @@ export default function SubmissionRoute() {
           </label>
 
           <div className="submission-step-action">
-            <button type="submit" name="intent" value="save-draft" disabled={!detailsEditable}>
-              {data.aggregate ? "Save changes" : "Save details and continue"}
+            <button
+              type="submit"
+              name="intent"
+              value="save-draft"
+              disabled={!detailsEditable || savingDetails}
+            >
+              {savingDetails
+                ? "Saving…"
+                : data.aggregate
+                  ? "Save changes"
+                  : "Save details and continue"}
             </button>
             {!detailsEditable ? <span>Details are locked after submission.</span> : null}
           </div>
