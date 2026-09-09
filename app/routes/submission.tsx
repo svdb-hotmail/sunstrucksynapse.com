@@ -12,7 +12,7 @@ import { SITE_NAME } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { ReviewAudioUploader } from "~/components/ReviewAudioUploader";
 import { createCurationWorkflowRepository } from "~/repositories/curation-workflow.server";
-import type { SubmissionDraftInput } from "~/repositories/submissions.server";
+import type { SubmissionAggregate, SubmissionDraftInput } from "~/repositories/submissions.server";
 import {
   EVIDENCE_MAX_BYTE_SIZE,
   SubmissionEvidenceService,
@@ -36,167 +36,169 @@ function formBool(form: FormData, name: string): boolean {
   return form.get(name) === "on";
 }
 
-function collectIndexed<T>(
-  form: FormData,
-  count: number,
-  reader: (index: number) => T | null,
-): T[] {
-  const values: T[] = [];
-  for (let index = 0; index < count; index += 1) {
-    const value = reader(index);
-    if (value) values.push(value);
-  }
-  return values;
+function commaSeparated(value: string): string[] {
+  return value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean);
 }
 
-function readDraft(form: FormData): SubmissionDraftInput {
+function readDraft(form: FormData, base: SubmissionDraftInput): SubmissionDraftInput {
+  const artistName = formString(form, "artist.displayName");
+  const trackTitle = formString(form, "track.title");
+  const creativeSummary = formString(form, "process.creativeSummary");
+  const tools = commaSeparated(formString(form, "process.toolsAndSystems"));
+  const territories = commaSeparated(formString(form, "rights.territories"));
+  const rightsContext = formString(form, "rights.context");
+  const confirmed = formBool(form, "ack.confirmed");
+  const authorityBasisValue = formString(form, "rights.authorityBasis");
+  const authorityBasis =
+    authorityBasisValue === "licensed" || authorityBasisValue === "public_domain"
+      ? authorityBasisValue
+      : "original_author";
+  const rightsSummary =
+    rightsContext ||
+    (authorityBasis === "licensed"
+      ? "The submitter confirms the material is used with permission."
+      : authorityBasis === "public_domain"
+        ? "The submitter identifies the relevant material as public domain."
+        : "The submitter confirms control of the rights needed for review.");
+  const existingHumanRole = base.process.humanRoles[0];
+  const existingTools = new Map(
+    base.process.aiTools.map((tool) => [tool.name.toLowerCase(), tool]),
+  );
+
   return {
-    submissionKind: formString(form, "submissionKind") === "release" ? "release" : "track",
-    workTitle: formString(form, "workTitle"),
+    ...base,
+    submissionKind: "track",
+    workTitle: trackTitle,
     artist: {
-      displayName: formString(form, "artist.displayName"),
+      ...base.artist,
+      displayName: artistName,
       shortBiography: formString(form, "artist.shortBiography"),
-      location: formString(form, "artist.location"),
       websiteUrl: formString(form, "artist.websiteUrl"),
       socialUrl: formString(form, "artist.socialUrl"),
-      priorWorkNotes: formString(form, "artist.priorWorkNotes"),
     },
     release: {
-      title: formString(form, "release.title"),
-      summary: formString(form, "release.summary"),
+      ...base.release,
+      title: trackTitle,
       plannedReleaseDate: formString(form, "release.plannedReleaseDate"),
-      labelName: formString(form, "release.labelName"),
-      distributorName: formString(form, "release.distributorName"),
-      distributorReleaseId: formString(form, "release.distributorReleaseId"),
-      territories: formString(form, "release.territories")
-        .split(",")
-        .map((value) => value.trim())
-        .filter(Boolean),
+      territories,
     },
     track: {
-      title: formString(form, "track.title"),
-      versionTitle: formString(form, "track.versionTitle"),
-      durationNotes: formString(form, "track.durationNotes"),
-      isLeadSingle: formBool(form, "track.isLeadSingle"),
-      lyricsSummary: formString(form, "track.lyricsSummary"),
-      isInstrumental: formBool(form, "track.isInstrumental"),
+      ...base.track,
+      title: trackTitle,
     },
     contact: {
-      contactName: formString(form, "contact.contactName"),
+      ...base.contact,
+      contactName: artistName,
       contactEmail: formString(form, "contact.contactEmail"),
-      contactPhone: formString(form, "contact.contactPhone"),
-      preferredContactMethod:
-        formString(form, "contact.preferredContactMethod") === "phone" ? "phone" : "email",
+      preferredContactMethod: "email",
     },
     acknowledgements: {
-      invitationConfirmed: formBool(form, "ack.invitationConfirmed"),
-      accuracyConfirmed: formBool(form, "ack.accuracyConfirmed"),
-      rightsConfirmed: formBool(form, "ack.rightsConfirmed"),
-      disclosureConfirmed: formBool(form, "ack.disclosureConfirmed"),
-      reviewProcessConfirmed: formBool(form, "ack.reviewProcessConfirmed"),
+      invitationConfirmed: confirmed,
+      accuracyConfirmed: confirmed,
+      rightsConfirmed: confirmed,
+      disclosureConfirmed: confirmed,
+      reviewProcessConfirmed: confirmed,
     },
     rights: {
-      authorityBasis:
-        formString(form, "rights.authorityBasis") === "licensed"
-          ? "licensed"
-          : formString(form, "rights.authorityBasis") === "public_domain"
-            ? "public_domain"
-            : formString(form, "rights.authorityBasis") === "other"
-              ? "other"
-              : "original_author",
-      authorityDetails: formString(form, "rights.authorityDetails"),
-      entitlementStatement: formString(form, "rights.entitlementStatement"),
-      publicSummary: formString(form, "rights.publicSummary"),
-      publicNotes: formString(form, "rights.publicNotes"),
-      privateNotes: formString(form, "rights.privateNotes"),
-      containsThirdPartyMaterial: formBool(form, "rights.containsThirdPartyMaterial"),
-      thirdPartyMaterialDetails: formString(form, "rights.thirdPartyMaterialDetails"),
-      restrictions: formString(form, "rights.restrictions"),
-      territories: formString(form, "rights.territories")
-        .split(",")
-        .map((value) => value.trim())
-        .filter(Boolean),
-      distributorName: formString(form, "rights.distributorName"),
-      distributorReleaseId: formString(form, "rights.distributorReleaseId"),
+      ...base.rights,
+      authorityBasis,
+      authorityDetails: rightsContext,
+      entitlementStatement: rightsSummary,
+      publicSummary: rightsSummary,
+      containsThirdPartyMaterial: Boolean(rightsContext),
+      thirdPartyMaterialDetails: rightsContext,
+      territories,
       isrc: formString(form, "rights.isrc"),
-      attestation: formString(form, "rights.attestation"),
+      attestation: confirmed
+        ? "I confirm that this submission and its rights and creative-process information are accurate."
+        : "",
     },
     process: {
-      aiUsed: formBool(form, "process.aiUsed"),
-      aiUseDescription: formString(form, "process.aiUseDescription"),
-      meaningfulHumanContribution: formString(form, "process.meaningfulHumanContribution"),
-      toolsAndSystems: formString(form, "process.toolsAndSystems")
-        .split(",")
-        .map((value) => value.trim())
-        .filter(Boolean),
-      humanRoles: collectIndexed(form, 2, (index) => {
-        const name = formString(form, `process.humanRoles.${index}.name`);
-        const role = formString(form, `process.humanRoles.${index}.role`);
-        const contribution = formString(form, `process.humanRoles.${index}.contribution`);
-        if (!name && !role && !contribution) return null;
+      ...base.process,
+      aiUsed: true,
+      aiUseDescription: creativeSummary,
+      meaningfulHumanContribution: creativeSummary,
+      toolsAndSystems: tools,
+      humanRoles: [
+        {
+          name: artistName,
+          role: existingHumanRole?.role || "artist",
+          contribution: creativeSummary,
+          isPublic: existingHumanRole?.isPublic ?? true,
+        },
+        ...base.process.humanRoles.slice(1),
+      ],
+      aiTools: tools.map((name) => {
+        const existing = existingTools.get(name.toLowerCase());
         return {
           name,
-          role,
-          contribution,
-          isPublic: formBool(form, `process.humanRoles.${index}.isPublic`),
+          model: existing?.model ?? "",
+          provider: existing?.provider ?? "",
+          purpose: existing?.purpose || "Creative assistance",
+          isPublic: existing?.isPublic ?? true,
         };
       }),
-      aiTools: collectIndexed(form, 2, (index) => {
-        const name = formString(form, `process.aiTools.${index}.name`);
-        const model = formString(form, `process.aiTools.${index}.model`);
-        const provider = formString(form, `process.aiTools.${index}.provider`);
-        const purpose = formString(form, `process.aiTools.${index}.purpose`);
-        if (!name && !model && !provider && !purpose) return null;
-        return {
-          name,
-          model,
-          provider,
-          purpose,
-          isPublic: formBool(form, `process.aiTools.${index}.isPublic`),
-        };
-      }),
-      lyricsUsed: formBool(form, "process.lyricsUsed"),
-      lyricsDetails: formString(form, "process.lyricsDetails"),
-      voiceCloneUsed: formBool(form, "process.voiceCloneUsed"),
-      voiceCloneDetails: formString(form, "process.voiceCloneDetails"),
-      samplesUsed: formBool(form, "process.samplesUsed"),
-      sampleDetails: formString(form, "process.sampleDetails"),
-      sourceMaterialContext: formString(form, "process.sourceMaterialContext"),
-      publicSummary: formString(form, "process.publicSummary"),
-      privateNotes: formString(form, "process.privateNotes"),
+      sourceMaterialContext: rightsContext,
+      publicSummary: creativeSummary,
     },
     provenance: {
-      summary: formString(form, "provenance.summary"),
-      publicNotes: formString(form, "provenance.publicNotes"),
-      privateNotes: formString(form, "provenance.privateNotes"),
-      steps: collectIndexed(form, 3, (index) => {
-        const processType = formString(form, `provenance.steps.${index}.processType`);
-        const description = formString(form, `provenance.steps.${index}.description`);
-        if (!processType && !description) return null;
-        return {
-          position: index + 1,
-          processType,
-          description,
-          occurredAt: formString(form, `provenance.steps.${index}.occurredAt`) || null,
-        };
-      }),
-      sources: collectIndexed(form, 3, (index) => {
-        const sourceType = formString(form, `provenance.sources.${index}.sourceType`);
-        const reference = formString(form, `provenance.sources.${index}.reference`);
-        if (!sourceType && !reference) return null;
-        return {
-          position: index + 1,
-          sourceType:
-            sourceType === "licensed_material" ||
-            sourceType === "public_domain" ||
-            sourceType === "generated_material" ||
-            sourceType === "other"
-              ? sourceType
-              : "original_recording",
-          reference,
-          rightsContext: formString(form, `provenance.sources.${index}.rightsContext`) || null,
-        };
-      }),
+      ...base.provenance,
+      summary: creativeSummary,
+    },
+  };
+}
+
+function draftFromAggregate(aggregate: SubmissionAggregate): SubmissionDraftInput {
+  return {
+    submissionKind: aggregate.submission.submissionKind,
+    workTitle: aggregate.submission.title,
+    artist: aggregate.submission.artistDetails,
+    release: aggregate.submission.releaseDetails,
+    track: aggregate.submission.trackDetails,
+    contact: aggregate.submission.contactDetails,
+    acknowledgements: aggregate.submission.acknowledgements,
+    rights: {
+      authorityBasis: aggregate.rights.authorityBasis,
+      authorityDetails: aggregate.rights.authorityDetails,
+      entitlementStatement: aggregate.rights.entitlementStatement,
+      publicSummary: aggregate.rights.publicSummary,
+      publicNotes: aggregate.rights.publicNotes,
+      privateNotes: aggregate.rights.privateNotes,
+      containsThirdPartyMaterial: aggregate.rights.containsThirdPartyMaterial,
+      thirdPartyMaterialDetails: aggregate.rights.thirdPartyMaterialDetails,
+      restrictions: aggregate.rights.restrictions,
+      territories: aggregate.rights.territories,
+      distributorName: aggregate.rights.distributorName,
+      distributorReleaseId: aggregate.rights.distributorReleaseId,
+      isrc: aggregate.rights.isrc,
+      attestation: aggregate.rights.attestation,
+    },
+    process: {
+      aiUsed: aggregate.process.aiUsed,
+      aiUseDescription: aggregate.process.aiUseDescription,
+      meaningfulHumanContribution: aggregate.process.meaningfulHumanContribution,
+      toolsAndSystems: aggregate.process.toolsAndSystems,
+      humanRoles: aggregate.process.humanRoles,
+      aiTools: aggregate.process.aiTools,
+      lyricsUsed: aggregate.process.lyricsUsed,
+      lyricsDetails: aggregate.process.lyricsDetails,
+      voiceCloneUsed: aggregate.process.voiceCloneUsed,
+      voiceCloneDetails: aggregate.process.voiceCloneDetails,
+      samplesUsed: aggregate.process.samplesUsed,
+      sampleDetails: aggregate.process.sampleDetails,
+      sourceMaterialContext: aggregate.process.sourceMaterialContext,
+      publicSummary: aggregate.process.publicSummary,
+      privateNotes: aggregate.process.privateNotes,
+    },
+    provenance: {
+      summary: aggregate.provenance.summary,
+      publicNotes: aggregate.provenance.publicNotes,
+      privateNotes: aggregate.provenance.privateNotes,
+      steps: aggregate.provenance.steps,
+      sources: aggregate.provenance.sources,
     },
   };
 }
@@ -220,7 +222,7 @@ function blankData(inviteeName: string | null, inviteeEmail: string): Submission
       labelName: "",
       distributorName: "",
       distributorReleaseId: "",
-      territories: [],
+      territories: ["Worldwide"],
     },
     track: {
       title: "",
@@ -253,7 +255,7 @@ function blankData(inviteeName: string | null, inviteeEmail: string): Submission
       containsThirdPartyMaterial: false,
       thirdPartyMaterialDetails: "",
       restrictions: "",
-      territories: [],
+      territories: ["Worldwide"],
       distributorName: "",
       distributorReleaseId: "",
       isrc: "",
@@ -312,65 +314,17 @@ export async function loader({ context, params, request }: LoaderFunctionArgs) {
     throw new Response("Submission link unavailable.", { status: 404, statusText: "Not found" });
   }
   const aggregate = await service.loadPublic(tokenHash);
-  const reviewAudio = runtime.db
-    ? await createCurationWorkflowRepository(runtime.db).currentAudioByTokenHash(
-        tokenHash,
-        new Date(),
-      )
+  const workflowRepository =
+    runtime.curationWorkflowRepository ??
+    (runtime.db ? createCurationWorkflowRepository(runtime.db) : null);
+  const reviewAudio = workflowRepository
+    ? await workflowRepository.currentAudioByTokenHash(tokenHash, new Date())
     : null;
   return {
     invitation,
     aggregate,
     initialDraft: aggregate
-      ? {
-          submissionKind: aggregate.submission.submissionKind,
-          workTitle: aggregate.submission.title,
-          artist: aggregate.submission.artistDetails,
-          release: aggregate.submission.releaseDetails,
-          track: aggregate.submission.trackDetails,
-          contact: aggregate.submission.contactDetails,
-          acknowledgements: aggregate.submission.acknowledgements,
-          rights: {
-            authorityBasis: aggregate.rights.authorityBasis,
-            authorityDetails: aggregate.rights.authorityDetails,
-            entitlementStatement: aggregate.rights.entitlementStatement,
-            publicSummary: aggregate.rights.publicSummary,
-            publicNotes: aggregate.rights.publicNotes,
-            privateNotes: aggregate.rights.privateNotes,
-            containsThirdPartyMaterial: aggregate.rights.containsThirdPartyMaterial,
-            thirdPartyMaterialDetails: aggregate.rights.thirdPartyMaterialDetails,
-            restrictions: aggregate.rights.restrictions,
-            territories: aggregate.rights.territories,
-            distributorName: aggregate.rights.distributorName,
-            distributorReleaseId: aggregate.rights.distributorReleaseId,
-            isrc: aggregate.rights.isrc,
-            attestation: aggregate.rights.attestation,
-          },
-          process: {
-            aiUsed: aggregate.process.aiUsed,
-            aiUseDescription: aggregate.process.aiUseDescription,
-            meaningfulHumanContribution: aggregate.process.meaningfulHumanContribution,
-            toolsAndSystems: aggregate.process.toolsAndSystems,
-            humanRoles: aggregate.process.humanRoles,
-            aiTools: aggregate.process.aiTools,
-            lyricsUsed: aggregate.process.lyricsUsed,
-            lyricsDetails: aggregate.process.lyricsDetails,
-            voiceCloneUsed: aggregate.process.voiceCloneUsed,
-            voiceCloneDetails: aggregate.process.voiceCloneDetails,
-            samplesUsed: aggregate.process.samplesUsed,
-            sampleDetails: aggregate.process.sampleDetails,
-            sourceMaterialContext: aggregate.process.sourceMaterialContext,
-            publicSummary: aggregate.process.publicSummary,
-            privateNotes: aggregate.process.privateNotes,
-          },
-          provenance: {
-            summary: aggregate.provenance.summary,
-            publicNotes: aggregate.provenance.publicNotes,
-            privateNotes: aggregate.provenance.privateNotes,
-            steps: aggregate.provenance.steps,
-            sources: aggregate.provenance.sources,
-          },
-        }
+      ? draftFromAggregate(aggregate)
       : blankData(invitation.inviteeName, invitation.inviteeEmail),
     flash: flowMessage(new URL(request.url)),
     reviewAudio,
@@ -484,7 +438,42 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     return redirect(`/submit/${params.invitationToken}?withdrawn=1`);
   }
 
-  const draft = readDraft(form);
+  const invitation = await service.loadInvitation(tokenHash);
+  if (!invitation) {
+    return Response.json({ error: "Submission link unavailable." }, { status: 404 });
+  }
+  const aggregate = await service.loadPublic(tokenHash);
+
+  if (intent === "submit-saved") {
+    if (!aggregate) {
+      return Response.json({ error: "Save the track details before submitting." }, { status: 409 });
+    }
+    const workflowRepository =
+      runtime.curationWorkflowRepository ??
+      (runtime.db ? createCurationWorkflowRepository(runtime.db) : null);
+    const reviewAudio = workflowRepository
+      ? await workflowRepository.currentAudioByTokenHash(tokenHash, new Date())
+      : null;
+    if (!reviewAudio) {
+      return Response.json(
+        { error: "Upload a private listening copy before submitting." },
+        { status: 409 },
+      );
+    }
+    const result = await service.submit(tokenHash, draftFromAggregate(aggregate), abuseMeta);
+    if (!result.ok) {
+      return Response.json(
+        { error: result.error.message },
+        { status: submissionHttpStatus(result.error.code) },
+      );
+    }
+    return redirect(`/submit/${params.invitationToken}?submitted=1`);
+  }
+
+  const base = aggregate
+    ? draftFromAggregate(aggregate)
+    : blankData(invitation.inviteeName, invitation.inviteeEmail);
+  const draft = readDraft(form, base);
   if (intent === "save-draft") {
     const result = await service.saveDraft(tokenHash, draft, abuseMeta);
     if (!result.ok) {
@@ -495,16 +484,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     }
     return redirect(`/submit/${params.invitationToken}?saved=1`);
   }
-  if (intent === "submit") {
-    const result = await service.submit(tokenHash, draft, abuseMeta);
-    if (!result.ok) {
-      return Response.json(
-        { error: result.error.message },
-        { status: submissionHttpStatus(result.error.code) },
-      );
-    }
-    return redirect(`/submit/${params.invitationToken}?submitted=1`);
-  }
   return Response.json({ error: "Unsupported submission action." }, { status: 400 });
 }
 
@@ -513,16 +492,18 @@ function DraftInput({
   label,
   defaultValue = "",
   type = "text",
+  required = false,
 }: {
   name: string;
   label: string;
   defaultValue?: string;
   type?: string;
+  required?: boolean;
 }) {
   return (
     <label>
       {label}
-      <input name={name} type={type} defaultValue={defaultValue} />
+      <input name={name} type={type} defaultValue={defaultValue} required={required} />
     </label>
   );
 }
@@ -531,15 +512,17 @@ function DraftTextArea({
   name,
   label,
   defaultValue = "",
+  required = false,
 }: {
   name: string;
   label: string;
   defaultValue?: string;
+  required?: boolean;
 }) {
   return (
     <label>
       {label}
-      <textarea name={name} defaultValue={defaultValue} rows={4} />
+      <textarea name={name} defaultValue={defaultValue} rows={4} required={required} />
     </label>
   );
 }
@@ -551,501 +534,264 @@ export default function SubmissionRoute() {
   const actionData = useActionData<{ error?: string }>();
   const draft = data.initialDraft;
   const status = data.aggregate?.submission.status ?? "draft";
+  const detailsEditable =
+    !data.aggregate || status === "draft" || status === "clarification_requested";
+  const audioEditable =
+    Boolean(data.aggregate) && (status === "draft" || status === "clarification_requested");
+  const readyToSubmit = audioEditable && Boolean(data.reviewAudio);
+  const acknowledgementConfirmed = Object.values(draft.acknowledgements).every(Boolean);
 
   return (
     <main className="entity-page submission-page">
       <p className="eyebrow">Invitation submission</p>
-      <h1>Submit for curator review</h1>
-      <p>
-        Invitation: <strong>{data.invitation.publicReference}</strong>
+      <h1>Send us one track</h1>
+      <p className="submission-intro">
+        Add the essentials, upload the finished audio, and submit. It should take only a few
+        minutes.
+      </p>
+      <p className="submission-reference">
+        Invite <strong>{data.invitation.publicReference}</strong>
         {data.aggregate ? (
           <>
-            {" · "}Submission reference:{" "}
-            <strong>{data.aggregate.submission.publicReference}</strong>
+            {" · "}Submission <strong>{data.aggregate.submission.publicReference}</strong>
           </>
         ) : null}
       </p>
-      <p>
-        Review the <Link to="/submission-terms">submission terms</Link>,{" "}
-        <Link to="/privacy">privacy notice</Link>, and{" "}
-        <Link to="/takedown">content takedown process</Link>.
-      </p>
-      {data.flash ? <p role="status">{data.flash}</p> : null}
-      {actionData?.error ? <p role="alert">{actionData.error}</p> : null}
-      <Form method="post" className="curator-form">
+      {data.flash ? (
+        <p className="submission-notice" role="status">
+          {data.flash}
+        </p>
+      ) : null}
+      {actionData?.error ? (
+        <p className="submission-notice submission-notice-error" role="alert">
+          {actionData.error}
+        </p>
+      ) : null}
+
+      <Form method="post" className="submission-intake-form">
         <input type="hidden" name="website" />
-        <section>
-          <h2>Intake</h2>
-          <label>
-            Submission kind
-            <select name="submissionKind" defaultValue={draft.submissionKind}>
-              <option value="track">Track</option>
-              <option value="release">Release</option>
-            </select>
-          </label>
-          <DraftInput name="workTitle" label="Work title" defaultValue={draft.workTitle} />
-          <DraftInput
-            name="artist.displayName"
-            label="Artist display name"
-            defaultValue={draft.artist.displayName}
-          />
-          <DraftTextArea
-            name="artist.shortBiography"
-            label="Artist biography"
-            defaultValue={draft.artist.shortBiography}
-          />
-          <DraftInput
-            name="artist.location"
-            label="Location"
-            defaultValue={draft.artist.location}
-          />
-          <DraftInput
-            name="artist.websiteUrl"
-            label="Website"
-            defaultValue={draft.artist.websiteUrl}
-          />
-          <DraftInput
-            name="artist.socialUrl"
-            label="Social link"
-            defaultValue={draft.artist.socialUrl}
-          />
-          <DraftTextArea
-            name="artist.priorWorkNotes"
-            label="Prior work / context"
-            defaultValue={draft.artist.priorWorkNotes}
-          />
-          <DraftInput
-            name="release.title"
-            label="Release title"
-            defaultValue={draft.release.title}
-          />
-          <DraftTextArea
-            name="release.summary"
-            label="Release summary"
-            defaultValue={draft.release.summary}
-          />
-          <DraftInput
-            name="release.plannedReleaseDate"
-            label="Planned release date"
-            defaultValue={draft.release.plannedReleaseDate}
-            type="date"
-          />
-          <DraftInput name="track.title" label="Track title" defaultValue={draft.track.title} />
-          <DraftInput
-            name="track.versionTitle"
-            label="Track version / mix"
-            defaultValue={draft.track.versionTitle}
-          />
-          <DraftInput
-            name="track.durationNotes"
-            label="Duration / pacing notes"
-            defaultValue={draft.track.durationNotes}
-          />
-          <label>
-            <input
-              type="checkbox"
-              name="track.isLeadSingle"
-              defaultChecked={draft.track.isLeadSingle}
+        <section className="submission-step-card" aria-labelledby="submission-details-heading">
+          <div className="submission-step-heading">
+            <span aria-hidden="true">1</span>
+            <div>
+              <p className="eyebrow">Track details</p>
+              <h2 id="submission-details-heading">Tell us what we are hearing</h2>
+            </div>
+          </div>
+          <div className="submission-field-grid">
+            <DraftInput
+              name="artist.displayName"
+              label="Artist name"
+              defaultValue={draft.artist.displayName}
+              required
             />
-            Lead single
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              name="track.isInstrumental"
-              defaultChecked={draft.track.isInstrumental}
+            <DraftInput
+              name="track.title"
+              label="Track title"
+              defaultValue={draft.track.title}
+              required
             />
-            Instrumental
-          </label>
-          <DraftTextArea
-            name="track.lyricsSummary"
-            label="Lyrics summary"
-            defaultValue={draft.track.lyricsSummary}
-          />
-          <DraftInput
-            name="contact.contactName"
-            label="Contact name"
-            defaultValue={draft.contact.contactName}
-          />
-          <DraftInput
-            name="contact.contactEmail"
-            label="Contact email"
-            defaultValue={draft.contact.contactEmail}
-            type="email"
-          />
-          <DraftInput
-            name="contact.contactPhone"
-            label="Contact phone"
-            defaultValue={draft.contact.contactPhone}
-          />
-          <label>
-            Preferred contact method
-            <select
-              name="contact.preferredContactMethod"
-              defaultValue={draft.contact.preferredContactMethod}
-            >
-              <option value="email">Email</option>
-              <option value="phone">Phone</option>
-            </select>
-          </label>
-        </section>
-        <section>
-          <h2>Rights</h2>
-          <label>
-            Authority basis
-            <select name="rights.authorityBasis" defaultValue={draft.rights.authorityBasis}>
-              <option value="original_author">Original author</option>
-              <option value="licensed">Licensed</option>
-              <option value="public_domain">Public domain</option>
-              <option value="other">Other</option>
-            </select>
-          </label>
-          <DraftTextArea
-            name="rights.authorityDetails"
-            label="Authority details"
-            defaultValue={draft.rights.authorityDetails}
-          />
-          <DraftTextArea
-            name="rights.entitlementStatement"
-            label="Entitlement statement"
-            defaultValue={draft.rights.entitlementStatement}
-          />
-          <DraftTextArea
-            name="rights.publicSummary"
-            label="Public rights summary"
-            defaultValue={draft.rights.publicSummary}
-          />
-          <DraftTextArea
-            name="rights.publicNotes"
-            label="Public rights notes"
-            defaultValue={draft.rights.publicNotes}
-          />
-          <DraftTextArea
-            name="rights.privateNotes"
-            label="Private rights notes"
-            defaultValue={draft.rights.privateNotes}
-          />
-          <label>
-            <input
-              type="checkbox"
-              name="rights.containsThirdPartyMaterial"
-              defaultChecked={draft.rights.containsThirdPartyMaterial}
+            <DraftInput
+              name="contact.contactEmail"
+              label="Contact email"
+              defaultValue={draft.contact.contactEmail}
+              type="email"
+              required
             />
-            Includes third-party material
-          </label>
-          <DraftTextArea
-            name="rights.thirdPartyMaterialDetails"
-            label="Third-party material details"
-            defaultValue={draft.rights.thirdPartyMaterialDetails}
-          />
-          <DraftInput
-            name="rights.territories"
-            label="Territories (comma separated)"
-            defaultValue={draft.rights.territories.join(", ")}
-          />
-          <DraftInput
-            name="rights.distributorName"
-            label="Distributor"
-            defaultValue={draft.rights.distributorName}
-          />
-          <DraftInput
-            name="rights.distributorReleaseId"
-            label="Distributor release ID"
-            defaultValue={draft.rights.distributorReleaseId}
-          />
-          <DraftInput name="rights.isrc" label="ISRC" defaultValue={draft.rights.isrc} />
-          <DraftTextArea
-            name="rights.restrictions"
-            label="Restrictions"
-            defaultValue={draft.rights.restrictions}
-          />
-          <DraftTextArea
-            name="rights.attestation"
-            label="Submission attestation"
-            defaultValue={draft.rights.attestation}
-          />
-        </section>
-        <section>
-          <h2>Creative process</h2>
-          <label>
-            <input type="checkbox" name="process.aiUsed" defaultChecked={draft.process.aiUsed} />
-            AI tools were used
-          </label>
-          <DraftTextArea
-            name="process.aiUseDescription"
-            label="AI use description"
-            defaultValue={draft.process.aiUseDescription}
-          />
-          <DraftTextArea
-            name="process.meaningfulHumanContribution"
-            label="Meaningful human contribution"
-            defaultValue={draft.process.meaningfulHumanContribution}
-          />
-          <DraftInput
-            name="process.toolsAndSystems"
-            label="Tools and systems (comma separated)"
-            defaultValue={draft.process.toolsAndSystems.join(", ")}
-          />
-          {[0, 1].map((index) => (
-            <fieldset key={`human-role-${index}`}>
-              <legend>Human role {index + 1}</legend>
-              <DraftInput
-                name={`process.humanRoles.${index}.name`}
-                label="Name"
-                defaultValue={draft.process.humanRoles[index]?.name ?? ""}
-              />
-              <DraftInput
-                name={`process.humanRoles.${index}.role`}
-                label="Role"
-                defaultValue={draft.process.humanRoles[index]?.role ?? ""}
-              />
+            <div className="submission-field-full">
               <DraftTextArea
-                name={`process.humanRoles.${index}.contribution`}
-                label="Contribution"
-                defaultValue={draft.process.humanRoles[index]?.contribution ?? ""}
+                name="process.creativeSummary"
+                label="How was this track made, and what did you contribute?"
+                defaultValue={draft.process.meaningfulHumanContribution}
+                required
               />
-            </fieldset>
-          ))}
-          {[0, 1].map((index) => (
-            <fieldset key={`ai-tool-${index}`}>
-              <legend>AI tool {index + 1}</legend>
-              <DraftInput
-                name={`process.aiTools.${index}.name`}
-                label="Tool"
-                defaultValue={draft.process.aiTools[index]?.name ?? ""}
-              />
-              <DraftInput
-                name={`process.aiTools.${index}.model`}
-                label="Model"
-                defaultValue={draft.process.aiTools[index]?.model ?? ""}
-              />
-              <DraftInput
-                name={`process.aiTools.${index}.provider`}
-                label="Provider"
-                defaultValue={draft.process.aiTools[index]?.provider ?? ""}
-              />
-              <DraftInput
-                name={`process.aiTools.${index}.purpose`}
-                label="Purpose"
-                defaultValue={draft.process.aiTools[index]?.purpose ?? ""}
-              />
-            </fieldset>
-          ))}
-          <label>
-            <input
-              type="checkbox"
-              name="process.lyricsUsed"
-              defaultChecked={draft.process.lyricsUsed}
+              <p className="submission-field-help">
+                A few plain sentences are enough. Mention the important creative decisions you made.
+              </p>
+            </div>
+            <DraftInput
+              name="process.toolsAndSystems"
+              label="AI tools used (comma separated)"
+              defaultValue={draft.process.toolsAndSystems.join(", ")}
+              required
             />
-            Lyrics involved
-          </label>
-          <DraftTextArea
-            name="process.lyricsDetails"
-            label="Lyrics details"
-            defaultValue={draft.process.lyricsDetails}
-          />
-          <label>
-            <input
-              type="checkbox"
-              name="process.voiceCloneUsed"
-              defaultChecked={draft.process.voiceCloneUsed}
+            <label>
+              Rights basis
+              <select
+                name="rights.authorityBasis"
+                defaultValue={draft.rights.authorityBasis}
+                required
+              >
+                <option value="original_author">I made and control the work</option>
+                <option value="licensed">I have permission or a licence</option>
+                <option value="public_domain">The source material is public domain</option>
+              </select>
+            </label>
+            <DraftInput
+              name="rights.territories"
+              label="Where do you have these rights?"
+              defaultValue={draft.rights.territories.join(", ") || "Worldwide"}
+              required
             />
-            Voice clone used
-          </label>
-          <DraftTextArea
-            name="process.voiceCloneDetails"
-            label="Voice clone details"
-            defaultValue={draft.process.voiceCloneDetails}
-          />
-          <label>
-            <input
-              type="checkbox"
-              name="process.samplesUsed"
-              defaultChecked={draft.process.samplesUsed}
-            />
-            Samples / source material used
-          </label>
-          <DraftTextArea
-            name="process.sampleDetails"
-            label="Samples / source details"
-            defaultValue={draft.process.sampleDetails}
-          />
-          <DraftTextArea
-            name="process.sourceMaterialContext"
-            label="Source material context"
-            defaultValue={draft.process.sourceMaterialContext}
-          />
-          <DraftTextArea
-            name="process.publicSummary"
-            label="Public process summary"
-            defaultValue={draft.process.publicSummary}
-          />
-          <DraftTextArea
-            name="process.privateNotes"
-            label="Private process notes"
-            defaultValue={draft.process.privateNotes}
-          />
-        </section>
-        <section>
-          <h2>Provenance</h2>
-          <DraftTextArea
-            name="provenance.summary"
-            label="Summary"
-            defaultValue={draft.provenance.summary}
-          />
-          <DraftTextArea
-            name="provenance.publicNotes"
-            label="Public provenance notes"
-            defaultValue={draft.provenance.publicNotes}
-          />
-          <DraftTextArea
-            name="provenance.privateNotes"
-            label="Private provenance notes"
-            defaultValue={draft.provenance.privateNotes}
-          />
-          {[0, 1, 2].map((index) => (
-            <fieldset key={`prov-step-${index}`}>
-              <legend>Process step {index + 1}</legend>
-              <DraftInput
-                name={`provenance.steps.${index}.processType`}
-                label="Type"
-                defaultValue={draft.provenance.steps[index]?.processType ?? ""}
-              />
+            <div className="submission-field-full">
               <DraftTextArea
-                name={`provenance.steps.${index}.description`}
-                label="Description"
-                defaultValue={draft.provenance.steps[index]?.description ?? ""}
+                name="rights.context"
+                label="Samples, licensed material, or cloned voices (only if used)"
+                defaultValue={draft.rights.authorityDetails}
+              />
+            </div>
+          </div>
+
+          <details className="submission-optional">
+            <summary>Optional release details</summary>
+            <div className="submission-field-grid">
+              <DraftTextArea
+                name="artist.shortBiography"
+                label="Short artist biography"
+                defaultValue={draft.artist.shortBiography}
               />
               <DraftInput
-                name={`provenance.steps.${index}.occurredAt`}
-                label="Occurred at"
-                defaultValue={draft.provenance.steps[index]?.occurredAt ?? ""}
+                name="artist.websiteUrl"
+                label="Website"
+                defaultValue={draft.artist.websiteUrl}
+                type="url"
+              />
+              <DraftInput
+                name="artist.socialUrl"
+                label="Social profile"
+                defaultValue={draft.artist.socialUrl}
+                type="url"
+              />
+              <DraftInput
+                name="release.plannedReleaseDate"
+                label="Planned release date"
+                defaultValue={draft.release.plannedReleaseDate}
                 type="date"
               />
-            </fieldset>
-          ))}
-          {[0, 1, 2].map((index) => (
-            <fieldset key={`prov-source-${index}`}>
-              <legend>Source {index + 1}</legend>
-              <label>
-                Source type
-                <select
-                  name={`provenance.sources.${index}.sourceType`}
-                  defaultValue={draft.provenance.sources[index]?.sourceType ?? "original_recording"}
-                >
-                  <option value="original_recording">Original recording</option>
-                  <option value="licensed_material">Licensed material</option>
-                  <option value="public_domain">Public domain</option>
-                  <option value="generated_material">Generated material</option>
-                  <option value="other">Other</option>
-                </select>
-              </label>
-              <DraftInput
-                name={`provenance.sources.${index}.reference`}
-                label="Reference"
-                defaultValue={draft.provenance.sources[index]?.reference ?? ""}
-              />
-              <DraftTextArea
-                name={`provenance.sources.${index}.rightsContext`}
-                label="Rights context"
-                defaultValue={draft.provenance.sources[index]?.rightsContext ?? ""}
-              />
-            </fieldset>
-          ))}
+              <DraftInput name="rights.isrc" label="ISRC" defaultValue={draft.rights.isrc} />
+            </div>
+          </details>
+
+          <label className="submission-confirmation">
+            <input
+              type="checkbox"
+              name="ack.confirmed"
+              defaultChecked={acknowledgementConfirmed}
+              required
+            />
+            <span>
+              This invitation is mine. The information is accurate, I control or have permission for
+              the material, and I have disclosed the creative process. I understand review does not
+              guarantee publication.
+            </span>
+          </label>
+
+          <div className="submission-step-action">
+            <button type="submit" name="intent" value="save-draft" disabled={!detailsEditable}>
+              {data.aggregate ? "Save changes" : "Save details and continue"}
+            </button>
+            {!detailsEditable ? <span>Details are locked after submission.</span> : null}
+          </div>
         </section>
-        <section>
-          <h2>Acknowledgements</h2>
-          {[
-            [
-              "ack.invitationConfirmed",
-              "This invitation is mine to use.",
-              draft.acknowledgements.invitationConfirmed,
-            ],
-            [
-              "ack.accuracyConfirmed",
-              "The submission is accurate to the best of my knowledge.",
-              draft.acknowledgements.accuracyConfirmed,
-            ],
-            [
-              "ack.rightsConfirmed",
-              "I can support the rights declaration on request.",
-              draft.acknowledgements.rightsConfirmed,
-            ],
-            [
-              "ack.disclosureConfirmed",
-              "The creative-process disclosure is complete.",
-              draft.acknowledgements.disclosureConfirmed,
-            ],
-            [
-              "ack.reviewProcessConfirmed",
-              "I understand that review and publication are separate decisions.",
-              draft.acknowledgements.reviewProcessConfirmed,
-            ],
-          ].map(([name, label, checked]) => (
-            <label key={String(name)}>
-              <input type="checkbox" name={String(name)} defaultChecked={Boolean(checked)} />
-              {label}
-            </label>
-          ))}
-        </section>
-        <div className="curator-actions">
-          <button type="submit" name="intent" value="save-draft">
-            Save draft
-          </button>
-          <button type="submit" name="intent" value="submit">
-            Submit for review
-          </button>
-        </div>
       </Form>
 
-      <ReviewAudioUploader
-        endpoint={data.reviewAudioEndpoint}
-        currentAudio={data.reviewAudio}
-        disabled={
-          !data.aggregate ||
-          (status !== "draft" && status !== "received" && status !== "clarification_requested")
-        }
-      />
+      <div className="submission-audio-step">
+        <div className="submission-step-heading">
+          <span aria-hidden="true">2</span>
+          <div>
+            <p className="eyebrow">Private listening copy</p>
+            <h2>Upload the finished track</h2>
+          </div>
+        </div>
+        <ReviewAudioUploader
+          endpoint={data.reviewAudioEndpoint}
+          currentAudio={data.reviewAudio}
+          disabled={!audioEditable}
+          showHeading={false}
+          disabledMessage={
+            !data.aggregate
+              ? "Save the track details first."
+              : "The listening copy is locked after submission."
+          }
+        />
+      </div>
 
-      <section>
-        <h2>Private evidence</h2>
-        <p>
-          Upload only files needed for curator review. Evidence stays private, is reviewed manually
-          for malware status, and is never shown on public pages.
-        </p>
-        <Form method="post" encType="multipart/form-data" className="curator-form">
-          <input type="hidden" name="intent" value="upload-evidence" />
-          <input type="hidden" name="website" />
-          <label>
-            Evidence file
-            <input type="file" name="evidence" />
-          </label>
-          <button type="submit">Upload evidence</button>
-        </Form>
-        {data.aggregate?.evidence.length ? (
-          <ul>
-            {data.aggregate.evidence.map((evidence) => (
-              <li key={evidence.id}>
-                {evidence.originalFilename} · {evidence.mimeType} · {evidence.byteSize} bytes ·{" "}
-                {evidence.malwareStatus}
-              </li>
-            ))}
-          </ul>
+      <section className="submission-step-card" aria-labelledby="submission-send-heading">
+        <div className="submission-step-heading">
+          <span aria-hidden="true">3</span>
+          <div>
+            <p className="eyebrow">Final check</p>
+            <h2 id="submission-send-heading">Submit for review</h2>
+          </div>
+        </div>
+        {status === "received" ? (
+          <p className="submission-complete">Your track has been submitted. You are done.</p>
         ) : (
-          <p>No evidence uploaded yet.</p>
+          <>
+            <p>
+              {data.reviewAudio
+                ? "Your details and private listening copy are ready."
+                : "Upload the private listening copy to unlock submission."}
+            </p>
+            <Form method="post">
+              <input type="hidden" name="website" />
+              <button type="submit" name="intent" value="submit-saved" disabled={!readyToSubmit}>
+                Submit track for review
+              </button>
+            </Form>
+          </>
         )}
       </section>
 
-      <section>
-        <h2>Withdrawal</h2>
-        <Form method="post" className="curator-form">
-          <input type="hidden" name="intent" value="withdraw" />
-          <DraftTextArea name="withdrawMessage" label="Withdrawal note" />
-          <button type="submit" disabled={status === "accepted" || status === "rejected"}>
-            Withdraw submission
-          </button>
-        </Form>
-      </section>
+      {data.aggregate ? (
+        <details className="submission-secondary-actions">
+          <summary>Only if the curator asks for more</summary>
+          <section>
+            <h2>Supporting evidence</h2>
+            <p>
+              Evidence stays private and is never shown on public pages. Do not upload anything
+              unless it helps answer a curator question.
+            </p>
+            <Form method="post" encType="multipart/form-data" className="curator-form">
+              <input type="hidden" name="intent" value="upload-evidence" />
+              <input type="hidden" name="website" />
+              <label>
+                Evidence file
+                <input type="file" name="evidence" />
+              </label>
+              <button type="submit">Upload evidence</button>
+            </Form>
+            {data.aggregate.evidence.length ? (
+              <ul>
+                {data.aggregate.evidence.map((evidence) => (
+                  <li key={evidence.id}>
+                    {evidence.originalFilename} · {evidence.mimeType} · {evidence.byteSize} bytes ·{" "}
+                    {evidence.malwareStatus}
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </section>
+        </details>
+      ) : null}
+
+      {data.aggregate ? (
+        <details className="submission-secondary-actions">
+          <summary>Withdraw this submission</summary>
+          <Form method="post" className="curator-form">
+            <input type="hidden" name="intent" value="withdraw" />
+            <DraftTextArea name="withdrawMessage" label="Optional note" />
+            <button type="submit" disabled={status === "accepted" || status === "rejected"}>
+              Withdraw submission
+            </button>
+          </Form>
+        </details>
+      ) : null}
+
+      <p className="submission-legal">
+        By continuing you agree to the <Link to="/submission-terms">submission terms</Link>. See our{" "}
+        <Link to="/privacy">privacy notice</Link> and <Link to="/takedown">takedown process</Link>.
+      </p>
     </main>
   );
 }

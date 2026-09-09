@@ -17,7 +17,10 @@ export interface CloudflareContextValue {
   curatorRepository?: CuratorRepository;
   curationWorkflowRepository?: Pick<
     CurationWorkflowRepository,
-    "claimNextSubmission" | "finalizeReview" | "currentAudioForSubmissions"
+    | "claimNextSubmission"
+    | "finalizeReview"
+    | "currentAudioForSubmissions"
+    | "currentAudioByTokenHash"
   >;
   submissionRepository?: SubmissionRepository;
   analyticsRepository?: AnalyticsRepository;
