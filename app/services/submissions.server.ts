@@ -57,6 +57,9 @@ const MAX_INVITEE_NAME_LENGTH = 200;
 const MAX_INVITEE_EMAIL_LENGTH = 320;
 const MAX_INVITATION_DAYS = 90;
 
+export const SUBMISSION_RIGHTS_ATTESTATION =
+  "I confirm that this submission and its rights and creative-process information are accurate.";
+
 function secureRandomHex(byteLength: number): string {
   const bytes = crypto.getRandomValues(new Uint8Array(byteLength));
   return Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
@@ -105,6 +108,19 @@ function validateForSubmit(input: SubmissionDraftInput): string | null {
     required.push("third-party material details");
   }
   return required.length > 0 ? missing(required) : null;
+}
+
+function withConfirmedRightsAttestation(input: SubmissionDraftInput): SubmissionDraftInput {
+  if (input.rights.attestation.trim() || !Object.values(input.acknowledgements).every(Boolean)) {
+    return input;
+  }
+  return {
+    ...input,
+    rights: {
+      ...input.rights,
+      attestation: SUBMISSION_RIGHTS_ATTESTATION,
+    },
+  };
 }
 
 export class SubmissionService {
@@ -216,13 +232,14 @@ export class SubmissionService {
         error: { code: "conflict", message: "This submission has already been finalized." },
       } as const;
     }
-    const validation = validateForSubmit(input);
+    const submissionInput = withConfirmedRightsAttestation(input);
+    const validation = validateForSubmit(submissionInput);
     if (validation) {
       return { ok: false, error: { code: "invalid", message: validation } } as const;
     }
     const value = await this.repository.submitByInvitationTokenHash(
       tokenHash,
-      input,
+      submissionInput,
       this.clock(),
       meta,
       "Submitted revision",
