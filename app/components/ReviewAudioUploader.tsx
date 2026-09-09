@@ -27,6 +27,22 @@ function audioDuration(file: File): Promise<number> {
   });
 }
 
+function browserMimeType(file: File): string {
+  if (file.type) return file.type;
+  const extension = file.name.split(".").pop()?.toLowerCase();
+  return (
+    {
+      mp3: "audio/mpeg",
+      m4a: "audio/mp4",
+      wav: "audio/wav",
+      ogg: "audio/ogg",
+      oga: "audio/ogg",
+      webm: "audio/webm",
+      flac: "audio/flac",
+    }[extension ?? ""] ?? ""
+  );
+}
+
 export function ReviewAudioUploader({
   endpoint,
   currentAudio = null,
@@ -40,25 +56,26 @@ export function ReviewAudioUploader({
   );
   const [message, setMessage] = useState<string | null>(null);
 
-  async function upload() {
-    if (!file || disabled || state !== "idle") return;
+  async function upload(selectedFile = file) {
+    if (!selectedFile || disabled || state !== "idle") return;
     setMessage(null);
     try {
       setState("preparing");
+      const mimeType = browserMimeType(selectedFile);
       const [checksumSha256, durationMs] = await Promise.all([
-        computeBlobSha256(file),
-        audioDuration(file),
+        computeBlobSha256(selectedFile),
+        audioDuration(selectedFile),
       ]);
       const declarationResponse = await fetch(endpoint, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          filename: file.name,
-          mimeType: file.type,
+          filename: selectedFile.name,
+          mimeType,
           checksumSha256,
-          byteSize: file.size,
+          byteSize: selectedFile.size,
           durationMs,
-          codec: file.type.split("/")[1] || "unknown",
+          codec: mimeType.split("/")[1] || "unknown",
         }),
       });
       const declaration = (await declarationResponse.json()) as {
@@ -74,7 +91,7 @@ export function ReviewAudioUploader({
       const uploadResponse = await fetch(declaration.uploadUrl, {
         method: "PUT",
         headers: declaration.uploadHeaders,
-        body: file,
+        body: selectedFile,
       });
       if (!uploadResponse.ok) throw new Error("The private audio upload failed.");
       setState("finalizing");
@@ -83,6 +100,7 @@ export function ReviewAudioUploader({
       if (!finalResponse.ok) throw new Error(final.error || "Could not finalize the audio upload.");
       setState("done");
       setMessage("Review audio is ready. Reloading…");
+      window.location.hash = "review-audio";
       window.location.reload();
     } catch (error) {
       setState("idle");
@@ -117,18 +135,31 @@ export function ReviewAudioUploader({
         Audio file
         <input
           type="file"
-          accept="audio/mpeg,audio/mp4,audio/wav,audio/ogg,audio/webm,audio/flac"
+          accept=".mp3,.m4a,.wav,.ogg,.oga,.webm,.flac,audio/*"
           disabled={disabled || state !== "idle"}
-          onChange={(event) => setFile(event.currentTarget.files?.[0] ?? null)}
+          onChange={(event) => {
+            const selectedFile = event.currentTarget.files?.[0] ?? null;
+            setFile(selectedFile);
+            if (selectedFile) void upload(selectedFile);
+          }}
         />
       </label>
-      <button type="button" disabled={!file || disabled || state !== "idle"} onClick={upload}>
-        {state === "idle"
-          ? currentAudio
-            ? "Replace review audio"
-            : "Upload review audio"
-          : `${state}…`}
-      </button>
+      {file && state === "idle" && message ? (
+        <button type="button" disabled={disabled} onClick={() => void upload()}>
+          Try upload again
+        </button>
+      ) : null}
+      {state !== "idle" ? (
+        <p role="status" aria-live="polite">
+          {state === "preparing"
+            ? "Preparing audio…"
+            : state === "uploading"
+              ? "Uploading audio…"
+              : state === "finalizing"
+                ? "Finishing upload…"
+                : "Review audio is ready. Reloading…"}
+        </p>
+      ) : null}
       {disabled ? <p>{disabledMessage}</p> : null}
       {message ? <p role={state === "idle" ? "alert" : "status"}>{message}</p> : null}
     </section>

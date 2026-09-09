@@ -29,8 +29,19 @@ export type ReviewAudioEnv = Pick<
   "MEDIA_BUCKET" | "R2_ACCOUNT_ID" | "R2_ACCESS_KEY_ID" | "R2_SECRET_ACCESS_KEY" | "R2_BUCKET_NAME"
 >;
 
+const REVIEW_AUDIO_MIME_ALIASES = new Map([
+  ["audio/x-wav", "audio/wav"],
+  ["audio/wave", "audio/wav"],
+  ["audio/vnd.wave", "audio/wav"],
+  ["audio/x-flac", "audio/flac"],
+  ["audio/m4a", "audio/mp4"],
+  ["audio/x-m4a", "audio/mp4"],
+  ["application/ogg", "audio/ogg"],
+]);
+
 function normalizedMime(value: string): string {
-  return value.trim().toLowerCase().split(";", 1)[0] ?? "";
+  const mimeType = value.trim().toLowerCase().split(";", 1)[0] ?? "";
+  return REVIEW_AUDIO_MIME_ALIASES.get(mimeType) ?? mimeType;
 }
 
 export function parseReviewAudioDeclaration(

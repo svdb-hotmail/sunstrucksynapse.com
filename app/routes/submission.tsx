@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import {
   Link,
   Form,
@@ -531,23 +533,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
   }
   const aggregate = await service.loadPublic(tokenHash);
 
-  const base = aggregate
-    ? draftFromAggregate(aggregate)
-    : blankData(invitation.inviteeName, invitation.inviteeEmail);
-  const draft = readDraft(form, base);
-  if (!draft) {
-    return Response.json({ error: "Choose a supported rights basis." }, { status: 400 });
-  }
-  if (intent === "save-draft") {
-    const result = await service.saveDraft(tokenHash, draft, abuseMeta);
-    if (!result.ok) {
-      return Response.json(
-        { error: result.error.message },
-        { status: submissionHttpStatus(result.error.code) },
-      );
-    }
-    return redirect(`/submit/${params.invitationToken}?saved=1`);
-  }
   if (intent === "submit") {
     if (!aggregate) {
       return Response.json({ error: "Save the track details before submitting." }, { status: 409 });
@@ -564,7 +549,7 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         { status: 409 },
       );
     }
-    const result = await service.submit(tokenHash, draft, abuseMeta);
+    const result = await service.submit(tokenHash, draftFromAggregate(aggregate), abuseMeta);
     if (!result.ok) {
       return Response.json(
         { error: result.error.message },
@@ -572,6 +557,24 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
       );
     }
     return redirect(`/submit/${params.invitationToken}?submitted=1`);
+  }
+
+  const base = aggregate
+    ? draftFromAggregate(aggregate)
+    : blankData(invitation.inviteeName, invitation.inviteeEmail);
+  const draft = readDraft(form, base);
+  if (!draft) {
+    return Response.json({ error: "Choose a supported rights basis." }, { status: 400 });
+  }
+  if (intent === "save-draft") {
+    const result = await service.saveDraft(tokenHash, draft, abuseMeta);
+    if (!result.ok) {
+      return Response.json(
+        { error: result.error.message },
+        { status: submissionHttpStatus(result.error.code) },
+      );
+    }
+    return redirect(`/submit/${params.invitationToken}?saved=1#review-audio`);
   }
   return Response.json({ error: "Unsupported submission action." }, { status: 400 });
 }
@@ -628,10 +631,14 @@ export default function SubmissionRoute() {
     !data.aggregate || status === "draft" || status === "clarification_requested";
   const audioEditable =
     Boolean(data.aggregate) && (status === "draft" || status === "clarification_requested");
-  const readyToSubmit = audioEditable && Boolean(data.reviewAudio);
   const acknowledgementConfirmed = Object.values(draft.acknowledgements).every(Boolean);
   const savingDetails =
     navigation.state === "submitting" && navigation.formData?.get("intent") === "save-draft";
+  const [editingDetails, setEditingDetails] = useState(!data.aggregate);
+  const [lastSubmittedIntent, setLastSubmittedIntent] = useState<string | null>(null);
+  const showDetailsEditor =
+    editingDetails || (Boolean(actionData?.error) && lastSubmittedIntent === "save-draft");
+  const readyToSubmit = audioEditable && Boolean(data.reviewAudio) && !showDetailsEditor;
 
   return (
     <main className="entity-page submission-page">
@@ -660,7 +667,17 @@ export default function SubmissionRoute() {
         </p>
       ) : null}
 
-      <Form id="submission-details-form" method="post" className="submission-intake-form">
+      <Form
+        id="submission-details-form"
+        method="post"
+        className="submission-intake-form"
+        onSubmit={(event) => {
+          const submitter = (event.nativeEvent as SubmitEvent).submitter;
+          const submittedIntent = submitter instanceof HTMLButtonElement ? submitter.value : null;
+          setLastSubmittedIntent(submittedIntent);
+          if (submittedIntent === "save-draft") setEditingDetails(false);
+        }}
+      >
         <input type="hidden" name="website" />
         <section className="submission-step-card" aria-labelledby="submission-details-heading">
           <div className="submission-step-heading">
@@ -670,161 +687,185 @@ export default function SubmissionRoute() {
               <h2 id="submission-details-heading">Tell us what we are hearing</h2>
             </div>
           </div>
-          <div className="submission-field-grid">
-            <DraftInput
-              name="artist.displayName"
-              label="Artist name"
-              defaultValue={draft.artist.displayName}
-              required
-            />
-            <DraftInput
-              name="track.title"
-              label="Track title"
-              defaultValue={draft.track.title}
-              required
-            />
-            <DraftInput
-              name="contact.contactEmail"
-              label="Contact email"
-              defaultValue={draft.contact.contactEmail}
-              type="email"
-              required
-            />
-            <div className="submission-field-full">
-              <DraftTextArea
-                name="process.creativeSummary"
-                label="How was this track made, and what did you contribute?"
-                defaultValue={draft.process.meaningfulHumanContribution}
-                required
-              />
-              <p className="submission-field-help">
-                A few plain sentences are enough. Mention the important creative decisions you made.
-              </p>
-            </div>
-            <DraftInput
-              name="process.toolsAndSystems"
-              label="AI tools used (comma separated)"
-              defaultValue={draft.process.toolsAndSystems.join(", ")}
-              required
-            />
-            <label>
-              Rights basis
-              <select
-                name="rights.authorityBasis"
-                defaultValue={draft.rights.authorityBasis}
-                required
-              >
-                <option value="original_author">I made and control the work</option>
-                <option value="licensed">I have permission or a licence</option>
-                <option value="public_domain">The source material is public domain</option>
-                <option value="other">Other — explain below</option>
-              </select>
-            </label>
-            <DraftInput
-              name="rights.territories"
-              label="Where do you have these rights?"
-              defaultValue={draft.rights.territories.join(", ") || "Worldwide"}
-              required
-            />
-            <div className="submission-field-full">
-              <fieldset className="submission-disclosure-options">
-                <legend>Does the track include any of these?</legend>
-                <label>
-                  <input
-                    type="checkbox"
-                    name="process.samplesUsed"
-                    defaultChecked={draft.process.samplesUsed}
-                  />
-                  Samples or source recordings
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    name="process.voiceCloneUsed"
-                    defaultChecked={draft.process.voiceCloneUsed}
-                  />
-                  A cloned or synthetic version of a real person&apos;s voice
-                </label>
-                <label>
-                  <input
-                    type="checkbox"
-                    name="rights.containsThirdPartyMaterial"
-                    defaultChecked={hasIndependentThirdPartyMaterial(draft)}
-                  />
-                  Other third-party material
-                </label>
-              </fieldset>
-              <DraftTextArea
-                name="rights.context"
-                label="Rights details (required if you selected anything above or chose licensed/other)"
-                defaultValue={combinedRightsContext(draft)}
-              />
-            </div>
-          </div>
-
-          <details className="submission-optional">
-            <summary>Optional release details</summary>
+          <div className="submission-details-editor" hidden={!showDetailsEditor}>
             <div className="submission-field-grid">
-              <DraftTextArea
-                name="artist.shortBiography"
-                label="Short artist biography"
-                defaultValue={draft.artist.shortBiography}
+              <DraftInput
+                name="artist.displayName"
+                label="Artist name"
+                defaultValue={draft.artist.displayName}
+                required
               />
               <DraftInput
-                name="artist.websiteUrl"
-                label="Website"
-                defaultValue={draft.artist.websiteUrl}
-                type="url"
+                name="track.title"
+                label="Track title"
+                defaultValue={draft.track.title}
+                required
               />
               <DraftInput
-                name="artist.socialUrl"
-                label="Social profile"
-                defaultValue={draft.artist.socialUrl}
-                type="url"
+                name="contact.contactEmail"
+                label="Contact email"
+                defaultValue={draft.contact.contactEmail}
+                type="email"
+                required
               />
+              <div className="submission-field-full">
+                <DraftTextArea
+                  name="process.creativeSummary"
+                  label="How was this track made, and what did you contribute?"
+                  defaultValue={draft.process.meaningfulHumanContribution}
+                  required
+                />
+                <p className="submission-field-help">
+                  A few plain sentences are enough. Mention the important creative decisions you
+                  made.
+                </p>
+              </div>
               <DraftInput
-                name="release.plannedReleaseDate"
-                label="Planned release date"
-                defaultValue={draft.release.plannedReleaseDate}
-                type="date"
+                name="process.toolsAndSystems"
+                label="AI tools used (comma separated)"
+                defaultValue={draft.process.toolsAndSystems.join(", ")}
+                required
               />
-              <DraftInput name="rights.isrc" label="ISRC" defaultValue={draft.rights.isrc} />
+              <label>
+                Rights basis
+                <select
+                  name="rights.authorityBasis"
+                  defaultValue={draft.rights.authorityBasis}
+                  required
+                >
+                  <option value="original_author">I made and control the work</option>
+                  <option value="licensed">I have permission or a licence</option>
+                  <option value="public_domain">The source material is public domain</option>
+                  <option value="other">Other — explain below</option>
+                </select>
+              </label>
+              <DraftInput
+                name="rights.territories"
+                label="Where do you have these rights?"
+                defaultValue={draft.rights.territories.join(", ") || "Worldwide"}
+                required
+              />
+              <div className="submission-field-full">
+                <fieldset className="submission-disclosure-options">
+                  <legend>Does the track include any of these?</legend>
+                  <label>
+                    <input
+                      type="checkbox"
+                      name="process.samplesUsed"
+                      defaultChecked={draft.process.samplesUsed}
+                    />
+                    Samples or source recordings
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      name="process.voiceCloneUsed"
+                      defaultChecked={draft.process.voiceCloneUsed}
+                    />
+                    A cloned or synthetic version of a real person&apos;s voice
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      name="rights.containsThirdPartyMaterial"
+                      defaultChecked={hasIndependentThirdPartyMaterial(draft)}
+                    />
+                    Other third-party material
+                  </label>
+                </fieldset>
+                <DraftTextArea
+                  name="rights.context"
+                  label="Rights details (required if you selected anything above or chose licensed/other)"
+                  defaultValue={combinedRightsContext(draft)}
+                />
+              </div>
             </div>
-          </details>
 
-          <label className="submission-confirmation">
-            <input
-              type="checkbox"
-              name="ack.confirmed"
-              defaultChecked={acknowledgementConfirmed}
-              required
-            />
-            <span>
-              This invitation is mine. The information is accurate, I control or have permission for
-              the material, and I have disclosed the creative process. I understand review does not
-              guarantee publication.
-            </span>
-          </label>
+            <details className="submission-optional">
+              <summary>Optional release details</summary>
+              <div className="submission-field-grid">
+                <DraftTextArea
+                  name="artist.shortBiography"
+                  label="Short artist biography"
+                  defaultValue={draft.artist.shortBiography}
+                />
+                <DraftInput
+                  name="artist.websiteUrl"
+                  label="Website"
+                  defaultValue={draft.artist.websiteUrl}
+                  type="url"
+                />
+                <DraftInput
+                  name="artist.socialUrl"
+                  label="Social profile"
+                  defaultValue={draft.artist.socialUrl}
+                  type="url"
+                />
+                <DraftInput
+                  name="release.plannedReleaseDate"
+                  label="Planned release date"
+                  defaultValue={draft.release.plannedReleaseDate}
+                  type="date"
+                />
+                <DraftInput name="rights.isrc" label="ISRC" defaultValue={draft.rights.isrc} />
+              </div>
+            </details>
 
-          <div className="submission-step-action">
-            <button
-              type="submit"
-              name="intent"
-              value="save-draft"
-              disabled={!detailsEditable || savingDetails}
-            >
-              {savingDetails
-                ? "Saving…"
-                : data.aggregate
-                  ? "Save changes"
-                  : "Save details and continue"}
-            </button>
-            {!detailsEditable ? <span>Details are locked after submission.</span> : null}
+            <label className="submission-confirmation">
+              <input
+                type="checkbox"
+                name="ack.confirmed"
+                defaultChecked={acknowledgementConfirmed}
+                required
+              />
+              <span>
+                This invitation is mine. The information is accurate, I control or have permission
+                for the material, and I have disclosed the creative process. I understand review
+                does not guarantee publication.
+              </span>
+            </label>
+
+            <div className="submission-step-action">
+              <button
+                type="submit"
+                name="intent"
+                value="save-draft"
+                disabled={!detailsEditable || savingDetails}
+              >
+                {savingDetails
+                  ? "Saving…"
+                  : data.aggregate
+                    ? "Save changes"
+                    : "Save details and continue"}
+              </button>
+              {!detailsEditable ? <span>Details are locked after submission.</span> : null}
+            </div>
           </div>
+          {!showDetailsEditor ? (
+            <div className="submission-saved-summary">
+              <div>
+                <p>
+                  <strong>{draft.artist.displayName}</strong> — {draft.track.title}
+                </p>
+                <p>
+                  {audioEditable
+                    ? "Details saved. Continue with the private listening copy below."
+                    : "This submission has already been sent for review."}
+                </p>
+              </div>
+              {detailsEditable ? (
+                <button type="button" onClick={() => setEditingDetails(true)}>
+                  Edit details
+                </button>
+              ) : (
+                <span>Details are locked after submission.</span>
+              )}
+            </div>
+          ) : null}
         </section>
       </Form>
 
-      <div className="submission-audio-step">
+      <div id="review-audio" className="submission-audio-step">
         <div className="submission-step-heading">
           <span aria-hidden="true">2</span>
           <div>

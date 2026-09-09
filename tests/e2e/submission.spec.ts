@@ -21,6 +21,10 @@ test("saves a practical invited draft and requires private review audio before s
   await page.getByRole("button", { name: /Save (details and continue|changes)/ }).click();
 
   await expect(page.getByText("Draft saved.")).toBeVisible();
+  await expect(page).toHaveURL(/\?saved=1#review-audio$/);
+  await expect(page.getByLabel("Artist name")).not.toBeVisible();
+  await page.getByRole("button", { name: "Edit details" }).click();
+  await expect(page.getByLabel("Artist name")).toHaveValue("Invited Artist");
   await expect(page.getByLabel("Audio file")).toBeEnabled();
   const submitButton = page.getByRole("button", { name: "Submit track for review" });
   await expect(submitButton).toBeDisabled();
