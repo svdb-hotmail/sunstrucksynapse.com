@@ -12,7 +12,11 @@ export interface MediaBucket {
       sha256: string;
     },
   ): Promise<{ size: number }>;
-  head(key: string): Promise<{ size: number; customMetadata?: Record<string, string> } | null>;
+  head(key: string): Promise<{
+    size: number;
+    httpMetadata?: { contentType?: string };
+    customMetadata?: Record<string, string>;
+  } | null>;
   get(
     key: string,
     options: { range: Headers },
@@ -35,6 +39,10 @@ export type WorkerEnv = DatabaseEnv &
     MEDIA_BUCKET: MediaBucket;
     POSTMARK_SERVER_TOKEN?: string;
     TRANSACTIONAL_EMAIL_FROM?: string;
+    R2_ACCOUNT_ID?: string;
+    R2_ACCESS_KEY_ID?: string;
+    R2_SECRET_ACCESS_KEY?: string;
+    R2_BUCKET_NAME?: string;
   }>;
 
 const POSTGRES_PROTOCOLS = new Set(["postgres:", "postgresql:"]);
@@ -95,6 +103,18 @@ export function validateWorkerEnv(source: object): WorkerEnv {
       : {}),
     ...(typeof Reflect.get(source, "TRANSACTIONAL_EMAIL_FROM") === "string"
       ? { TRANSACTIONAL_EMAIL_FROM: String(Reflect.get(source, "TRANSACTIONAL_EMAIL_FROM")).trim() }
+      : {}),
+    ...(typeof Reflect.get(source, "R2_ACCOUNT_ID") === "string"
+      ? { R2_ACCOUNT_ID: String(Reflect.get(source, "R2_ACCOUNT_ID")).trim() }
+      : {}),
+    ...(typeof Reflect.get(source, "R2_ACCESS_KEY_ID") === "string"
+      ? { R2_ACCESS_KEY_ID: String(Reflect.get(source, "R2_ACCESS_KEY_ID")).trim() }
+      : {}),
+    ...(typeof Reflect.get(source, "R2_SECRET_ACCESS_KEY") === "string"
+      ? { R2_SECRET_ACCESS_KEY: String(Reflect.get(source, "R2_SECRET_ACCESS_KEY")).trim() }
+      : {}),
+    ...(typeof Reflect.get(source, "R2_BUCKET_NAME") === "string"
+      ? { R2_BUCKET_NAME: String(Reflect.get(source, "R2_BUCKET_NAME")).trim() }
       : {}),
   });
 }

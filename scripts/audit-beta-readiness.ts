@@ -58,7 +58,7 @@ try {
               and s.accepted_creative_process_disclosure_id is not null
               and s.accepted_provenance_record_id is not null
           )
-          or exists (
+          and not exists (
             select 1 from submissions s
             where s.resulting_release_id = t.release_id
               and s.status = 'accepted'

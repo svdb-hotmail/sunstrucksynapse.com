@@ -2,7 +2,7 @@
 
 The application targets Cloudflare Workers through React Router framework mode and the Cloudflare Vite plugin, as recorded in [ADR 0002](architecture/decisions/0002-cloudflare-workers-runtime.md).
 
-Cloudflare account setup, custom-domain changes, and secret values remain operator-managed and are not stored in the repository. The repository contains the Worker name and runtime resource bindings required by Wrangler, but no account identifier or secret values.
+Cloudflare account setup, custom-domain changes, and secret values remain operator-managed. The repository contains the Worker name, account identifier, non-secret R2 bucket name, and runtime resource bindings required by Wrangler; credential values are never stored in the repository.
 
 The intended SunSyn Radio public domain remains `sunsyn.art`. The currently verified operational domain is `sunstrucksynapse.com`, retained for the existing Sunstruck Synapse catalogue identity until the platform-domain transition is separately authorized and completed.
 
@@ -25,8 +25,20 @@ Before deployment, an operator must:
 1. Create the production `sunstruck-synapse-media` and preview `sunstruck-synapse-media-preview` R2 buckets.
 2. In the Cloudflare Worker dashboard, configure the `MEDIA_BUCKET` R2 binding and the `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`, and `CURATOR_EMAILS` runtime variables. These values are intentionally not stored in `wrangler.jsonc`.
 3. In the Cloudflare Worker dashboard, configure `DATABASE_URL` and a high-entropy `MEDIA_DELIVERY_SIGNING_SECRET` as secrets. Do not commit their values.
-4. Apply every committed migration through `0008_lame_guardian.sql` before deploying.
-5. Verify Access rejection and signed media byte-range delivery.
+4. To enable browser-to-R2 private review-audio uploads, create an R2 API token limited to
+   object read/write for the bound media bucket. Configure `R2_ACCESS_KEY_ID` and
+   `R2_SECRET_ACCESS_KEY` as Worker secrets. `R2_ACCOUNT_ID` and the production
+   `R2_BUCKET_NAME` are non-secret Wrangler variables; override the bucket name locally for
+   preview work. The application fails closed when this set is absent or incomplete.
+5. Configure R2 CORS for the submission origin. Permit `PUT`, permit the `Content-Type`,
+   `x-amz-meta-checksum-sha256`, and `x-amz-meta-upload-session-id` request headers, and expose
+   `ETag`. Scope `AllowedOrigins` to the real submission origins rather than `*`.
+6. Keep the enabled `Review audio staging cleanup` lifecycle rule on both media buckets. It
+   expires only the `private/review-audio/staging/` prefix after 24 hours; the scheduled outbox
+   performs normal cleanup when the 15-minute upload URL expires.
+7. Apply every committed migration through `0012_audit_submission_invitations.sql` before deploying.
+8. Verify Access rejection, curator review-audio byte-range delivery, and the scheduled outbox
+   dispatcher.
 
 The configuration retains the `MEDIA_BUCKET` binding and bucket names for deployment consistency, but Cloudflare supplies the actual runtime binding and values. It does not create Access policies, buckets, DNS, or secrets.
 
@@ -41,7 +53,10 @@ npm run build
 npm run preview
 ```
 
-`wrangler.jsonc` declares the source Worker entry without account-specific values. The Cloudflare Vite plugin produces the deployable client and Worker output under `build/`, including the generated Worker build configuration. The account-side build trigger deploys that output from `main`; verify the final domain separately after each deployment.
+After changing `wrangler.jsonc`, run `npm run typegen` and commit the generated
+`worker-configuration.d.ts`. The Cloudflare Vite plugin produces the deployable client and Worker
+output under `build/`, including the generated Worker build configuration. The account-side build
+trigger deploys that output from `main`; verify the final domain separately after each deployment.
 
 ## Disabled legacy Pages project
 

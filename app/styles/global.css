@@ -1025,6 +1025,137 @@ form button[type="submit"] {
   cursor: pointer;
 }
 
+.curation-invitation-panel {
+  display: grid;
+  gap: var(--space-3);
+  margin-block: var(--space-5);
+  padding: clamp(18px, 3vw, 32px);
+  border: var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background: var(--component-form-surface-background);
+  box-shadow: var(--shadow-card);
+}
+
+.curation-invitation-panel h2,
+.curation-invitation-panel p {
+  margin-block: 0;
+}
+
+.curation-invitation-form button {
+  align-self: end;
+}
+
+.curation-invitation-result {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border-inline-start: 3px solid var(--color-accent-pink);
+  color: var(--color-content-secondary);
+  background: var(--component-form-background);
+}
+
+.curation-invitation-result label {
+  display: grid;
+  gap: 6px;
+  font-weight: 800;
+}
+
+.curation-invitation-result input {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: var(--component-control-border);
+  border-radius: var(--radius-sm);
+  color: var(--color-content-primary);
+  background: var(--component-form-background);
+}
+
+.curation-queue-heading,
+.review-audio-uploader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.review-audio-uploader,
+.curation-scorecard {
+  margin-block: var(--space-5);
+  padding: clamp(18px, 3vw, 32px);
+  border: var(--border-subtle);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--color-accent-pink) 8%, transparent),
+      transparent 45%
+    ),
+    var(--component-form-surface-background);
+  box-shadow: var(--shadow-card);
+}
+
+.review-audio-uploader h2,
+.curation-scorecard h4 {
+  margin-block: 0;
+}
+
+.review-audio-uploader label,
+.curation-grade-options label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.curation-listening-copy {
+  display: grid;
+  gap: var(--space-2);
+  margin-block: var(--space-3);
+}
+
+.curation-listening-copy audio {
+  width: 100%;
+}
+
+.curation-score-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(120px, 1fr));
+  gap: var(--space-3);
+  grid-column: 1 / -1;
+}
+
+.curation-grade-options {
+  display: grid;
+  gap: var(--space-2);
+  grid-column: 1 / -1;
+  border: 0;
+  padding: 0;
+}
+
+.curation-grade-note {
+  grid-column: 1 / -1;
+  color: var(--color-content-secondary);
+  font-size: 0.8rem;
+}
+
+.curation-pagination {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  margin-block: var(--space-5);
+}
+
+.curation-pagination > :last-child {
+  justify-self: end;
+}
+
+@media (max-width: 760px) {
+  .curation-score-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 .curator-workspace .danger {
   color: var(--color-content-inverse);
   background: var(--component-status-danger-background);

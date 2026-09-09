@@ -74,6 +74,55 @@ Rights declarations, creative-process disclosures, and provenance records use a 
 
 Phase 3 adds invitation-backed submission records, submission activity history, private evidence upload sessions, evidence-access grants, and pinned acceptance links to the exact reviewed rights, process, and provenance revisions. Invitation and evidence-upload rows use the shared `updated_at` trigger pattern; evidence-access rows are intentionally append-only audit records.
 
+## Curation outbox substrate
+
+`curation_outbox` stores generic event kinds and JSON object payloads; it does not encode an email-provider contract. Payloads are limited to 64 KiB. Application validation measures compact JSON for an early rejection, while the PostgreSQL `jsonb::text` byte check is authoritative because its canonical representation may be larger.
+
+Each nonblank idempotency key is unique. The first insert is preserved and later inserts with the same key return no new identifier without replacing its kind, payload, or schedule. `buildCurationOutboxInsert()` exposes the parameterized insert so a future domain mutation can embed it in the same SQL CTE and gain statement-level rollback.
+
+Claims use database time and select due pending rows or expired processing leases. A claim:
+
+- accepts a bounded batch of 1–100 rows;
+- creates a distinct lease for each row, lasting 1–900 seconds with a 60-second default;
+- increments the attempt count, up to ten attempts;
+- requires the exact, unexpired lease token for acknowledgement or retry.
+
+A successful acknowledgement returns `true`, moves the row to `succeeded`, and clears its lease and error. A repeated acknowledgement returns `false` and makes no change because the completed row intentionally forgets the lease. Retrying records a sanitized error code and defers availability by at most one day. A failure on the tenth claimed attempt becomes terminal immediately. If a worker abandons an expired tenth-attempt lease, the next claim sweep marks it failed with `RETRY_EXHAUSTED` and clears the lease without returning it for execution.
+
+Database checks preserve status, lease, attempt, error, completion, and payload invariants. The shared timestamp trigger advances `updated_at` on direct updates. A separate trigger rejects every update or delete of a succeeded row.
+
+Execution is at least once, not exactly once. A provider may complete an external action before the worker loses its acknowledgement, so a later retry can duplicate that action; downstream provider operations still need their own idempotency strategy.
+
+The scheduled Worker now dispatches `submission_decision_email` jobs through the existing
+transactional-email adapter. Unknown job kinds and malformed payloads are retained for bounded
+retry rather than acknowledged. The provider call remains at-least-once; true multi-connection
+`SKIP LOCKED` behavior and live Neon compatibility remain separate integration evidence.
+
+## Curation listening workflow
+
+Migration 0010 separates three contracts that must not be conflated:
+
+- `submission_audio_upload_sessions` authorizes short-lived writes to staging object keys;
+- `submission_review_audio` is immutable, versioned metadata for checksum-verified objects under
+  a separate final key; and
+- `submission_review_audio_selections` points at the one current listening copy while retaining
+  every older version.
+
+Presigned PUTs sign the declared content type and upload metadata. Finalization does not trust the
+staging declaration: it streams and hashes the stored object, checks its byte count, writes it to a
+new immutable key, verifies the sealed object, and only then selects it in the database. Cleanup
+deletes incomplete staging keys; finalized objects are never part of automatic cleanup. Review
+audio has no public route. Its only playback route is protected by Cloudflare Access and supports
+single byte-range requests with private, no-store responses.
+
+`curation_reviews` records four separate 1–5 observations and one explicit A/B/C editorial grade.
+No numeric aggregate or acceptance threshold exists. A and B accept; A also records feature
+distinction in activity metadata. C declines. A/B atomically pins the exact declaration and audio
+versions, creates a draft artist/release/track set with collision-resistant submission-derived
+slugs, records the decision, and enqueues the notification. It does not schedule, publish, or add
+content to homepage collections. Previously accepted or rejected submissions remain valid without
+invented historical reviews.
+
 Wrangler 4.123.0's pinned `config-schema.json` supports `secrets.required`, so `wrangler.jsonc` declares `DATABASE_URL` there. This declaration improves generated typing and local warnings but does not set a value; use `npx wrangler secret put DATABASE_URL` for deployed environments.
 
 ## Rollback and recovery

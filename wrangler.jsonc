@@ -9,6 +9,10 @@
   },
   "upload_source_maps": true,
   "keep_vars": true,
+  "vars": {
+    "R2_ACCOUNT_ID": "f9db1511596713616ac19b4f7538d337",
+    "R2_BUCKET_NAME": "sunstruck-synapse-media",
+  },
   "r2_buckets": [
     {
       "binding": "MEDIA_BUCKET",
@@ -20,6 +24,11 @@
     "crons": ["* * * * *"],
   },
   "secrets": {
-    "required": ["DATABASE_URL", "MEDIA_DELIVERY_SIGNING_SECRET"],
+    "required": [
+      "DATABASE_URL",
+      "MEDIA_DELIVERY_SIGNING_SECRET",
+      "R2_ACCESS_KEY_ID",
+      "R2_SECRET_ACCESS_KEY",
+    ],
   },
 }

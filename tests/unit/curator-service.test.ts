@@ -157,6 +157,56 @@ describe("curator catalogue management", () => {
 });
 
 describe("publication lifecycle", () => {
+  it("requires credited parents to be published or scheduled no later than a track", async () => {
+    const repository = createE2eCuratorRepository();
+    const now = new Date("2026-08-16T08:00:00Z");
+    const service = new CuratorService(repository, () => now);
+    const artist = await service.create("artist", {
+      slug: "parent-artist",
+      title: "Parent Artist",
+    });
+    const artistId = (artist as { ok: true; value: CuratorEntity }).value.id;
+    const release = await service.create("release", {
+      slug: "parent-release",
+      title: "Parent Release",
+      artistId,
+    });
+    const releaseId = (release as { ok: true; value: CuratorEntity }).value.id;
+    const track = await service.create("track", {
+      slug: "child-track",
+      title: "Child Track",
+      artistId,
+      releaseId,
+      position: 1,
+    });
+    const trackId = (track as { ok: true; value: CuratorEntity }).value.id;
+    const trackSchedule = new Date("2026-08-17T10:00:00Z");
+
+    await expect(
+      repository.publicationBlockers("track", trackId, "scheduled", trackSchedule),
+    ).resolves.toEqual(
+      expect.arrayContaining(["publication-ready release", "publication-ready credited artists"]),
+    );
+
+    await service.transition("artist", artistId, "in_review", actor);
+    await service.transition("artist", artistId, "scheduled", actor, {
+      scheduledFor: new Date("2026-08-17T08:00:00Z"),
+    });
+    await service.transition("release", releaseId, "in_review", actor);
+    await service.transition("release", releaseId, "scheduled", actor, {
+      scheduledFor: new Date("2026-08-17T09:00:00Z"),
+    });
+
+    const blockers = await repository.publicationBlockers(
+      "track",
+      trackId,
+      "scheduled",
+      trackSchedule,
+    );
+    expect(blockers).not.toContain("publication-ready release");
+    expect(blockers).not.toContain("publication-ready credited artists");
+  });
+
   it("enforces the linear lifecycle and records actor, time, and reason", async () => {
     const repository = createE2eCuratorRepository();
     const now = new Date("2026-08-16T08:00:00Z");

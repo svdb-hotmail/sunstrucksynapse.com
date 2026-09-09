@@ -2,6 +2,8 @@ export * from "./catalogue";
 export * from "./analytics";
 export * from "./rate-limits";
 export * from "./curation";
+export * from "./curation-outbox";
+export * from "./curation-workflow";
 export * from "./editorial";
 export * from "./enums";
 export * from "./governance";

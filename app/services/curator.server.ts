@@ -229,6 +229,18 @@ export class CuratorService {
         error: { code: "invalid", message: "Choose a future publication time." },
       };
     }
+    if (type === "track" && (to === "scheduled" || to === "published")) {
+      const blockers = await this.repository.publicationBlockers(type, id, to, scheduledFor);
+      if (blockers.length > 0) {
+        return {
+          ok: false,
+          error: {
+            code: "invalid",
+            message: `Track is not publication-ready: ${blockers.join(", ")}.`,
+          },
+        };
+      }
+    }
     const changed = await this.repository.setLifecycle(
       type,
       id,

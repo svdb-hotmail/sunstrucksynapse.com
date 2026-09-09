@@ -59,6 +59,31 @@ export const submissionInvitations = pgTable(
   ],
 );
 
+export const submissionInvitationIssuanceAudit = pgTable(
+  "submission_invitation_issuance_audit",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    invitationId: uuid("invitation_id")
+      .notNull()
+      .references(() => submissionInvitations.id, { onDelete: "restrict" }),
+    actorId: text("actor_id").notNull(),
+    actorEmail: text("actor_email").notNull(),
+    issuedAt: timestamp("issued_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("submission_invitation_issuance_audit_invitation_unique").on(table.invitationId),
+    index("submission_invitation_issuance_audit_actor_idx").on(table.actorEmail, table.issuedAt),
+    check(
+      "submission_invitation_issuance_audit_actor_id_check",
+      sql`nullif(btrim(${table.actorId}), '') is not null`,
+    ),
+    check(
+      "submission_invitation_issuance_audit_actor_email_check",
+      sql`position('@' in ${table.actorEmail}) > 1 and nullif(btrim(${table.actorEmail}), '') is not null`,
+    ),
+  ],
+);
+
 export const submissions = pgTable(
   "submissions",
   {
