@@ -9,7 +9,20 @@ export const catalogueLoadingMessage = "Loading the catalogue…";
 
 export interface CatalogueNavigationEntry {
   label: "Latest" | "Listen" | "Watch" | "Search" | "About";
-  to: "/#latest" | "/#audio" | "/#catalogue" | "/#video" | "/search" | "/#about";
+  to: "/#latest" | "/#audio" | "/#catalogue" | "/#video" | "/search" | "/about";
+}
+
+export function isCatalogueNavigationEntryActive(
+  entry: CatalogueNavigationEntry,
+  pathname: string,
+  hash: string,
+  isFirstEntry: boolean,
+): boolean {
+  if (entry.to.startsWith("/#")) {
+    return pathname === "/" && (hash === entry.to.slice(1) || (!hash && isFirstEntry));
+  }
+
+  return pathname === entry.to;
 }
 
 export function buildCatalogueNavigation(sections: CatalogueSection[]): CatalogueNavigationEntry[] {
@@ -23,7 +36,7 @@ export function buildCatalogueNavigation(sections: CatalogueSection[]): Catalogu
   if (sectionIds.has("video")) {
     navigation.push({ label: "Watch", to: "/#video" });
   }
-  navigation.push({ label: "Search", to: "/search" }, { label: "About", to: "/#about" });
+  navigation.push({ label: "Search", to: "/search" }, { label: "About", to: "/about" });
 
   return navigation;
 }

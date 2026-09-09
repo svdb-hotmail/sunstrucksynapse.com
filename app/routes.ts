@@ -8,6 +8,7 @@ export default [
   route("tracks/:releaseSlug/:trackSlug/disclosure", "routes/track-disclosure.tsx"),
   route("collections/:collectionSlug", "routes/collection.tsx"),
   route("search", "routes/search.tsx"),
+  route("about", "routes/about.tsx"),
   route("api/events", "routes/api-events.ts"),
   route("privacy", "routes/privacy.tsx"),
   route("submission-terms", "routes/submission-terms.tsx"),

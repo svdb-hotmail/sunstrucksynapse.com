@@ -1,8 +1,12 @@
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
 
 import { SITE_NAME, SITE_URL } from "~/config/brand";
 import { ThemeToggle } from "~/design-system/ThemeToggle";
-import { defaultCatalogueNavigation, type CatalogueNavigationEntry } from "~/services/catalogue";
+import {
+  defaultCatalogueNavigation,
+  isCatalogueNavigationEntryActive,
+  type CatalogueNavigationEntry,
+} from "~/services/catalogue";
 
 const SITE_HOSTNAME = new URL(SITE_URL).hostname.replace(/^www\./, "");
 
@@ -11,6 +15,8 @@ export function Header({
 }: {
   navigation?: CatalogueNavigationEntry[];
 }) {
+  const { pathname, hash } = useLocation();
+
   return (
     <header className="topbar">
       <div className="brand-lockup">
@@ -24,8 +30,18 @@ export function Header({
       </div>
 
       <nav className="desktop-nav" aria-label="Primary">
-        {navigation.map((entry) => (
-          <Link key={entry.to} to={entry.to}>
+        {navigation.map((entry, index) => (
+          <Link
+            key={entry.to}
+            to={entry.to}
+            aria-current={
+              isCatalogueNavigationEntryActive(entry, pathname, hash, index === 0)
+                ? entry.to.startsWith("/#")
+                  ? "location"
+                  : "page"
+                : undefined
+            }
+          >
             {entry.label}
           </Link>
         ))}

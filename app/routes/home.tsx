@@ -1,11 +1,8 @@
 import { useOutletContext } from "react-router";
 
 import { CatalogueSection } from "~/components/CatalogueSection";
-import { Contact } from "~/components/Contact";
 import { Intro } from "~/components/Intro";
-import { Offerings } from "~/components/Offerings";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "~/config/brand";
-import { offerings } from "~/data/site";
 import { buildCatalogueSections, catalogueStateCopy } from "~/services/catalogue";
 import type { CatalogueLoadResult } from "~/types/catalogue";
 import type { PlayerOutletContext } from "~/types/catalogue";
@@ -46,8 +43,6 @@ export default function Home() {
           <CatalogueState state={catalogue} />
         )}
       </div>
-      <Offerings offerings={offerings} />
-      <Contact />
     </>
   );
 }

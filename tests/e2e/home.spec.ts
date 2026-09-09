@@ -303,14 +303,21 @@ test("supports keyboard activation and reduced-motion focus movement", async ({ 
   expect(await page.evaluate(() => Reflect.get(globalThis, "__scrollBehavior"))).toBe("auto");
 });
 
-test("scrolls router hash links without replacing the persistent player", async ({ page }) => {
+test("retains hash-scroll coverage and preserves the player through the About route transition", async ({
+  page,
+}) => {
   await page.addInitScript(() => {
     const scrollIntoView = Element.prototype.scrollIntoView;
     Element.prototype.scrollIntoView = function (options) {
-      Reflect.set(globalThis, "__hashScroll", {
+      const calls =
+        (Reflect.get(globalThis, "__hashScrollCalls") as
+          | { id: string; behavior: ScrollBehavior | null }[]
+          | undefined) ?? [];
+      calls.push({
         id: this.id,
-        behavior: typeof options === "object" ? options.behavior : null,
+        behavior: typeof options === "object" ? (options.behavior ?? null) : null,
       });
+      Reflect.set(globalThis, "__hashScrollCalls", calls);
       scrollIntoView.call(this, options);
     };
   });
@@ -322,13 +329,15 @@ test("scrolls router hash links without replacing the persistent player", async 
     .getByRole("link", { name: "Latest" })
     .click();
   await expectHashTarget(page, "latest");
-  expect(await page.evaluate(() => Reflect.get(globalThis, "__hashScroll"))).toEqual({
-    id: "latest",
-    behavior: "auto",
-  });
-
-  await page.locator(".panel-footer").getByRole("link", { name: "Contact" }).click();
-  await expectHashTarget(page, "contact");
+  expect(
+    await page.evaluate(() =>
+      (
+        Reflect.get(globalThis, "__hashScrollCalls") as
+          | { id: string; behavior: ScrollBehavior | null }[]
+          | undefined
+      )?.some((call) => call.id === "latest" && call.behavior === "auto"),
+    ),
+  ).toBe(true);
 
   await cardFor(page, revolutionTitle)
     .getByRole("button", { name: `Play ${revolutionTitle}` })
@@ -336,19 +345,29 @@ test("scrolls router hash links without replacing the persistent player", async 
   const audio = page.getByLabel(`${revolutionTitle} audio player`);
   await audio.evaluate((element: HTMLMediaElement) => {
     element.dataset.hashNavigationProbe = "kept";
-    element.pause();
+    Reflect.set(globalThis, "__persistentAudioNode", element);
   });
-  await cardFor(page, revolutionTitle).getByRole("link", { name: "View track" }).click();
+  await expect
+    .poll(() => audio.evaluate((element: HTMLMediaElement) => element.paused))
+    .toBe(false);
   await page
     .getByRole("navigation", { name: "Primary" })
     .getByRole("link", { name: "About", exact: true })
     .click();
 
-  await expectHashTarget(page, "about");
-  await expect(page.getByLabel(`${revolutionTitle} audio player`)).toHaveAttribute(
-    "data-hash-navigation-probe",
-    "kept",
-  );
+  await expect(page).toHaveURL(/\/about$/);
+  const navigatedAudio = page.getByLabel(`${revolutionTitle} audio player`);
+  await expect(navigatedAudio).toHaveAttribute("data-hash-navigation-probe", "kept");
+  await expect
+    .poll(() =>
+      navigatedAudio.evaluate(
+        (element: HTMLMediaElement) => element === Reflect.get(globalThis, "__persistentAudioNode"),
+      ),
+    )
+    .toBe(true);
+  await expect
+    .poll(() => navigatedAudio.evaluate((element: HTMLMediaElement) => element.paused))
+    .toBe(false);
 });
 
 test("keeps the intermediate header visible without horizontal overflow", async ({ page }) => {

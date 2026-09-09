@@ -1,5 +1,4 @@
 import { forwardRef, useEffect, useRef, useState } from "react";
-import { Link } from "react-router";
 
 import { NowPlaying } from "~/components/NowPlaying";
 import { Queue } from "~/components/Queue";
@@ -581,14 +580,6 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
           onRemove={onRemoveQueueEntry}
         />
       </div>
-
-      <footer className="panel-footer">
-        <Link to="/#about">About</Link>
-        <Link to="/#contact">Contact</Link>
-        <Link to="/privacy">Privacy</Link>
-        <Link to="/submission-terms">Terms</Link>
-        <Link to="/takedown">Takedown</Link>
-      </footer>
     </aside>
   );
 });
