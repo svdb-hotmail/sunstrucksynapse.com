@@ -1039,6 +1039,245 @@ form button[type="submit"] {
   flex-wrap: wrap;
 }
 
+.submission-page {
+  width: min(900px, 100%);
+}
+
+.submission-page h1 {
+  max-width: 12ch;
+}
+
+.submission-intro {
+  max-width: 62ch;
+  color: var(--component-submission-muted-content);
+  font-size: clamp(1rem, 2vw, 1.2rem);
+}
+
+.submission-reference,
+.submission-legal,
+.submission-field-help,
+.submission-step-action span {
+  color: var(--component-submission-muted-content);
+  font-size: 0.82rem;
+}
+
+.submission-notice {
+  margin-block: var(--space-4);
+  padding: var(--space-3);
+  border: var(--component-submission-border);
+  border-radius: var(--radius-md);
+  background: var(--component-submission-notice-background);
+}
+
+.submission-notice-error {
+  background: var(--component-submission-danger-background);
+}
+
+.submission-intake-form {
+  display: block;
+}
+
+.submission-step-card,
+.submission-audio-step {
+  display: grid;
+  gap: var(--space-4);
+  margin-block: var(--space-5);
+  padding: clamp(20px, 4vw, 36px);
+  border: var(--component-submission-border);
+  border-radius: var(--radius-lg);
+  color: var(--component-submission-content);
+  background: var(--component-submission-surface-background);
+  box-shadow: var(--component-submission-shadow);
+}
+
+.submission-step-card h2,
+.submission-step-card p,
+.submission-audio-step h2,
+.submission-audio-step p {
+  margin-block: 0;
+}
+
+.submission-step-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.submission-step-heading > span {
+  display: grid;
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  color: var(--component-submission-accent-content);
+  background: var(--component-submission-accent-background);
+  font-family: var(--type-font-family-mono);
+  font-weight: 900;
+}
+
+.submission-step-heading .eyebrow {
+  margin-bottom: 3px;
+}
+
+.submission-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.submission-field-grid label {
+  color: var(--component-submission-muted-content);
+}
+
+.submission-field-grid input,
+.submission-field-grid textarea,
+.submission-field-grid select {
+  min-height: 46px;
+  color: var(--component-submission-content);
+  background: var(--component-submission-field-background);
+}
+
+.submission-field-full {
+  grid-column: 1 / -1;
+}
+
+.submission-field-full label {
+  width: 100%;
+}
+
+.submission-disclosure-options {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  border: 0;
+}
+
+.submission-disclosure-options legend {
+  margin-bottom: var(--space-2);
+  color: var(--component-submission-muted-content);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.submission-disclosure-options label {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  color: var(--component-submission-content);
+  font-weight: 600;
+}
+
+.submission-disclosure-options input {
+  flex: 0 0 auto;
+  width: 18px;
+  min-height: 18px;
+  height: 18px;
+  margin-top: 2px;
+}
+
+.submission-field-help {
+  margin-top: var(--space-1);
+}
+
+.submission-optional {
+  padding-block: var(--space-2);
+  border-block: var(--component-submission-border);
+}
+
+.submission-optional summary,
+.submission-secondary-actions > summary {
+  cursor: pointer;
+  font-weight: 850;
+}
+
+.submission-optional[open] summary {
+  margin-bottom: var(--space-3);
+}
+
+.submission-confirmation {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  color: var(--component-submission-content);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.submission-confirmation input {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  margin-top: 2px;
+}
+
+.submission-step-action {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.submission-step-action button,
+.submission-step-card button[type="submit"] {
+  min-height: 48px;
+  padding-inline: var(--space-5);
+}
+
+.submission-page button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.submission-audio-step .review-audio-uploader {
+  display: grid;
+  justify-content: stretch;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  box-shadow: none;
+}
+
+.submission-audio-step .review-audio-uploader button {
+  justify-self: start;
+  min-height: 48px;
+  padding-inline: var(--space-5);
+}
+
+.submission-complete {
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.submission-secondary-actions {
+  margin-block: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border: var(--component-submission-border);
+  border-radius: var(--radius-md);
+  background: var(--component-submission-surface-background);
+}
+
+.submission-secondary-actions > section,
+.submission-secondary-actions > form {
+  margin-top: var(--space-4);
+}
+
+.submission-legal {
+  margin-top: var(--space-6);
+}
+
+@media (max-width: 680px) {
+  .submission-field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .submission-field-full {
+    grid-column: auto;
+  }
+}
+
 .review-audio-uploader,
 .curation-scorecard {
   margin-block: var(--space-5);

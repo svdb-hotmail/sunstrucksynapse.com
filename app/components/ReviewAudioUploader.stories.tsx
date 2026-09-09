@@ -19,3 +19,16 @@ export const ReadyToReplace: Story = {
 };
 
 export const SaveDraftFirst: Story = { args: { disabled: true } };
+
+export const Embedded: Story = {
+  args: { showHeading: false },
+};
+
+export const LockedAfterSubmission: Story = {
+  args: {
+    currentAudio: { filename: "the-new-signal.flac", version: 2 },
+    disabled: true,
+    disabledMessage: "The listening copy is locked after submission.",
+    showHeading: false,
+  },
+};

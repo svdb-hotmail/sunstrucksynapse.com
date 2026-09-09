@@ -198,6 +198,63 @@ describe("curation workflow repository", () => {
     expect(new Date(cleanup.rows[0]!.available_at)).toEqual(upload?.expiresAt);
   });
 
+  it("locks review audio creation and in-flight finalization after submission", async () => {
+    await expect(
+      repository.createAudioUploadSession(
+        "a".repeat(64),
+        {
+          filename: "too-late.flac",
+          mimeType: "audio/flac",
+          checksumSha256: "d".repeat(64),
+          byteSize: 8192,
+          durationMs: 240000,
+          codec: "flac",
+        },
+        new Date("2026-09-07T12:00:00Z"),
+      ),
+    ).resolves.toBeNull();
+
+    await client.exec(`update submissions set status = 'clarification_requested'`);
+    const upload = await repository.createAudioUploadSession(
+      "a".repeat(64),
+      {
+        filename: "in-flight.flac",
+        mimeType: "audio/flac",
+        checksumSha256: "e".repeat(64),
+        byteSize: 8192,
+        durationMs: 240000,
+        codec: "flac",
+      },
+      new Date("2026-09-07T12:00:00Z"),
+    );
+    expect(upload).not.toBeNull();
+    if (!upload) return;
+    const claimed = await repository.claimAudioFinalization(
+      upload.id,
+      "a".repeat(64),
+      new Date("2026-09-07T12:01:00Z"),
+    );
+    expect(claimed?.leaseToken).toBeTruthy();
+    if (!claimed?.leaseToken) return;
+
+    await client.exec(`update submissions set status = 'received'`);
+    await expect(
+      repository.completeAudioFinalization(
+        upload.id,
+        claimed.leaseToken,
+        "private/review-audio/final/locked/in-flight",
+        new Date("2026-09-07T12:02:00Z"),
+      ),
+    ).resolves.toBeNull();
+    expect(
+      (
+        await client.query(
+          `select id from submission_review_audio where object_key = 'private/review-audio/final/locked/in-flight'`,
+        )
+      ).rows,
+    ).toHaveLength(0);
+  });
+
   it("does not abandon a finalization while its lease is still live", async () => {
     await client.exec(`
       insert into submission_audio_upload_sessions (

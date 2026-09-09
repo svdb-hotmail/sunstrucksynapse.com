@@ -550,12 +550,21 @@ export function createE2eSubmissionRepository(): SubmissionRepository {
     async submitByInvitationTokenHash(tokenHash, input, now) {
       const invitation = findInvitation(tokenHash, now);
       if (!invitation) return null;
+      const existing = byInvitationId(invitation.id);
+      if (
+        existing &&
+        existing.submission.status !== "draft" &&
+        existing.submission.status !== "clarification_requested"
+      ) {
+        return null;
+      }
       const aggregate = saveOrCreate(invitation, input);
       aggregate.rights.status = "attested";
       aggregate.process.status = "finalized";
       aggregate.provenance.status = "finalized";
-      if (aggregate.submission.status === "draft") {
-        aggregate.submission.status = "received";
+      const previousStatus = aggregate.submission.status;
+      aggregate.submission.status = "received";
+      if (previousStatus === "draft") {
         aggregate.submission.submittedAt = now;
         pushActivity(aggregate, "status_change", "submitter", now, {
           fromStatus: "draft",
@@ -565,6 +574,8 @@ export function createE2eSubmissionRepository(): SubmissionRepository {
       } else {
         pushActivity(aggregate, "clarification_response", "submitter", now, {
           actorEmail: aggregate.submission.submitterEmail,
+          fromStatus: "clarification_requested",
+          toStatus: "received",
           message: "Clarification response submitted.",
         });
       }

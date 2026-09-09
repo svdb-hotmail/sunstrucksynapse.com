@@ -6,6 +6,8 @@ export interface ReviewAudioUploaderProps {
   endpoint: string;
   currentAudio?: { filename: string; version: number } | null;
   disabled?: boolean;
+  disabledMessage?: string;
+  showHeading?: boolean;
 }
 
 function audioDuration(file: File): Promise<number> {
@@ -29,6 +31,8 @@ export function ReviewAudioUploader({
   endpoint,
   currentAudio = null,
   disabled = false,
+  disabledMessage = "Save the submission draft before uploading audio.",
+  showHeading = true,
 }: ReviewAudioUploaderProps) {
   const [file, setFile] = useState<File | null>(null);
   const [state, setState] = useState<"idle" | "preparing" | "uploading" | "finalizing" | "done">(
@@ -87,9 +91,17 @@ export function ReviewAudioUploader({
   }
 
   return (
-    <section className="review-audio-uploader" aria-labelledby="review-audio-heading">
-      <p className="eyebrow">Private listening copy</p>
-      <h2 id="review-audio-heading">Music for curator review</h2>
+    <section
+      className="review-audio-uploader"
+      aria-label={showHeading ? undefined : "Music for curator review"}
+      aria-labelledby={showHeading ? "review-audio-heading" : undefined}
+    >
+      {showHeading ? (
+        <>
+          <p className="eyebrow">Private listening copy</p>
+          <h2 id="review-audio-heading">Music for curator review</h2>
+        </>
+      ) : null}
       <p>
         Upload one finished track. It is stored privately and never becomes the public listening
         file. Uploading a replacement creates a new retained version.
@@ -117,7 +129,7 @@ export function ReviewAudioUploader({
             : "Upload review audio"
           : `${state}…`}
       </button>
-      {disabled ? <p>Save the submission draft before uploading audio.</p> : null}
+      {disabled ? <p>{disabledMessage}</p> : null}
       {message ? <p role={state === "idle" ? "alert" : "status"}>{message}</p> : null}
     </section>
   );

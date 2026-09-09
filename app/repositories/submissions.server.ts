@@ -1049,6 +1049,7 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
     now: Date,
     abuseSignals: { honeypotTriggered: boolean; userAgent: string | null; ipHash: string | null },
     revisionReason: string,
+    allowedStatuses?: readonly SubmissionStatus[],
   ) {
     const existing = await loadSubmissionByInvitationId(invitation.id);
     const currentSubmission =
@@ -1060,7 +1061,7 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
       lastUserAgent: null,
       lastIpHash: null,
     };
-    await db
+    const updated = await db
       .update(submissions)
       .set({
         submissionKind: input.submissionKind,
@@ -1081,7 +1082,14 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
         },
         updatedAt: now,
       })
-      .where(eq(submissions.id, currentSubmission.id));
+      .where(
+        and(
+          eq(submissions.id, currentSubmission.id),
+          allowedStatuses?.length ? inArray(submissions.status, [...allowedStatuses]) : undefined,
+        ),
+      )
+      .returning({ id: submissions.id });
+    if (updated.length !== 1) return null;
     await Promise.all([
       upsertRightsDraft(currentSubmission.id, input, now, revisionReason),
       upsertProcessDraft(currentSubmission.id, input, now, revisionReason),
@@ -1208,19 +1216,26 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
         now,
         abuseSignals,
         revisionReason,
+        ["draft", "clarification_requested"],
       );
       if (!aggregate) return null;
       await finalizeLatestDrafts(aggregate.submission.id, sanitized, now);
-      const nextStatus =
-        aggregate.submission.status === "draft" ? "received" : aggregate.submission.status;
-      await db
+      const transitioned = await db
         .update(submissions)
         .set({
-          status: nextStatus,
+          status: "received",
           submittedAt: aggregate.submission.submittedAt ?? now,
           updatedAt: now,
         })
-        .where(eq(submissions.id, aggregate.submission.id));
+        .where(
+          and(
+            eq(submissions.id, aggregate.submission.id),
+            eq(submissions.status, aggregate.submission.status),
+            inArray(submissions.status, ["draft", "clarification_requested"]),
+          ),
+        )
+        .returning({ id: submissions.id });
+      if (transitioned.length !== 1) return null;
       if (aggregate.submission.status === "draft") {
         await recordActivity(aggregate.submission.id, "status_change", "submitter", now, {
           actorEmail: sanitized.contact.contactEmail,
@@ -1230,6 +1245,8 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
       } else if (aggregate.submission.status === "clarification_requested") {
         await recordActivity(aggregate.submission.id, "clarification_response", "submitter", now, {
           actorEmail: sanitized.contact.contactEmail,
+          fromStatus: "clarification_requested",
+          toStatus: "received",
           message: "Clarification response submitted.",
         });
       }

@@ -226,6 +226,24 @@
   --component-status-background: var(--surface-status-background);
   --component-status-danger-background: var(--color-status-danger);
   --component-submit-background: var(--color-accent-pink);
+  --component-submission-surface-background: var(--component-form-surface-background);
+  --component-submission-field-background: var(--component-form-background);
+  --component-submission-border: var(--border-subtle);
+  --component-submission-content: var(--color-content-primary);
+  --component-submission-muted-content: var(--color-content-secondary);
+  --component-submission-accent-background: var(--color-accent-pink);
+  --component-submission-accent-content: var(--color-content-on-accent);
+  --component-submission-notice-background: color-mix(
+    in srgb,
+    var(--color-accent-green) 14%,
+    transparent
+  );
+  --component-submission-danger-background: color-mix(
+    in srgb,
+    var(--color-status-danger) 18%,
+    transparent
+  );
+  --component-submission-shadow: var(--shadow-card);
   --component-control-border: 1px solid var(--color-border-control);
   --component-control-focus: var(--color-focus-ring);
   --component-signal-content: var(--color-accent-sun);
