@@ -13,9 +13,13 @@ invitation page therefore has three visible steps:
 Release metadata is optional and supporting evidence stays collapsed unless a curator asks for it.
 The application derives the structured rights, process, provenance, and acknowledgement records
 from the compact intake while retaining the same server validation and curator eligibility checks.
+Detailed rights context remains private to the curator workflow; public disclosure receives only a
+derived category-level summary. Existing category-specific rights details are preserved when a
+legacy draft is opened and saved without changing the combined rights field.
 The browser hashes the audio without loading the entire file into application memory, then uploads
 directly to a short-lived R2 staging URL. Replacing the file creates a new version; it never
-overwrites audio a curator may already have heard.
+overwrites audio a curator may already have heard. Once submitted, both new upload sessions and
+in-flight finalization are rejected until a curator explicitly requests clarification.
 
 The curator's normal path is intentionally three actions:
 

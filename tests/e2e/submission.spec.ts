@@ -13,6 +13,10 @@ test("saves a practical invited draft and requires private review audio before s
     .getByLabel("How was this track made, and what did you contribute?")
     .fill("Human composition, editing, and final production.");
   await page.getByLabel("AI tools used (comma separated)").fill("Sketcher");
+  await page.getByLabel("Samples or source recordings").check();
+  await page
+    .getByLabel(/Rights details/)
+    .fill("Private licence agreement LIC-8472 with a session musician.");
   await page.getByLabel(/This invitation is mine/).check();
   await page.getByRole("button", { name: /Save (details and continue|changes)/ }).click();
 
@@ -43,6 +47,13 @@ test("saves a practical invited draft and requires private review audio before s
     hasText: "Playwright Orbit",
   });
   await expect(submissionCard).toContainText("draft");
+  const publicRightsSummary = submissionCard.locator("p").filter({
+    hasText: "The submitter identifies the work as original and under their control.",
+  });
+  await expect(publicRightsSummary).toContainText(
+    "The track includes disclosed sample or source material.",
+  );
+  await expect(publicRightsSummary).not.toContainText("LIC-8472");
   await expect(submissionCard.getByRole("button", { name: "Assign me" })).toHaveCount(0);
   await expect(submissionCard.getByRole("button", { name: "Move to listening" })).toHaveCount(0);
   await expect(submissionCard.getByRole("button", { name: "Finalize decision" })).toHaveCount(0);

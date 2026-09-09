@@ -43,6 +43,51 @@ function commaSeparated(value: string): string[] {
     .filter(Boolean);
 }
 
+function combinedRightsContext(draft: SubmissionDraftInput): string {
+  return [
+    draft.rights.authorityDetails,
+    draft.rights.thirdPartyMaterialDetails,
+    draft.process.sampleDetails,
+    draft.process.voiceCloneDetails,
+    draft.process.sourceMaterialContext,
+  ]
+    .map((value) => value.trim())
+    .filter((value, index, values) => Boolean(value) && values.indexOf(value) === index)
+    .join("\n\n");
+}
+
+function hasIndependentThirdPartyMaterial(draft: SubmissionDraftInput): boolean {
+  return (
+    draft.rights.containsThirdPartyMaterial &&
+    !draft.process.samplesUsed &&
+    !draft.process.voiceCloneUsed &&
+    draft.rights.authorityBasis !== "licensed" &&
+    draft.rights.authorityBasis !== "other"
+  );
+}
+
+function safePublicRightsSummary(
+  authorityBasis: SubmissionDraftInput["rights"]["authorityBasis"],
+  disclosures: { samplesUsed: boolean; voiceCloneUsed: boolean; thirdPartyMaterialUsed: boolean },
+): string {
+  const parts = [
+    authorityBasis === "original_author"
+      ? "The submitter identifies the work as original and under their control."
+      : authorityBasis === "licensed"
+        ? "The submitter declares that relevant material is used with permission or under licence."
+        : authorityBasis === "public_domain"
+          ? "The submitter declares that relevant source material is public domain."
+          : "The submitter has documented another rights basis for private curator review.",
+  ];
+  if (disclosures.samplesUsed)
+    parts.push("The track includes disclosed sample or source material.");
+  if (disclosures.voiceCloneUsed)
+    parts.push("The track includes disclosed synthetic or cloned voice material.");
+  if (disclosures.thirdPartyMaterialUsed)
+    parts.push("The track includes other disclosed third-party material.");
+  return parts.join(" ");
+}
+
 function readDraft(form: FormData, base: SubmissionDraftInput): SubmissionDraftInput | null {
   const artistName = formString(form, "artist.displayName");
   const trackTitle = formString(form, "track.title");
@@ -66,13 +111,26 @@ function readDraft(form: FormData, base: SubmissionDraftInput): SubmissionDraftI
   const samplesUsed = formBool(form, "process.samplesUsed");
   const voiceCloneUsed = formBool(form, "process.voiceCloneUsed");
   const thirdPartyMaterialUsed = formBool(form, "rights.containsThirdPartyMaterial");
-  const rightsSummary =
+  const previousRightsContext = combinedRightsContext(base);
+  const rightsContextChanged = rightsContext !== previousRightsContext;
+  const containsThirdPartyMaterial =
+    thirdPartyMaterialUsed ||
+    samplesUsed ||
+    voiceCloneUsed ||
+    authorityBasis === "licensed" ||
+    authorityBasis === "other";
+  const rightsStatement =
     rightsContext ||
     (authorityBasis === "licensed"
       ? "The submitter confirms the material is used with permission."
       : authorityBasis === "public_domain"
         ? "The submitter identifies the relevant material as public domain."
         : "The submitter confirms control of the rights needed for review.");
+  const publicRightsSummary = safePublicRightsSummary(authorityBasis, {
+    samplesUsed,
+    voiceCloneUsed,
+    thirdPartyMaterialUsed,
+  });
   const existingHumanRole = base.process.humanRoles[0];
   const existingTools = new Map(
     base.process.aiTools.map((tool) => [tool.name.toLowerCase(), tool]),
@@ -115,16 +173,15 @@ function readDraft(form: FormData, base: SubmissionDraftInput): SubmissionDraftI
     rights: {
       ...base.rights,
       authorityBasis,
-      authorityDetails: rightsContext,
-      entitlementStatement: rightsSummary,
-      publicSummary: rightsSummary,
-      containsThirdPartyMaterial:
-        thirdPartyMaterialUsed ||
-        samplesUsed ||
-        voiceCloneUsed ||
-        authorityBasis === "licensed" ||
-        authorityBasis === "other",
-      thirdPartyMaterialDetails: rightsContext,
+      authorityDetails: rightsContextChanged ? rightsContext : base.rights.authorityDetails,
+      entitlementStatement: rightsStatement,
+      publicSummary: publicRightsSummary,
+      containsThirdPartyMaterial,
+      thirdPartyMaterialDetails: containsThirdPartyMaterial
+        ? rightsContextChanged
+          ? rightsContext
+          : base.rights.thirdPartyMaterialDetails || rightsContext
+        : "",
       territories,
       isrc: formString(form, "rights.isrc"),
       attestation: confirmed
@@ -156,12 +213,22 @@ function readDraft(form: FormData, base: SubmissionDraftInput): SubmissionDraftI
           isPublic: existing?.isPublic ?? true,
         };
       }),
-      sourceMaterialContext: rightsContext,
+      sourceMaterialContext: rightsContextChanged
+        ? rightsContext
+        : base.process.sourceMaterialContext || rightsContext,
       publicSummary: creativeSummary,
       voiceCloneUsed,
-      voiceCloneDetails: voiceCloneUsed ? rightsContext : "",
+      voiceCloneDetails: voiceCloneUsed
+        ? rightsContextChanged
+          ? rightsContext
+          : base.process.voiceCloneDetails || rightsContext
+        : "",
       samplesUsed,
-      sampleDetails: samplesUsed ? rightsContext : "",
+      sampleDetails: samplesUsed
+        ? rightsContextChanged
+          ? rightsContext
+          : base.process.sampleDetails || rightsContext
+        : "",
     },
     provenance: {
       ...base.provenance,
@@ -678,7 +745,7 @@ export default function SubmissionRoute() {
                   <input
                     type="checkbox"
                     name="rights.containsThirdPartyMaterial"
-                    defaultChecked={draft.rights.containsThirdPartyMaterial}
+                    defaultChecked={hasIndependentThirdPartyMaterial(draft)}
                   />
                   Other third-party material
                 </label>
@@ -686,7 +753,7 @@ export default function SubmissionRoute() {
               <DraftTextArea
                 name="rights.context"
                 label="Rights details (required if you selected anything above or chose licensed/other)"
-                defaultValue={draft.rights.authorityDetails}
+                defaultValue={combinedRightsContext(draft)}
               />
             </div>
           </div>

@@ -171,7 +171,7 @@ export function createCurationWorkflowRepository(db: Database) {
           where invitations.token_hash = ${tokenHash}
             and invitations.revoked_at is null
             and invitations.expires_at > ${now.toISOString()}::timestamptz
-            and submissions.status in ('draft', 'received', 'clarification_requested')
+            and submissions.status in ('draft', 'clarification_requested')
           for update of submissions
         ), inserted as (
           insert into submission_audio_upload_sessions (
@@ -227,7 +227,7 @@ export function createCurationWorkflowRepository(db: Database) {
             and invitations.token_hash = ${tokenHash}
             and invitations.revoked_at is null
             and invitations.expires_at > ${now.toISOString()}::timestamptz
-            and submissions.status in ('draft', 'received', 'clarification_requested')
+            and submissions.status in ('draft', 'clarification_requested')
             and sessions.expires_at > ${now.toISOString()}::timestamptz
             and (sessions.status = 'pending' or (sessions.status = 'finalizing' and sessions.lease_expires_at <= ${now.toISOString()}::timestamptz))
           returning sessions.*
@@ -265,7 +265,7 @@ export function createCurationWorkflowRepository(db: Database) {
       const audioId = crypto.randomUUID();
       const rows = await execute<Record<string, unknown>>(sql`
         with locked_submission as (
-          select submissions.id
+          select submissions.id, submissions.status
           from submissions
           join submission_audio_upload_sessions sessions on sessions.submission_id = submissions.id
           where sessions.id = ${sessionId}::uuid
@@ -275,6 +275,7 @@ export function createCurationWorkflowRepository(db: Database) {
           from submission_audio_upload_sessions sessions
           join locked_submission on locked_submission.id = sessions.submission_id
           where sessions.id = ${sessionId}::uuid
+            and locked_submission.status in ('draft', 'clarification_requested')
             and sessions.status = 'finalizing'
             and sessions.lease_token = ${leaseToken}::uuid
             and sessions.lease_expires_at > ${now.toISOString()}::timestamptz
