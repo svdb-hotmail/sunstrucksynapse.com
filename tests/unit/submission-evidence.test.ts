@@ -214,6 +214,27 @@ describe("submission evidence service", () => {
     await client.close();
   }, 30_000);
 
+  it("resaves a confirmed draft without attesting it before final submission", async () => {
+    const resaved = await repository.saveDraftByInvitationTokenHash(
+      tokenHash,
+      completeDraft(),
+      new Date("2026-08-16T12:01:00Z"),
+      { honeypotTriggered: false, userAgent: "vitest", ipHash: null },
+      "Saved draft",
+    );
+
+    expect(resaved?.rights).toMatchObject({ status: "draft", attestation: "" });
+    const persisted = await client.query<{ status: string; attestation: string | null }>(
+      `select status, attestation
+         from rights_declarations
+        where submission_id = $1
+        order by version desc
+        limit 1`,
+      [resaved?.submission.id],
+    );
+    expect(persisted.rows).toEqual([{ status: "draft", attestation: null }]);
+  });
+
   it("enforces the public evidence MIME allowlist and 20 MiB declaration boundary", () => {
     expect(
       parseEvidenceDeclaration({

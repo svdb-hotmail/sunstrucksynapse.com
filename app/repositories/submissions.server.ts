@@ -854,7 +854,7 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
     if (latest.status === "draft") {
       const [updated] = await db
         .update(rightsDeclarations)
-        .set({ ...values, attestation: input.rights.attestation || null })
+        .set({ ...values, attestation: null })
         .where(eq(rightsDeclarations.id, latest.id))
         .returning();
       return updated;
