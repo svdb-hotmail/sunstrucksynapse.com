@@ -24,7 +24,11 @@ import {
   parseEvidenceDeclaration,
 } from "~/services/submission-evidence.server";
 import { sha256Hex } from "~/services/submission-security.server";
-import { SubmissionService, submissionHttpStatus } from "~/services/submissions.server";
+import {
+  SUBMISSION_RIGHTS_ATTESTATION,
+  SubmissionService,
+  submissionHttpStatus,
+} from "~/services/submissions.server";
 import { createTransactionalEmailService } from "~/services/transactional-email.server";
 import { computeBlobSha256 } from "~/utils/sha256";
 
@@ -187,9 +191,7 @@ function readDraft(form: FormData, base: SubmissionDraftInput): SubmissionDraftI
         : "",
       territories,
       isrc: formString(form, "rights.isrc"),
-      attestation: confirmed
-        ? "I confirm that this submission and its rights and creative-process information are accurate."
-        : "",
+      attestation: confirmed ? SUBMISSION_RIGHTS_ATTESTATION : "",
     },
     process: {
       ...base.process,

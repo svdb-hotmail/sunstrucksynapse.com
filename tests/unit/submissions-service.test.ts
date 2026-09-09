@@ -6,7 +6,10 @@ import {
 } from "../../app/repositories/submissions-fixture.server";
 import type { SubmissionDraftInput } from "../../app/repositories/submissions.server";
 import { sha256Hex } from "../../app/services/submission-security.server";
-import { SubmissionService } from "../../app/services/submissions.server";
+import {
+  SUBMISSION_RIGHTS_ATTESTATION,
+  SubmissionService,
+} from "../../app/services/submissions.server";
 import { createTransactionalEmailService } from "../../app/services/transactional-email.server";
 
 function completeDraft(overrides: Partial<SubmissionDraftInput> = {}): SubmissionDraftInput {
@@ -242,6 +245,33 @@ describe("submission service", () => {
     expect(
       afterReplay?.activities.filter((activity) => activity.activityType === "email").length,
     ).toBe(receiptCount);
+  });
+
+  it("derives final rights attestation from the persisted confirmation", async () => {
+    const complete = completeDraft();
+    const draft = completeDraft({
+      rights: { ...complete.rights, attestation: "" },
+    });
+
+    const saved = await service.saveDraft(tokenHash, draft, {
+      honeypotTriggered: false,
+      userAgent: "vitest",
+      ipHash: null,
+    });
+    expect(saved.ok).toBe(true);
+
+    const submitted = await service.submit(tokenHash, draft, {
+      honeypotTriggered: false,
+      userAgent: "vitest",
+      ipHash: null,
+    });
+
+    expect(submitted.ok).toBe(true);
+    if (!submitted.ok) return;
+    expect(submitted.value.rights).toMatchObject({
+      status: "attested",
+      attestation: SUBMISSION_RIGHTS_ATTESTATION,
+    });
   });
 
   it("rejects direct acceptance while a submission is still received", async () => {
