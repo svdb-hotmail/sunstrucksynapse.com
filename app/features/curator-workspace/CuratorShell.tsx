@@ -1,4 +1,4 @@
-import type { FormEvent, ReactNode } from "react";
+import type { ChangeEvent, FormEvent, ReactNode } from "react";
 import { Link } from "react-router";
 
 import type { CuratorIdentityView, CuratorNavigationItem, CuratorSection } from "./types";
@@ -10,6 +10,7 @@ export interface CuratorShellProps {
   navigation: readonly CuratorNavigationItem[];
   onSearch?: (query: string) => void;
   searchPlaceholder?: string;
+  searchValue?: string;
 }
 
 export function CuratorShell({
@@ -19,11 +20,15 @@ export function CuratorShell({
   navigation,
   onSearch,
   searchPlaceholder = "Search submissions, artists, or references",
+  searchValue,
 }: CuratorShellProps) {
   const submitSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     onSearch?.(String(data.get("query") ?? "").trim());
+  };
+  const changeSearch = (event: ChangeEvent<HTMLInputElement>) => {
+    onSearch?.(event.currentTarget.value);
   };
 
   return (
@@ -71,6 +76,8 @@ export function CuratorShell({
               name="query"
               type="search"
               placeholder={searchPlaceholder}
+              value={searchValue}
+              onChange={changeSearch}
             />
             <kbd>Ctrl K</kbd>
           </form>

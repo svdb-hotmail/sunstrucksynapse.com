@@ -52,7 +52,7 @@ export const curatorQueueFixtures: CuratorQueueItemView[] = [
     readiness: "ready",
     rights: "attested",
     assignedCuratorName: null,
-    audioUrl: null,
+    audioUrl: "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3",
   },
   {
     id: "submission-liminal-space",
@@ -66,7 +66,7 @@ export const curatorQueueFixtures: CuratorQueueItemView[] = [
     readiness: "ready",
     rights: "attested",
     assignedCuratorName: "Samuel Vandenberg",
-    audioUrl: null,
+    audioUrl: "/assets/audio/The Mushroom Circle (Gnome Revolution).mp3",
   },
   {
     id: "submission-safe-in-static",
@@ -95,6 +95,77 @@ export const curatorReviewFixture: CuratorReviewView = {
     "Iterative generation shaped through selection, arrangement, rerecording, and detailed production.",
   evidenceCount: 1,
 };
+
+const fixtureTitles = [
+  "Midnight Frequency",
+  "Liminal Space",
+  "Paper Planes",
+  "Safe in the Static",
+  "Golden Somewhere",
+  "Falling Through",
+  "Rivers and Radio",
+  "A Softer Light",
+  "Neon Lullaby",
+  "The Waiting Room",
+] as const;
+
+const fixtureArtists = [
+  "Kairos Bloom",
+  "Nova Grey",
+  "Elise Monroe",
+  "The Hollow Years",
+  "Marin Ellis",
+  "Cipher Lake",
+  "June Cabrera",
+  "Tomas Keene",
+  "Velvet Circuit",
+  "Southbound",
+] as const;
+
+export function createCuratorQueueFixtures(count = 124): CuratorQueueItemView[] {
+  return Array.from({ length: count }, (_, index) => {
+    const base = curatorQueueFixtures[index];
+    if (base) return base;
+    const statusCycle: CuratorQueueItemView["status"][] = [
+      "received",
+      "received",
+      "eligibility_review",
+      "listening",
+      "clarification_requested",
+      "accepted",
+      "rejected",
+    ];
+    const status = statusCycle[index % statusCycle.length]!;
+    const readiness: CuratorQueueItemView["readiness"] =
+      status === "clarification_requested"
+        ? "needs_information"
+        : index % 11 === 0
+          ? "needs_audio"
+          : index % 13 === 0
+            ? "flagged"
+            : "ready";
+    const sequence = String(7482 - index).padStart(4, "0");
+    return {
+      id: `submission-${sequence}`,
+      publicReference: `SUB-2026-${sequence}`,
+      title: fixtureTitles[index % fixtureTitles.length]!,
+      artistName: fixtureArtists[index % fixtureArtists.length]!,
+      submitterEmail: `artist${index}@example.com`,
+      durationMs: readiness === "needs_audio" ? null : 175_000 + ((index * 17_000) % 260_000),
+      submittedAt: new Date(Date.UTC(2026, 8, 9, 16) - index * 3_600_000).toISOString(),
+      status,
+      readiness,
+      rights: readiness === "flagged" ? "needs_review" : "attested",
+      assignedCuratorName: status === "listening" || index % 17 === 0 ? "Samuel Vandenberg" : null,
+      audioUrl:
+        readiness === "needs_audio"
+          ? null
+          : index % 2 === 0
+            ? "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3"
+            : "/assets/audio/The Mushroom Circle (Gnome Revolution).mp3",
+    };
+  });
+}
 
 export const curatorInvitationFixtures: CuratorInvitationView[] = [
   {
