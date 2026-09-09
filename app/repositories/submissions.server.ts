@@ -34,6 +34,12 @@ import type {
   TrackSubmissionDetails,
 } from "~/types/submissions";
 
+type RawRows<T extends Record<string, unknown>> = { rows: T[] } | T[];
+
+function resultRows<T extends Record<string, unknown>>(result: RawRows<T>): T[] {
+  return Array.isArray(result) ? result : result.rows;
+}
+
 export interface SubmissionRightsInput {
   authorityBasis: "original_author" | "licensed" | "public_domain" | "other";
   authorityDetails: string;
@@ -855,7 +861,7 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
       const [updated] = await db
         .update(rightsDeclarations)
         .set({ ...values, attestation: null })
-        .where(eq(rightsDeclarations.id, latest.id))
+        .where(and(eq(rightsDeclarations.id, latest.id), eq(rightsDeclarations.status, "draft")))
         .returning();
       return updated;
     }
@@ -920,7 +926,12 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
       const [updated] = await db
         .update(creativeProcessDisclosures)
         .set(values)
-        .where(eq(creativeProcessDisclosures.id, latest.id))
+        .where(
+          and(
+            eq(creativeProcessDisclosures.id, latest.id),
+            eq(creativeProcessDisclosures.status, "draft"),
+          ),
+        )
         .returning();
       return updated;
     }
@@ -1022,8 +1033,9 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
       const [updated] = await db
         .update(provenanceRecords)
         .set(values)
-        .where(eq(provenanceRecords.id, latest.id))
+        .where(and(eq(provenanceRecords.id, latest.id), eq(provenanceRecords.status, "draft")))
         .returning();
+      if (!updated) return null;
       await replaceProvenanceDetails(updated.id, input.provenance);
       return updated;
     }
@@ -1090,11 +1102,12 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
       )
       .returning({ id: submissions.id });
     if (updated.length !== 1) return null;
-    await Promise.all([
+    const revisions = await Promise.all([
       upsertRightsDraft(currentSubmission.id, input, now, revisionReason),
       upsertProcessDraft(currentSubmission.id, input, now, revisionReason),
       upsertProvenanceDraft(currentSubmission.id, input, now, revisionReason),
     ]);
+    if (revisions.some((revision) => !revision)) return null;
     return buildAggregate(currentSubmission.id);
   }
 
@@ -1102,30 +1115,82 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
     aggregate: SubmissionAggregate,
     input: SubmissionDraftInput,
     now: Date,
-  ) {
+  ): Promise<boolean> {
     const { rights, process, provenance } = aggregate;
-    if (rights?.status === "draft") {
-      await db
-        .update(rightsDeclarations)
-        .set({
-          status: "attested",
-          attestation: input.rights.attestation,
-          attestedAt: now,
-        })
-        .where(eq(rightsDeclarations.id, rights.id));
-    }
-    if (process?.status === "draft") {
-      await db
-        .update(creativeProcessDisclosures)
-        .set({ status: "finalized", finalizedAt: now })
-        .where(eq(creativeProcessDisclosures.id, process.id));
-    }
-    if (provenance?.status === "draft") {
-      await db
-        .update(provenanceRecords)
-        .set({ status: "finalized", finalizedAt: now })
-        .where(eq(provenanceRecords.id, provenance.id));
-    }
+    // Lock and revalidate the exact latest drafts before changing any status. The
+    // data-modifying CTE then finalizes all revisions and transitions the parent
+    // as one statement, so a concurrent save either wins first or changes nothing.
+    const rows = resultRows(
+      (await db.execute<{ id: string }>(sql`
+        with eligible as (
+          select
+            submission.id as submission_id,
+            rights.id as rights_id,
+            process_revision.id as process_id,
+            provenance.id as provenance_id
+          from submissions submission
+          join rights_declarations rights
+            on rights.id = ${rights.id}::uuid and rights.submission_id = submission.id
+          join creative_process_disclosures process_revision
+            on process_revision.id = ${process.id}::uuid
+            and process_revision.submission_id = submission.id
+          join provenance_records provenance
+            on provenance.id = ${provenance.id}::uuid
+            and provenance.submission_id = submission.id
+          where submission.id = ${aggregate.submission.id}::uuid
+            and submission.status = ${aggregate.submission.status}
+            and submission.status in ('draft', 'clarification_requested')
+            and rights.status = 'draft'
+            and process_revision.status = 'draft'
+            and provenance.status = 'draft'
+            and not exists (
+              select 1 from rights_declarations newer
+              where newer.submission_id = submission.id and newer.version > rights.version
+            )
+            and not exists (
+              select 1 from creative_process_disclosures newer
+              where newer.submission_id = submission.id and newer.version > process_revision.version
+            )
+            and not exists (
+              select 1 from provenance_records newer
+              where newer.submission_id = submission.id and newer.version > provenance.version
+            )
+          for update of submission, rights, process_revision, provenance
+        ), finalized_rights as (
+          update rights_declarations target
+          set status = 'attested', attestation = ${input.rights.attestation}, attested_at = ${now}
+          from eligible
+          where target.id = eligible.rights_id
+          returning target.id
+        ), finalized_process as (
+          update creative_process_disclosures target
+          set status = 'finalized', finalized_at = ${now}
+          from eligible
+          where target.id = eligible.process_id
+          returning target.id
+        ), finalized_provenance as (
+          update provenance_records target
+          set status = 'finalized', finalized_at = ${now}
+          from eligible
+          where target.id = eligible.provenance_id
+          returning target.id
+        ), transitioned as (
+          update submissions target
+          set
+            status = 'received',
+            submitted_at = coalesce(target.submitted_at, ${now}),
+            updated_at = ${now}
+          from eligible
+          where target.id = eligible.submission_id
+            and exists (select 1 from finalized_rights)
+            and exists (select 1 from finalized_process)
+            and exists (select 1 from finalized_provenance)
+          returning target.id
+        )
+        select id from transitioned
+      `)) as RawRows<{ id: string }>,
+    );
+    return rows.length === 1;
   }
 
   async function recordActivity(
@@ -1200,6 +1265,7 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
         now,
         abuseSignals,
         revisionReason,
+        ["draft", "clarification_requested"],
       );
     },
     async submitByInvitationTokenHash(tokenHash, input, now, abuseSignals, revisionReason) {
@@ -1215,23 +1281,7 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
         ["draft", "clarification_requested"],
       );
       if (!aggregate) return null;
-      await finalizeLatestDrafts(aggregate, sanitized, now);
-      const transitioned = await db
-        .update(submissions)
-        .set({
-          status: "received",
-          submittedAt: aggregate.submission.submittedAt ?? now,
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(submissions.id, aggregate.submission.id),
-            eq(submissions.status, aggregate.submission.status),
-            inArray(submissions.status, ["draft", "clarification_requested"]),
-          ),
-        )
-        .returning({ id: submissions.id });
-      if (transitioned.length !== 1) return null;
+      if (!(await finalizeLatestDrafts(aggregate, sanitized, now))) return null;
       if (aggregate.submission.status === "draft") {
         await recordActivity(aggregate.submission.id, "status_change", "submitter", now, {
           actorEmail: sanitized.contact.contactEmail,
