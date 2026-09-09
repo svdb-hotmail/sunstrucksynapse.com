@@ -98,6 +98,7 @@
   --primitive-font-display: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
   --primitive-font-mono: "Courier New", Courier, ui-monospace, monospace;
   --primitive-font-script: "Segoe Print", "Bradley Hand", cursive;
+  --primitive-font-ui: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --primitive-space-1: 4px;
   --primitive-space-2: 8px;
   --primitive-space-3: 12px;
@@ -141,6 +142,7 @@
   --type-font-family-display: var(--primitive-font-display);
   --type-font-family-mono: var(--primitive-font-mono);
   --type-font-family-script: var(--primitive-font-script);
+  --type-font-family-ui: var(--primitive-font-ui);
   --space-1: var(--primitive-space-1);
   --space-2: var(--primitive-space-2);
   --space-3: var(--primitive-space-3);
@@ -244,6 +246,21 @@
     transparent
   );
   --component-submission-shadow: var(--shadow-card);
+  --component-curator-canvas: var(--color-bg-deep);
+  --component-curator-sidebar: color-mix(in srgb, var(--color-bg-deep) 92%, transparent);
+  --component-curator-header: color-mix(in srgb, var(--color-bg-deep) 88%, transparent);
+  --component-curator-panel: color-mix(in srgb, var(--color-surface-shell) 94%, transparent);
+  --component-curator-panel-raised: color-mix(in srgb, var(--color-surface-panel) 88%, transparent);
+  --component-curator-hover: color-mix(in srgb, var(--color-content-primary) 6%, transparent);
+  --component-curator-selected: color-mix(in srgb, var(--color-accent-pink) 14%, transparent);
+  --component-curator-selected-border: var(--color-accent-pink);
+  --component-curator-success: var(--color-accent-green);
+  --component-curator-warning: var(--color-accent-sun);
+  --component-curator-info: var(--color-accent-cyan);
+  --component-curator-danger: var(--color-status-danger);
+  --component-curator-sidebar-width: 224px;
+  --component-curator-header-height: 72px;
+  --component-curator-row-height: 58px;
   --component-control-border: 1px solid var(--color-border-control);
   --component-control-focus: var(--color-focus-ring);
   --component-signal-content: var(--color-accent-sun);
