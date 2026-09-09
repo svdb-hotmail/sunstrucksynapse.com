@@ -148,6 +148,18 @@ describe("review audio declarations", () => {
     expect(parseReviewAudioDeclaration(declaration)).toEqual({ ok: true, value: declaration });
   });
 
+  it.each(["audio/x-wav", "audio/wave", "audio/vnd.wave"])(
+    "normalizes the browser WAV MIME type %s",
+    (mimeType) => {
+      expect(
+        parseReviewAudioDeclaration({ ...declaration, filename: "signal.wav", mimeType }),
+      ).toEqual({
+        ok: true,
+        value: { ...declaration, filename: "signal.wav", mimeType: "audio/wav" },
+      });
+    },
+  );
+
   it("rejects unsupported and oversized inputs before creating a staging key", () => {
     expect(parseReviewAudioDeclaration({ ...declaration, mimeType: "video/mp4" })).toMatchObject({
       ok: false,

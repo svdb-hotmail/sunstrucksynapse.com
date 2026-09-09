@@ -1265,6 +1265,26 @@ form button[type="submit"] {
   padding-inline: var(--space-5);
 }
 
+.submission-saved-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border: var(--component-submission-border);
+  border-radius: var(--radius-md);
+  background: var(--component-submission-field-background);
+}
+
+.submission-saved-summary > div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.submission-saved-summary button {
+  flex: 0 0 auto;
+}
+
 .submission-page button:disabled {
   cursor: not-allowed;
   opacity: 0.5;
@@ -1315,6 +1335,11 @@ form button[type="submit"] {
 
   .submission-field-full {
     grid-column: auto;
+  }
+
+  .submission-saved-summary {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 
