@@ -1166,6 +1166,15 @@ form button[type="submit"] {
   gap: var(--space-3);
 }
 
+.submission-details-editor {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.submission-details-editor[hidden] {
+  display: none;
+}
+
 .submission-field-grid label {
   color: var(--component-submission-muted-content);
 }
