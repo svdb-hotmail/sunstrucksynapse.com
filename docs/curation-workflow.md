@@ -1,9 +1,25 @@
 # Near-zero-touch curation workflow
 
-The artist's job is to provide the requested input. They save the invitation-backed form, upload
-one private listening copy, and submit. The browser hashes the audio without loading the entire
-file into application memory, then uploads directly to a short-lived R2 staging URL. Replacing the
-file creates a new version; it never overwrites audio a curator may already have heard.
+The artist's job is to provide the requested input, not to model the curation database. The
+invitation page therefore has three visible steps:
+
+1. Enter the essential track details: artist, title, contact email, a short account of the creative
+   process, AI tools, rights basis and territory, explicit sample/voice/third-party flags, and one
+   combined confirmation. Save once to enable audio upload; later final submission includes any
+   edits currently visible in the form.
+2. Upload one private listening copy.
+3. Submit once the listening copy is ready.
+
+Release metadata is optional and supporting evidence stays collapsed unless a curator asks for it.
+The application derives the structured rights, process, provenance, and acknowledgement records
+from the compact intake while retaining the same server validation and curator eligibility checks.
+Detailed rights context remains private to the curator workflow; public disclosure receives only a
+derived category-level summary. Existing category-specific rights details are preserved when a
+legacy draft is opened and saved without changing the combined rights field.
+The browser hashes the audio without loading the entire file into application memory, then uploads
+directly to a short-lived R2 staging URL. Replacing the file creates a new version; it never
+overwrites audio a curator may already have heard. Once submitted, both new upload sessions and
+in-flight finalization are rejected until a curator explicitly requests clarification.
 
 The curator's normal path is intentionally three actions:
 

@@ -61,10 +61,8 @@ test("creates a private invitation that opens the submission form", async ({ bro
   const submitterContext = await browser.newContext();
   const submitterPage = await submitterContext.newPage();
   await submitterPage.goto(invitationUrl);
-  await expect(
-    submitterPage.getByRole("heading", { name: "Submit for curator review" }),
-  ).toBeVisible();
-  await expect(submitterPage.getByLabel("Artist display name")).toHaveValue("Playwright Invitee");
+  await expect(submitterPage.getByRole("heading", { name: "Send us one track" })).toBeVisible();
+  await expect(submitterPage.getByLabel("Artist name")).toHaveValue("Playwright Invitee");
   await expect(submitterPage.getByLabel("Contact email")).toHaveValue(
     "playwright-invitee@example.test",
   );

@@ -11,7 +11,10 @@ import { e2eReviewSubmissionId } from "./submissions-fixture.server";
 
 type CuratorCurationWorkflowRepository = Pick<
   CurationWorkflowRepository,
-  "claimNextSubmission" | "finalizeReview" | "currentAudioForSubmissions"
+  | "claimNextSubmission"
+  | "finalizeReview"
+  | "currentAudioForSubmissions"
+  | "currentAudioByTokenHash"
 >;
 
 const reviewAudio: ReviewAudioRecord = {
@@ -106,6 +109,13 @@ export function createE2eCurationWorkflowRepository(
       return submissionIds.includes(reviewAudio.submissionId)
         ? { [reviewAudio.submissionId]: structuredClone(reviewAudio) }
         : {};
+    },
+
+    async currentAudioByTokenHash(tokenHash: string, now: Date) {
+      const aggregate = await submissions.findByInvitationTokenHash(tokenHash, now);
+      return aggregate?.submission.id === reviewAudio.submissionId
+        ? structuredClone(reviewAudio)
+        : null;
     },
   };
 }

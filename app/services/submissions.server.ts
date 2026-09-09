@@ -205,6 +205,17 @@ export class SubmissionService {
     input: SubmissionDraftInput,
     meta: { honeypotTriggered: boolean; userAgent: string | null; ipHash: string | null },
   ) {
+    const current = await this.repository.findByInvitationTokenHash(tokenHash, this.clock());
+    if (
+      current &&
+      current.submission.status !== "draft" &&
+      current.submission.status !== "clarification_requested"
+    ) {
+      return {
+        ok: false,
+        error: { code: "conflict", message: "This submission has already been finalized." },
+      } as const;
+    }
     const validation = validateForSubmit(input);
     if (validation) {
       return { ok: false, error: { code: "invalid", message: validation } } as const;
@@ -217,6 +228,13 @@ export class SubmissionService {
       "Submitted revision",
     );
     if (!value) {
+      const latest = await this.repository.findByInvitationTokenHash(tokenHash, this.clock());
+      if (latest) {
+        return {
+          ok: false,
+          error: { code: "conflict", message: "This submission changed before it finalized." },
+        } as const;
+      }
       return {
         ok: false,
         error: { code: "not_found", message: "Submission link unavailable." },

@@ -1,51 +1,38 @@
 import { expect, test } from "@playwright/test";
 
-test("submits an invited draft and prevents a curator decision without private review audio", async ({
+test("saves a practical invited draft and requires private review audio before submission", async ({
   browser,
   page,
 }) => {
   await page.goto("/submit/phase3-invite-token");
-  await page.getByLabel("Work title").fill("Playwright Orbit");
-  await page.getByLabel("Artist biography").fill("Playwright artist biography.");
-  await page.getByLabel("Release title").fill("Playwright Orbit EP");
+  await expect(page.getByRole("heading", { name: "Send us one track" })).toBeVisible();
+  await expect(page.getByLabel("Public rights summary")).toHaveCount(0);
+  await page.getByLabel("Artist name").fill("Invited Artist");
   await page.getByLabel("Track title").fill("Playwright Orbit");
-  await page.getByLabel("Entitlement statement").fill("I control the rights needed for review.");
-  await page.getByLabel("Public rights summary").fill("Original work controlled by the submitter.");
   await page
-    .getByLabel("Submission attestation")
-    .fill("I attest that the declaration is accurate.");
-  await page
-    .getByLabel("AI use description")
-    .fill("AI-assisted ideation informed the arrangement.");
-  await page
-    .getByLabel("Meaningful human contribution")
+    .getByLabel("How was this track made, and what did you contribute?")
     .fill("Human composition, editing, and final production.");
+  await page.getByLabel("AI tools used (comma separated)").fill("Sketcher");
+  await page.getByLabel("Samples or source recordings").check();
   await page
-    .getByLabel("Public process summary")
-    .fill("AI supported ideation while the artist finished the work.");
-  await page
-    .getByRole("textbox", { name: "Summary", exact: true })
-    .fill("The artist rebuilt the track from sketches.");
-  await page.getByLabel("Territories (comma separated)").fill("Worldwide");
-  await page.getByLabel("Tools and systems (comma separated)").fill("Sketcher");
-  await page.locator('[name="process.humanRoles.0.name"]').fill("Invited Artist");
-  await page.locator('[name="process.humanRoles.0.role"]').fill("artist");
-  await page
-    .locator('[name="process.humanRoles.0.contribution"]')
-    .fill("Composition and production");
-  await page.locator('[name="process.aiTools.0.name"]').fill("Sketcher");
-  await page.locator('[name="process.aiTools.0.model"]').fill("v2");
-  await page.locator('[name="process.aiTools.0.provider"]').fill("Example");
-  await page.locator('[name="process.aiTools.0.purpose"]').fill("Ideation");
-  await page.locator('[name="provenance.steps.0.processType"]').fill("arrangement");
-  await page
-    .locator('[name="provenance.steps.0.description"]')
-    .fill("The artist rebuilt the arrangement from sketches.");
-  await page.locator('[name="provenance.sources.0.reference"]').fill("Sketch-001");
-  for (const checkbox of await page.locator('input[type="checkbox"][name^="ack."]').all()) {
-    await checkbox.check();
-  }
-  await page.getByRole("button", { name: "Submit for review" }).click();
+    .getByLabel(/Rights details/)
+    .fill("Private licence agreement LIC-8472 with a session musician.");
+  await page.getByLabel(/This invitation is mine/).check();
+  await page.getByRole("button", { name: /Save (details and continue|changes)/ }).click();
+
+  await expect(page.getByText("Draft saved.")).toBeVisible();
+  await expect(page.getByLabel("Audio file")).toBeEnabled();
+  const submitButton = page.getByRole("button", { name: "Submit track for review" });
+  await expect(submitButton).toBeDisabled();
+
+  // Bypass only the presentation lock to prove the action independently enforces the audio gate.
+  await submitButton.evaluate((button) => {
+    (button as HTMLButtonElement).disabled = false;
+  });
+  await submitButton.click();
+  await expect(page.getByRole("alert")).toHaveText(
+    "Upload a private listening copy before submitting.",
+  );
 
   const curatorContext = await browser.newContext({
     extraHTTPHeaders: {
@@ -59,8 +46,14 @@ test("submits an invited draft and prevents a curator decision without private r
   const submissionCard = curatorPage.locator(".curator-record").filter({
     hasText: "Playwright Orbit",
   });
-  await submissionCard.getByRole("button", { name: "Move to eligibility review" }).click();
-  await expect(submissionCard).toContainText("eligibility_review");
+  await expect(submissionCard).toContainText("draft");
+  const publicRightsSummary = submissionCard.locator("p").filter({
+    hasText: "The submitter identifies the work as original and under their control.",
+  });
+  await expect(publicRightsSummary).toContainText(
+    "The track includes disclosed sample or source material.",
+  );
+  await expect(publicRightsSummary).not.toContainText("LIC-8472");
   await expect(submissionCard.getByRole("button", { name: "Assign me" })).toHaveCount(0);
   await expect(submissionCard.getByRole("button", { name: "Move to listening" })).toHaveCount(0);
   await expect(submissionCard.getByRole("button", { name: "Finalize decision" })).toHaveCount(0);
