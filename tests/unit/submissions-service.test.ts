@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   createE2eSubmissionRepository,
@@ -142,6 +142,10 @@ describe("submission service", () => {
     );
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("issues a time-limited invitation while persisting only its token hash", async () => {
     let randomCall = 0;
     service = new SubmissionService(
@@ -272,6 +276,39 @@ describe("submission service", () => {
       status: "attested",
       attestation: SUBMISSION_RIGHTS_ATTESTATION,
     });
+  });
+
+  it("keeps a finalized submission successful when its receipt email fails", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const findByInvitation = vi.spyOn(repository, "findByInvitationTokenHash");
+    service = new SubmissionService(
+      repository,
+      {
+        mode: "postmark",
+        async send() {
+          throw new Error("Transactional email delivery failed.");
+        },
+      },
+      () => new Date("2026-08-16T12:00:00Z"),
+    );
+
+    const submitted = await service.submit(tokenHash, completeDraft(), {
+      honeypotTriggered: false,
+      userAgent: "vitest",
+      ipHash: null,
+    });
+
+    expect(submitted.ok).toBe(true);
+    if (!submitted.ok) return;
+    expect(submitted.value.submission.status).toBe("received");
+    expect(submitted.value.activities.some((activity) => activity.activityType === "email")).toBe(
+      false,
+    );
+    expect(consoleError).toHaveBeenCalledWith(
+      "Submission receipt notification failed after finalization.",
+      expect.objectContaining({ submissionId: submitted.value.submission.id }),
+    );
+    expect(findByInvitation).toHaveBeenCalledOnce();
   });
 
   it("rejects direct acceptance while a submission is still received", async () => {

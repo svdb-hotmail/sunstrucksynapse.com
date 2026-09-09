@@ -235,6 +235,24 @@ describe("submission evidence service", () => {
     expect(persisted.rows).toEqual([{ status: "draft", attestation: null }]);
   });
 
+  it("finalizes the revision rows already loaded by the submission write", async () => {
+    const submitted = await repository.submitByInvitationTokenHash(
+      tokenHash,
+      completeDraft(),
+      new Date("2026-08-16T12:02:00Z"),
+      { honeypotTriggered: false, userAgent: "vitest", ipHash: null },
+      "Submitted revision",
+    );
+
+    expect(submitted?.submission.status).toBe("received");
+    expect(submitted?.rights).toMatchObject({
+      status: "attested",
+      attestation: "I attest to this declaration.",
+    });
+    expect(submitted?.process.status).toBe("finalized");
+    expect(submitted?.provenance.status).toBe("finalized");
+  });
+
   it("enforces the public evidence MIME allowlist and 20 MiB declaration boundary", () => {
     expect(
       parseEvidenceDeclaration({

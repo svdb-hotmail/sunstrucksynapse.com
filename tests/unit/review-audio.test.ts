@@ -35,7 +35,7 @@ class MemoryMediaBucket implements MediaBucket {
   async put(
     key: string,
     value: ReadableStream<Uint8Array>,
-    _options: {
+    options: {
       httpMetadata: { contentType: string };
       customMetadata: Record<string, string>;
       sha256: string;
@@ -58,6 +58,9 @@ class MemoryMediaBucket implements MediaBucket {
         stored.set(chunk, offset);
         offset += chunk.byteLength;
       }
+      const hasher = new IncrementalSha256();
+      hasher.update(stored);
+      if (hasher.digestHex() !== options.sha256) throw new Error("checksum mismatch");
       this.objects.set(key, stored);
     }
     return { size };
