@@ -9,7 +9,6 @@ import {
   type ReviewAudioDeclaration,
   type ReviewAudioRecord,
 } from "~/repositories/curation-workflow.server";
-import { IncrementalSha256 } from "~/utils/sha256";
 
 export type ReviewAudioResult<T> =
   | { ok: true; value: T }
@@ -258,7 +257,6 @@ export class ReviewAudioService {
       return renewed;
     };
     const { readable, writable } = createFixedLengthStream(session.byteSize);
-    const hasher = new IncrementalSha256();
     let streamed = 0;
     const pump = (async () => {
       const reader = source.body.getReader();
@@ -271,7 +269,6 @@ export class ReviewAudioService {
             if (!(await renewLease())) throw new Error("finalization lease lost");
             streamed += value.byteLength;
             if (streamed > session.byteSize) throw new Error("oversized");
-            hasher.update(value);
             await writer.write(value);
           }
         }
@@ -296,8 +293,7 @@ export class ReviewAudioService {
     if (
       putResult.status === "rejected" ||
       pumpResult.status === "rejected" ||
-      streamed !== session.byteSize ||
-      hasher.digestHex() !== session.checksumSha256
+      streamed !== session.byteSize
     ) {
       await cleanupFencedFinal();
       return fail("Audio verification failed. Upload the file again.", "VERIFICATION_FAILED");

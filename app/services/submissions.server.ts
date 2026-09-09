@@ -257,20 +257,30 @@ export class SubmissionService {
         error: { code: "not_found", message: "Submission link unavailable." },
       } as const;
     }
-    await this.email.send({
-      to: value.submission.submitterEmail,
-      subject: `Submission received: ${value.submission.publicReference}`,
-      textBody: `Your submission ${value.submission.publicReference} has been recorded for curator review.`,
-    });
-    await this.repository.recordEmailActivity(
-      value.submission.id,
-      this.clock(),
-      value.submission.submitterEmail,
-      "submission_received",
-    );
+    let responseValue = value;
+    try {
+      await this.email.send({
+        to: value.submission.submitterEmail,
+        subject: `Submission received: ${value.submission.publicReference}`,
+        textBody: `Your submission ${value.submission.publicReference} has been recorded for curator review.`,
+      });
+      await this.repository.recordEmailActivity(
+        value.submission.id,
+        this.clock(),
+        value.submission.submitterEmail,
+        "submission_received",
+      );
+      responseValue =
+        (await this.repository.findByInvitationTokenHash(tokenHash, this.clock())) ?? value;
+    } catch (error) {
+      console.error("Submission receipt notification failed after finalization.", {
+        submissionId: value.submission.id,
+        error: error instanceof Error ? error.message : "Unknown notification error",
+      });
+    }
     return {
       ok: true,
-      value: (await this.repository.findByInvitationTokenHash(tokenHash, this.clock())) ?? value,
+      value: responseValue,
     } as const;
   }
 

@@ -1099,15 +1099,11 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
   }
 
   async function finalizeLatestDrafts(
-    submissionId: string,
+    aggregate: SubmissionAggregate,
     input: SubmissionDraftInput,
     now: Date,
   ) {
-    const [rights, process, provenance] = await Promise.all([
-      loadLatestRightsVersion(submissionId),
-      loadLatestProcessVersion(submissionId),
-      loadLatestProvenanceVersion(submissionId),
-    ]);
+    const { rights, process, provenance } = aggregate;
     if (rights?.status === "draft") {
       await db
         .update(rightsDeclarations)
@@ -1219,7 +1215,7 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
         ["draft", "clarification_requested"],
       );
       if (!aggregate) return null;
-      await finalizeLatestDrafts(aggregate.submission.id, sanitized, now);
+      await finalizeLatestDrafts(aggregate, sanitized, now);
       const transitioned = await db
         .update(submissions)
         .set({
