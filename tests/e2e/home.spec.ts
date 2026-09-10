@@ -380,7 +380,7 @@ test("keeps the intermediate header visible without horizontal overflow", async 
   await expect(page.getByRole("button", { name: "Light mode" })).toBeVisible();
   await expect(page.locator(".site-logo span:last-child")).toBeHidden();
   await expect(page.locator(".theme-toggle__label")).toBeHidden();
-  await expect(page.locator(".subscribe")).toBeHidden();
+  await expect(page.locator(".subscribe")).toHaveCount(0);
   await expect(
     page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "About" }),
   ).toBeVisible();

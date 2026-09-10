@@ -69,25 +69,41 @@ describe("about route composition", () => {
 
     expect(markup).not.toContain('id="about"');
     expect(markup).not.toContain('id="contact"');
-    expect(markup).not.toContain("About the radio");
+    expect(markup).not.toContain("What guides us");
     expect(markup).not.toContain("Send the signal.");
   });
 
-  it("renders About with the shared sections, policy links, and contact form contract", () => {
+  it("renders a concise About page with three goals, policy answers, and modal contact", () => {
     const markup = renderRoute(<About />);
 
-    expect(markup).toContain("<h1>About SunSyn Radio</h1>");
+    expect(markup).toContain("<h1>Music chosen by people, made with intent.</h1>");
+    expect(markup).toContain("SunSyn Radio is a human-curated place");
     expect(markup).toContain('id="about"');
-    expect(markup).toContain('id="contact"');
-    expect(markup).toContain('aria-label="Policy pages"');
+    expect(markup).toContain("What guides us");
+    expect(markup.match(/<article>/g)).toHaveLength(3);
+    expect(markup).toContain("Choose with care");
+    expect(markup).toContain("Use tools deliberately");
+    expect(markup).toContain("Credit responsibility");
+    expect(markup).not.toContain("Listening first");
+    expect(markup).not.toContain(">04<");
+
+    expect(markup).toContain("Policy questions");
+    expect(markup.match(/<details>/g)).toHaveLength(3);
+    expect(markup).toContain("How is personal information handled?");
+    expect(markup).toContain("What should I know before submitting work?");
+    expect(markup).toContain("How do I report a rights concern?");
 
     for (const [href, name] of [
-      ["/privacy", "Privacy"],
-      ["/submission-terms", "Submission terms"],
-      ["/takedown", "Takedown"],
+      ["/privacy", "Read the privacy notice"],
+      ["/submission-terms", "Read the submission terms"],
+      ["/takedown", "Read the takedown process"],
     ] as const) {
       expect(markup).toMatch(new RegExp(`href="${href}"[^>]*>${name}<`));
     }
+
+    expect(markup).toContain(">Contact SunSyn</button>");
+    expect(markup).toContain('<dialog class="contact-dialog"');
+    expect(markup).toContain('id="contact"');
 
     expect(markup).toContain('action="mailto:hello@sunstrucksynapse.com"');
     expect(markup).toContain('method="get"');

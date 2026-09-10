@@ -49,9 +49,6 @@ export function Header({
 
       <div className="topbar-actions">
         <ThemeToggle />
-        <Link className="subscribe" to="/submission-terms">
-          <span aria-hidden="true">◆</span> Submission terms <span aria-hidden="true">→</span>
-        </Link>
       </div>
     </header>
   );

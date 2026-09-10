@@ -57,18 +57,37 @@ test("sparse mobile navigation keeps Listen, Search and About accessible in one 
     "aria-current",
     "page",
   );
-  await expect(page.getByRole("heading", { level: 1, name: "About SunSyn Radio" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Music chosen by people, made with intent." }),
+  ).toBeVisible();
   await expect(page.locator(".offerings")).toBeVisible();
-  await expect(page.locator(".contact")).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Policy pages" })).toBeVisible();
+  await expect(page.locator(".offer-grid article")).toHaveCount(3);
+  await expect(page.locator(".contact-launch")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Policy questions" })).toBeVisible();
   await expect(page.locator(".panel-footer")).toHaveCount(0);
-  const policyNav = page.getByRole("navigation", { name: "Policy pages" });
-  for (const [label, href, heading] of [
-    ["Privacy", "/privacy", "Privacy notice"],
-    ["Submission terms", "/submission-terms", "Submission terms"],
-    ["Takedown", "/takedown", "Content takedown process"],
+  const policyFaq = page.getByRole("region", { name: "Policy questions" });
+  for (const [question, label, href, heading] of [
+    [
+      "How is personal information handled?",
+      "Read the privacy notice",
+      "/privacy",
+      "Privacy notice",
+    ],
+    [
+      "What should I know before submitting work?",
+      "Read the submission terms",
+      "/submission-terms",
+      "Submission terms",
+    ],
+    [
+      "How do I report a rights concern?",
+      "Read the takedown process",
+      "/takedown",
+      "Content takedown process",
+    ],
   ] as const) {
-    const link = policyNav.getByRole("link", { name: label, exact: true });
+    await policyFaq.getByText(question, { exact: true }).click();
+    const link = policyFaq.getByRole("link", { name: label, exact: true });
     await expect(link).toHaveAttribute("href", href);
     await link.click();
     await expect(page).toHaveURL(new RegExp(`${href}$`));
@@ -104,10 +123,13 @@ test("all five standard mobile links remain in one row and reach their destinati
     "aria-current",
     "page",
   );
-  await expect(page.getByRole("heading", { level: 1, name: "About SunSyn Radio" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Music chosen by people, made with intent." }),
+  ).toBeVisible();
   await expect(page.locator(".offerings")).toBeVisible();
-  await expect(page.locator(".contact")).toBeVisible();
-  await expect(page.getByRole("navigation", { name: "Policy pages" })).toBeVisible();
+  await expect(page.locator(".offer-grid article")).toHaveCount(3);
+  await expect(page.locator(".contact-launch")).toBeVisible();
+  await expect(page.getByRole("region", { name: "Policy questions" })).toBeVisible();
   await expect(page.locator(".panel-footer")).toHaveCount(0);
   await nav.getByRole("link", { name: "Search", exact: true }).click();
   await expect(page).toHaveURL(/\/search$/);

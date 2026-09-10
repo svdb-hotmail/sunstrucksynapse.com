@@ -1,6 +1,6 @@
 import { Link } from "react-router";
 
-import { Contact } from "~/components/Contact";
+import { ContactDialog } from "~/components/ContactDialog";
 import { Offerings } from "~/components/Offerings";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "~/config/brand";
 import { offerings } from "~/data/site";
@@ -24,26 +24,58 @@ export default function AboutRoute() {
     <article className="about-page">
       <header className="about-hero">
         <p className="eyebrow">About</p>
-        <h1>About SunSyn Radio</h1>
+        <h1>Music chosen by people, made with intent.</h1>
+        <p className="about-summary">
+          SunSyn Radio is a human-curated place for music and visual work made with clear creative
+          direction—including work made with AI-assisted tools.
+        </p>
       </header>
 
       <Offerings offerings={offerings} />
-      <section className="policy-links-panel" aria-labelledby="policy-links-heading">
+      <section className="policy-faq" aria-labelledby="policy-faq-heading">
         <div className="section-title">
-          <h2 id="policy-links-heading">
+          <h2 id="policy-faq-heading">
             <span className="section-icon" aria-hidden="true">
               {"\u2600"}
             </span>
-            Policy
+            Policy questions
           </h2>
         </div>
-        <nav className="policy-links" aria-label="Policy pages">
-          <Link to="/privacy">Privacy</Link>
-          <Link to="/submission-terms">Submission terms</Link>
-          <Link to="/takedown">Takedown</Link>
-        </nav>
+        <p className="policy-faq-intro">Plain answers first. Full policies remain available.</p>
+        <div className="policy-accordion">
+          <details>
+            <summary>How is personal information handled?</summary>
+            <div>
+              <p>
+                We limit collection to information needed to run the radio, review submissions, and
+                respond to messages.
+              </p>
+              <Link to="/privacy">Read the privacy notice</Link>
+            </div>
+          </details>
+          <details>
+            <summary>What should I know before submitting work?</summary>
+            <div>
+              <p>
+                Submitters must control the relevant rights, disclose collaborators and generated
+                material, and understand that review does not guarantee publication.
+              </p>
+              <Link to="/submission-terms">Read the submission terms</Link>
+            </div>
+          </details>
+          <details>
+            <summary>How do I report a rights concern?</summary>
+            <div>
+              <p>
+                Send the work, the right involved, and a reliable way to reach you so the concern
+                can be reviewed promptly.
+              </p>
+              <Link to="/takedown">Read the takedown process</Link>
+            </div>
+          </details>
+        </div>
       </section>
-      <Contact />
+      <ContactDialog />
     </article>
   );
 }

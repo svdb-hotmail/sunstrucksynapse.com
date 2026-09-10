@@ -3,7 +3,7 @@ export function Contact() {
     <section id="contact" className="contact">
       <div>
         <p className="eyebrow">Contact</p>
-        <h2>Send the signal.</h2>
+        <h2 id="contact-heading">Send the signal.</h2>
         <p>
           Get in touch about the radio, the artists and music we feature, or a thoughtful
           collaboration.
