@@ -45,13 +45,16 @@ The following capabilities define the intended MVP. They are product targets, no
 - Artist, release, and track pages.
 - Editorial collections.
 - Search and filtering.
+- Genre-led catalogue browsing.
+- Optional listener accounts for attributable feedback while anonymous listening remains available.
+- Five listener downvotes per account and week, used to influence the following week's active radio rotation.
 - Curator administration.
 - Structured artist submissions.
 - Rights declarations and creative-process disclosures.
 - Basic, privacy-conscious listener analytics.
 - A responsive and accessible web experience.
 
-The catalogue remains curator-controlled throughout the MVP. Artists provide material and declarations through an invitation-oriented submission process; curators decide what is published.
+Publication remains curator-controlled throughout the MVP. Artists provide material and declarations through an invitation-oriented submission process; curators decide what is published. Authenticated listener downvotes influence which already-published tracks remain in the active weekly radio rotation, but do not delete, unpublish, reject, or grade a track.
 
 ## Explicit MVP non-goals
 
@@ -88,6 +91,7 @@ Initial measurement should answer four product questions:
 | Will listeners engage with the selected work? | Successful playback starts, 30-second listens, completions, and skips. |
 | Will listeners return?                        | Seven-day returning-listener rate.                                     |
 | Does editorial curation help discovery?       | Sustained listens originating from editorial collections.              |
+| Does listener participation improve rotation? | Weekly participation, unique downvotes, and listening after rotation.  |
 
 Measurement should be basic and privacy-conscious, collecting only what is needed to answer these questions. Raw play count alone is not the primary success measure: meaningful listening, return behaviour, and editorially assisted discovery matter more.
 
@@ -98,6 +102,7 @@ Measurement should be basic and privacy-conscious, collecting only what is neede
 - **Transparent creative-process context.** Listeners and curators should be able to understand how AI contributed to a work.
 - **Structured rights and provenance.** Rights declarations and provenance are product data, not informal marketing copy.
 - **Privacy-conscious analytics.** Measure product usefulness without unnecessary listener tracking.
+- **Consequential but bounded listener feedback.** Weekly downvotes shape radio rotation without replacing human publication or curation decisions.
 - **Honest representation.** Describe current capabilities accurately and label intended capabilities as future scope.
 - **Trust through product design.** Enforce trust through review, structured data, and product controls rather than marketing promises.
 
