@@ -1,6 +1,9 @@
 import type { ChangeEvent, FormEvent, ReactNode } from "react";
 import { Link } from "react-router";
 
+import { ProductBrand } from "~/components/ProductBrand";
+import { ThemeToggle } from "~/design-system/ThemeToggle";
+
 import type { CuratorIdentityView, CuratorNavigationItem, CuratorSection } from "./types";
 
 export interface CuratorShellProps {
@@ -34,19 +37,7 @@ export function CuratorShell({
   return (
     <div className="curator-app">
       <aside className="curator-sidebar" aria-label="Curator workspace">
-        <Link
-          className="curator-brand"
-          to="/curator/submissions"
-          aria-label="SunSyn curator workspace"
-        >
-          <span className="curator-brand__mark" aria-hidden="true">
-            ☼
-          </span>
-          <span>
-            <strong>sunsyn.art</strong>
-            <small>Curator workspace</small>
-          </span>
-        </Link>
+        <ProductBrand destination="/curator/submissions" context="curator" />
         <nav className="curator-navigation" aria-label="Curator">
           {navigation.map((item) => (
             <Link
@@ -81,18 +72,21 @@ export function CuratorShell({
             />
             <kbd>Ctrl K</kbd>
           </form>
-          <button
-            type="button"
-            className="curator-identity"
-            aria-label={`Curator account: ${identity.name}`}
-          >
-            <span aria-hidden="true">{identity.initials}</span>
-            <span>
-              <strong>{identity.name}</strong>
-              <small>Curator</small>
-            </span>
-            <span aria-hidden="true">⌄</span>
-          </button>
+          <div className="curator-topbar__actions">
+            <ThemeToggle />
+            <button
+              type="button"
+              className="curator-identity"
+              aria-label={`Curator account: ${identity.name}`}
+            >
+              <span aria-hidden="true">{identity.initials}</span>
+              <span>
+                <strong>{identity.name}</strong>
+                <small>Curator</small>
+              </span>
+              <span aria-hidden="true">⌄</span>
+            </button>
+          </div>
         </header>
         <main className="curator-main">{children}</main>
       </div>

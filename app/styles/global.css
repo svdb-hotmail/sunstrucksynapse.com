@@ -4,6 +4,12 @@
   box-sizing: border-box;
 }
 
+.storybook-theme {
+  min-height: 100vh;
+  color: var(--color-content-primary);
+  background: var(--component-shell-background);
+}
+
 /* Curator queue prototype ---------------------------------------------- */
 .curator-queue-layout {
   min-width: 0;
@@ -1949,6 +1955,17 @@ form button[type="submit"] {
   border-radius: var(--radius-sm);
   color: var(--color-content-secondary);
   font: 0.72rem var(--type-font-family-ui);
+}
+
+.curator-topbar__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.curator-topbar__actions .theme-toggle {
+  flex: none;
 }
 
 .curator-identity {

@@ -1,14 +1,12 @@
 import { Link, useLocation } from "react-router";
 
-import { SITE_NAME, SITE_URL } from "~/config/brand";
+import { ProductBrand } from "~/components/ProductBrand";
 import { ThemeToggle } from "~/design-system/ThemeToggle";
 import {
   defaultCatalogueNavigation,
   isCatalogueNavigationEntryActive,
   type CatalogueNavigationEntry,
 } from "~/services/catalogue";
-
-const SITE_HOSTNAME = new URL(SITE_URL).hostname.replace(/^www\./, "");
 
 export function Header({
   navigation = defaultCatalogueNavigation,
@@ -20,12 +18,7 @@ export function Header({
   return (
     <header className="topbar">
       <div className="brand-lockup">
-        <Link className="site-logo" to="/" aria-label={`${SITE_NAME} home`}>
-          <span className="mini-orb" aria-hidden="true">
-            ☼
-          </span>
-          <span className="site-wordmark">{SITE_HOSTNAME}</span>
-        </Link>
+        <ProductBrand destination="/" />
         <h2>A radio for music made with intent.</h2>
       </div>
 
