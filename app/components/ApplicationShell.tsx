@@ -9,6 +9,8 @@ import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
 interface ApplicationShellProps {
   children: React.ReactNode;
   navigation?: CatalogueNavigationEntry[];
+  accountControl?: React.ReactNode;
+  playerSupplement?: React.ReactNode;
   item: CatalogueItem | null;
   queue: QueueEntry[];
   playerPanelRef: Ref<HTMLElement>;
@@ -26,6 +28,8 @@ interface ApplicationShellProps {
 export function ApplicationShell({
   children,
   navigation = defaultCatalogueNavigation,
+  accountControl,
+  playerSupplement,
   item,
   queue,
   playerPanelRef,
@@ -42,7 +46,7 @@ export function ApplicationShell({
   return (
     <>
       <div className="app-shell">
-        <Header navigation={navigation} />
+        <Header navigation={navigation} accountControl={accountControl} />
         <PlayerPanel
           ref={playerPanelRef}
           item={item}
@@ -56,6 +60,7 @@ export function ApplicationShell({
           canPrevious={canPrevious}
           canNext={canNext}
           onMediaEnded={onMediaEnded}
+          supplement={playerSupplement}
         />
         <main className="content-panel">{children}</main>
       </div>

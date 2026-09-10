@@ -1,4 +1,4 @@
-import { forwardRef, useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useRef, useState, type ReactNode } from "react";
 
 import { NowPlaying } from "~/components/NowPlaying";
 import { Queue } from "~/components/Queue";
@@ -20,6 +20,7 @@ interface PlayerPanelProps {
   canPrevious: boolean;
   canNext: boolean;
   onMediaEnded: () => void;
+  supplement?: ReactNode;
 }
 
 const signalBars = [
@@ -54,6 +55,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     canPrevious,
     canNext,
     onMediaEnded,
+    supplement,
   },
   ref,
 ) {
@@ -421,6 +423,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
               <small>Curated for intentional listening.</small>
             </span>
           </button>
+          {supplement}
         </div>
 
         <div className="hero-art">

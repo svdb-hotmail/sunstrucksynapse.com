@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Link, useLocation } from "react-router";
 
 import { ProductBrand } from "~/components/ProductBrand";
@@ -10,8 +11,10 @@ import {
 
 export function Header({
   navigation = defaultCatalogueNavigation,
+  accountControl,
 }: {
   navigation?: CatalogueNavigationEntry[];
+  accountControl?: ReactNode;
 }) {
   const { pathname, hash } = useLocation();
 
@@ -42,9 +45,11 @@ export function Header({
 
       <div className="topbar-actions">
         <ThemeToggle />
-        <Link className="subscribe" to="/submission-terms">
-          <span aria-hidden="true">◆</span> Submission terms <span aria-hidden="true">→</span>
-        </Link>
+        {accountControl ?? (
+          <Link className="subscribe" to="/submission-terms">
+            <span aria-hidden="true">◆</span> Submission terms <span aria-hidden="true">→</span>
+          </Link>
+        )}
       </div>
     </header>
   );
