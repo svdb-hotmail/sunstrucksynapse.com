@@ -19,19 +19,21 @@ The normal journey must not expose workflow-state controls. Exceptional actions 
 | 2     | `agent/curator-queue-prototype`         | [#76](https://github.com/svdb-hotmail/sunstrucksynapse.com/pull/76) | Interactive queue and preview in Storybook                                           |
 | 3     | `agent/curator-review-prototype`        | [#77](https://github.com/svdb-hotmail/sunstrucksynapse.com/pull/77) | Interactive focused review in Storybook                                              |
 | 4     | `agent/curator-invitations-prototype`   | [#78](https://github.com/svdb-hotmail/sunstrucksynapse.com/pull/78) | Interactive invitation management in Storybook                                       |
+| 5     | `agent/listener-experience-prototype`   | [#79](https://github.com/svdb-hotmail/sunstrucksynapse.com/pull/79) | Full listener experience and shared cross-surface product identity in Storybook      |
 | Gate  | —                                       | —                                                                   | Maintainer approves the complete Storybook journey                                   |
-| 5     | `agent/curator-queue-integration`       | not started                                                         | Dedicated production shell, real queue, search, filters, audition, and claim         |
-| 6     | `agent/curator-review-integration`      | not started                                                         | Persistent review, clarification, finalization, and automatic next track             |
-| 7     | `agent/curator-invitations-integration` | not started                                                         | Real invitation list, one-time reveal, revocation, and replacement                   |
-| 8     | `agent/curator-workspace-cutover`       | not started                                                         | Remove legacy UI and complete accessibility, responsive, E2E, and documentation work |
+| 6     | `agent/curator-queue-integration`       | not started                                                         | Dedicated production shell, real queue, search, filters, audition, and claim         |
+| 7     | `agent/curator-review-integration`      | not started                                                         | Persistent review, clarification, finalization, and automatic next track             |
+| 8     | `agent/curator-invitations-integration` | not started                                                         | Real invitation list, one-time reveal, revocation, and replacement                   |
+| 9     | `agent/curator-workspace-cutover`       | not started                                                         | Remove legacy UI and complete accessibility, responsive, E2E, and documentation work |
 
 ## Current checkpoint
 
-The four prototype PRs are open as Drafts and the production curator route is unchanged. Review these three dark or light Storybook journeys before admitting integration work:
+The five prototype PRs are open as Drafts and the production curator route is unchanged. Review these four dark or light Storybook journeys before admitting integration work:
 
 1. Queue: search, status filters, selection, inline audition, and the compact preview.
 2. Focused review: listening, four scores, A/B/C grade, rationale, ask-artist exception, and finish-and-next.
 3. Invitations: lifecycle filters, create, one-time secret reveal, revoke, and replace.
+4. Listener experience: header, player, catalogue selection, queueing, playback controls, and shared theme/brand behavior.
 
 The next eligible branch is `agent/curator-queue-integration`, but it must not start until the maintainer accepts the prototype journey or records requested changes.
 
