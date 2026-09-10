@@ -28,6 +28,12 @@ export const listenerItems: CatalogueItem[] = [
       title: "Revolution Will Be Televised",
       subtitle: "Phase Zero Transmissions · Sunstruck Synapse",
     },
+    discovery: {
+      genre: "electronic",
+      moods: ["defiant", "energetic"],
+      year: 2026,
+      creativeProcessTags: ["human-curated", "ai-assisted"],
+    },
     mediaKind: "audio",
     media: {
       src: "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3",
@@ -43,6 +49,12 @@ export const listenerItems: CatalogueItem[] = [
     description: {
       title: "The Mushroom Circle",
       subtitle: "Phase Zero Transmissions · Sunstruck Synapse",
+    },
+    discovery: {
+      genre: "experimental",
+      moods: ["surreal", "playful"],
+      year: 2026,
+      creativeProcessTags: ["human-curated", "ai-assisted"],
     },
     mediaKind: "audio",
     media: {
@@ -60,6 +72,12 @@ export const listenerItems: CatalogueItem[] = [
       title: "Final Movie 00007",
       subtitle: "Phase Zero Transmissions · Sunstruck Synapse",
     },
+    discovery: {
+      genre: "ambient",
+      moods: ["cinematic", "reflective"],
+      year: 2026,
+      creativeProcessTags: ["human-curated", "ai-assisted"],
+    },
     mediaKind: "video",
     media: {
       src: "/assets/video/final-movie_00007_.mp4",
@@ -75,6 +93,12 @@ export const listenerItems: CatalogueItem[] = [
     description: {
       title: "Gone Fishing",
       subtitle: "Phase Zero Transmissions · Sunstruck Synapse",
+    },
+    discovery: {
+      genre: "folk",
+      moods: ["earthy", "playful"],
+      year: 2026,
+      creativeProcessTags: ["human-curated", "ai-assisted"],
     },
     mediaKind: "video",
     media: {
@@ -92,6 +116,12 @@ export const listenerItems: CatalogueItem[] = [
       title: "AI Pop-Slop 202607190035",
       subtitle: "Phase Zero Transmissions · Sunstruck Synapse",
     },
+    discovery: {
+      genre: "electronic",
+      moods: ["provocative", "energetic"],
+      year: 2026,
+      creativeProcessTags: ["human-curated", "ai-assisted"],
+    },
     mediaKind: "video",
     media: {
       src: "/assets/video/AI_pop-slop_202607190035.mp4",
@@ -107,6 +137,12 @@ export const listenerItems: CatalogueItem[] = [
     description: {
       title: "Quiet Machines",
       subtitle: "Phase Zero Transmissions · Sunstruck Synapse",
+    },
+    discovery: {
+      genre: "ambient",
+      moods: ["calm", "mechanical"],
+      year: 2026,
+      creativeProcessTags: ["human-curated", "ai-assisted"],
     },
     mediaKind: "audio",
   },
@@ -141,5 +177,39 @@ export const initialListenerQueue: QueueEntry[] = [
     itemId: listenerItems[1]!.id,
     title: listenerItems[1]!.description.title,
     subtitle: listenerItems[1]!.description.subtitle,
+  },
+];
+
+export interface ListenerGenreView {
+  description: string;
+  name: string;
+  slug: string;
+  itemIds: string[];
+}
+
+export const listenerGenres: ListenerGenreView[] = [
+  {
+    slug: "electronic",
+    name: "Electronic",
+    description: "Human-shaped circuitry, rhythm and synthetic texture.",
+    itemIds: ["listener-revolution", "listener-pop-slop"],
+  },
+  {
+    slug: "experimental",
+    name: "Experimental",
+    description: "Tracks that bend form without losing intention.",
+    itemIds: ["listener-mushroom-circle"],
+  },
+  {
+    slug: "ambient",
+    name: "Ambient",
+    description: "Patient atmospheres for close and unhurried listening.",
+    itemIds: ["listener-final-movie", "listener-quiet-machines"],
+  },
+  {
+    slug: "folk",
+    name: "Folk & roots",
+    description: "Story-led music grounded in organic character.",
+    itemIds: ["listener-gone-fishing"],
   },
 ];

@@ -8,8 +8,16 @@ import type {
 export const catalogueLoadingMessage = "Loading the catalogue…";
 
 export interface CatalogueNavigationEntry {
-  label: "Latest" | "Listen" | "Watch" | "Search" | "About";
-  to: "/#latest" | "/#audio" | "/#catalogue" | "/#video" | "/search" | "/about";
+  label: "Latest" | "Listen" | "Genres" | "Watch" | "Search" | "About";
+  to:
+    | "/#latest"
+    | "/#audio"
+    | "/#catalogue"
+    | "/#genres"
+    | "/#video"
+    | "/genres"
+    | "/search"
+    | "/about";
 }
 
 export function isCatalogueNavigationEntryActive(
