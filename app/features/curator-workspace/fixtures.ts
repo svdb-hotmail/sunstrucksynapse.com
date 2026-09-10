@@ -205,3 +205,44 @@ export const curatorInvitationFixtures: CuratorInvitationView[] = [
     submissionTitle: "Rivers and Radio",
   },
 ];
+
+const invitationNames = [
+  "June Cabrera",
+  "Marcus Lee",
+  "Sofia Marin",
+  "Daniel Kim",
+  "Elise Monroe",
+  "Tomas Keene",
+  "Lena Fields",
+  "Kai Ross",
+] as const;
+
+export function createCuratorInvitationFixtures(count = 12): CuratorInvitationView[] {
+  return Array.from({ length: count }, (_, index) => {
+    const base = curatorInvitationFixtures[index];
+    if (base) return base;
+    const inviteeName = invitationNames[index % invitationNames.length]!;
+    const statusCycle: CuratorInvitationView["status"][] = [
+      "active",
+      "used",
+      "active",
+      "expired",
+      "active",
+      "revoked",
+    ];
+    const status = statusCycle[index % statusCycle.length]!;
+    const createdAt = new Date(Date.UTC(2026, 8, 8) - index * 86_400_000);
+    const expiresAt = new Date(createdAt.getTime() + (status === "expired" ? 5 : 30) * 86_400_000);
+    return {
+      id: `invitation-${index + 1}`,
+      publicReference: `INV-2026-${String(912 - index).padStart(4, "0")}`,
+      inviteeName,
+      inviteeEmail: `${inviteeName.toLowerCase().replaceAll(" ", ".")}@example.com`,
+      createdAt: createdAt.toISOString(),
+      expiresAt: expiresAt.toISOString(),
+      status,
+      submissionId: status === "used" ? `submission-${index + 1}` : null,
+      submissionTitle: status === "used" ? fixtureTitles[index % fixtureTitles.length]! : null,
+    };
+  });
+}
