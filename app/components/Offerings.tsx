@@ -12,7 +12,7 @@ export function Offerings({ offerings }: OfferingsProps) {
           <span className="section-icon" aria-hidden="true">
             {"\u2600"}
           </span>
-          About the radio
+          What guides us
         </h2>
       </div>
 

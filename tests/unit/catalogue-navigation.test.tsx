@@ -140,7 +140,7 @@ describe("catalogue-aware navigation", () => {
       expect(mobile).toContain(
         `grid-template-columns:repeat(${navigation.length}, minmax(0, 1fr))`,
       );
-      expect(header).toMatch(/href="\/submission-terms"[^>]*>[\s\S]*?Submission terms/);
+      expect(header).not.toMatch(/href="\/submission-terms"/);
       expect(header).not.toContain("Reviewed disclosure");
     });
   }
