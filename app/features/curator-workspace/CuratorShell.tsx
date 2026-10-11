@@ -1,6 +1,8 @@
 import type { ChangeEvent, FormEvent, ReactNode } from "react";
 import { Link } from "react-router";
 
+import { ThemeToggle } from "~/design-system/ThemeToggle";
+
 import type { CuratorIdentityView, CuratorNavigationItem, CuratorSection } from "./types";
 
 export interface CuratorShellProps {
@@ -43,7 +45,7 @@ export function CuratorShell({
             ☼
           </span>
           <span>
-            <strong>sunsyn.art</strong>
+            <strong>SunSyn Radio</strong>
             <small>Curator workspace</small>
           </span>
         </Link>
@@ -79,20 +81,14 @@ export function CuratorShell({
               value={searchValue}
               onChange={changeSearch}
             />
-            <kbd>Ctrl K</kbd>
           </form>
-          <button
-            type="button"
-            className="curator-identity"
-            aria-label={`Curator account: ${identity.name}`}
-          >
+          <div className="curator-identity" aria-label={`Curator account: ${identity.name}`}>
             <span aria-hidden="true">{identity.initials}</span>
             <span>
               <strong>{identity.name}</strong>
               <small>Curator</small>
             </span>
-            <span aria-hidden="true">⌄</span>
-          </button>
+          </div>
         </header>
         <main className="curator-main">{children}</main>
       </div>

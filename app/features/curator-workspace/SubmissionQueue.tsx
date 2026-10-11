@@ -21,10 +21,7 @@ function formatDuration(durationMs: number | null) {
 }
 
 function timeAgo(timestamp: string) {
-  const hours = Math.max(
-    1,
-    Math.round((Date.UTC(2026, 8, 9, 17) - new Date(timestamp).getTime()) / 3_600_000),
-  );
+  const hours = Math.max(1, Math.round((Date.now() - new Date(timestamp).getTime()) / 3_600_000));
   if (hours < 24) return `${hours}h ago`;
   return `${Math.round(hours / 24)}d ago`;
 }
@@ -70,6 +67,7 @@ export function SubmissionQueue({
   onTogglePlayback: (item: CuratorQueueItemView) => void;
 }) {
   const navigate = (event: KeyboardEvent<HTMLTableRowElement>, index: number) => {
+    if (event.target !== event.currentTarget) return;
     if (event.key === "Enter") {
       onSelect(items[index]!);
       return;

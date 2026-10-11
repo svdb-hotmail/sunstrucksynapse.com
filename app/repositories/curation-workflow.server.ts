@@ -435,7 +435,11 @@ export function createCurationWorkflowRepository(db: Database) {
         : { status: "defer" };
     },
 
-    async claimNextSubmission(curator: CuratorIdentity, now: Date): Promise<string | null> {
+    async claimNextSubmission(
+      curator: CuratorIdentity,
+      now: Date,
+      requestedId?: string,
+    ): Promise<string | null> {
       const rows = await execute<{ id: string }>(sql`
         with already_claimed as (
           select id, 0 as priority, submitted_at
@@ -449,6 +453,7 @@ export function createCurationWorkflowRepository(db: Database) {
           join submission_review_audio_selections audio on audio.submission_id = submissions.id
           where submissions.status in ('received', 'eligibility_review')
             and submissions.assigned_curator_id is null
+            ${requestedId ? sql`and submissions.id = ${requestedId}::uuid` : sql``}
             and exists (
               select 1 from rights_declarations
               where submission_id = submissions.id and status = 'attested'

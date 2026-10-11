@@ -38,6 +38,8 @@ function formatTime(seconds: number) {
 
 function isTextEntry(target: EventTarget | null) {
   return (
+    (target instanceof HTMLElement &&
+      (target.isContentEditable || Boolean(target.closest("button, a, [role=button]")))) ||
     target instanceof HTMLInputElement ||
     target instanceof HTMLTextAreaElement ||
     target instanceof HTMLSelectElement
@@ -47,6 +49,7 @@ function isTextEntry(target: EventTarget | null) {
 export function ReviewWorkspace({
   grade,
   notice,
+  pending = false,
   rationale,
   review,
   scores,
@@ -59,6 +62,7 @@ export function ReviewWorkspace({
 }: {
   grade: ReviewGrade | null;
   notice?: string | null;
+  pending?: boolean;
   rationale: string;
   review: CuratorReviewView;
   scores: ReviewScores;
@@ -76,6 +80,7 @@ export function ReviewWorkspace({
   const [clarificationQuestion, setClarificationQuestion] = useState("");
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
+  const [playbackError, setPlaybackError] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const durationSeconds = (review.submission.durationMs ?? 0) / 1000;
   const complete =
@@ -92,16 +97,18 @@ export function ReviewWorkspace({
       return;
     }
     try {
+      setPlaybackError(null);
       await audio.play();
       setIsPlaying(true);
     } catch {
+      setPlaybackError("Audio could not play. Check your connection and try Play again.");
       setIsPlaying(false);
     }
   }, [review.submission.audioUrl]);
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
-      if (isTextEntry(event.target)) return;
+      if (pending || event.altKey || isTextEntry(event.target)) return;
       if (event.key === " ") {
         event.preventDefault();
         void togglePlayback();
@@ -117,7 +124,7 @@ export function ReviewWorkspace({
     };
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [activeCriterion, complete, onFinish, onGrade, onScore, togglePlayback]);
+  }, [activeCriterion, complete, onFinish, onGrade, onScore, togglePlayback, pending]);
 
   const seek = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") event.stopPropagation();
@@ -150,6 +157,11 @@ export function ReviewWorkspace({
           <audio
             ref={audioRef}
             src={review.submission.audioUrl ?? undefined}
+            onError={() =>
+              setPlaybackError(
+                "Private audio unavailable. Retry Play or reload; your draft is retained.",
+              )
+            }
             onEnded={() => setIsPlaying(false)}
             onPause={() => setIsPlaying(false)}
             onPlay={() => setIsPlaying(true)}
@@ -186,6 +198,7 @@ export function ReviewWorkspace({
           <span>Private listening copy</span>
         </div>
 
+        {playbackError ? <p role="alert">{playbackError}</p> : null}
         <section className="curator-review__assessment" aria-labelledby="review-assessment-heading">
           <div>
             <p className="curator-overline">Listen · assess · decide</p>
@@ -244,7 +257,9 @@ export function ReviewWorkspace({
                 placeholder="Capture the reason for your editorial decision…"
                 onChange={(event) => onRationale(event.currentTarget.value)}
               />
-              <small>{rationale.length}/8000 · saved in this prototype</small>
+              <small>
+                {rationale.length}/8000 · draft retained in this browser; not a finalized decision
+              </small>
             </label>
           </div>
         </section>
@@ -258,7 +273,7 @@ export function ReviewWorkspace({
               Later
             </CuratorButton>
           </div>
-          <CuratorButton variant="primary" disabled={!complete} onClick={onFinish}>
+          <CuratorButton variant="primary" disabled={!complete || pending} onClick={onFinish}>
             Finish & next →
           </CuratorButton>
         </footer>

@@ -362,4 +362,17 @@ describe("curation workflow repository", () => {
       `),
     ).rejects.toThrow("Review audio upload session must belong to the same submission");
   });
+  it("keeps exclusive ownership when a different curator requests a claimed row", async () => {
+    const claimed = await repository.claimNextSubmission(
+      { id: "other", email: "other@example.test" },
+      new Date(),
+      "20000000-0000-4000-8000-000000000001",
+    );
+    expect(claimed).toBeNull();
+    const resumed = await repository.claimNextSubmission(
+      { id: "curator-1", email: "curator@example.test" },
+      new Date(),
+    );
+    expect(resumed).toBe("20000000-0000-4000-8000-000000000001");
+  });
 });
