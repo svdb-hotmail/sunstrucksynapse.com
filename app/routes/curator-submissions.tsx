@@ -293,11 +293,11 @@ export default function CuratorSubmissionsRoute() {
           <invitation.Form method="post" className="curator-form">
             <input type="hidden" name="intent" value="create-invitation" />
             <label>
-              Name
+              Invitee name
               <input name="inviteeName" maxLength={200} />
             </label>
             <label>
-              Email
+              Invitee email
               <input name="inviteeEmail" type="email" required maxLength={320} />
             </label>
             <label>
@@ -308,15 +308,19 @@ export default function CuratorSubmissionsRoute() {
                 <option value="90">90 days</option>
               </select>
             </label>
-            <button disabled={invitation.state !== "idle"}>Create private link</button>
+            <button disabled={invitation.state !== "idle"}>Create private submission link</button>
           </invitation.Form>
           {invitation.data?.error ? <p role="alert">{invitation.data.error}</p> : null}
           {invitation.data?.invitationUrl ? (
-            <p role="status">
+            <div role="status">
               Shown once:{" "}
-              <a href={invitation.data.invitationUrl}>{invitation.data.invitationUrl}</a> · expires{" "}
+              <label>
+                Submission invitation link
+                <input readOnly value={invitation.data.invitationUrl} />
+              </label>
+              <a href={invitation.data.invitationUrl}>Open submission form</a> · expires{" "}
               {invitation.data.expiresAt}
-            </p>
+            </div>
           ) : null}
         </details>
       }

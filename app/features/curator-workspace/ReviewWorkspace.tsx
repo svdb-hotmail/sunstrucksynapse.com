@@ -394,11 +394,9 @@ export function ReviewWorkspace({
               </CuratorButton>
               <CuratorButton
                 variant="primary"
-                disabled={!clarificationQuestion.trim()}
+                disabled={!clarificationQuestion.trim() || pending}
                 onClick={() => {
                   onAskArtist(clarificationField, clarificationQuestion.trim());
-                  setClarificationQuestion("");
-                  setClarificationOpen(false);
                 }}
               >
                 Send question & next →

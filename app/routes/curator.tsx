@@ -547,6 +547,7 @@ export default function CuratorWorkspace() {
       <header className="curator-header">
         <div>
           <p className="eyebrow">Private workspace</p>
+          <Link to="/curator/albums">Prepare & publish an album</Link>
           <h1>Catalogue curator</h1>
           <p>Signed in as {data.identity.email}</p>
           <p>

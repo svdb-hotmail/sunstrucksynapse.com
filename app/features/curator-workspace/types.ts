@@ -35,6 +35,7 @@ export interface CuratorQueueItemView {
   durationMs: number | null;
   submittedAt: string;
   status:
+    | "draft"
     | "received"
     | "eligibility_review"
     | "listening"

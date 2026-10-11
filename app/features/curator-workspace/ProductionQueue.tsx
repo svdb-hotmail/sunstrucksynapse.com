@@ -31,23 +31,25 @@ function ReviewDraft({
   close: () => void;
 }) {
   const key = `sunsyn:review-draft:${actor}:${review.submission.id}`;
-  const [draft, setDraft] = useState<Draft>(() => {
+  const [restored, setRestored] = useState(false);
+  const [draft, setDraft] = useState<Draft>({ scores: emptyScores, grade: null, rationale: "" });
+  useEffect(() => {
     try {
       const stored = sessionStorage.getItem(key);
-      if (stored) return JSON.parse(stored) as Draft;
+      if (stored) setDraft(JSON.parse(stored) as Draft);
     } catch {
       /* Storage may be unavailable. */
     }
-    return { scores: emptyScores, grade: null, rationale: "" };
-  });
+    setRestored(true);
+  }, [key]);
   const [storageError, setStorageError] = useState(false);
   useEffect(() => {
     try {
-      sessionStorage.setItem(key, JSON.stringify(draft));
+      if (restored) sessionStorage.setItem(key, JSON.stringify(draft));
     } catch {
       setStorageError(true);
     }
-  }, [draft, key]);
+  }, [draft, key, restored]);
   return (
     <ReviewWorkspace
       review={review}
@@ -101,28 +103,26 @@ export function ProductionQueue({
   const handled = useRef<unknown>(null);
   const busy = fetcher.state !== "idle";
   const reviewId = params.get("review");
-  const items: CuratorQueueItemView[] = data.submissions
-    .filter((row) => row.submission.status !== "draft")
-    .map((row) => {
-      const submission = row.submission;
-      const copy = data.reviewAudio[submission.id];
-      const attested = row.rights.status === "attested";
-      const finalized = row.process.status === "finalized" && row.provenance.status === "finalized";
-      return {
-        id: submission.id,
-        publicReference: submission.publicReference,
-        title: submission.title,
-        artistName: submission.artistDetails.displayName,
-        submitterEmail: submission.submitterEmail,
-        status: submission.status as CuratorQueueItemView["status"],
-        submittedAt: String(submission.submittedAt ?? ""),
-        durationMs: copy?.durationMs ?? null,
-        audioUrl: copy ? `/curator/review-audio/${copy.id}` : null,
-        readiness: !copy ? "needs_audio" : attested && finalized ? "ready" : "needs_information",
-        rights: attested ? "attested" : "needs_review",
-        assignedCuratorName: submission.assignedCuratorEmail,
-      };
-    });
+  const items: CuratorQueueItemView[] = data.submissions.map((row) => {
+    const submission = row.submission;
+    const copy = data.reviewAudio[submission.id];
+    const attested = row.rights.status === "attested";
+    const finalized = row.process.status === "finalized" && row.provenance.status === "finalized";
+    return {
+      id: submission.id,
+      publicReference: submission.publicReference,
+      title: submission.title,
+      artistName: submission.artistDetails.displayName,
+      submitterEmail: submission.submitterEmail,
+      status: submission.status as CuratorQueueItemView["status"],
+      submittedAt: String(submission.submittedAt ?? ""),
+      durationMs: copy?.durationMs ?? null,
+      audioUrl: copy ? `/curator/review-audio/${copy.id}` : null,
+      readiness: !copy ? "needs_audio" : attested && finalized ? "ready" : "needs_information",
+      rights: attested ? "attested" : "needs_review",
+      assignedCuratorName: submission.assignedCuratorEmail,
+    };
+  });
   const matches = (item: CuratorQueueItemView, view: QueueFilter) =>
     view === "all" ||
     (view === "mine"

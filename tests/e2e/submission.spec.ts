@@ -47,13 +47,17 @@ test("saves a practical invited draft and requires private review audio before s
   await curatorPage.goto("/curator/submissions");
   await expect(curatorPage.getByText("Playwright Orbit")).toBeVisible();
 
-  const submissionCard = curatorPage.locator(".curator-record").filter({
+  const submissionCard = curatorPage.locator("tbody tr").filter({
     hasText: "Playwright Orbit",
   });
   await expect(submissionCard).toContainText("draft");
-  const publicRightsSummary = submissionCard.locator("p").filter({
-    hasText: "The submitter identifies the work as original and under their control.",
-  });
+  await submissionCard.click();
+  const publicRightsSummary = curatorPage
+    .getByRole("region", { name: "Selected submission" })
+    .locator("p")
+    .filter({
+      hasText: "The submitter identifies the work as original and under their control.",
+    });
   await expect(publicRightsSummary).toContainText(
     "The track includes disclosed sample or source material.",
   );
