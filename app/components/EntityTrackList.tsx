@@ -11,10 +11,16 @@ interface EntityTrackListProps {
 export function EntityTrackList({ tracks, player, collectionId }: EntityTrackListProps) {
   return (
     <ol className="entity-track-list">
-      {tracks.map((track) => (
+      {tracks.map((track, index) => (
         <li key={track.id} data-selected={player.selectedItemId === track.id || undefined}>
           <img src={track.artwork.src} alt={track.artwork.alt} />
           <div>
+            <small>
+              Track {index + 1}
+              {track.durationMs
+                ? ` · ${Math.floor(track.durationMs / 60000)}:${String(Math.floor(track.durationMs / 1000) % 60).padStart(2, "0")}`
+                : ""}
+            </small>
             <Link to={track.href}>{track.description.title}</Link>
             <span>{track.description.subtitle}</span>
           </div>

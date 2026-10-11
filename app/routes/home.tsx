@@ -1,4 +1,4 @@
-import { useOutletContext } from "react-router";
+import { Link, useOutletContext } from "react-router";
 
 import { CatalogueSection } from "~/components/CatalogueSection";
 import { Intro } from "~/components/Intro";
@@ -27,6 +27,22 @@ export default function Home() {
   return (
     <>
       <Intro />
+      {catalogue.status === "ready" ? (
+        <section className="album-shelf" aria-label="Published albums">
+          <h2>Albums & releases</h2>
+          <div>
+            {[...new Map(catalogue.items.map((item) => [item.release.id, item])).values()].map(
+              (item) => (
+                <Link key={item.release.id} to={item.release.href}>
+                  <img src={item.artwork.src} alt={item.artwork.alt} />
+                  <strong>{item.release.title}</strong>
+                  <span>{item.creator.name}</span>
+                </Link>
+              ),
+            )}
+          </div>
+        </section>
+      ) : null}
       <div id="catalogue" className="catalogue-anchor">
         {catalogue.status === "ready" ? (
           catalogueSections.map((section) => (

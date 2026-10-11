@@ -35,6 +35,7 @@ import type {
 import { persistPlayerToStorage, restorePlayerFromStorage } from "~/utils/player-storage";
 import {
   addQueueItem,
+  albumQueue,
   findAdjacentPlayableItem,
   findNextPlayableQueueEntry,
   removeQueueItem,
@@ -136,6 +137,7 @@ export default function App() {
     sequence: number;
     collectionId?: string;
   } | null>(null);
+  const [playbackScope, setPlaybackScope] = useState<string[] | null>(null);
   const [queue, setQueue] = useState<QueueEntry[]>([]);
   const selectedItem = player.selectedItemId
     ? findCatalogueItem(catalogueItems, player.selectedItemId)
@@ -152,6 +154,7 @@ export default function App() {
     persistenceEnabled.current = restored.persistenceAvailable;
     if (!userInteractedBeforeRestore.current) {
       setPlayer({ selectedItemId: restored.player.selectedItemId });
+      setPlaybackScope(restored.player.playbackScope ?? null);
       setQueue(restored.player.queue);
     }
     setHasRestoredPlayer(true);
@@ -168,13 +171,19 @@ export default function App() {
       persistenceEnabled.current = false;
       return;
     }
-    persistenceEnabled.current = persistPlayerToStorage(storage, player.selectedItemId, queue);
-  }, [hasRestoredPlayer, player.selectedItemId, queue]);
+    persistenceEnabled.current = persistPlayerToStorage(
+      storage,
+      player.selectedItemId,
+      queue,
+      playbackScope,
+    );
+  }, [hasRestoredPlayer, player.selectedItemId, queue, playbackScope]);
 
   const selectItem = useCallback((item: CatalogueItem) => {
     userInteractedBeforeRestore.current = true;
     setPlayer({ selectedItemId: item.id });
     setPlaybackRequest(null);
+    setPlaybackScope(null);
   }, []);
 
   const requestPlayback = useCallback(
@@ -213,12 +222,19 @@ export default function App() {
       const item = itemsById.get(entry.itemId);
       setQueue((current) => removeQueueItem(current, entry.itemId));
       if (item?.media) {
+        setPlaybackScope(
+          entry.albumId
+            ? catalogueItems
+                .filter((track) => track.release.id === entry.albumId && track.media)
+                .map((track) => track.id)
+            : null,
+        );
         requestPlayback(item, true, entry.collectionId);
       } else if (item) {
         selectItem(item);
       }
     },
-    [itemsById, requestPlayback, selectItem],
+    [catalogueItems, itemsById, requestPlayback, selectItem],
   );
 
   const advancePlayback = useCallback(
@@ -228,6 +244,15 @@ export default function App() {
         const queuedItem = itemsById.get(nextQueued.itemId);
         setQueue((current) => removeQueueItem(current, nextQueued.itemId));
         if (queuedItem) {
+          setPlaybackScope(
+            nextQueued.albumId
+              ? playbackScope?.includes(nextQueued.itemId)
+                ? playbackScope
+                : catalogueItems
+                    .filter((track) => track.release.id === nextQueued.albumId && track.media)
+                    .map((track) => track.id)
+              : null,
+          );
           requestPlayback(queuedItem, moveFocus, nextQueued.collectionId);
         }
         return;
@@ -236,23 +261,50 @@ export default function App() {
       if (!selectedItem) {
         return;
       }
-      const nextItem = findAdjacentPlayableItem(catalogueItems, selectedItem.id, 1);
+      const nextItem = findAdjacentPlayableItem(
+        playbackScope
+          ? playbackScope
+              .map((id) => itemsById.get(id))
+              .filter((item): item is CatalogueItem => Boolean(item))
+          : catalogueItems,
+        selectedItem.id,
+        1,
+      );
       if (nextItem) {
         requestPlayback(nextItem, moveFocus);
       }
     },
-    [catalogueItems, itemsById, queue, requestPlayback, selectedItem],
+    [catalogueItems, itemsById, playbackScope, queue, requestPlayback, selectedItem],
   );
 
   const playPrevious = useCallback(() => {
     if (!selectedItem) {
       return;
     }
-    const previousItem = findAdjacentPlayableItem(catalogueItems, selectedItem.id, -1);
+    const previousItem = findAdjacentPlayableItem(
+      playbackScope
+        ? playbackScope
+            .map((id) => itemsById.get(id))
+            .filter((item): item is CatalogueItem => Boolean(item))
+        : catalogueItems,
+      selectedItem.id,
+      -1,
+    );
     if (previousItem) {
+      if (playbackScope) {
+        const index = playbackScope.indexOf(previousItem.id);
+        setQueue(
+          albumQueue(
+            playbackScope
+              .slice(index + 1)
+              .map((id) => itemsById.get(id))
+              .filter((item): item is CatalogueItem => Boolean(item)),
+          ),
+        );
+      }
       requestPlayback(previousItem, false);
     }
-  }, [catalogueItems, requestPlayback, selectedItem]);
+  }, [catalogueItems, itemsById, playbackScope, requestPlayback, selectedItem]);
 
   const queueItem = useCallback((item: CatalogueItem, collectionId?: string) => {
     userInteractedBeforeRestore.current = true;
@@ -260,18 +312,59 @@ export default function App() {
   }, []);
 
   const hasPrevious = selectedItem
-    ? Boolean(findAdjacentPlayableItem(catalogueItems, selectedItem.id, -1))
+    ? Boolean(
+        findAdjacentPlayableItem(
+          playbackScope
+            ? playbackScope
+                .map((id) => itemsById.get(id))
+                .filter((item): item is CatalogueItem => Boolean(item))
+            : catalogueItems,
+          selectedItem.id,
+          -1,
+        ),
+      )
     : false;
   const hasNext =
     queue.length > 0 ||
-    (selectedItem ? Boolean(findAdjacentPlayableItem(catalogueItems, selectedItem.id, 1)) : false);
+    (selectedItem
+      ? Boolean(
+          findAdjacentPlayableItem(
+            playbackScope
+              ? playbackScope
+                  .map((id) => itemsById.get(id))
+                  .filter((item): item is CatalogueItem => Boolean(item))
+              : catalogueItems,
+            selectedItem.id,
+            1,
+          ),
+        )
+      : false);
 
   const outletContext: PlayerOutletContext = {
     selectedItemId: selectedItem?.id ?? null,
     catalogue,
     selectItem,
     queueItem,
-    playItem: (item, collectionId) => requestPlayback(item, true, collectionId),
+    playItem: (item, collectionId) => {
+      setPlaybackScope(null);
+      requestPlayback(item, true, collectionId);
+    },
+    playAlbum: (tracks) => {
+      const playable = tracks.filter((track) => track.media);
+      if (!playable.length) return;
+      setPlaybackScope(playable.map((track) => track.id));
+      setQueue(albumQueue(playable.slice(1)));
+      requestPlayback(playable[0]);
+    },
+    queueAlbum: (tracks) => {
+      userInteractedBeforeRestore.current = true;
+      setQueue((current) => [
+        ...current,
+        ...albumQueue(tracks).filter(
+          (entry) => !current.some((existing) => existing.itemId === entry.itemId),
+        ),
+      ]);
+    },
   };
 
   return (
@@ -289,11 +382,13 @@ export default function App() {
           onClearQueue={() => {
             userInteractedBeforeRestore.current = true;
             setQueue([]);
+            if (playbackScope && selectedItem) setPlaybackScope([selectedItem.id]);
           }}
           onSelectQueueEntry={selectQueueEntry}
           onRemoveQueueEntry={(itemId) => {
             userInteractedBeforeRestore.current = true;
             setQueue((current) => removeQueueItem(current, itemId));
+            setPlaybackScope((scope) => (scope ? scope.filter((id) => id !== itemId) : null));
           }}
           onPrevious={playPrevious}
           onNext={() => advancePlayback(false)}

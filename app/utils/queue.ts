@@ -55,3 +55,15 @@ export function findAdjacentPlayableItem(
 
   return undefined;
 }
+
+/** Preserve the release query's order; never use the global catalogue as an album. */
+export function albumQueue(tracks: CatalogueItem[]): QueueEntry[] {
+  return tracks.reduce<QueueEntry[]>((entries, item) => {
+    const next = addQueueItem(entries, item);
+    return next === entries
+      ? entries
+      : next.map((entry) =>
+          entry.itemId === item.id ? { ...entry, albumId: item.release.id } : entry,
+        );
+  }, []);
+}

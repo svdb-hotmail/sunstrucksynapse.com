@@ -86,6 +86,7 @@ export function ReviewAudioUploader({
       const final = (await finalResponse.json()) as { error?: string };
       if (!finalResponse.ok) throw new Error(final.error || "Could not finalize the audio upload.");
       setState("done");
+      setFile(null);
       setMessage("Review audio is ready.");
       await revalidator.revalidate();
       setState("idle");

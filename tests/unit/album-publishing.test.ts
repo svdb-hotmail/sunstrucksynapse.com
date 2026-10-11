@@ -182,6 +182,15 @@ describe("album publishing atomicity", () => {
       ).rows,
     ).toEqual(before.rows);
     expect((await client.query("select * from curation_reviews")).rows).toHaveLength(2);
+    const audit = await client.query<{ reason: string }>(
+      "select reason from publication_audit where entity_type='track' and reason like '%Previous grouping%'",
+    );
+    expect(audit.rows).toHaveLength(2);
+    expect(
+      audit.rows.every(
+        (row) => row.reason.includes("primaryArtistId") && row.reason.includes(releaseId),
+      ),
+    ).toBe(true);
   });
   it("rejects a missing/unaccepted track and rolls back all regrouping", async () => {
     await expect(

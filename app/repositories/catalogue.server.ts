@@ -74,6 +74,7 @@ interface PublishedTrackRow {
   audioAssetId: string | null;
   audioStorageProvider: "static" | "r2" | null;
   audioMimeType: string | null;
+  audioDurationMs?: number | null;
   videoObjectKey: string | null;
   videoMimeType: string | null;
 }
@@ -128,6 +129,7 @@ export function mapPublishedTracks(rows: PublishedTrackRow[]): CatalogueItem[] {
       release,
       href: `/tracks/${row.releaseSlug}/${row.trackSlug}`,
       artwork,
+      durationMs: row.audioDurationMs ?? undefined,
       description: {
         title: row.trackTitle,
         subtitle: `${row.releaseTitle} · ${row.artistName}`,
@@ -312,6 +314,7 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         audioAssetId: audioAssets.id,
         audioStorageProvider: audioAssets.storageProvider,
         audioMimeType: audioAssets.mimeType,
+        audioDurationMs: audioAssets.durationMs,
         videoObjectKey: videoAssets.objectKey,
         videoMimeType: videoAssets.mimeType,
       })

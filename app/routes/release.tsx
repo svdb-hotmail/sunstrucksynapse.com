@@ -67,6 +67,23 @@ export default function ReleaseRoute({ loaderData }: Route.ComponentProps) {
               </span>
             ))}
           </p>
+          <div className="album-actions">
+            <button
+              type="button"
+              disabled={!release.tracks.some((t) => t.media)}
+              onClick={() => player.playAlbum?.(release.tracks)}
+            >
+              Play album
+            </button>
+            <button
+              type="button"
+              disabled={!release.tracks.some((t) => t.media)}
+              onClick={() => player.queueAlbum?.(release.tracks)}
+            >
+              Queue album
+            </button>
+          </div>
+          <p>Play album replaces the current queue. Queue album adds tracks in album order.</p>
           <ShareButton title={release.title} url={canonicalUrl} />
         </div>
       </div>

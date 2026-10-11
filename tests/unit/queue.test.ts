@@ -98,3 +98,21 @@ describe("queue operations", () => {
     expect(findAdjacentPlayableItem(items, third.id, 1)).toBeUndefined();
   });
 });
+
+import { albumQueue } from "../../app/utils/queue";
+describe("ordered album queue", () => {
+  it("uses album order even when global catalogue order differs, and excludes unavailable media", () => {
+    const first = makeCatalogueItem("album-second"),
+      second = makeCatalogueItem("album-first");
+    const queue = albumQueue([
+      first,
+      makeCatalogueItem("missing", { media: false }),
+      second,
+      first,
+    ]);
+    expect(queue.map((entry) => entry.itemId)).toEqual([first.id, second.id]);
+    expect(queue.every((entry) => entry.albumId === first.release.id)).toBe(true);
+    expect(findAdjacentPlayableItem([first, second], second.id, 1)).toBeUndefined();
+    expect(findAdjacentPlayableItem([first, second], second.id, -1)?.id).toBe(first.id);
+  });
+});

@@ -97,6 +97,7 @@ export function ProductionQueue({
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<QueueFilter>("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const evidence = useFetcher<{ error?: string; grantUrl?: string; expiresAt?: string }>();
   const [playingId, setPlayingId] = useState<string | null>(null);
   const [audioError, setAudioError] = useState<string | null>(null);
   const audio = useRef<HTMLAudioElement>(null);
@@ -225,9 +226,64 @@ export function ProductionQueue({
       onSearch={setQuery}
     >
       <h1>Curator workspace</h1>
+      {(aggregate ?? data.submissions.find((row) => row.submission.id === selectedId))?.evidence
+        .length ? (
+        <details className="curator-panel">
+          <summary>Protected evidence</summary>
+          {(
+            aggregate ?? data.submissions.find((row) => row.submission.id === selectedId)
+          )?.evidence.map((file) => (
+            <div key={file.id}>
+              <p>
+                {file.originalFilename} · {file.malwareStatus}
+              </p>
+              <evidence.Form method="post">
+                <input type="hidden" name="intent" value="grant-evidence" />
+                <input
+                  type="hidden"
+                  name="submissionId"
+                  value={aggregate?.submission.id ?? selectedId ?? ""}
+                />
+                <input type="hidden" name="evidenceId" value={file.id} />
+                <button disabled={evidence.state !== "idle"}>Open secure evidence link</button>
+              </evidence.Form>
+              <evidence.Form method="post">
+                <input type="hidden" name="intent" value="malware" />
+                <input
+                  type="hidden"
+                  name="submissionId"
+                  value={aggregate?.submission.id ?? selectedId ?? ""}
+                />
+                <input type="hidden" name="evidenceId" value={file.id} />
+                <label>
+                  Evidence status
+                  <select name="malwareStatus" defaultValue={file.malwareStatus}>
+                    <option value="pending_review">Pending review</option>
+                    <option value="cleared">Cleared</option>
+                    <option value="quarantined">Quarantined</option>
+                    <option value="rejected">Rejected</option>
+                  </select>
+                </label>
+                <label>
+                  Evidence note
+                  <input name="message" />
+                </label>
+                <button disabled={evidence.state !== "idle"}>Save evidence status</button>
+              </evidence.Form>
+            </div>
+          ))}
+        </details>
+      ) : null}
       {fetcher.data?.error ? <p role="alert">{fetcher.data.error}</p> : null}
       {data.flash === "no-ready-submissions" ? (
         <p role="status">No ready submissions. Check waiting items or create an invitation.</p>
+      ) : null}
+      {evidence.data?.error ? <p role="alert">{evidence.data.error}</p> : null}
+      {evidence.data?.grantUrl ? (
+        <p role="status">
+          <a href={evidence.data.grantUrl}>Open protected evidence</a> · expires{" "}
+          {evidence.data.expiresAt}
+        </p>
       ) : null}
       {review &&
       aggregate?.submission.status === "listening" &&
