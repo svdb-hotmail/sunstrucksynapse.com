@@ -52,6 +52,14 @@ The original checkout has 132 modified paths; an ignore-line-ending diff showed 
 changes. It was left untouched. The clean assessment checkout is
 `sunstrucksynapse-launch`, branch `agent/launch-recovery-plan`.
 
+GitHub reports ten open dependency alerts: one high, six medium, and three low. All are
+classified as development dependencies (`undici`, Vitest/mocker, and `esbuild`); no direct
+imports were found in `app/` or `workers/`. This is not proof that every build-tool path is
+unreachable. The high alert concerns TLS validation in Undici's `BalancedPool`. Include
+dependency-path/reachability review and coherent patched tooling in a small maintenance
+PR alongside launch work. PR #83's isolated mocker change and green CI do not establish
+that the remaining alerts are fixed. Avoid an unreviewed major test-framework upgrade.
+
 ## Actual blockers in the product journey
 
 1. **The working curator route still uses the listener shell.** `app/root.tsx` composes
@@ -222,6 +230,8 @@ album listening spot-check. Verify actual browser playback, not only an HTTP aud
 2. Make a recoverable database/provider restore point before new schema or album writes.
    Preserve current submissions and public content. No cleanup is indicated by this audit.
 3. Complete L1–L3, resolve actionable review feedback, and run the normal PR quality gate.
+   Triage the actual dependency paths and resolve any reachable high-severity tooling or
+   runtime issue; verify that package changes close the relevant alerts.
    Deploy merged code through the existing Worker build trigger and check the live domain.
 4. Maintainer submits/reviews their tracks, prepares the album, and publishes it. Record the
    fact that the maintainer is both submitter and curator; no independent review is claimed.
