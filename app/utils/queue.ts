@@ -67,3 +67,10 @@ export function albumQueue(tracks: CatalogueItem[]): QueueEntry[] {
         );
   }, []);
 }
+
+/** Re-queueing an album moves its complete ordered block to the end. */
+export function appendAlbumQueue(current: QueueEntry[], tracks: CatalogueItem[]): QueueEntry[] {
+  const album = albumQueue(tracks);
+  const ids = new Set(album.map((entry) => entry.itemId));
+  return [...current.filter((entry) => !ids.has(entry.itemId)), ...album];
+}

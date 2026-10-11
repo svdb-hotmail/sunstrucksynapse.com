@@ -36,6 +36,7 @@ import { persistPlayerToStorage, restorePlayerFromStorage } from "~/utils/player
 import {
   addQueueItem,
   albumQueue,
+  appendAlbumQueue,
   findAdjacentPlayableItem,
   findNextPlayableQueueEntry,
   removeQueueItem,
@@ -293,14 +294,15 @@ export default function App() {
     if (previousItem) {
       if (playbackScope) {
         const index = playbackScope.indexOf(previousItem.id);
-        setQueue(
-          albumQueue(
+        setQueue((current) => [
+          ...albumQueue(
             playbackScope
               .slice(index + 1)
               .map((id) => itemsById.get(id))
               .filter((item): item is CatalogueItem => Boolean(item)),
           ),
-        );
+          ...current.filter((entry) => !playbackScope.includes(entry.itemId)),
+        ]);
       }
       requestPlayback(previousItem, false);
     }
@@ -358,12 +360,7 @@ export default function App() {
     },
     queueAlbum: (tracks) => {
       userInteractedBeforeRestore.current = true;
-      setQueue((current) => [
-        ...current,
-        ...albumQueue(tracks).filter(
-          (entry) => !current.some((existing) => existing.itemId === entry.itemId),
-        ),
-      ]);
+      setQueue((current) => appendAlbumQueue(current, tracks));
     },
   };
 

@@ -99,7 +99,7 @@ describe("queue operations", () => {
   });
 });
 
-import { albumQueue } from "../../app/utils/queue";
+import { albumQueue, appendAlbumQueue } from "../../app/utils/queue";
 describe("ordered album queue", () => {
   it("uses album order even when global catalogue order differs, and excludes unavailable media", () => {
     const first = makeCatalogueItem("album-second"),
@@ -115,4 +115,16 @@ describe("ordered album queue", () => {
     expect(findAdjacentPlayableItem([first, second], second.id, 1)).toBeUndefined();
     expect(findAdjacentPlayableItem([first, second], second.id, -1)?.id).toBe(first.id);
   });
+});
+
+it("appends a complete album in order even when some album tracks were already queued", () => {
+  const first = makeCatalogueItem("first"),
+    second = makeCatalogueItem("second"),
+    outside = makeCatalogueItem("outside");
+  const existing = addQueueItem(addQueueItem([], second), outside);
+  expect(appendAlbumQueue(existing, [first, second]).map((entry) => entry.itemId)).toEqual([
+    outside.id,
+    first.id,
+    second.id,
+  ]);
 });
