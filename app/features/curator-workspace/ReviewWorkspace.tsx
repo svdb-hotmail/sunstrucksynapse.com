@@ -351,6 +351,12 @@ export function ReviewWorkspace({
           <div className="curator-review-context__content">
             <h2>Rights attestation</h2>
             <p>{review.rightsSummary}</p>
+            {review.rightsDetails ? (
+              <>
+                <h3>Private rights context</h3>
+                <p style={{ whiteSpace: "pre-wrap" }}>{review.rightsDetails}</p>
+              </>
+            ) : null}
             <h3>Territories</h3>
             <p>{review.territories.join(", ")}</p>
             <h3>Provenance</h3>

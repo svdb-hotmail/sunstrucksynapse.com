@@ -1,9 +1,11 @@
 import { sql } from "drizzle-orm";
-import { useState } from "react";
+import { SITE_URL } from "~/config/brand";
+import { useEffect, useState } from "react";
 import {
   Link,
   useFetcher,
   useLoaderData,
+  useNavigate,
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "react-router";
@@ -37,6 +39,8 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     repository.inventory(),
     albumId ? repository.readiness(albumId) : Promise.resolve([]),
   ]);
+  if (albumId && !releases.some((r) => r.id === albumId))
+    throw new Response("Album not found.", { status: 404 });
   const preview = albumId
     ? await db.execute<{ artistId: string; coverId: string | null }>(
         sql`select c.artist_id as "artistId", l.artwork_asset_id as "coverId" from release_artist_credits c left join release_artwork_assets l on l.release_id=c.release_id and l.role='primary' and l.position=1 where c.release_id=${albumId}::uuid and c.position=1`,
@@ -51,6 +55,16 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     albumId,
     preview: preview?.rows[0] ?? null,
   };
+}
+function urlSlug(title: string) {
+  return title
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 200)
+    .replace(/-$/g, "");
 }
 function validId(id: unknown) {
   return typeof id === "string" && validateUuid(id, "id").ok;
@@ -81,20 +95,34 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const releaseId = String(form.get("releaseId") ?? "");
     if (!validId(releaseId)) throw new Error("Choose an album.");
     if (intent === "prepare") {
-      const input = JSON.parse(String(form.get("preparation"))) as AlbumPreparation;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(String(form.get("preparation")));
+      } catch {
+        throw new Error("Invalid album details. Save the album again.");
+      }
+      if (!parsed || typeof parsed !== "object")
+        throw new Error("Enter album title, URL, artist and ordered tracks.");
+      const input = parsed as AlbumPreparation;
       if (
         input.releaseId !== releaseId ||
         !validId(input.artistId) ||
-        !input.title?.trim() ||
+        typeof input.title !== "string" ||
+        !input.title.trim() ||
         input.title.length > 200 ||
+        typeof input.slug !== "string" ||
         !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(input.slug) ||
         input.slug.length > 200 ||
         !Array.isArray(input.tracks)
       )
         throw new Error("Enter album title, URL, artist and ordered tracks.");
       if (
+        input.tracks.length < 1 ||
+        input.tracks.length > 100 ||
+        new Set(input.tracks.map((t) => t?.id)).size !== input.tracks.length ||
         input.tracks.some(
           (t) =>
+            !t ||
             !validId(t.id) ||
             typeof t.title !== "string" ||
             !t.title.trim() ||
@@ -125,7 +153,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         );
       const slug = await repository.publish(releaseId, identity);
       return Response.json(
-        { albumId: releaseId, publicUrl: `https://sunstrucksynapse.com/releases/${slug}` },
+        { albumId: releaseId, publicUrl: `${SITE_URL}/releases/${slug}` },
         { headers: { "cache-control": "no-store" } },
       );
     } else throw new Error("Unsupported album action.");
@@ -142,13 +170,17 @@ export async function action({ request, context }: ActionFunctionArgs) {
   }
 }
 
-function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<typeof loader>> }) {
+export function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<typeof loader>> }) {
   const fetcher = useFetcher<{
     error?: string;
     albumId?: string;
     publicUrl?: string;
     artistId?: string;
   }>();
+  const navigate = useNavigate();
+  const artist = useFetcher<{ error?: string; artistId?: string }>();
+  const [newArtistName, setNewArtistName] = useState("");
+  const [newArtistSlug, setNewArtistSlug] = useState("");
   const initial = data.releases.find((r) => r.id === data.albumId);
   const [releaseId] = useState(() => data.albumId ?? crypto.randomUUID());
   const [title, setTitle] = useState(initial?.title ?? "");
@@ -157,8 +189,20 @@ function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<typeof lo
   const [selected, setSelected] = useState<AlbumTrackInput[]>(() =>
     data.tracks.filter((t) => t.releaseId === data.albumId),
   );
+  const [sharedGenre, setSharedGenre] = useState("");
+  const [sharedMoods, setSharedMoods] = useState("");
+  const [sharedProcess, setSharedProcess] = useState("");
+  const [metadataNotice, setMetadataNotice] = useState("");
   const [confirmed, setConfirmed] = useState(false);
-  const busy = fetcher.state !== "idle";
+  const busy = fetcher.state !== "idle" || artist.state !== "idle";
+  useEffect(() => {
+    if (artist.state === "idle" && artist.data?.artistId) setArtistId(artist.data.artistId);
+  }, [artist.state, artist.data]);
+  useEffect(() => {
+    if (fetcher.state === "idle" && fetcher.data?.albumId && !data.albumId) {
+      navigate(`?album=${fetcher.data.albumId}`, { replace: true });
+    }
+  }, [fetcher.state, fetcher.data, data.albumId, navigate]);
   const trackSignature = (tracks: AlbumTrackInput[]) =>
     JSON.stringify(
       tracks.map((t) => ({
@@ -194,6 +238,7 @@ function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<typeof lo
     setSelected((rows) => rows.map((row) => (row.id === id ? { ...row, ...values } : row)));
   return (
     <>
+      {artist.data?.error ? <p role="alert">{artist.data.error}</p> : null}
       {fetcher.data?.error ? <p role="alert">{fetcher.data.error}</p> : null}
       {fetcher.data?.publicUrl ? (
         <p role="status">
@@ -204,15 +249,33 @@ function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<typeof lo
         <h2>Album essentials</h2>
         <label>
           Title
-          <input value={title} onChange={(e) => setTitle(e.currentTarget.value)} maxLength={200} />
+          <input
+            value={title}
+            disabled={busy}
+            onChange={(e) => {
+              const next = e.currentTarget.value;
+              if (!slug || slug === urlSlug(title)) setSlug(urlSlug(next));
+              setTitle(next);
+            }}
+            maxLength={200}
+          />
         </label>
         <label>
           Album URL slug
-          <input value={slug} onChange={(e) => setSlug(e.currentTarget.value)} maxLength={200} />
+          <input
+            value={slug}
+            disabled={busy}
+            onChange={(e) => setSlug(e.currentTarget.value)}
+            maxLength={200}
+          />
         </label>
         <label>
           Primary artist
-          <select value={artistId} onChange={(e) => setArtistId(e.currentTarget.value)}>
+          <select
+            value={artistId}
+            disabled={busy}
+            onChange={(e) => setArtistId(e.currentTarget.value)}
+          >
             <option value="">Choose deliberately</option>
             {data.artists
               .filter((a) => ["draft", "in_review", "published"].includes(a.lifecycleStatus))
@@ -225,18 +288,38 @@ function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<typeof lo
         </label>
         <details>
           <summary>Create an artist</summary>
-          <fetcher.Form method="post">
+          <artist.Form method="post">
             <input type="hidden" name="intent" value="create-artist" />
             <label>
               Name
-              <input name="title" required />
+              <input
+                name="title"
+                required
+                maxLength={200}
+                value={newArtistName}
+                disabled={busy}
+                onChange={(e) => {
+                  const next = e.currentTarget.value;
+                  if (!newArtistSlug || newArtistSlug === urlSlug(newArtistName))
+                    setNewArtistSlug(urlSlug(next));
+                  setNewArtistName(next);
+                }}
+              />
             </label>
             <label>
               URL slug
-              <input name="slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" />
+              <input
+                name="slug"
+                required
+                pattern="[a-z0-9]+(-[a-z0-9]+)*"
+                maxLength={200}
+                value={newArtistSlug}
+                disabled={busy}
+                onChange={(e) => setNewArtistSlug(e.currentTarget.value)}
+              />
             </label>
             <button disabled={busy}>Create artist</button>
-          </fetcher.Form>
+          </artist.Form>
         </details>
       </section>
       <section className="curator-panel">
@@ -251,6 +334,7 @@ function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<typeof lo
             <label key={t.id}>
               <input
                 type="checkbox"
+                disabled={busy}
                 checked={selected.some((s) => s.id === t.id)}
                 onChange={(e) =>
                   setSelected((rows) =>
@@ -259,14 +343,70 @@ function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<typeof lo
                 }
               />
               {t.title}
+              {t.artistName ? ` — ${t.artistName}` : ""}
             </label>
           ))}
+        <details>
+          <summary>Set shared discovery metadata</summary>
+          <label>
+            Shared genre
+            <input
+              value={sharedGenre}
+              maxLength={100}
+              onChange={(e) => setSharedGenre(e.currentTarget.value)}
+              disabled={busy}
+            />
+          </label>
+          <label>
+            Shared moods (comma separated)
+            <input
+              value={sharedMoods}
+              onChange={(e) => setSharedMoods(e.currentTarget.value)}
+              disabled={busy}
+            />
+          </label>
+          <label>
+            Shared process tags (comma separated)
+            <input
+              value={sharedProcess}
+              onChange={(e) => setSharedProcess(e.currentTarget.value)}
+              disabled={busy}
+            />
+          </label>
+          <button
+            type="button"
+            disabled={
+              busy ||
+              !selected.length ||
+              !sharedGenre.trim() ||
+              !split(sharedMoods).length ||
+              !split(sharedProcess).length
+            }
+            onClick={() => {
+              setSelected((tracks) =>
+                tracks.map((track) => ({
+                  ...track,
+                  genre: sharedGenre.trim(),
+                  moods: split(sharedMoods),
+                  processTags: split(sharedProcess),
+                })),
+              );
+              setMetadataNotice(
+                "Shared metadata applied. Save the album to keep these changes; you can adjust each track below.",
+              );
+            }}
+          >
+            Apply shared metadata to selected tracks
+          </button>
+          {metadataNotice ? <p role="status">{metadataNotice}</p> : null}
+        </details>
         <ol>
           {selected.map((track, index) => (
             <li key={track.id}>
               <label>
                 Track title
                 <input
+                  disabled={busy}
                   value={track.title}
                   onChange={(e) => update(track.id, { title: e.currentTarget.value })}
                 />
@@ -274,6 +414,7 @@ function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<typeof lo
               <label>
                 Genre
                 <input
+                  disabled={busy}
                   value={track.genre ?? ""}
                   onChange={(e) => update(track.id, { genre: e.currentTarget.value })}
                 />
@@ -281,6 +422,8 @@ function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<typeof lo
               <label>
                 Moods (comma separated)
                 <input
+                  disabled={busy}
+                  key={JSON.stringify(track.moods)}
                   defaultValue={track.moods.join(", ")}
                   onBlur={(e) => update(track.id, { moods: split(e.currentTarget.value) })}
                 />
@@ -288,13 +431,15 @@ function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<typeof lo
               <label>
                 Process tags (comma separated)
                 <input
+                  disabled={busy}
+                  key={JSON.stringify(track.processTags)}
                   defaultValue={track.processTags.join(", ")}
                   onBlur={(e) => update(track.id, { processTags: split(e.currentTarget.value) })}
                 />
               </label>
               <button
                 type="button"
-                disabled={index === 0}
+                disabled={busy || index === 0}
                 onClick={() =>
                   setSelected((rows) => {
                     const next = [...rows];
@@ -307,7 +452,7 @@ function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<typeof lo
               </button>
               <button
                 type="button"
-                disabled={index === selected.length - 1}
+                disabled={busy || index === selected.length - 1}
                 onClick={() =>
                   setSelected((rows) => {
                     const next = [...rows];
@@ -318,9 +463,16 @@ function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<typeof lo
               >
                 Move down
               </button>
+              {data.tracks.find((t) => t.id === track.id)?.publicAudioReady ? (
+                <p role="status">
+                  Public listening file ready. Selecting another file replaces the public listening
+                  asset.
+                </p>
+              ) : null}
               {albumId ? (
                 <PublicMediaUpload
                   kind="audio"
+                  disabled={busy}
                   targetId={track.id}
                   label={`Public listening file for ${track.title}`}
                 />
@@ -359,6 +511,7 @@ function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<typeof lo
           </details>
           <PublicMediaUpload
             kind="artwork"
+            disabled={busy}
             targetId={data.albumId}
             label="One public album cover"
           />
@@ -397,7 +550,11 @@ function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<typeof lo
           </label>
           <button
             disabled={
-              busy || unsaved || !confirmed || data.readiness.some((r) => r.blockers.length)
+              busy ||
+              unsaved ||
+              !confirmed ||
+              !data.readiness.length ||
+              data.readiness.some((r) => r.blockers.length)
             }
             onClick={() =>
               void fetcher.submit(
@@ -440,7 +597,20 @@ export default function CuratorAlbumsRoute() {
             </Link>
           ))}
       </nav>
-      <AlbumEditor key={data.albumId ?? "new"} data={data} />
+      {data.releases.find((r) => r.id === data.albumId)?.lifecycleStatus === "published" ? (
+        <section className="curator-panel" role="status">
+          <h2>Album published</h2>
+          <p>
+            This release is available for public listening. Its publication and review history are
+            retained.
+          </p>
+          <Link to={`/releases/${data.releases.find((r) => r.id === data.albumId)!.slug}`}>
+            Open published album
+          </Link>
+        </section>
+      ) : (
+        <AlbumEditor key={data.albumId ?? "new"} data={data} />
+      )}
     </CuratorShell>
   );
 }

@@ -129,6 +129,7 @@ export class SubmissionService {
     private readonly email: TransactionalEmailService,
     private readonly clock: () => Date = () => new Date(),
     private readonly randomHex: (byteLength: number) => string = secureRandomHex,
+    private readonly defer?: (work: Promise<void>) => void,
   ) {}
 
   async createInvitation(input: SubmissionInvitationRequest, actor: CuratorIdentity) {
@@ -179,8 +180,26 @@ export class SubmissionService {
     return this.repository.findInvitationByTokenHash(tokenHash, this.clock());
   }
 
-  loadPublic(tokenHash: string) {
-    return this.repository.findByInvitationTokenHash(tokenHash, this.clock());
+  async loadPublic(tokenHash: string) {
+    const value = await this.repository.findByInvitationTokenHash(tokenHash, this.clock());
+    if (!value) return null;
+    // Invitation holders see their declarations and the questions addressed to them,
+    // never the curator's private notes, grading rationale or internal audit metadata.
+    return {
+      ...value,
+      submission: {
+        ...value.submission,
+        reviewNotes: null,
+        rejectionReason: null,
+        assignedCuratorId: null,
+        assignedCuratorEmail: null,
+      },
+      activities: value.activities
+        .filter((activity) =>
+          ["clarification_question", "clarification_response"].includes(activity.activityType),
+        )
+        .map((activity) => ({ ...activity, actorId: null, actorEmail: null, metadata: {} })),
+    };
   }
 
   async saveDraft(
@@ -258,26 +277,30 @@ export class SubmissionService {
       } as const;
     }
     let responseValue = value;
-    try {
-      await this.email.send({
-        to: value.submission.submitterEmail,
-        subject: `Submission received: ${value.submission.publicReference}`,
-        textBody: `Your submission ${value.submission.publicReference} has been recorded for curator review.`,
-      });
-      await this.repository.recordEmailActivity(
-        value.submission.id,
-        this.clock(),
-        value.submission.submitterEmail,
-        "submission_received",
-      );
-      responseValue =
-        (await this.repository.findByInvitationTokenHash(tokenHash, this.clock())) ?? value;
-    } catch (error) {
-      console.error("Submission receipt notification failed after finalization.", {
-        submissionId: value.submission.id,
-        error: error instanceof Error ? error.message : "Unknown notification error",
-      });
-    }
+    const notify = async () => {
+      try {
+        await this.email.send({
+          to: value.submission.submitterEmail,
+          subject: `Submission received: ${value.submission.publicReference}`,
+          textBody: `Your submission ${value.submission.publicReference} has been recorded for curator review.`,
+        });
+        await this.repository.recordEmailActivity(
+          value.submission.id,
+          this.clock(),
+          value.submission.submitterEmail,
+          "submission_received",
+        );
+        responseValue =
+          (await this.repository.findByInvitationTokenHash(tokenHash, this.clock())) ?? value;
+      } catch (error) {
+        console.error("Submission receipt notification failed after finalization.", {
+          submissionId: value.submission.id,
+          error: error instanceof Error ? error.message : "Unknown notification error",
+        });
+      }
+    };
+    if (this.defer) this.defer(notify());
+    else await notify();
     return {
       ok: true,
       value: responseValue,
@@ -365,21 +388,29 @@ export class SubmissionService {
     if (!value) {
       return { ok: false, error: { code: "not_found", message: "Submission not found." } } as const;
     }
-    await this.email.send({
-      to: value.submission.submitterEmail,
-      subject: `Clarification requested: ${value.submission.publicReference}`,
-      textBody: input.message,
-    });
-    await this.repository.recordEmailActivity(
-      value.submission.id,
-      input.createdAt,
-      value.submission.submitterEmail,
-      "clarification_requested",
-    );
-    return {
-      ok: true,
-      value: (await this.repository.findCuratorSubmission(value.submission.id)) ?? value,
-    } as const;
+    const notify = async () => {
+      try {
+        await this.email.send({
+          to: value.submission.submitterEmail,
+          subject: `Clarification requested: ${value.submission.publicReference}`,
+          textBody: input.message,
+        });
+        await this.repository.recordEmailActivity(
+          value.submission.id,
+          input.createdAt,
+          value.submission.submitterEmail,
+          "clarification_requested",
+        );
+      } catch (error) {
+        console.error("Clarification notification failed after request was saved.", {
+          submissionId: value.submission.id,
+          error: error instanceof Error ? error.message : "Unknown notification error",
+        });
+      }
+    };
+    if (this.defer) this.defer(notify());
+    else await notify();
+    return { ok: true, value, notificationConfigured: this.email.mode === "postmark" } as const;
   }
 
   async accept(input: SubmissionAcceptInput) {

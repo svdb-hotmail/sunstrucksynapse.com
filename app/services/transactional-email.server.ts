@@ -28,6 +28,7 @@ class PostmarkTransactionalEmailService implements TransactionalEmailService {
   async send(message: TransactionalEmailMessage): Promise<void> {
     const response = await fetch("https://api.postmarkapp.com/email", {
       method: "POST",
+      signal: AbortSignal.timeout(10000),
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",

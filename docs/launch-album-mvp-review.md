@@ -1,0 +1,11 @@
+# Album preparation MVP review
+
+The maintainer-authorized SOLO exception remains active; this is implementation verification, not independent Village review. PRs stay Draft. The maintainer clarified that the live catalogue is test content; it remains intact and does not represent the first real album launch.
+
+The curator can reach Albums & publishing from the workspace and catalogue. Album/artist slugs are suggested and editable. A deliberately created artist is selected automatically, and saving opens the prepared album. Inventory labels include artist names and separate public-file readiness. Common genre, moods and process tags can be applied explicitly to selected tracks before per-track edits. Preparation validates 1–100 distinct accepted tracks; unknown album URLs return 404. Published albums show a read-only completion/link instead of an empty draft editor.
+
+Readiness lists distinct album title/artist/cover/empty-album blockers and existing per-track publication blockers. Edits and upload inputs are disabled during pending album commands. Public listening files are deliberately uploaded separately from review objects, with automatic checksum/duration/codec metadata. The public upload UI limits each listening file to 100 MB, matching the conservative Cloudflare request ceiling; private direct-to-R2 uploads retain their existing limit. Cover uploads remain 20 MiB. A 413 response explains how to choose a smaller listening copy. Primary Cloudflare limits: https://developers.cloudflare.com/workers/platform/limits/ .
+
+Track IDs, exact accepted review/declaration links and private evidence are preserved. Regrouping audit records retain the previous release/credit arrangement. One audited publication transaction remains atomic and retry-safe; gates were not relaxed. No schema migration, production reset, seed, cleanup or deployment was performed.
+
+Focused checks pass: strict TypeScript; touched-file ESLint on the integrated stack; four isolated PostgreSQL transaction cases covering lineage, rollback, private-only rejection, publication ordering and retry/audit idempotency. The connected browser journey uses a fresh database on the isolated Neon verification branch with emulated R2, never the live test catalogue; its final result is recorded in the listening increment evidence.

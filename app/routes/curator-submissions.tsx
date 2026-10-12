@@ -133,6 +133,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const service = new SubmissionService(
     runtime.submissionRepository,
     createTransactionalEmailService(runtime.env),
+    undefined,
+    undefined,
+    (work) => runtime.ctx.waitUntil(work),
   );
   const workflow =
     runtime.curationWorkflowRepository ??
@@ -272,7 +275,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (!result.ok) return bad(result.error.message, submissionHttpStatus(result.error.code));
     if (form.get("workspace") === "1" && workflow) {
       return Response.json(
-        { clarifiedId: submissionId, ...(await claimFollowing(workflow, auth)) },
+        {
+          clarifiedId: submissionId,
+          ...(await claimFollowing(workflow, auth)),
+          notificationWarning: result.notificationConfigured
+            ? undefined
+            : "Question saved. Email is not configured; the artist can read it through their existing submission link.",
+        },
         { headers: { "cache-control": "no-store" } },
       );
     }
