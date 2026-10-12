@@ -36,6 +36,8 @@ function statusTone(status: CuratorQueueItemView["status"]) {
 
 function readinessLabel(readiness: CuratorQueueItemView["readiness"]) {
   switch (readiness) {
+    case "completed":
+      return "Completed";
     case "ready":
       return "Ready";
     case "needs_audio":
@@ -95,7 +97,7 @@ export function SubmissionQueue({
   }));
 
   return (
-    <section className="curator-queue" aria-labelledby="submission-queue-heading">
+    <section className="curator-queue" aria-label="Submission queue">
       <CuratorTabs
         active={activeFilter}
         label="Submission queue filters"

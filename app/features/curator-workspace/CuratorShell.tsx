@@ -1,3 +1,4 @@
+import { SITE_NAME } from "~/config/brand";
 import type { ChangeEvent, FormEvent, ReactNode } from "react";
 import { Link } from "react-router";
 
@@ -39,13 +40,13 @@ export function CuratorShell({
         <Link
           className="curator-brand"
           to="/curator/submissions"
-          aria-label="SunSyn curator workspace"
+          aria-label={`${SITE_NAME} curator workspace`}
         >
           <span className="curator-brand__mark" aria-hidden="true">
             ☼
           </span>
           <span>
-            <strong>SunSyn Radio</strong>
+            <strong>{SITE_NAME}</strong>
             <small>Curator workspace</small>
           </span>
         </Link>
@@ -82,6 +83,7 @@ export function CuratorShell({
               onChange={changeSearch}
             />
           </form>
+          <ThemeToggle />
           <div className="curator-identity" aria-label={`Curator account: ${identity.name}`}>
             <span aria-hidden="true">{identity.initials}</span>
             <span>

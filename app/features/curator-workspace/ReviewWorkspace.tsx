@@ -1,3 +1,4 @@
+import { SITE_NAME } from "~/config/brand";
 import {
   useCallback,
   useEffect,
@@ -22,7 +23,7 @@ const criteria: Array<{ id: ReviewCriterion; label: string; help: string }> = [
   { id: "artisticQuality", label: "Artistic quality", help: "Composition, sound, and execution" },
   { id: "originalityIntent", label: "Originality & intent", help: "Distinctive and intentional" },
   { id: "productionReadiness", label: "Production readiness", help: "Technical and mix quality" },
-  { id: "editorialFit", label: "Editorial fit", help: "Belongs on SunSyn Radio" },
+  { id: "editorialFit", label: "Editorial fit", help: `Belongs on ${SITE_NAME}` },
 ];
 
 const grades: Array<{ id: ReviewGrade; label: string }> = [
@@ -81,6 +82,11 @@ export function ReviewWorkspace({
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [playbackError, setPlaybackError] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (clarificationOpen) dialogRef.current?.showModal();
+    else dialogRef.current?.close();
+  }, [clarificationOpen]);
   const audioRef = useRef<HTMLAudioElement>(null);
   const durationSeconds = (review.submission.durationMs ?? 0) / 1000;
   const complete =
@@ -108,7 +114,14 @@ export function ReviewWorkspace({
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
-      if (pending || event.altKey || isTextEntry(event.target)) return;
+      if (pending || clarificationOpen || event.altKey || isTextEntry(event.target)) return;
+      if (event.metaKey || event.ctrlKey) {
+        if (event.key === "Enter" && complete) {
+          event.preventDefault();
+          onFinish();
+        }
+        return;
+      }
       if (event.key === " ") {
         event.preventDefault();
         void togglePlayback();
@@ -124,7 +137,16 @@ export function ReviewWorkspace({
     };
     window.addEventListener("keydown", handleShortcut);
     return () => window.removeEventListener("keydown", handleShortcut);
-  }, [activeCriterion, complete, onFinish, onGrade, onScore, togglePlayback, pending]);
+  }, [
+    activeCriterion,
+    complete,
+    onFinish,
+    onGrade,
+    onScore,
+    togglePlayback,
+    pending,
+    clarificationOpen,
+  ]);
 
   const seek = (event: ReactKeyboardEvent<HTMLInputElement>) => {
     if (event.key === "ArrowLeft" || event.key === "ArrowRight") event.stopPropagation();
@@ -284,13 +306,12 @@ export function ReviewWorkspace({
       </section>
 
       <aside className="curator-review-context" aria-label="Submission context">
-        <div className="curator-review-context__tabs" role="tablist" aria-label="Review context">
+        <div className="curator-review-context__tabs" role="group" aria-label="Review context">
           {(["metadata", "rights", "activity", "files"] as const).map((tab) => (
             <button
               key={tab}
               type="button"
-              role="tab"
-              aria-selected={activeTab === tab}
+              aria-pressed={activeTab === tab}
               onClick={() => setActiveTab(tab)}
             >
               {tab}
@@ -358,55 +379,51 @@ export function ReviewWorkspace({
         ) : null}
       </aside>
 
-      {clarificationOpen ? (
-        <div className="curator-dialog-backdrop" role="presentation">
-          <section
-            className="curator-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="clarification-title"
+      <dialog
+        ref={dialogRef}
+        onClose={() => setClarificationOpen(false)}
+        onCancel={() => setClarificationOpen(false)}
+        className="curator-dialog"
+        aria-labelledby="clarification-title"
+      >
+        <h2 id="clarification-title">Ask the artist</h2>
+        <p>Request only the information needed to continue this review.</p>
+        <label>
+          Subject
+          <select
+            value={clarificationField}
+            onChange={(event) => setClarificationField(event.currentTarget.value)}
           >
-            <h2 id="clarification-title">Ask the artist</h2>
-            <p>Request only the information needed to continue this review.</p>
-            <label>
-              Subject
-              <select
-                value={clarificationField}
-                onChange={(event) => setClarificationField(event.currentTarget.value)}
-              >
-                <option value="rights.authorityBasis">Rights basis</option>
-                <option value="rights.thirdPartyMaterial">Third-party material</option>
-                <option value="process.aiTools">AI tools and process</option>
-                <option value="provenance.sources">Source provenance</option>
-              </select>
-            </label>
-            <label>
-              Question
-              <textarea
-                rows={4}
-                value={clarificationQuestion}
-                onChange={(event) => setClarificationQuestion(event.currentTarget.value)}
-              />
-            </label>
-            <footer>
-              <CuratorButton variant="ghost" onClick={() => setClarificationOpen(false)}>
-                Cancel
-              </CuratorButton>
-              <CuratorButton
-                variant="primary"
-                disabled={!clarificationQuestion.trim()}
-                onClick={() => {
-                  onAskArtist(clarificationField, clarificationQuestion.trim());
-                  setClarificationQuestion("");
-                  setClarificationOpen(false);
-                }}
-              >
-                Send question & next →
-              </CuratorButton>
-            </footer>
-          </section>
-        </div>
-      ) : null}
+            <option value="rights.authorityBasis">Rights basis</option>
+            <option value="rights.thirdPartyMaterial">Third-party material</option>
+            <option value="process.aiTools">AI tools and process</option>
+            <option value="provenance.sources">Source provenance</option>
+          </select>
+        </label>
+        <label>
+          Question
+          <textarea
+            rows={4}
+            value={clarificationQuestion}
+            onChange={(event) => setClarificationQuestion(event.currentTarget.value)}
+          />
+        </label>
+        <footer>
+          <CuratorButton variant="ghost" onClick={() => setClarificationOpen(false)}>
+            Cancel
+          </CuratorButton>
+          <CuratorButton
+            variant="primary"
+            disabled={pending || !clarificationQuestion.trim()}
+            onClick={() => {
+              onAskArtist(clarificationField, clarificationQuestion.trim());
+              setClarificationOpen(false);
+            }}
+          >
+            Send question & next →
+          </CuratorButton>
+        </footer>
+      </dialog>
     </div>
   );
 }

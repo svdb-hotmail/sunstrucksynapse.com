@@ -8,7 +8,12 @@ export type CuratorSection =
   | "analytics"
   | "settings";
 
-export type CuratorReadiness = "ready" | "needs_audio" | "needs_information" | "flagged";
+export type CuratorReadiness =
+  | "completed"
+  | "ready"
+  | "needs_audio"
+  | "needs_information"
+  | "flagged";
 
 export type CuratorRightsState = "attested" | "needs_review" | "blocked";
 
@@ -35,6 +40,7 @@ export interface CuratorQueueItemView {
   durationMs: number | null;
   submittedAt: string;
   status:
+    | "draft"
     | "received"
     | "eligibility_review"
     | "listening"

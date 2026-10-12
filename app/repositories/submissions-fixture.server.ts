@@ -514,6 +514,29 @@ export function createE2eSubmissionRepository(): SubmissionRepository {
       ) {
         return false;
       }
+      if (
+        filter?.query &&
+        !`${aggregate.submission.title} ${aggregate.submission.publicReference} ${aggregate.submission.artistDetails.displayName}`
+          .toLowerCase()
+          .includes(filter.query.toLowerCase())
+      )
+        return false;
+      const status = aggregate.submission.status;
+      const complete = ["accepted", "rejected", "withdrawn"].includes(status);
+      const hasAudio = aggregate.submission.id === e2eReviewSubmissionId;
+      const ready =
+        hasAudio &&
+        ["received", "eligibility_review"].includes(status) &&
+        !aggregate.submission.assignedCuratorId;
+      if (filter?.queue === "ready" && !ready) return false;
+      if (
+        filter?.queue === "mine" &&
+        aggregate.submission.assignedCuratorEmail !== filter.curatorEmail
+      )
+        return false;
+      if (filter?.queue === "completed" && !complete) return false;
+      if (filter?.queue === "needs_audio" && (complete || hasAudio)) return false;
+      if (filter?.queue === "flagged" && status !== "clarification_requested") return false;
       return true;
     });
   }
@@ -601,12 +624,21 @@ export function createE2eSubmissionRepository(): SubmissionRepository {
       }
       return clone(stored);
     },
+    async countCuratorSubmissions(filter) {
+      return filtered(filter).length;
+    },
     async listCuratorSubmissions(filter) {
       const offset = Math.max(filter?.offset ?? 0, 0);
       const limit = Math.min(Math.max(filter?.limit ?? 100, 1), 101);
       return filtered(filter)
         .slice(offset, offset + limit)
-        .map(clone);
+        .map((row) => ({
+          ...clone(row),
+          claimable:
+            row.submission.id === e2eReviewSubmissionId &&
+            ["received", "eligibility_review"].includes(row.submission.status) &&
+            !row.submission.assignedCuratorId,
+        }));
     },
     async findCuratorSubmission(submissionId) {
       const value = findSubmission(submissionId);

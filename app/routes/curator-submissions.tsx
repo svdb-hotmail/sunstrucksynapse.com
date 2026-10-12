@@ -1,3 +1,4 @@
+import type { SubmissionFilter } from "~/repositories/submissions.server";
 import {
   redirect,
   useLoaderData,
@@ -41,7 +42,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const requestedPage = Number(url.searchParams.get("page") ?? "1");
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
-  const filter = {
+  const queueValues = ["all", "ready", "mine", "needs_audio", "flagged", "completed"] as const;
+  const queue = queueValues.find((value) => value === url.searchParams.get("queue")) ?? "all";
+  const filter: SubmissionFilter = {
+    query: (url.searchParams.get("q") ?? "").slice(0, 200),
+    queue,
+    curatorEmail: auth.identity.email,
     status: (url.searchParams.get("status") ?? "all") as SubmissionStatus | "all",
     assignedTo: url.searchParams.get("assignedTo") ?? "all",
     limit: CURATION_QUEUE_PAGE_SIZE + 1,
@@ -53,6 +59,17 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const outboxPromise = runtime.db
     ? createCurationOutboxRepository(runtime.db).statusCounts()
     : Promise.resolve(null);
+  const countRepository = runtime.submissionRepository;
+  const filterCounts = countRepository.countCuratorSubmissions
+    ? (Object.fromEntries(
+        await Promise.all(
+          queueValues.map(async (value) => [
+            value,
+            await countRepository.countCuratorSubmissions!({ ...filter, queue: value }),
+          ]),
+        ),
+      ) as Record<(typeof queueValues)[number], number>)
+    : null;
   const pageRows = await runtime.submissionRepository.listCuratorSubmissions(filter);
   const hasNextPage = pageRows.length > CURATION_QUEUE_PAGE_SIZE;
   const submissions = pageRows.slice(0, CURATION_QUEUE_PAGE_SIZE);
@@ -76,7 +93,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     reviewAudio,
     outbox,
     workflowAvailable: Boolean(workflow),
-    filter: { status: filter.status, assignedTo: filter.assignedTo },
+    filterCounts,
+    filter: {
+      status: filter.status,
+      assignedTo: filter.assignedTo,
+      query: filter.query ?? "",
+      queue,
+    },
     page,
     hasNextPage,
   };
@@ -84,6 +107,20 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 function bad(message: string, status = 400) {
   return Response.json({ error: message }, { status, headers: { "cache-control": "no-store" } });
+}
+
+async function claimFollowing(
+  workflow: Pick<ReturnType<typeof createCurationWorkflowRepository>, "claimNextSubmission">,
+  identity: Awaited<ReturnType<typeof requireCuratorIdentity>> & { ok: true },
+) {
+  try {
+    return { claimedId: await workflow.claimNextSubmission(identity.identity, new Date()) };
+  } catch {
+    return {
+      claimedId: null,
+      nextWarning: "Saved successfully. The next item could not be claimed; retry Review next.",
+    };
+  }
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -184,9 +221,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
     );
     if (!result) return bad("Submission changed or is not ready for a final decision.", 409);
     if (form.get("workspace") === "1") {
-      const claimedId = await workflow.claimNextSubmission(auth.identity, new Date());
+      const next = await claimFollowing(workflow, auth);
       return Response.json(
-        { finalizedId: submissionId, claimedId },
+        { finalizedId: submissionId, ...next },
         { headers: { "cache-control": "no-store" } },
       );
     }
@@ -235,7 +272,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     if (!result.ok) return bad(result.error.message, submissionHttpStatus(result.error.code));
     if (form.get("workspace") === "1" && workflow) {
       return Response.json(
-        { claimedId: await workflow.claimNextSubmission(auth.identity, new Date()) },
+        { clarifiedId: submissionId, ...(await claimFollowing(workflow, auth)) },
         { headers: { "cache-control": "no-store" } },
       );
     }
@@ -293,11 +330,11 @@ export default function CuratorSubmissionsRoute() {
           <invitation.Form method="post" className="curator-form">
             <input type="hidden" name="intent" value="create-invitation" />
             <label>
-              Name
+              Invitee name
               <input name="inviteeName" maxLength={200} />
             </label>
             <label>
-              Email
+              Invitee email
               <input name="inviteeEmail" type="email" required maxLength={320} />
             </label>
             <label>
@@ -308,15 +345,19 @@ export default function CuratorSubmissionsRoute() {
                 <option value="90">90 days</option>
               </select>
             </label>
-            <button disabled={invitation.state !== "idle"}>Create private link</button>
+            <button disabled={invitation.state !== "idle"}>Create private submission link</button>
           </invitation.Form>
           {invitation.data?.error ? <p role="alert">{invitation.data.error}</p> : null}
           {invitation.data?.invitationUrl ? (
-            <p role="status">
+            <div role="status">
               Shown once:{" "}
-              <a href={invitation.data.invitationUrl}>{invitation.data.invitationUrl}</a> · expires{" "}
+              <label>
+                Submission invitation link
+                <input readOnly value={invitation.data.invitationUrl} />
+              </label>
+              <a href={invitation.data.invitationUrl}>Open submission form</a> · expires{" "}
               {invitation.data.expiresAt}
-            </p>
+            </div>
           ) : null}
         </details>
       }
