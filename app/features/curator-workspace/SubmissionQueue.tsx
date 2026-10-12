@@ -21,7 +21,9 @@ function formatDuration(durationMs: number | null) {
 }
 
 function timeAgo(timestamp: string) {
-  const hours = Math.max(1, Math.round((Date.now() - new Date(timestamp).getTime()) / 3_600_000));
+  const submitted = new Date(timestamp).getTime();
+  if (!Number.isFinite(submitted)) return "Not submitted";
+  const hours = Math.max(1, Math.round((Date.now() - submitted) / 3_600_000));
   if (hours < 24) return `${hours}h ago`;
   return `${Math.round(hours / 24)}d ago`;
 }

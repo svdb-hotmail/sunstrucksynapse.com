@@ -62,6 +62,7 @@ export interface CuratorReviewView {
   aiTools: string[];
   territories: string[];
   rightsSummary: string;
+  rightsDetails?: string;
   provenanceSummary: string;
   evidenceCount: number;
   activities: Array<{ id: string; label: string; timestamp: string }>;

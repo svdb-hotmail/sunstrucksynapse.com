@@ -7,22 +7,28 @@ export function PublicMediaUpload({
   kind,
   targetId,
   label,
+  disabled = false,
 }: {
   kind: "audio" | "artwork";
   targetId: string;
   label: string;
+  disabled?: boolean;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [state, setState] = useState("idle");
   const [message, setMessage] = useState("");
   const revalidator = useRevalidator();
   async function upload(selected: File) {
-    if (state !== "idle") return;
+    if (state !== "idle" || disabled) return;
     setMessage("");
     setState("Reading file…");
     try {
-      if (selected.size > (kind === "audio" ? 500 : 20) * 1024 * 1024)
-        throw new Error("File exceeds upload limit.");
+      if (selected.size > (kind === "audio" ? 100_000_000 : 20 * 1024 * 1024))
+        throw new Error(
+          kind === "audio"
+            ? "Public listening files must be 100 MB or smaller. Export an MP3 or M4A listening copy."
+            : "Album covers must be 20 MiB or smaller.",
+        );
       const mimeType = normalizeMediaMime(selected);
       const [checksumSha256, metadata] = await Promise.all([
         computeBlobSha256(selected),
@@ -57,10 +63,19 @@ export function PublicMediaUpload({
         headers: { "content-type": mimeType },
         body: selected,
       });
-      if (!stored.ok) throw new Error("Upload interrupted. Retry the selected file.");
+      if (!stored.ok)
+        throw new Error(
+          stored.status === 413
+            ? "File exceeds the hosting upload limit. Choose a smaller listening copy."
+            : "Upload interrupted. Retry the selected file.",
+        );
       setState("Verifying…");
       await response(await fetch(`/curator/api/uploads/${session.id}`, { method: "PATCH" }));
-      setMessage("Public listening asset ready.");
+      setMessage(
+        kind === "audio"
+          ? "Public listening file ready."
+          : "Album cover ready. Apply it to the tracks below.",
+      );
       setFile(null);
       await revalidator.revalidate();
     } catch (error) {
@@ -80,7 +95,7 @@ export function PublicMediaUpload({
               ? ".mp3,.m4a,.wav,.flac,.ogg,.webm"
               : "image/png,image/jpeg,image/webp,image/avif"
           }
-          disabled={state !== "idle"}
+          disabled={disabled || state !== "idle"}
           onChange={(event) => {
             const selected = event.currentTarget.files?.[0];
             if (selected) {
@@ -90,6 +105,11 @@ export function PublicMediaUpload({
           }}
         />
       </label>
+      <p>
+        {kind === "audio"
+          ? "MP3, M4A or another audio file · up to 100 MB"
+          : "PNG, JPEG, WebP or AVIF · up to 20 MiB"}
+      </p>
       <p role="status">{state !== "idle" ? state : message}</p>
       {file && state === "idle" && message ? (
         <button type="button" onClick={() => void upload(file)}>

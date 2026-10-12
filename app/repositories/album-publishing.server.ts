@@ -57,27 +57,35 @@ export function createAlbumPublishingRepository(db: Database) {
     async inventory() {
       const result =
         await db.execute(sql`select t.id, t.title, t.release_id as "releaseId", t.genre, t.moods, t.creative_process_tags as "processTags", t.position,
-        (${accepted}) as accepted from tracks t where t.lifecycle_status in ('draft','in_review') order by t.release_id,t.position`);
-      return rows<AlbumTrackInput & { releaseId: string; position: number; accepted: boolean }>(
-        result,
-      );
+        (${accepted}) as accepted,
+        (select a.display_name from track_artist_credits c join artists a on a.id=c.artist_id where c.track_id=t.id and c.position=1) as "artistName",
+        exists(select 1 from audio_assets a where a.track_id=t.id and a.is_primary and a.scope='publishable_derivative' and a.status='ready') as "publicAudioReady" from tracks t where t.lifecycle_status in ('draft','in_review') order by t.release_id,t.position`);
+      return rows<
+        AlbumTrackInput & {
+          releaseId: string;
+          position: number;
+          accepted: boolean;
+          artistName: string | null;
+          publicAudioReady: boolean;
+        }
+      >(result);
     },
     async readiness(releaseId: string): Promise<AlbumReadiness[]> {
       const result = await db.execute(readinessQuery(releaseId));
       const tracks = rows<AlbumReadiness>(result);
-      const parents = rows<{ ready: boolean }>(
-        await db.execute(
-          sql`select exists(select 1 from releases r where r.id=${releaseId}::uuid and r.lifecycle_status in ('draft','in_review','published') and nullif(btrim(r.title),'') is not null) and exists(select 1 from release_artist_credits c join artists a on a.id=c.artist_id where c.release_id=${releaseId}::uuid and c.position=1 and a.lifecycle_status in ('draft','in_review','published')) and not exists(select 1 from release_artist_credits c join artists a on a.id=c.artist_id where c.release_id=${releaseId}::uuid and a.lifecycle_status not in ('draft','in_review','published')) and exists(select 1 from release_artwork_assets l join artwork_assets a on a.id=l.artwork_asset_id where l.release_id=${releaseId}::uuid and l.role='primary' and a.status='ready' and a.scope='publishable_derivative') as ready`,
-        ),
+      const [parent] = rows<{ titleReady: boolean; artistReady: boolean; coverReady: boolean }>(
+        await db.execute(sql`
+        select exists(select 1 from releases r where r.id=${releaseId}::uuid and r.lifecycle_status in ('draft','in_review','published') and nullif(btrim(r.title),'') is not null) as "titleReady",
+        (exists(select 1 from release_artist_credits c where c.release_id=${releaseId}::uuid and c.position=1) and not exists(select 1 from release_artist_credits c join artists a on a.id=c.artist_id where c.release_id=${releaseId}::uuid and a.lifecycle_status not in ('draft','in_review','published'))) as "artistReady",
+        exists(select 1 from release_artwork_assets l join artwork_assets a on a.id=l.artwork_asset_id where l.release_id=${releaseId}::uuid and l.role='primary' and l.position=1 and a.status='ready' and a.scope='publishable_derivative') as "coverReady"
+      `),
       );
-      if (!parents[0]?.ready)
-        tracks.unshift({
-          id: releaseId,
-          title: "Album",
-          blockers: ["album title, eligible artist credits and ready public album cover"],
-        });
-      if (!tracks.length)
-        tracks.push({ id: releaseId, title: "Album", blockers: ["at least one accepted track"] });
+      const blockers = [];
+      if (!parent?.titleReady) blockers.push("saved album title and eligible release");
+      if (!parent?.artistReady) blockers.push("primary artist and eligible artist credits");
+      if (!parent?.coverReady) blockers.push("ready public album cover");
+      if (!tracks.length) blockers.push("at least one accepted track");
+      if (blockers.length) tracks.unshift({ id: releaseId, title: "Album", blockers });
       return tracks;
     },
     async prepare(input: AlbumPreparation, actor: CuratorIdentity) {

@@ -46,6 +46,8 @@ export async function readMediaMetadata(file: File, kind: "audio" | "artwork") {
       );
       function finish(error?: Error) {
         window.clearTimeout(timeout);
+        audio.onloadedmetadata = null;
+        audio.onerror = null;
         audio.removeAttribute("src");
         audio.load();
         if (error) reject(error);

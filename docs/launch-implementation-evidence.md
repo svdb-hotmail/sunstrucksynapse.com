@@ -46,11 +46,9 @@ Queue search, filters and counts now run in the repository before pagination and
   album desktop playback and mobile/theme journeys were added without weakening the
   audio, declaration, curation or publication gates.
 
-Browser execution is outstanding. Cloudflare preview initially failed because sandbox
-network-interface enumeration is denied. A temporary test-process-only loopback fallback
-allowed preview to start; no such workaround was committed. Chromium was unavailable;
-Playwright's browser download returned truncated/non-ZIP bodies. No successful browser
-journey, screenshot, mobile layout measurement or real new-album playback is claimed.
+Actual Chromium browser checks now pass invitation creation, artist draft/no-audio/privacy, production private review/scoring/native clarification-dialog/draft restoration/finalize-next, and ordered mixed-media album playback through navigation with real seeking/ended events and the final transport boundary. Mobile album controls, Queue album, measured viewport width and both themes pass in Chromium and WebKit. The local asset fixture server lacks seekable ranges; the album test serves real fixture bytes with HTTP 206, without simulating media events.
+
+The preview initially needed a temporary test-process-only loopback fallback for sandbox network-interface enumeration. Chromium was obtained from the official Chrome for Testing distribution; WebKit from the official Playwright distribution. Required libraries/plugins were extracted outside the repository. No browser/runtime workaround or dependency-validation change was committed. These browser checks use the existing explicit test identity/fixtures, not production Cloudflare Access.
 
 The broad CI workflow is intentionally Draft-gated and only targets `main`. For stacked
 PRs, retarget each to `main` after its predecessor merges, then let the maintainer decide
@@ -78,3 +76,11 @@ renewal, navigation, cover/share/canonical URLs and mobile themes before calling
 Reversal uses existing audited archive/hide operations; do not delete review/submission history.
 
 Dependency triage is recorded separately in `docs/launch-dependency-triage.md`; Draft #88 now uses a coherent Vitest 4.1.11 runner update and passes the high-severity audit gate (zero critical/high, four moderate Drizzle tooling package nodes).
+
+## MVP perspective follow-up
+
+The live catalogue is test content, as clarified by the maintainer, and remains intact. The first real album still requires their real submissions, declarations and personal curation. Artist submit/status/privacy fixes are in #85; reduced album preparation steps, shared metadata, distinct blockers, upload limits and published completion are in #86. See `docs/launch-curator-review-fixes.md`, `docs/launch-album-mvp-review.md` and `docs/launch-mvp-perspective-review.md`.
+
+The connected browser journey used actual app routes/repositories and a fresh database `launch_mvp_final_20261012` on the isolated Neon branch, with checksum/range-capable emulated R2 and synthetic audio. Its first complete submission, private audition, retained rationale and final acceptance passed. The cloud execution runtime stopped responding during the second submission; readback shows one accepted submission and one draft. Full connected album upload/publication/playback and screenshots were not completed and are not claimed. The completed separate Neon repository and Chromium/WebKit checks above remain distinct evidence.
+
+GitHub and Neon access remained available during the runtime interruption. Tested L1/L2 fixes were already pushed; L3 was integrated through Git objects using those exact blobs, the tested album E2E source and the small verified radio hit-target CSS change. No new unverified runtime behavior was introduced in that checkpoint. Ephemeral execution files/credentials could not be confirmed removed after the runtime stopped responding; remove `/tmp/sunsyn-mvp.env` and stop any remaining test process when execution resumes. The isolated databases remain for inspection; no destructive cleanup was performed.

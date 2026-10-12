@@ -386,6 +386,36 @@ describe("submission service", () => {
     });
   });
 
+  it("retains a saved curator question when notification delivery fails", async () => {
+    const submitted = await service.submit(tokenHash, completeDraft(), {
+      honeypotTriggered: false,
+      userAgent: "test",
+      ipHash: null,
+    });
+    if (!submitted.ok) throw new Error("Expected saved submission");
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const failing = new SubmissionService(repository, {
+      mode: "postmark",
+      send: async () => {
+        throw new Error("Offline email provider");
+      },
+    });
+    const question = await failing.requestClarification({
+      submissionId: submitted.value.submission.id,
+      actor: curator,
+      createdAt: new Date(),
+      claimKey: "rights.authorityBasis",
+      message: "Please clarify permission.",
+    });
+    expect(question.ok).toBe(true);
+    expect(
+      (await service.loadPublic(tokenHash))?.activities.some(
+        (a) => a.message === "Please clarify permission.",
+      ),
+    ).toBe(true);
+    expect(log).toHaveBeenCalled();
+  });
+
   it("records claim-specific clarification requests and retains submitter responses in history", async () => {
     const draft = completeDraft();
     const submitted = await service.submit(tokenHash, draft, {
@@ -413,6 +443,23 @@ describe("submission service", () => {
       message: "The release is wholly original.",
     });
 
+    await repository.addNote({
+      submissionId: submitted.value.submission.id,
+      actor: curator,
+      createdAt: new Date(),
+      message: "PRIVATE curator assessment",
+    });
+    const invited = await service.loadPublic(tokenHash);
+    expect(invited?.submission.reviewNotes).toBeNull();
+    expect(invited?.activities.some((a) => a.message?.includes("PRIVATE"))).toBe(false);
+    expect(invited?.activities.some((a) => a.message?.includes("clarify the rights chain"))).toBe(
+      true,
+    );
+    expect(
+      invited?.activities.every(
+        (a) => a.actorId === null && a.actorEmail === null && Object.keys(a.metadata).length === 0,
+      ),
+    ).toBe(true);
     const refreshed = await repository.findCuratorSubmission(submitted.value.submission.id);
     expect(refreshed?.submission.status).toBe("clarification_requested");
     expect(
