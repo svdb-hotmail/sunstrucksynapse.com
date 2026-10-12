@@ -11,7 +11,11 @@ Queue -> audition -> open or claim -> listen -> score -> grade -> rationale -> f
 
 The normal journey must not expose workflow-state controls. Exceptional actions remain available from contextual menus. Human curators retain the final editorial decision.
 
-## Stack
+## Current delivery stack
+
+The historical prototype/cutover sequence below is superseded by the authorized launch stack: L1 `agent/launch-curator-workspace` (PR #85), L2 `agent/launch-album-publishing` (PR #86), and L3 `agent/launch-album-listening` (PR #87). The design foundation and Storybook components are reused in production. The maintainer's solo exception remains active; no independent Village review is claimed. All PRs remain Draft.
+
+## Historical stack
 
 | Order | Branch                                  | Outcome                                                                              |
 | ----- | --------------------------------------- | ------------------------------------------------------------------------------------ |

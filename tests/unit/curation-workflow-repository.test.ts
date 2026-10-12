@@ -1,3 +1,4 @@
+import { createSubmissionRepository } from "../../app/repositories/submissions.server";
 import { PGlite } from "@electric-sql/pglite";
 import { drizzle } from "drizzle-orm/pglite";
 import { migrate } from "drizzle-orm/pglite/migrator";
@@ -100,6 +101,34 @@ describe("curation workflow repository", () => {
   }, 30_000);
 
   afterEach(async () => client.close());
+
+  it("filters the full queue before pagination and uses the same claim eligibility", async () => {
+    const db = drizzle(client, { schema });
+    const queue = createSubmissionRepository(db as never);
+    await client.exec(
+      `update submissions set status='received', assigned_curator_id=null, assigned_curator_email=null, assigned_at=null`,
+    );
+    expect(await queue.countCuratorSubmissions!({ queue: "ready" })).toBe(1);
+    expect(
+      (await queue.listCuratorSubmissions({ query: "SIGNAL", queue: "ready", limit: 1 }))[0]
+        .claimable,
+    ).toBe(true);
+    expect(await queue.listCuratorSubmissions({ query: "not in catalogue" })).toEqual([]);
+    expect(await queue.listCuratorSubmissions({ query: "%" })).toEqual([]);
+    await client.exec(`insert into submission_invitations (id, public_reference, token_hash, invitee_email, expires_at)
+      select gen_random_uuid(), 'INV-PAGE-' || n, repeat(md5(n::text),2), 'artist@example.test', '2030-01-01'::timestamptz from generate_series(1,26) n;
+      insert into submissions (id, invitation_id, public_reference, invitation_reference, submitter_name, submitter_email, title, artist_details, status)
+      select gen_random_uuid(), id, 'PAGE-' || public_reference, public_reference, 'Test artist', invitee_email, 'Paged draft ' || public_reference, '{}'::jsonb, 'draft'
+      from submission_invitations where public_reference like 'INV-PAGE-%'`);
+    expect(await queue.countCuratorSubmissions!({ query: "Unwritten" })).toBe(1);
+    expect(
+      (await queue.listCuratorSubmissions({ query: "Unwritten", limit: 1 }))[0].submission.title,
+    ).toBe("Unwritten Frequency");
+    await client.exec(
+      `update submissions set assigned_curator_id='another-curator', assigned_curator_email='other@example.test', assigned_at=now() where public_reference='SUB-CURATION-001'`,
+    );
+    expect(await queue.countCuratorSubmissions!({ queue: "ready" })).toBe(0);
+  });
 
   it("atomically records an A review, creates only drafts, and enqueues the decision", async () => {
     const result = await repository.finalizeReview(
