@@ -86,9 +86,13 @@ function validateForSubmit(input: SubmissionDraftInput): string | null {
   if (!input.rights.entitlementStatement.trim()) required.push("entitlement statement");
   if (!input.rights.publicSummary.trim()) required.push("rights public summary");
   if (!input.rights.attestation.trim()) required.push("rights attestation");
+  if (!input.rights.territories.some((territory) => territory.trim()))
+    required.push("rights territories");
   if (!input.process.meaningfulHumanContribution.trim())
     required.push("meaningful human contribution");
   if (!input.process.publicSummary.trim()) required.push("public process summary");
+  if (!input.process.humanRoles.some((role) => role.name.trim() && role.contribution.trim()))
+    required.push("human creative contribution");
   if (!input.provenance.summary.trim()) required.push("provenance summary");
   if (!input.acknowledgements.invitationConfirmed) required.push("invitation acknowledgement");
   if (!input.acknowledgements.accuracyConfirmed) required.push("accuracy acknowledgement");
@@ -98,6 +102,8 @@ function validateForSubmit(input: SubmissionDraftInput): string | null {
     required.push("review process acknowledgement");
   if (input.process.aiUsed && !input.process.aiUseDescription.trim())
     required.push("AI use description");
+  if (input.process.aiUsed && !input.process.aiTools.some((tool) => tool.name.trim()))
+    required.push("AI tools used");
   if (input.process.lyricsUsed && !input.process.lyricsDetails.trim())
     required.push("lyrics details");
   if (input.process.voiceCloneUsed && !input.process.voiceCloneDetails.trim())
