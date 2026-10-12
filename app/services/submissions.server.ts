@@ -179,8 +179,26 @@ export class SubmissionService {
     return this.repository.findInvitationByTokenHash(tokenHash, this.clock());
   }
 
-  loadPublic(tokenHash: string) {
-    return this.repository.findByInvitationTokenHash(tokenHash, this.clock());
+  async loadPublic(tokenHash: string) {
+    const value = await this.repository.findByInvitationTokenHash(tokenHash, this.clock());
+    if (!value) return null;
+    // Invitation holders see their declarations and the questions addressed to them,
+    // never the curator's private notes, grading rationale or internal audit metadata.
+    return {
+      ...value,
+      submission: {
+        ...value.submission,
+        reviewNotes: null,
+        rejectionReason: null,
+        assignedCuratorId: null,
+        assignedCuratorEmail: null,
+      },
+      activities: value.activities
+        .filter((activity) =>
+          ["clarification_question", "clarification_response"].includes(activity.activityType),
+        )
+        .map((activity) => ({ ...activity, actorId: null, actorEmail: null, metadata: {} })),
+    };
   }
 
   async saveDraft(

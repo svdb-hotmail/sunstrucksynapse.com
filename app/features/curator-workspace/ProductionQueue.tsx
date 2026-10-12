@@ -203,6 +203,17 @@ export function ProductionQueue({
           aiTools: aggregate.process.aiTools.map((tool) => tool.name),
           territories: aggregate.rights.territories,
           rightsSummary: aggregate.rights.publicSummary,
+          rightsDetails: [
+            ...new Set(
+              [
+                aggregate.rights.entitlementStatement,
+                aggregate.rights.authorityDetails,
+                aggregate.rights.thirdPartyMaterialDetails,
+                aggregate.rights.restrictions,
+                aggregate.rights.privateNotes,
+              ].filter(Boolean),
+            ),
+          ].join("\n\n"),
           provenanceSummary: aggregate.provenance.summary,
           evidenceCount: aggregate.evidence.length,
           activities: aggregate.activities.map((activity) => ({
@@ -376,6 +387,23 @@ export function ProductionQueue({
             onSelect={(row) => setSelectedId(row.id)}
             onTogglePlayback={(row) => void play(row)}
           />
+          {selectedId ? (
+            <section aria-label="Selected submission" className="curator-panel">
+              <h2>{items.find((row) => row.id === selectedId)?.title}</h2>
+              <p>
+                {
+                  data.submissions.find((row) => row.submission.id === selectedId)?.rights
+                    .publicSummary
+                }
+              </p>
+              <p>
+                {
+                  data.submissions.find((row) => row.submission.id === selectedId)?.process
+                    .meaningfulHumanContribution
+                }
+              </p>
+            </section>
+          ) : null}
           {selectedId ? (
             <button
               disabled={

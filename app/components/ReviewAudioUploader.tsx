@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useRevalidator } from "react-router";
+import { normalizeMediaMime, readMediaMetadata } from "~/utils/media-file";
 
 import { computeBlobSha256 } from "~/utils/sha256";
 
@@ -10,39 +12,6 @@ export interface ReviewAudioUploaderProps {
   showHeading?: boolean;
 }
 
-function audioDuration(file: File): Promise<number> {
-  return new Promise((resolve, reject) => {
-    const audio = document.createElement("audio");
-    const url = URL.createObjectURL(file);
-    audio.preload = "metadata";
-    audio.onloadedmetadata = () => {
-      URL.revokeObjectURL(url);
-      resolve(Math.round(audio.duration * 1000));
-    };
-    audio.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("The browser could not read the audio duration."));
-    };
-    audio.src = url;
-  });
-}
-
-function browserMimeType(file: File): string {
-  if (file.type) return file.type;
-  const extension = file.name.split(".").pop()?.toLowerCase();
-  return (
-    {
-      mp3: "audio/mpeg",
-      m4a: "audio/mp4",
-      wav: "audio/wav",
-      ogg: "audio/ogg",
-      oga: "audio/ogg",
-      webm: "audio/webm",
-      flac: "audio/flac",
-    }[extension ?? ""] ?? ""
-  );
-}
-
 export function ReviewAudioUploader({
   endpoint,
   currentAudio = null,
@@ -50,6 +19,7 @@ export function ReviewAudioUploader({
   disabledMessage = "Save the submission draft before uploading audio.",
   showHeading = true,
 }: ReviewAudioUploaderProps) {
+  const revalidator = useRevalidator();
   const [file, setFile] = useState<File | null>(null);
   const [state, setState] = useState<"idle" | "preparing" | "uploading" | "finalizing" | "done">(
     "idle",
@@ -61,10 +31,12 @@ export function ReviewAudioUploader({
     setMessage(null);
     try {
       setState("preparing");
-      const mimeType = browserMimeType(selectedFile);
-      const [checksumSha256, durationMs] = await Promise.all([
+      if (selectedFile.size > 500 * 1024 * 1024)
+        throw new Error("Private listening files must be 500 MiB or smaller.");
+      const mimeType = normalizeMediaMime(selectedFile);
+      const [checksumSha256, metadata] = await Promise.all([
         computeBlobSha256(selectedFile),
-        audioDuration(selectedFile),
+        readMediaMetadata(selectedFile, "audio"),
       ]);
       const declarationResponse = await fetch(endpoint, {
         method: "POST",
@@ -74,7 +46,7 @@ export function ReviewAudioUploader({
           mimeType,
           checksumSha256,
           byteSize: selectedFile.size,
-          durationMs,
+          durationMs: metadata.durationMs,
           codec: mimeType.split("/")[1] || "unknown",
         }),
       });
@@ -99,9 +71,10 @@ export function ReviewAudioUploader({
       const final = (await finalResponse.json()) as { error?: string };
       if (!finalResponse.ok) throw new Error(final.error || "Could not finalize the audio upload.");
       setState("done");
-      setMessage("Review audio is ready. Reloading…");
-      window.location.hash = "review-audio";
-      window.location.reload();
+      setFile(null);
+      setMessage("Review audio is ready.");
+      await revalidator.revalidate();
+      setState("idle");
     } catch (error) {
       setState("idle");
       setMessage(error instanceof Error ? error.message : "Audio upload failed.");
@@ -157,11 +130,11 @@ export function ReviewAudioUploader({
               ? "Uploading audio…"
               : state === "finalizing"
                 ? "Finishing upload…"
-                : "Review audio is ready. Reloading…"}
+                : "Review audio is ready. Updating submission…"}
         </p>
       ) : null}
       {disabled ? <p>{disabledMessage}</p> : null}
-      {message ? <p role={state === "idle" ? "alert" : "status"}>{message}</p> : null}
+      {message ? <p role={file && state === "idle" ? "alert" : "status"}>{message}</p> : null}
     </section>
   );
 }

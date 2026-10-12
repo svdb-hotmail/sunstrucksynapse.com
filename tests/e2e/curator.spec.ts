@@ -87,6 +87,13 @@ test("claims the next ready submission, presents its listening copy, and records
   await expect(submission).toContainText("SUB-REVIEW-001");
   await expect(page.locator(".application-shell")).toHaveCount(0);
   await expect(submission.locator("audio")).toHaveAttribute("src", /curator\/review-audio/);
+  await submission.getByRole("button", { name: "Ask artist", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Ask the artist" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel("Subject")).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(submission.getByRole("button", { name: "Ask artist", exact: true })).toBeFocused();
   const scores = [4, 5, 4, 5];
   for (const [index, score] of scores.entries())
     await submission.locator("fieldset").nth(index).locator(`input[value="${score}"]`).check();
@@ -103,7 +110,12 @@ test("claims the next ready submission, presents its listening copy, and records
   await expect(submission.locator('input[name="grade"][value="B"]')).toBeChecked();
   await submission.getByRole("button", { name: "Finish & next" }).click();
   await expect(page).toHaveURL(/flash=no-ready-submissions/);
-  await expect(page.getByText("accepted", { exact: true })).toBeVisible();
+  await expect(
+    page
+      .locator("tbody tr")
+      .filter({ hasText: "SUB-REVIEW-001" })
+      .getByText("accepted", { exact: true }),
+  ).toBeVisible();
   await context.close();
 });
 

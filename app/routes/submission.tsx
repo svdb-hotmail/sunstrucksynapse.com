@@ -633,6 +633,23 @@ export default function SubmissionRoute() {
     !data.aggregate || status === "draft" || status === "clarification_requested";
   const audioEditable =
     Boolean(data.aggregate) && (status === "draft" || status === "clarification_requested");
+  const statusMessage: Record<typeof status, string> = {
+    draft: "Draft — save the details and upload your private listening copy before submitting.",
+    received:
+      "Received — your track is waiting for human review. You can return to this link for updates.",
+    eligibility_review: "In review — the curator is checking the track and its declarations.",
+    listening: "In review — the curator is listening to your track.",
+    clarification_requested:
+      "The curator needs more information. Update the relevant details or supporting evidence, then submit again.",
+    accepted:
+      "Accepted for catalogue preparation. Acceptance does not mean publication; the curator will prepare the public release.",
+    rejected: "Review complete — this track was not selected for the catalogue.",
+    withdrawn: "Withdrawn — this track is no longer waiting for review.",
+  };
+  const questions =
+    data.aggregate?.activities.filter(
+      (activity) => activity.activityType === "clarification_question",
+    ) ?? [];
   const acknowledgementConfirmed = Object.values(draft.acknowledgements).every(Boolean);
   const savingDetails =
     navigation.state === "submitting" && navigation.formData?.get("intent") === "save-draft";
@@ -658,6 +675,22 @@ export default function SubmissionRoute() {
           </>
         ) : null}
       </p>
+      <p role="status" className="submission-notice">
+        {statusMessage[status]}
+      </p>
+      {status === "clarification_requested" ? (
+        <section className="submission-step-card" aria-label="Curator questions">
+          <h2>What the curator needs</h2>
+          <ul>
+            {questions.map((question) => (
+              <li key={question.id}>{question.message}</li>
+            ))}
+          </ul>
+          <button type="button" onClick={() => setEditingDetails(true)}>
+            Update details for the curator
+          </button>
+        </section>
+      ) : null}
       {data.flash ? (
         <p className="submission-notice" role="status">
           {data.flash}
@@ -896,8 +929,8 @@ export default function SubmissionRoute() {
             <h2 id="submission-send-heading">Submit for review</h2>
           </div>
         </div>
-        {status === "received" ? (
-          <p className="submission-complete">Your track has been submitted. You are done.</p>
+        {!detailsEditable ? (
+          <p className="submission-complete">{statusMessage[status]}</p>
         ) : (
           <>
             <p>
@@ -905,15 +938,16 @@ export default function SubmissionRoute() {
                 ? "Your details and private listening copy are ready."
                 : "Upload the private listening copy to unlock submission."}
             </p>
-            <button
-              type="submit"
-              form="submission-details-form"
-              name="intent"
-              value="submit"
-              disabled={!readyToSubmit}
-            >
-              Submit track for review
-            </button>
+            <Form method="post" onSubmit={() => setLastSubmittedIntent("submit")}>
+              <input type="hidden" name="intent" value="submit" />
+              <input type="hidden" name="website" />
+              <button type="submit" disabled={!readyToSubmit || navigation.state !== "idle"}>
+                {navigation.state === "submitting" &&
+                navigation.formData?.get("intent") === "submit"
+                  ? "Submitting…"
+                  : "Submit track for review"}
+              </button>
+            </Form>
           </>
         )}
       </section>
@@ -956,7 +990,7 @@ export default function SubmissionRoute() {
           <Form method="post" className="curator-form">
             <input type="hidden" name="intent" value="withdraw" />
             <DraftTextArea name="withdrawMessage" label="Optional note" />
-            <button type="submit" disabled={status === "accepted" || status === "rejected"}>
+            <button type="submit" disabled={["accepted", "rejected", "withdrawn"].includes(status)}>
               Withdraw submission
             </button>
           </Form>

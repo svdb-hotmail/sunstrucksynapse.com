@@ -11,3 +11,9 @@ The clarification modal uses the native dialog focus boundary, Escape and focus 
 Focused validation: strict TypeScript, touched-file ESLint, production build and diff whitespace pass. Existing seven workflow cases and six curator route cases pass; added tests verify full-queue search/filter eligibility across pagination and saved-decision success despite next-claim failure. E2E selectors were updated for the real queue and review. Browser execution and broad Draft-gated CI are still outstanding.
 
 No production database, R2 media, access policy, secret or deployment was changed.
+
+## MVP perspective follow-up
+
+The artist sees explicit received/review/clarification/accepted/declined/withdrawn status and curator questions. Invitation responses omit internal curator activity, grading rationale and actor metadata. The final submit command uses its own form: validation on hidden editable fields can no longer silently block sending the saved draft. Backend audio, declarations and review gates remain intact. Private upload metadata uses a bounded shared reader and updates in place. Curators can inspect selected submissions and the stored private rights context; draft rows no longer show an invalid elapsed date. Score/grade inputs remain real, keyboard-operable controls.
+
+Actual Chromium verification now passes invitation creation, private review claim, scoring, native clarification dialog focus/Escape/restoration, retained rationale through reload, finalization/next and the artist draft/no-audio/privacy journey. Broad CI remains maintainer Ready-gated. These local browser checks use the explicit test identity and fixtures, not production Access.
