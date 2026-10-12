@@ -13,7 +13,7 @@ Village review or acceptance is claimed. This PR remains Draft.
 - Patch overrides: sharp 0.35.5, source-map-js 1.2.2 and compatible brace-expansion
   1.1.21 / 2.1.7 / 5.0.12 ranges. No package with a different major is forced into
   these dependency ranges. The 5.x patch closes the remaining nested 5.0.9 finding.
-- Framework, providers, React, React Router, Vitest, database schema and production
+- Framework, providers, React, React Router, database schema and production
   configuration are unchanged. No audit exclusion or test suppression.
 
 Fresh audit of the launch baseline: 23 vulnerable package nodes, 2 critical / 16 high /
@@ -26,20 +26,10 @@ build passed. 18 focused media-service and 13 playback-coordinator tests passed 
 patched installation. The final brace-expansion patch received focused lint verification.
 Broad CI remains Draft-gated. No production deployment or browser execution is claimed.
 
-## Remaining launch gate
+## Coherent test runner remediation
 
-The normal `npm audit --audit-level=high` still fails because it includes the critical
-Vitest/Tinypool findings. Do not bypass it or exclude development dependencies to get green.
+Vitest is explicitly upgraded from 3.2.7 to 4.1.11 in this separate Draft maintenance PR. The coherent runner dependency set removes the vulnerable Tinypool path and updates the mocker, rather than forcing an incompatible worker-pool override. This is a major tooling change requiring maintainer review; the application framework and deployment remain unchanged.
 
-- Vitest 3.2.7 / nested mocker 3.2.7: mock redirect file-read advisory remains; npm reports
-  a coherent newer major framework as the available fix.
-- Tinypool 1.1.1: prototype-pollution/RCE worker-options advisories remain. Do not force a
-  newer major worker-pool API into Vitest's 1.x range without reviewing compatibility.
-- drizzle-kit's legacy loader → esbuild 0.18.20 development-server advisory remains moderate.
-  Do not accept npm audit's suggested downgrade of drizzle-kit to 0.18.1.
+The final audit reports **0 critical, 0 high, 4 moderate package nodes**, and `npm audit --audit-level=high` passes. The four moderate nodes belong to drizzle-kit's legacy esbuild loader chain. No audit exclusions or suggested drizzle-kit downgrade were applied. The production-only audit remains zero findings. GitHub alert closure is not inferred from a local audit.
 
-The Worker does not import these development tools, but test/build environments do use
-them. The current fixed repository-authored tests do not establish general unreachability.
-The remaining coherent runner update and migration-tooling patch must be reviewed and
-validated separately before asserting a green full quality gate. No major test-framework
-upgrade was applied silently as part of the launch implementation.
+Focused runner compatibility: six workflow repository tests and 31 media/playback tests pass with Vitest 4.1.11; strict TypeScript passes. Broad CI remains Draft-gated, and the major runner upgrade is explicitly reviewable here.
