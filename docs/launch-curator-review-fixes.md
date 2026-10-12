@@ -21,3 +21,19 @@ Actual Chromium verification now passes invitation creation, private review clai
 Receipt and clarification notifications now run under Worker waitUntil after the durable submission/question succeeds. A missing or failed email provider cannot turn a saved question into a failed action; the curator sees a delivery warning and the artist can read it through their private link. Postmark requests have a ten-second timeout. Focused service/workspace checks pass (10 cases), including saved clarification on delivery failure; strict TypeScript passes.
 
 The maintainer clarified that the currently live catalogue is test content. It was preserved; this does not constitute a real first album launch.
+
+## Interrupted-run recovery
+
+A connected route check found that final submission accepted an empty AI tool list, while the
+curator's claim predicate required a disclosed tool. The server now requires named AI tools
+when AI was used, at least one nonblank rights territory and a named human contribution.
+Incomplete drafts remain saveable and editable. Correcting the disclosure allows submission;
+non-AI work does not require AI tools. The existing acceptance guard for an "other" rights
+basis remains in place.
+
+The focused submission, curator-route and album transaction checks pass (18 cases across
+three files), including draft preservation and correction. Strict TypeScript, touched-source
+ESLint, formatting and the application test build pass. New browser execution is blocked by
+this recovery runtime's socket restrictions; the earlier Chromium/WebKit evidence remains
+separate. Connected Neon route verification continues in `launch_recovery_20261012` on the
+existing isolated verification branch. Production records and deployment are unchanged.

@@ -278,6 +278,44 @@ describe("submission service", () => {
     });
   });
 
+  it.each(["AI tools used", "rights territories", "human creative contribution"])(
+    "keeps an incomplete %s disclosure editable until it is corrected",
+    async (field) => {
+      const draft = completeDraft();
+      if (field === "AI tools used") draft.process.aiTools = [];
+      if (field === "rights territories") draft.rights.territories = [" "];
+      if (field === "human creative contribution") draft.process.humanRoles = [];
+      const meta = { honeypotTriggered: false, userAgent: "vitest", ipHash: null };
+      expect(await service.saveDraft(tokenHash, draft, meta)).toMatchObject({ ok: true });
+
+      const finalize = vi.spyOn(repository, "submitByInvitationTokenHash");
+      const result = await service.submit(tokenHash, draft, meta);
+      expect(result).toMatchObject({ ok: false, error: { code: "invalid" } });
+      if (!result.ok) expect(result.error.message).toContain(field);
+      expect(finalize).not.toHaveBeenCalled();
+      expect((await service.loadPublic(tokenHash))?.submission.status).toBe("draft");
+
+      const corrected = completeDraft();
+      expect(await service.saveDraft(tokenHash, corrected, meta)).toMatchObject({ ok: true });
+      expect(await service.submit(tokenHash, corrected, meta)).toMatchObject({
+        ok: true,
+        value: { submission: { status: "received" } },
+      });
+    },
+  );
+
+  it("does not require AI tool disclosure when AI was not used", async () => {
+    const draft = completeDraft();
+    draft.process = { ...draft.process, aiUsed: false, aiTools: [], toolsAndSystems: [] };
+    expect(
+      await service.submit(tokenHash, draft, {
+        honeypotTriggered: false,
+        userAgent: "vitest",
+        ipHash: null,
+      }),
+    ).toMatchObject({ ok: true });
+  });
+
   it("keeps a finalized submission successful when its receipt email fails", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const findByInvitation = vi.spyOn(repository, "findByInvitationTokenHash");
@@ -344,7 +382,6 @@ describe("submission service", () => {
       rights: {
         ...completeDraft().rights,
         authorityBasis: "other",
-        territories: [],
       },
     });
 
