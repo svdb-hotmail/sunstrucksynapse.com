@@ -28,7 +28,7 @@ object is automatically copied, relabelled or served as public audio. Short SQL 
 locks serialize album commands with legacy catalogue writers. Neon HTTP batch is the
 transaction boundary; R2 uploads complete beforehand and are not part of that transaction.
 Draft retention is local to this browser/tab, not a server review draft or cross-device sync.
-Queue search/filter counts currently describe the loaded page; pagination remains explicit.
+Queue search, filters and counts now run in the repository before pagination and share the claim eligibility predicate. Pagination retains the selected search and filter.
 
 ## Focused verification
 
@@ -63,16 +63,13 @@ Worker deployment were changed. Existing public root returned HTTP 200, and anon
 `/curator/submissions` returned HTTP 302 to Cloudflare Access during this continuation.
 These responses are the existing deployed application, not the implementation stack.
 
-GitHub connector access worked. No Git-shell, DATABASE_URL, SUNSYN_DATABASE_URL or
-Cloudflare credential variables were present. Connected Neon project search for `sun`
-returned no project; this does not prove there is no project in another account.
+GitHub, Neon and Cloudflare connectors now work under the maintainer's Hotmail account. Neon project `sunsyn` is `frosty-sunset-21512292`; the default production branch is `br-tiny-bird-b2zobncr`. Isolated verification uses child branch `br-divine-silence-b2q6v9do` (`sunsyn-launch-verification-20261012`) and its separate database `launch_verification_20261012`. Synthetic test records exist only in that database; no production content was fabricated.
 
-To deploy/verify after maintainer merges: authorized Cloudflare account access for the
-existing `sunstruck-synapse-radio` Worker (deployment/version and secret/binding inspection),
-Access curator login, and access to the intended Neon production project/branch. Confirm
-Worker DATABASE_URL, MEDIA_BUCKET/public-review storage scopes, R2 CORS and configured
-signing/upload secrets against the actual production target. Do not paste secret values.
-Take a recoverable restore point before real album writes. No migration is needed.
+Cloudflare account `f9db1511596713616ac19b4f7538d337` exposes the existing Worker `sunstruck-synapse-radio`, its media bucket and required secret binding names. Production R2 CORS permits the operational domain and www variant. The active deployed version remains `0266c696-64c9-4875-a4b1-1713689092e8` from 12 September. Secret values were not read or replaced; binding presence does not prove the exact runtime DATABASE_URL target.
+
+Actual Neon HTTP repository verification passed assembly with unchanged accepted links, invalid-selection rollback and rejection of private-only assets. The long first setup exceeded its timeout while applying the existing migrations and fixtures in the new isolated database. A later full-publication case exceeded its per-test timeout after publication; it is not reported as a passing complete journey. A focused follow-up used the actual repository/Neon HTTP batch twice and passed: publication retries return the same slug, the four artist/release/track publication audit entries remain unchanged, and both tracks retain exact accepted declaration/review links. Separate readback confirms ordered published tracks, deliberately separate public-audio metadata and one applied cover. Synthetic media metadata is not proof of actual R2 upload/playback. See `docs/launch-neon-verification.md`.
+
+Ready/merge and broad CI remain maintainer-controlled. After merges, confirm the deployed Worker target, deploy the approved code and verify the actual curator submission/upload and listener journeys. Access curator login is still needed for that signed-in browser verification. No migration is needed for the launch code.
 
 The maintainer submits and curates each real track, assembles the album once, selects its
 public cover/listening files, resolves blockers and publishes. Record that submitter and
@@ -80,4 +77,4 @@ curator are the same maintainer. Verify signed-out album playback, complete orde
 renewal, navigation, cover/share/canonical URLs and mobile themes before calling it launched.
 Reversal uses existing audited archive/hide operations; do not delete review/submission history.
 
-Dependency triage is recorded separately in `docs/launch-dependency-triage.md`.
+Dependency triage is recorded separately in `docs/launch-dependency-triage.md`; Draft #88 now uses a coherent Vitest 4.1.11 runner update and passes the high-severity audit gate (zero critical/high, four moderate Drizzle tooling package nodes).

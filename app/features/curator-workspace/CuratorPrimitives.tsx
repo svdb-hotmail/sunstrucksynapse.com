@@ -51,13 +51,12 @@ export function CuratorTabs<T extends string>({
   options: readonly CuratorTabOption<T>[];
 }) {
   return (
-    <div className="curator-tabs" role="tablist" aria-label={label}>
+    <div className="curator-tabs" role="group" aria-label={label}>
       {options.map((option) => (
         <button
           key={option.id}
           type="button"
-          role="tab"
-          aria-selected={option.id === active}
+          aria-pressed={option.id === active}
           className="curator-tab"
           onClick={() => onChange(option.id)}
         >

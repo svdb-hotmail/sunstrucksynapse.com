@@ -91,11 +91,16 @@ export function ProductionQueue({
   data: ReturnType<typeof useLoaderData<typeof loader>>;
   invitation: ReactNode;
 }) {
-  const fetcher = useFetcher<{ error?: string; claimedId?: string | null; finalizedId?: string }>();
+  const fetcher = useFetcher<{
+    error?: string;
+    claimedId?: string | null;
+    finalizedId?: string;
+    nextWarning?: string;
+  }>();
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const [query, setQuery] = useState("");
-  const [filter, setFilter] = useState<QueueFilter>("all");
+  const [query, setQuery] = useState(data.filter.query);
+  const filter = data.filter.queue;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const evidence = useFetcher<{ error?: string; grantUrl?: string; expiresAt?: string }>();
   const [playingId, setPlayingId] = useState<string | null>(null);
@@ -108,7 +113,7 @@ export function ProductionQueue({
     const submission = row.submission;
     const copy = data.reviewAudio[submission.id];
     const attested = row.rights.status === "attested";
-    const finalized = row.process.status === "finalized" && row.provenance.status === "finalized";
+    const completed = ["accepted", "rejected", "withdrawn"].includes(submission.status);
     return {
       id: submission.id,
       publicReference: submission.publicReference,
@@ -119,7 +124,15 @@ export function ProductionQueue({
       submittedAt: String(submission.submittedAt ?? ""),
       durationMs: copy?.durationMs ?? null,
       audioUrl: copy ? `/curator/review-audio/${copy.id}` : null,
-      readiness: !copy ? "needs_audio" : attested && finalized ? "ready" : "needs_information",
+      readiness: completed
+        ? "completed"
+        : submission.status === "clarification_requested"
+          ? "flagged"
+          : !copy
+            ? "needs_audio"
+            : row.claimable
+              ? "ready"
+              : "needs_information",
       rights: attested ? "attested" : "needs_review",
       assignedCuratorName: submission.assignedCuratorEmail,
     };
@@ -131,12 +144,14 @@ export function ProductionQueue({
       : view === "completed"
         ? ["accepted", "rejected", "withdrawn"].includes(item.status)
         : item.readiness === view);
-  const counts = Object.fromEntries(
-    (["all", "ready", "mine", "needs_audio", "flagged", "completed"] as const).map((view) => [
-      view,
-      items.filter((item) => matches(item, view)).length,
-    ]),
-  ) as Record<QueueFilter, number>;
+  const counts =
+    data.filterCounts ??
+    (Object.fromEntries(
+      (["all", "ready", "mine", "needs_audio", "flagged", "completed"] as const).map((view) => [
+        view,
+        items.filter((item) => matches(item, view)).length,
+      ]),
+    ) as Record<QueueFilter, number>);
   useEffect(() => {
     if (busy || !fetcher.data || handled.current === fetcher.data) return;
     handled.current = fetcher.data;
@@ -153,9 +168,29 @@ export function ProductionQueue({
       navigate(
         fetcher.data.claimedId
           ? `?review=${fetcher.data.claimedId}`
-          : "?flash=no-ready-submissions",
+          : fetcher.data.nextWarning
+            ? "?flash=next-claim-failed"
+            : "?flash=no-ready-submissions",
       );
   }, [busy, fetcher.data, navigate, data.identity.id]);
+  useEffect(() => {
+    setQuery(data.filter.query);
+  }, [data.filter.query]);
+  useEffect(() => {
+    if (query === data.filter.query) return;
+    const timer = window.setTimeout(() => {
+      const next = new URLSearchParams(params);
+      next.set("q", query.slice(0, 200));
+      next.delete("page");
+      navigate(`?${next}`, { replace: true });
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [query, data.filter.query, navigate, params]);
+  const queueUrl = (changes: Record<string, string>) => {
+    const next = new URLSearchParams(params);
+    for (const [key, value] of Object.entries(changes)) next.set(key, value);
+    return `?${next}`;
+  };
   const aggregate = data.submissions.find((row) => row.submission.id === reviewId);
   const item = items.find((row) => row.id === reviewId);
   const review: CuratorReviewView | null =
@@ -274,6 +309,22 @@ export function ProductionQueue({
           ))}
         </details>
       ) : null}
+      {data.outbox?.failed ? (
+        <p role="alert">
+          {data.outbox.failed} background notification(s) failed. Decisions remain saved; contact
+          the operator to retry delivery.
+        </p>
+      ) : null}
+      {data.outbox && data.outbox.pending + data.outbox.processing > 0 ? (
+        <p role="status">
+          {data.outbox.pending + data.outbox.processing} notifications awaiting delivery.
+        </p>
+      ) : null}
+      {data.flash === "next-claim-failed" ? (
+        <p role="status">
+          Saved successfully. The next item could not be claimed; retry Review next.
+        </p>
+      ) : null}
       {fetcher.data?.error ? <p role="alert">{fetcher.data.error}</p> : null}
       {data.flash === "no-ready-submissions" ? (
         <p role="status">No ready submissions. Check waiting items or create an invitation.</p>
@@ -318,22 +369,27 @@ export function ProductionQueue({
           <SubmissionQueue
             activeFilter={filter}
             filterCounts={counts}
-            items={items.filter(
-              (row) =>
-                matches(row, filter) &&
-                `${row.title} ${row.artistName} ${row.publicReference}`
-                  .toLowerCase()
-                  .includes(query.toLowerCase()),
-            )}
+            items={items.filter((row) => row.id !== reviewId || matches(row, filter))}
             playingId={playingId}
             selectedId={selectedId}
-            onFilterChange={setFilter}
+            onFilterChange={(queue) => navigate(queueUrl({ queue, page: "1" }))}
             onSelect={(row) => setSelectedId(row.id)}
             onTogglePlayback={(row) => void play(row)}
           />
           {selectedId ? (
             <button
-              disabled={busy}
+              disabled={
+                busy ||
+                !(
+                  items.find((row) => row.id === selectedId)?.readiness === "ready" ||
+                  data.submissions.some(
+                    (row) =>
+                      row.submission.id === selectedId &&
+                      row.submission.status === "listening" &&
+                      row.submission.assignedCuratorId === data.identity.id,
+                  )
+                )
+              }
               onClick={() => {
                 audio.current?.pause();
                 setPlayingId(null);
@@ -344,9 +400,13 @@ export function ProductionQueue({
             </button>
           ) : null}
           <nav aria-label="Queue pages">
-            {data.page > 1 ? <Link to={`?page=${data.page - 1}`}>Previous</Link> : null} Page{" "}
-            {data.page}
-            {data.hasNextPage ? <Link to={`?page=${data.page + 1}`}>Next</Link> : null}
+            {data.page > 1 ? (
+              <Link to={queueUrl({ page: String(data.page - 1) })}>Previous</Link>
+            ) : null}{" "}
+            Page {data.page}
+            {data.hasNextPage ? (
+              <Link to={queueUrl({ page: String(data.page + 1) })}>Next</Link>
+            ) : null}
           </nav>
         </>
       )}
