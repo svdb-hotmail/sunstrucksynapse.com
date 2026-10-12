@@ -96,6 +96,7 @@ export function ProductionQueue({
     claimedId?: string | null;
     finalizedId?: string;
     nextWarning?: string;
+    notificationWarning?: string;
   }>();
   const navigate = useNavigate();
   const [params] = useSearchParams();
@@ -335,6 +336,9 @@ export function ProductionQueue({
         <p role="status">
           Saved successfully. The next item could not be claimed; retry Review next.
         </p>
+      ) : null}
+      {fetcher.data?.notificationWarning ? (
+        <p role="status">{fetcher.data.notificationWarning}</p>
       ) : null}
       {fetcher.data?.error ? <p role="alert">{fetcher.data.error}</p> : null}
       {data.flash === "no-ready-submissions" ? (

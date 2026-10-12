@@ -449,7 +449,13 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     );
   }
   const email = createTransactionalEmailService(runtime.env);
-  const service = new SubmissionService(runtime.submissionRepository, email);
+  const service = new SubmissionService(
+    runtime.submissionRepository,
+    email,
+    undefined,
+    undefined,
+    (work) => runtime.ctx.waitUntil(work),
+  );
   const form = await request.formData();
   const intent = formString(form, "intent");
   const abuseMeta = {
