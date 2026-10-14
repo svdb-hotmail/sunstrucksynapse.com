@@ -1,3 +1,4 @@
+import { curationEligibilitySql } from "./curation-eligibility.server";
 import { sql, type SQL } from "drizzle-orm";
 
 import type { Database } from "~/db/client.server";
@@ -435,7 +436,11 @@ export function createCurationWorkflowRepository(db: Database) {
         : { status: "defer" };
     },
 
-    async claimNextSubmission(curator: CuratorIdentity, now: Date): Promise<string | null> {
+    async claimNextSubmission(
+      curator: CuratorIdentity,
+      now: Date,
+      requestedId?: string,
+    ): Promise<string | null> {
       const rows = await execute<{ id: string }>(sql`
         with already_claimed as (
           select id, 0 as priority, submitted_at
@@ -449,20 +454,8 @@ export function createCurationWorkflowRepository(db: Database) {
           join submission_review_audio_selections audio on audio.submission_id = submissions.id
           where submissions.status in ('received', 'eligibility_review')
             and submissions.assigned_curator_id is null
-            and exists (
-              select 1 from rights_declarations
-              where submission_id = submissions.id and status = 'attested'
-                and authority_basis <> 'other' and cardinality(territories) > 0
-                and nullif(btrim(entitlement_statement), '') is not null
-            )
-            and exists (
-              select 1 from creative_process_disclosures
-              where submission_id = submissions.id and status = 'finalized'
-                and nullif(btrim(artist_summary), '') is not null
-                and jsonb_array_length(human_roles) > 0
-                and (not ai_used or jsonb_array_length(ai_tools) > 0)
-            )
-            and exists (select 1 from provenance_records where submission_id = submissions.id and status = 'finalized')
+            ${requestedId ? sql`and submissions.id = ${requestedId}::uuid` : sql``}
+            and ${curationEligibilitySql()}
           order by submissions.submitted_at, submissions.id
           limit 1
           for update of submissions skip locked

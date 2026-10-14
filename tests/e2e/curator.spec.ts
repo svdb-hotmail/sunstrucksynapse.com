@@ -49,6 +49,7 @@ test("creates a private invitation that opens the submission form", async ({ bro
   });
   const curatorPage = await curatorContext.newPage();
   await curatorPage.goto("/curator/submissions");
+  await curatorPage.getByText("Create a private submission link", { exact: true }).click();
   await curatorPage.getByLabel("Invitee name").fill("Playwright Invitee");
   await curatorPage.getByLabel("Invitee email").fill("playwright-invitee@example.test");
   await curatorPage.getByLabel("Expires after").selectOption("7");
@@ -82,23 +83,39 @@ test("claims the next ready submission, presents its listening copy, and records
   await page.goto("/curator/submissions");
 
   await page.getByRole("button", { name: "Review next ready submission" }).click();
-  const submission = page.locator("article.curator-record").filter({ hasText: "SUB-REVIEW-001" });
-  await expect(submission).toContainText("listening · review@example.test");
-  await expect(submission).toContainText("unwritten-frequency.flac · 180 seconds · private");
-
-  await submission.getByLabel("Artistic quality").selectOption("4");
-  await submission.getByLabel("Originality & intent").selectOption("5");
-  await submission.getByLabel("Production readiness").selectOption("4");
-  await submission.getByLabel("Editorial fit").selectOption("5");
-  await submission.getByLabel(/B · accept$/).check();
+  const submission = page.locator(".curator-review");
+  await expect(submission).toContainText("SUB-REVIEW-001");
+  await expect(page.locator(".application-shell")).toHaveCount(0);
+  await expect(submission.locator("audio")).toHaveAttribute("src", /curator\/review-audio/);
+  await submission.getByRole("button", { name: "Ask artist", exact: true }).click();
+  const dialog = page.getByRole("dialog", { name: "Ask the artist" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByLabel("Subject")).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).not.toBeVisible();
+  await expect(submission.getByRole("button", { name: "Ask artist", exact: true })).toBeFocused();
+  const scores = [4, 5, 4, 5];
+  for (const [index, score] of scores.entries())
+    await submission.locator("fieldset").nth(index).locator(`input[value="${score}"]`).check();
+  await submission.locator('input[name="grade"][value="B"]').check();
   await submission
     .getByLabel("Decision rationale")
     .fill("A deliberate, distinctive signal ready for catalogue preparation.");
-  await submission.getByRole("button", { name: "Finalize decision" }).click();
-
-  await expect(page).toHaveURL(/flash=accepted/);
-  await expect(page.getByText("accepted", { exact: true })).toBeVisible();
-  await expect(submission).toContainText("accepted · review@example.test");
+  await page.reload();
+  await expect(submission.getByLabel("Decision rationale")).toHaveValue(
+    "A deliberate, distinctive signal ready for catalogue preparation.",
+  );
+  // Typing B inside a rationale must not change the explicit grade.
+  await submission.getByLabel("Decision rationale").press("a");
+  await expect(submission.locator('input[name="grade"][value="B"]')).toBeChecked();
+  await submission.getByRole("button", { name: "Finish & next" }).click();
+  await expect(page).toHaveURL(/flash=no-ready-submissions/);
+  await expect(
+    page
+      .locator("tbody tr")
+      .filter({ hasText: "SUB-REVIEW-001" })
+      .getByText("accepted", { exact: true }),
+  ).toBeVisible();
   await context.close();
 });
 

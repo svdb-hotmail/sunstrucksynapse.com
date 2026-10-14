@@ -1,3 +1,4 @@
+import { curationAudioSql, curationReadySql } from "./curation-eligibility.server";
 import { and, asc, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 
 import type { Database } from "~/db/client.server";
@@ -99,6 +100,9 @@ export interface SubmissionDraftInput {
 export interface SubmissionFilter {
   status?: SubmissionStatus | "all";
   assignedTo?: string | "all";
+  query?: string;
+  queue?: "all" | "ready" | "mine" | "needs_audio" | "flagged" | "completed";
+  curatorEmail?: string;
   limit?: number;
   offset?: number;
 }
@@ -187,6 +191,7 @@ export interface SubmissionRecord {
 }
 
 export interface SubmissionAggregate {
+  claimable?: boolean;
   invitation: SubmissionInvitationRecord;
   submission: SubmissionRecord;
   rights: SubmissionVersionRecord & SubmissionRightsInput;
@@ -317,6 +322,7 @@ export interface SubmissionRepository {
     now: Date,
     message: string | null,
   ): Promise<SubmissionAggregate | null>;
+  countCuratorSubmissions?(filter?: SubmissionFilter): Promise<number>;
   listCuratorSubmissions(filter?: SubmissionFilter): Promise<SubmissionAggregate[]>;
   findCuratorSubmission(submissionId: string): Promise<SubmissionAggregate | null>;
   assignCurator(input: SubmissionAssignmentInput): Promise<SubmissionAggregate | null>;
@@ -574,6 +580,40 @@ function mapActivity(row: typeof submissionActivities.$inferSelect): SubmissionA
     metadata: row.metadata as Record<string, unknown>,
     createdAt: row.createdAt,
   };
+}
+
+function queueConditions(filter: SubmissionFilter) {
+  const conditions = [];
+  if (filter.status && filter.status !== "all")
+    conditions.push(eq(submissions.status, filter.status));
+  if (filter.assignedTo && filter.assignedTo !== "all")
+    conditions.push(eq(submissions.assignedCuratorEmail, filter.assignedTo));
+  if (filter.query?.trim()) {
+    const search = `%${filter.query.trim().replace(/[\\%_]/g, (value) => `\\${value}`)}%`;
+    conditions.push(
+      sql`concat_ws(' ', submissions.title, submissions.public_reference, submissions.artist_details->>'displayName') ilike ${search}`,
+    );
+  }
+  switch (filter.queue) {
+    case "ready":
+      conditions.push(curationReadySql());
+      break;
+    case "mine":
+      conditions.push(eq(submissions.assignedCuratorEmail, filter.curatorEmail ?? ""));
+      break;
+    case "needs_audio":
+      conditions.push(
+        sql`submissions.status not in ('accepted', 'rejected', 'withdrawn') and not (${curationAudioSql()})`,
+      );
+      break;
+    case "flagged":
+      conditions.push(eq(submissions.status, "clarification_requested"));
+      break;
+    case "completed":
+      conditions.push(inArray(submissions.status, ["accepted", "rejected", "withdrawn"]));
+      break;
+  }
+  return conditions.length ? and(...conditions) : undefined;
 }
 
 export function createSubmissionRepository(db: Database): SubmissionRepository {
@@ -1366,23 +1406,28 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
       }
       return buildAggregate(aggregate.submission.id);
     },
-    async listCuratorSubmissions(filter = {}) {
-      const conditions = [];
-      if (filter.status && filter.status !== "all") {
-        conditions.push(eq(submissions.status, filter.status));
-      }
-      if (filter.assignedTo && filter.assignedTo !== "all") {
-        conditions.push(eq(submissions.assignedCuratorEmail, filter.assignedTo));
-      }
-      const rows = await db
-        .select({ id: submissions.id })
+    async countCuratorSubmissions(filter = {}) {
+      const [row] = await db
+        .select({ count: sql<number>`count(*)::int` })
         .from(submissions)
-        .where(conditions.length > 0 ? and(...conditions) : undefined)
+        .where(queueConditions(filter));
+      return row.count;
+    },
+    async listCuratorSubmissions(filter = {}) {
+      const rows = await db
+        .select({ id: submissions.id, claimable: sql<boolean>`${curationReadySql()}` })
+        .from(submissions)
+        .where(queueConditions(filter))
         .orderBy(desc(submissions.submittedAt), desc(submissions.updatedAt))
         .limit(Math.min(Math.max(filter.limit ?? 100, 1), 101))
         .offset(Math.max(filter.offset ?? 0, 0));
-      const values = await Promise.all(rows.map(({ id }) => buildAggregate(id)));
-      return values.filter((value): value is SubmissionAggregate => Boolean(value));
+      const values = await Promise.all(
+        rows.map(async ({ id, claimable }) => {
+          const aggregate = await buildAggregate(id);
+          return aggregate ? { ...aggregate, claimable } : null;
+        }),
+      );
+      return values.filter((value) => value !== null);
     },
     async findCuratorSubmission(submissionId) {
       return buildAggregate(submissionId);

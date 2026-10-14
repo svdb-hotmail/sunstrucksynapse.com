@@ -109,6 +109,8 @@ function HashNavigation() {
 }
 
 export default function App() {
+  const location = useLocation();
+  const privateWorkspace = /^\/(curator|submit)(\/|$)/.test(location.pathname);
   const catalogue = useLoaderData<typeof loader>();
   const catalogueItems = catalogue.items;
   const navigation = buildCatalogueNavigation(
@@ -275,29 +277,33 @@ export default function App() {
   return (
     <>
       <HashNavigation />
-      <ApplicationShell
-        navigation={navigation}
-        item={selectedItem ?? null}
-        queue={queue}
-        playerPanelRef={playerPanelRef}
-        playbackRequest={playbackRequest}
-        onClearQueue={() => {
-          userInteractedBeforeRestore.current = true;
-          setQueue([]);
-        }}
-        onSelectQueueEntry={selectQueueEntry}
-        onRemoveQueueEntry={(itemId) => {
-          userInteractedBeforeRestore.current = true;
-          setQueue((current) => removeQueueItem(current, itemId));
-        }}
-        onPrevious={playPrevious}
-        onNext={() => advancePlayback(false)}
-        canPrevious={hasPrevious}
-        canNext={hasNext}
-        onMediaEnded={() => advancePlayback(false)}
-      >
-        <Outlet context={outletContext} />
-      </ApplicationShell>
+      {privateWorkspace ? (
+        <Outlet />
+      ) : (
+        <ApplicationShell
+          navigation={navigation}
+          item={selectedItem ?? null}
+          queue={queue}
+          playerPanelRef={playerPanelRef}
+          playbackRequest={playbackRequest}
+          onClearQueue={() => {
+            userInteractedBeforeRestore.current = true;
+            setQueue([]);
+          }}
+          onSelectQueueEntry={selectQueueEntry}
+          onRemoveQueueEntry={(itemId) => {
+            userInteractedBeforeRestore.current = true;
+            setQueue((current) => removeQueueItem(current, itemId));
+          }}
+          onPrevious={playPrevious}
+          onNext={() => advancePlayback(false)}
+          canPrevious={hasPrevious}
+          canNext={hasNext}
+          onMediaEnded={() => advancePlayback(false)}
+        >
+          <Outlet context={outletContext} />
+        </ApplicationShell>
+      )}
     </>
   );
 }

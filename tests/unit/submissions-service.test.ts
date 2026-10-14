@@ -278,6 +278,44 @@ describe("submission service", () => {
     });
   });
 
+  it.each(["AI tools used", "rights territories", "human creative contribution"])(
+    "keeps an incomplete %s disclosure editable until it is corrected",
+    async (field) => {
+      const draft = completeDraft();
+      if (field === "AI tools used") draft.process.aiTools = [];
+      if (field === "rights territories") draft.rights.territories = [" "];
+      if (field === "human creative contribution") draft.process.humanRoles = [];
+      const meta = { honeypotTriggered: false, userAgent: "vitest", ipHash: null };
+      expect(await service.saveDraft(tokenHash, draft, meta)).toMatchObject({ ok: true });
+
+      const finalize = vi.spyOn(repository, "submitByInvitationTokenHash");
+      const result = await service.submit(tokenHash, draft, meta);
+      expect(result).toMatchObject({ ok: false, error: { code: "invalid" } });
+      if (!result.ok) expect(result.error.message).toContain(field);
+      expect(finalize).not.toHaveBeenCalled();
+      expect((await service.loadPublic(tokenHash))?.submission.status).toBe("draft");
+
+      const corrected = completeDraft();
+      expect(await service.saveDraft(tokenHash, corrected, meta)).toMatchObject({ ok: true });
+      expect(await service.submit(tokenHash, corrected, meta)).toMatchObject({
+        ok: true,
+        value: { submission: { status: "received" } },
+      });
+    },
+  );
+
+  it("does not require AI tool disclosure when AI was not used", async () => {
+    const draft = completeDraft();
+    draft.process = { ...draft.process, aiUsed: false, aiTools: [], toolsAndSystems: [] };
+    expect(
+      await service.submit(tokenHash, draft, {
+        honeypotTriggered: false,
+        userAgent: "vitest",
+        ipHash: null,
+      }),
+    ).toMatchObject({ ok: true });
+  });
+
   it("keeps a finalized submission successful when its receipt email fails", async () => {
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
     const findByInvitation = vi.spyOn(repository, "findByInvitationTokenHash");
@@ -344,7 +382,6 @@ describe("submission service", () => {
       rights: {
         ...completeDraft().rights,
         authorityBasis: "other",
-        territories: [],
       },
     });
 
@@ -386,6 +423,48 @@ describe("submission service", () => {
     });
   });
 
+  it("retains a saved curator question when notification delivery fails", async () => {
+    const submitted = await service.submit(tokenHash, completeDraft(), {
+      honeypotTriggered: false,
+      userAgent: "test",
+      ipHash: null,
+    });
+    if (!submitted.ok) throw new Error("Expected saved submission");
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const defer = vi.fn();
+    const failing = new SubmissionService(
+      repository,
+      {
+        mode: "postmark",
+        send: async () => {
+          throw new Error("Offline email provider");
+        },
+      },
+      undefined,
+      undefined,
+      defer,
+    );
+    const question = await failing.requestClarification({
+      submissionId: submitted.value.submission.id,
+      actor: curator,
+      createdAt: new Date(),
+      claimKey: "rights.authorityBasis",
+      message: "Please clarify permission.",
+    });
+    expect(question.ok).toBe(true);
+    expect(question).toMatchObject({
+      notificationConfigured: true,
+      notificationDelivered: false,
+    });
+    expect(defer).not.toHaveBeenCalled();
+    expect(
+      (await service.loadPublic(tokenHash))?.activities.some(
+        (a) => a.message === "Please clarify permission.",
+      ),
+    ).toBe(true);
+    expect(log).toHaveBeenCalled();
+  });
+
   it("records claim-specific clarification requests and retains submitter responses in history", async () => {
     const draft = completeDraft();
     const submitted = await service.submit(tokenHash, draft, {
@@ -413,6 +492,23 @@ describe("submission service", () => {
       message: "The release is wholly original.",
     });
 
+    await repository.addNote({
+      submissionId: submitted.value.submission.id,
+      actor: curator,
+      createdAt: new Date(),
+      message: "PRIVATE curator assessment",
+    });
+    const invited = await service.loadPublic(tokenHash);
+    expect(invited?.submission.reviewNotes).toBeNull();
+    expect(invited?.activities.some((a) => a.message?.includes("PRIVATE"))).toBe(false);
+    expect(invited?.activities.some((a) => a.message?.includes("clarify the rights chain"))).toBe(
+      true,
+    );
+    expect(
+      invited?.activities.every(
+        (a) => a.actorId === null && a.actorEmail === null && Object.keys(a.metadata).length === 0,
+      ),
+    ).toBe(true);
     const refreshed = await repository.findCuratorSubmission(submitted.value.submission.id);
     expect(refreshed?.submission.status).toBe("clarification_requested");
     expect(

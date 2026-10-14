@@ -1,16 +1,15 @@
+import type { SubmissionFilter } from "~/repositories/submissions.server";
 import {
-  Form,
-  Link,
   redirect,
-  useActionData,
   useLoaderData,
+  useFetcher,
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "react-router";
 
 import { SITE_NAME } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
-import { CurationScorecard } from "~/components/CurationScorecard";
+import { ProductionQueue } from "~/features/curator-workspace/ProductionQueue";
 import { createCurationWorkflowRepository } from "~/repositories/curation-workflow.server";
 import { createCurationOutboxRepository } from "~/repositories/curation-outbox.server";
 import { requireCuratorIdentity } from "~/services/access-auth.server";
@@ -43,7 +42,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const requestedPage = Number(url.searchParams.get("page") ?? "1");
   const page = Number.isInteger(requestedPage) && requestedPage > 0 ? requestedPage : 1;
-  const filter = {
+  const queueValues = ["all", "ready", "mine", "needs_audio", "flagged", "completed"] as const;
+  const queue = queueValues.find((value) => value === url.searchParams.get("queue")) ?? "all";
+  const filter: SubmissionFilter = {
+    query: (url.searchParams.get("q") ?? "").slice(0, 200),
+    queue,
+    curatorEmail: auth.identity.email,
     status: (url.searchParams.get("status") ?? "all") as SubmissionStatus | "all",
     assignedTo: url.searchParams.get("assignedTo") ?? "all",
     limit: CURATION_QUEUE_PAGE_SIZE + 1,
@@ -55,9 +59,29 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const outboxPromise = runtime.db
     ? createCurationOutboxRepository(runtime.db).statusCounts()
     : Promise.resolve(null);
+  const countRepository = runtime.submissionRepository;
+  const filterCounts = countRepository.countCuratorSubmissions
+    ? (Object.fromEntries(
+        await Promise.all(
+          queueValues.map(async (value) => [
+            value,
+            await countRepository.countCuratorSubmissions!({ ...filter, queue: value }),
+          ]),
+        ),
+      ) as Record<(typeof queueValues)[number], number>)
+    : null;
   const pageRows = await runtime.submissionRepository.listCuratorSubmissions(filter);
   const hasNextPage = pageRows.length > CURATION_QUEUE_PAGE_SIZE;
   const submissions = pageRows.slice(0, CURATION_QUEUE_PAGE_SIZE);
+  const selectedId = url.searchParams.get("review");
+  if (
+    selectedId &&
+    validateUuid(selectedId, "review").ok &&
+    !submissions.some((row) => row.submission.id === selectedId)
+  ) {
+    const selected = await runtime.submissionRepository.findCuratorSubmission(selectedId);
+    if (selected) submissions.push(selected);
+  }
   const reviewAudio = workflow
     ? await workflow.currentAudioForSubmissions(submissions.map(({ submission }) => submission.id))
     : {};
@@ -69,7 +93,13 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     reviewAudio,
     outbox,
     workflowAvailable: Boolean(workflow),
-    filter: { status: filter.status, assignedTo: filter.assignedTo },
+    filterCounts,
+    filter: {
+      status: filter.status,
+      assignedTo: filter.assignedTo,
+      query: filter.query ?? "",
+      queue,
+    },
     page,
     hasNextPage,
   };
@@ -77,6 +107,20 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 function bad(message: string, status = 400) {
   return Response.json({ error: message }, { status, headers: { "cache-control": "no-store" } });
+}
+
+async function claimFollowing(
+  workflow: Pick<ReturnType<typeof createCurationWorkflowRepository>, "claimNextSubmission">,
+  identity: Awaited<ReturnType<typeof requireCuratorIdentity>> & { ok: true },
+) {
+  try {
+    return { claimedId: await workflow.claimNextSubmission(identity.identity, new Date()) };
+  } catch {
+    return {
+      claimedId: null,
+      nextWarning: "Saved successfully. The next item could not be claimed; retry Review next.",
+    };
+  }
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -89,6 +133,9 @@ export async function action({ request, context }: ActionFunctionArgs) {
   const service = new SubmissionService(
     runtime.submissionRepository,
     createTransactionalEmailService(runtime.env),
+    undefined,
+    undefined,
+    (work) => runtime.ctx.waitUntil(work),
   );
   const workflow =
     runtime.curationWorkflowRepository ??
@@ -120,7 +167,19 @@ export async function action({ request, context }: ActionFunctionArgs) {
   }
   if (intent === "claim-next") {
     if (!workflow) return bad("Curation workflow unavailable.", 503);
-    const submissionId = await workflow.claimNextSubmission(auth.identity, new Date());
+    const requested = form.get("requestedId");
+    if (requested && !validateUuid(requested, "requestedId").ok)
+      return bad("Invalid submission ID.");
+    const submissionId = await workflow.claimNextSubmission(
+      auth.identity,
+      new Date(),
+      requested ? String(requested) : undefined,
+    );
+    if (form.get("workspace") === "1")
+      return Response.json(
+        { claimedId: submissionId },
+        { headers: { "cache-control": "no-store" } },
+      );
     return submissionId
       ? redirect(`/curator/submissions?flash=ready#submission-${submissionId}`)
       : redirect("/curator/submissions?flash=no-ready-submissions");
@@ -164,6 +223,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
       new Date(),
     );
     if (!result) return bad("Submission changed or is not ready for a final decision.", 409);
+    if (form.get("workspace") === "1") {
+      const next = await claimFollowing(workflow, auth);
+      return Response.json(
+        { finalizedId: submissionId, ...next },
+        { headers: { "cache-control": "no-store" } },
+      );
+    }
     return redirect(`/curator/submissions?flash=${result.status}`);
   }
 
@@ -207,6 +273,20 @@ export async function action({ request, context }: ActionFunctionArgs) {
       message,
     });
     if (!result.ok) return bad(result.error.message, submissionHttpStatus(result.error.code));
+    if (form.get("workspace") === "1" && workflow) {
+      return Response.json(
+        {
+          clarifiedId: submissionId,
+          ...(await claimFollowing(workflow, auth)),
+          notificationWarning: result.notificationDelivered
+            ? undefined
+            : result.notificationConfigured
+              ? "Question saved, but email delivery failed. Follow up with the artist using their private submission link."
+              : "Question saved. Email is not configured; the artist can read it through their existing submission link.",
+        },
+        { headers: { "cache-control": "no-store" } },
+      );
+    }
     return redirect("/curator/submissions?flash=clarification");
   }
   if (intent === "accept" || intent === "reject") {
@@ -251,202 +331,47 @@ export const meta: Route.MetaFunction = () => [{ title: `Curator submissions | $
 
 export default function CuratorSubmissionsRoute() {
   const data = useLoaderData<typeof loader>();
-  const actionData = useActionData<CuratorSubmissionActionData>();
-  const pageHref = (page: number) => {
-    const parameters = new URLSearchParams();
-    if (data.filter.status !== "all") parameters.set("status", data.filter.status);
-    if (data.filter.assignedTo !== "all") parameters.set("assignedTo", data.filter.assignedTo);
-    parameters.set("page", String(page));
-    return `?${parameters.toString()}`;
-  };
+  const invitation = useFetcher<CuratorSubmissionActionData>();
   return (
-    <main className="curator-workspace">
-      <p className="eyebrow">Curator workspace</p>
-      <h1>Submission review</h1>
-      <p>Signed in as {data.identity.email}</p>
-      {data.outbox ? (
-        <p className="curation-operations" role={data.outbox.failed ? "alert" : undefined}>
-          Notifications: {data.outbox.pending} pending · {data.outbox.processing} sending ·{" "}
-          {data.outbox.failed} failed
-        </p>
-      ) : null}
-      {data.flash ? <p role="status">{data.flash}</p> : null}
-      {actionData?.error ? <p role="alert">{actionData.error}</p> : null}
-      {actionData?.grantUrl ? (
-        <p role="status">
-          Evidence link ready until {actionData.expiresAt}:{" "}
-          <a href={actionData.grantUrl}>open evidence</a>
-        </p>
-      ) : null}
-      <section className="curation-invitation-panel" aria-labelledby="invitation-heading">
-        <p className="eyebrow">Invite-only intake</p>
-        <h2 id="invitation-heading">Create submission link</h2>
-        <p>Create a private, single-submission link. The secret link is shown only once.</p>
-        <Form method="post" className="curator-form curation-invitation-form">
-          <input type="hidden" name="intent" value="create-invitation" />
-          <label>
-            Invitee name
-            <input name="inviteeName" autoComplete="name" maxLength={200} />
-          </label>
-          <label>
-            Invitee email
-            <input name="inviteeEmail" type="email" autoComplete="email" maxLength={320} required />
-          </label>
-          <label>
-            Expires after
-            <select name="expiresInDays" defaultValue="30">
-              <option value="7">7 days</option>
-              <option value="14">14 days</option>
-              <option value="30">30 days</option>
-              <option value="90">90 days</option>
-            </select>
-          </label>
-          <button type="submit">Create private submission link</button>
-        </Form>
-        {actionData?.invitationUrl ? (
-          <div className="curation-invitation-result" role="status">
-            <p>
-              <strong>{actionData.invitationReference}</strong> · expires {actionData.expiresAt}
-            </p>
+    <ProductionQueue
+      data={data}
+      invitation={
+        <details className="curator-panel">
+          <summary>Create a private submission link</summary>
+          <invitation.Form method="post" className="curator-form">
+            <input type="hidden" name="intent" value="create-invitation" />
             <label>
-              Submission invitation link
-              <input
-                type="url"
-                readOnly
-                value={actionData.invitationUrl}
-                onFocus={(event) => event.currentTarget.select()}
-              />
+              Invitee name
+              <input name="inviteeName" maxLength={200} />
             </label>
-            <a href={actionData.invitationUrl}>Open submission form</a>
-          </div>
-        ) : null}
-      </section>
-      <section>
-        <div className="curation-queue-heading">
-          <div>
-            <p className="eyebrow">Near-zero-touch queue</p>
-            <h2>Queue</h2>
-          </div>
-          <Form method="post">
-            <input type="hidden" name="intent" value="claim-next" />
-            <button type="submit">Review next ready submission</button>
-          </Form>
-        </div>
-        {data.submissions.map((submission) => (
-          <article
-            id={`submission-${submission.submission.id}`}
-            key={submission.submission.id}
-            className="curator-record"
-          >
-            <h3>
-              {submission.submission.publicReference} · {submission.submission.title}
-            </h3>
-            <p>
-              {submission.submission.status} · {submission.submission.submitterEmail}
-              {submission.submission.assignedCuratorEmail
-                ? ` · assigned to ${submission.submission.assignedCuratorEmail}`
-                : ""}
-            </p>
-            <p>{submission.rights.publicSummary}</p>
-            {submission.submission.status === "listening" &&
-            submission.submission.assignedCuratorId === data.identity.id ? (
-              <CurationScorecard
-                submissionId={submission.submission.id}
-                audio={data.reviewAudio[submission.submission.id] ?? null}
-              />
-            ) : null}
-            <div className="curator-actions">
-              {!data.workflowAvailable ? (
-                <Form method="post">
-                  <input type="hidden" name="intent" value="assign" />
-                  <input type="hidden" name="submissionId" value={submission.submission.id} />
-                  <button type="submit">Assign me</button>
-                </Form>
-              ) : null}
-              {[
-                "eligibility_review",
-                ...(data.workflowAvailable ? [] : ["listening"]),
-                "withdrawn",
-              ].map((status) => (
-                <Form method="post" key={`${submission.submission.id}-${status}`}>
-                  <input type="hidden" name="intent" value="transition" />
-                  <input type="hidden" name="submissionId" value={submission.submission.id} />
-                  <input type="hidden" name="toStatus" value={status} />
-                  <button type="submit">Move to {status.replace("_", " ")}</button>
-                </Form>
-              ))}
+            <label>
+              Invitee email
+              <input name="inviteeEmail" type="email" required maxLength={320} />
+            </label>
+            <label>
+              Expires after
+              <select name="expiresInDays" defaultValue="30">
+                <option value="7">7 days</option>
+                <option value="30">30 days</option>
+                <option value="90">90 days</option>
+              </select>
+            </label>
+            <button disabled={invitation.state !== "idle"}>Create private submission link</button>
+          </invitation.Form>
+          {invitation.data?.error ? <p role="alert">{invitation.data.error}</p> : null}
+          {invitation.data?.invitationUrl ? (
+            <div role="status">
+              Shown once:{" "}
+              <label>
+                Submission invitation link
+                <input readOnly value={invitation.data.invitationUrl} />
+              </label>
+              <a href={invitation.data.invitationUrl}>Open submission form</a> · expires{" "}
+              {invitation.data.expiresAt}
             </div>
-            <Form method="post" className="curator-form">
-              <input type="hidden" name="intent" value="note" />
-              <input type="hidden" name="submissionId" value={submission.submission.id} />
-              <label>
-                Curator note
-                <textarea name="message" rows={3} />
-              </label>
-              <button type="submit">Add note</button>
-            </Form>
-            <Form method="post" className="curator-form">
-              <input type="hidden" name="intent" value="clarify" />
-              <input type="hidden" name="submissionId" value={submission.submission.id} />
-              <label>
-                Claim key
-                <input name="claimKey" placeholder="rights.authorityBasis" />
-              </label>
-              <label>
-                Clarification request
-                <textarea name="message" rows={3} />
-              </label>
-              <button type="submit">Request clarification</button>
-            </Form>
-            <h4>Evidence</h4>
-            {submission.evidence.length ? (
-              <ul>
-                {submission.evidence.map((evidence) => (
-                  <li key={evidence.id}>
-                    {evidence.originalFilename} · {evidence.malwareStatus}
-                    <Form method="post">
-                      <input type="hidden" name="intent" value="grant-evidence" />
-                      <input type="hidden" name="submissionId" value={submission.submission.id} />
-                      <input type="hidden" name="evidenceId" value={evidence.id} />
-                      <button type="submit">Create secure access link</button>
-                    </Form>
-                    <Form method="post" className="curator-form">
-                      <input type="hidden" name="intent" value="malware" />
-                      <input type="hidden" name="submissionId" value={submission.submission.id} />
-                      <input type="hidden" name="evidenceId" value={evidence.id} />
-                      <select name="malwareStatus" defaultValue={evidence.malwareStatus}>
-                        <option value="pending_review">pending_review</option>
-                        <option value="cleared">cleared</option>
-                        <option value="quarantined">quarantined</option>
-                        <option value="rejected">rejected</option>
-                      </select>
-                      <input name="message" placeholder="Optional evidence note" />
-                      <button type="submit">Update evidence status</button>
-                    </Form>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p>No evidence uploaded.</p>
-            )}
-            <h4>Activity</h4>
-            <ul>
-              {submission.activities.map((activity) => (
-                <li key={activity.id}>
-                  {activity.activityType} · {activity.actorEmail ?? activity.actorRole}
-                  {activity.claimKey ? ` · ${activity.claimKey}` : ""}
-                  {activity.message ? ` · ${activity.message}` : ""}
-                </li>
-              ))}
-            </ul>
-          </article>
-        ))}
-        <nav className="curation-pagination" aria-label="Submission queue pages">
-          {data.page > 1 ? <Link to={pageHref(data.page - 1)}>Previous page</Link> : <span />}
-          <span>Page {data.page}</span>
-          {data.hasNextPage ? <Link to={pageHref(data.page + 1)}>Next page</Link> : <span />}
-        </nav>
-      </section>
-    </main>
+          ) : null}
+        </details>
+      }
+    />
   );
 }
