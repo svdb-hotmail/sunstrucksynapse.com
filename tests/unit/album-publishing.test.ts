@@ -162,10 +162,42 @@ describe("album publishing atomicity", () => {
     };
   }
   it("assembles accepted tracks without changing pinned review lineage", async () => {
+    expect((await repository.inventory()).every((track) => track.genre === "")).toBe(true);
+    const artists = await db.select().from(schema.artists);
+    const originalArtist = artistId;
+    artistId = artists.find((artist) => artist.id !== originalArtist)!.id;
+    // Legal across separate source releases, but collides after assembly.
+    await client.exec("update tracks set slug='shared-track-name'");
+    await db.insert(schema.trackArtistCredits).values({
+      trackId: trackIds[0],
+      artistId,
+      position: 2,
+      creditedAs: "Secondary alias",
+    });
+    await client.exec("begin");
+    await db.insert(schema.releases).values({ id: releaseId, title: "Draft", slug: "draft" });
+    await db.insert(schema.releaseArtistCredits).values([
+      { releaseId, artistId: originalArtist, position: 1, creditedAs: "Previous artist alias" },
+      { releaseId, artistId, position: 2, creditedAs: "Secondary alias" },
+    ]);
+    await client.exec("commit");
     const before = await client.query(
       "select resulting_track_id,accepted_rights_declaration_id,accepted_creative_process_disclosure_id,accepted_provenance_record_id from submissions order by id",
     );
     await repository.prepare(preparation(), actor);
+    const regrouped = (await client.query<{ slug: string }>("select slug from tracks")).rows;
+    expect(new Set(regrouped.map((track) => track.slug)).size).toBe(2);
+    expect(regrouped.every((track) => track.slug.startsWith("shared-track-name-"))).toBe(true);
+    const credits = await db.select().from(schema.releaseArtistCredits);
+    expect(credits).toContainEqual(
+      expect.objectContaining({ releaseId, artistId, position: 1, creditedAs: null }),
+    );
+    expect(credits.filter((credit) => credit.releaseId === releaseId)).toHaveLength(1);
+    expect(
+      (await db.select().from(schema.trackArtistCredits)).filter(
+        (credit) => credit.trackId === trackIds[0] && credit.artistId === artistId,
+      ),
+    ).toEqual([expect.objectContaining({ position: 1, creditedAs: null })]);
     expect(
       (
         await db

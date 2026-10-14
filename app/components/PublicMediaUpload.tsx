@@ -8,11 +8,13 @@ export function PublicMediaUpload({
   targetId,
   label,
   disabled = false,
+  onBusyChange,
 }: {
   kind: "audio" | "artwork";
   targetId: string;
   label: string;
   disabled?: boolean;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [state, setState] = useState("idle");
@@ -20,6 +22,7 @@ export function PublicMediaUpload({
   const revalidator = useRevalidator();
   async function upload(selected: File) {
     if (state !== "idle" || disabled) return;
+    onBusyChange?.(true);
     setMessage("");
     setState("Reading file…");
     try {
@@ -77,11 +80,15 @@ export function PublicMediaUpload({
           : "Album cover ready. Apply it to the tracks below.",
       );
       setFile(null);
-      await revalidator.revalidate();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Upload failed. Retry.");
     } finally {
-      setState("idle");
+      try {
+        await revalidator.revalidate();
+      } finally {
+        setState("idle");
+        onBusyChange?.(false);
+      }
     }
   }
   return (
