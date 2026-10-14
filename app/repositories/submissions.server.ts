@@ -616,6 +616,17 @@ function queueConditions(filter: SubmissionFilter) {
   return conditions.length ? and(...conditions) : undefined;
 }
 
+function groupRowsBy<T>(rows: T[], key: (row: T) => string): Map<string, T[]> {
+  const groups = new Map<string, T[]>();
+  for (const row of rows) {
+    const id = key(row);
+    const group = groups.get(id);
+    if (group) group.push(row);
+    else groups.set(id, [row]);
+  }
+  return groups;
+}
+
 export function createSubmissionRepository(db: Database): SubmissionRepository {
   async function loadLatestRightsVersion(submissionId: string) {
     const [row] = await db
@@ -647,149 +658,168 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
     return row ?? null;
   }
 
-  async function loadSubmissionActivities(
-    submissionId: string,
-  ): Promise<SubmissionActivityRecord[]> {
-    const rows = await db
-      .select()
-      .from(submissionActivities)
-      .where(eq(submissionActivities.submissionId, submissionId))
-      .orderBy(desc(submissionActivities.createdAt), desc(submissionActivities.id));
-    return rows.map(mapActivity);
-  }
-
-  async function loadEvidenceForProvenance(
-    provenanceRecordId: string,
-  ): Promise<SubmissionEvidenceRecord[]> {
-    const rows = await db
-      .select()
-      .from(provenanceEvidence)
-      .where(eq(provenanceEvidence.provenanceRecordId, provenanceRecordId))
-      .orderBy(asc(provenanceEvidence.createdAt), asc(provenanceEvidence.id));
-    return rows.map(mapEvidence);
-  }
-
-  async function loadProvenanceSteps(recordId: string): Promise<SubmissionProvenanceStep[]> {
-    const rows = await db
-      .select()
-      .from(provenanceSteps)
-      .where(eq(provenanceSteps.provenanceRecordId, recordId))
-      .orderBy(asc(provenanceSteps.position), asc(provenanceSteps.id));
-    return rows.map((row) => ({
-      position: row.position,
-      processType: row.processType,
-      description: row.description,
-      occurredAt: row.occurredAt ? row.occurredAt.toISOString() : null,
-    }));
-  }
-
-  async function loadProvenanceSources(recordId: string): Promise<SubmissionProvenanceSource[]> {
-    const rows = await db
-      .select()
-      .from(provenanceSources)
-      .where(eq(provenanceSources.provenanceRecordId, recordId))
-      .orderBy(asc(provenanceSources.position), asc(provenanceSources.id));
-    return rows.map((row) => ({
-      position: row.position,
-      sourceType: row.sourceType,
-      reference: row.reference,
-      rightsContext: row.rightsContext,
-    }));
-  }
-
-  async function buildAggregate(submissionId: string): Promise<SubmissionAggregate | null> {
-    const [submissionRow] = await db
+  // Each Neon HTTP query is a Worker subrequest. Load a whole queue page in
+  // batches rather than rebuilding nine-query aggregates for every submission.
+  async function buildAggregates(submissionIds: string[]): Promise<SubmissionAggregate[]> {
+    if (submissionIds.length === 0) return [];
+    const submissionRows = await db
       .select()
       .from(submissions)
-      .where(eq(submissions.id, submissionId))
-      .limit(1);
-    if (!submissionRow) return null;
-    const submission = mapSubmission(submissionRow);
-    const [invitationRow, rightsRow, processRow, provenanceRow] = await Promise.all([
+      .where(inArray(submissions.id, submissionIds));
+    if (submissionRows.length === 0) return [];
+    const ids = submissionRows.map((row) => row.id);
+    const invitationIds = [...new Set(submissionRows.map((row) => row.invitationId))];
+    const [invitationRows, rightsRows, processRows, provenanceRows] = await Promise.all([
       db
         .select()
         .from(submissionInvitations)
-        .where(eq(submissionInvitations.id, submission.invitationId))
-        .limit(1)
-        .then((rows) => rows[0] ?? null),
-      loadLatestRightsVersion(submissionId),
-      loadLatestProcessVersion(submissionId),
-      loadLatestProvenanceVersion(submissionId),
+        .where(inArray(submissionInvitations.id, invitationIds)),
+      db
+        .selectDistinctOn([rightsDeclarations.submissionId])
+        .from(rightsDeclarations)
+        .where(inArray(rightsDeclarations.submissionId, ids))
+        .orderBy(asc(rightsDeclarations.submissionId), desc(rightsDeclarations.version)),
+      db
+        .selectDistinctOn([creativeProcessDisclosures.submissionId])
+        .from(creativeProcessDisclosures)
+        .where(inArray(creativeProcessDisclosures.submissionId, ids))
+        .orderBy(
+          asc(creativeProcessDisclosures.submissionId),
+          desc(creativeProcessDisclosures.version),
+        ),
+      db
+        .selectDistinctOn([provenanceRecords.submissionId])
+        .from(provenanceRecords)
+        .where(inArray(provenanceRecords.submissionId, ids))
+        .orderBy(asc(provenanceRecords.submissionId), desc(provenanceRecords.version)),
     ]);
-    if (!invitationRow || !rightsRow || !processRow || !provenanceRow) return null;
-    const [steps, sources, evidence, activities] = await Promise.all([
-      loadProvenanceSteps(provenanceRow.id),
-      loadProvenanceSources(provenanceRow.id),
-      loadEvidenceForProvenance(provenanceRow.id),
-      loadSubmissionActivities(submissionId),
+    if (provenanceRows.length === 0) return [];
+    const provenanceIds = provenanceRows.map((row) => row.id);
+    const [stepRows, sourceRows, evidenceRows, activityRows] = await Promise.all([
+      db
+        .select()
+        .from(provenanceSteps)
+        .where(inArray(provenanceSteps.provenanceRecordId, provenanceIds))
+        .orderBy(asc(provenanceSteps.position), asc(provenanceSteps.id)),
+      db
+        .select()
+        .from(provenanceSources)
+        .where(inArray(provenanceSources.provenanceRecordId, provenanceIds))
+        .orderBy(asc(provenanceSources.position), asc(provenanceSources.id)),
+      db
+        .select()
+        .from(provenanceEvidence)
+        .where(inArray(provenanceEvidence.provenanceRecordId, provenanceIds))
+        .orderBy(asc(provenanceEvidence.createdAt), asc(provenanceEvidence.id)),
+      db
+        .select()
+        .from(submissionActivities)
+        .where(inArray(submissionActivities.submissionId, ids))
+        .orderBy(desc(submissionActivities.createdAt), desc(submissionActivities.id)),
     ]);
-    return {
-      invitation: mapInvitation(invitationRow),
-      submission,
-      rights: {
-        id: rightsRow.id,
-        version: rightsRow.version,
-        status: rightsRow.status,
-        revisionAuthorRole: rightsRow.revisionAuthorRole,
-        revisionAuthorName: rightsRow.revisionAuthorName,
-        revisionAuthorEmail: rightsRow.revisionAuthorEmail,
-        revisionReason: rightsRow.revisionReason,
-        authorityBasis: rightsRow.authorityBasis,
-        authorityDetails: rightsRow.authorityDetails ?? "",
-        entitlementStatement: rightsRow.entitlementStatement,
-        publicSummary: rightsRow.publicSummary,
-        publicNotes: rightsRow.publicNotes ?? "",
-        privateNotes: rightsRow.privateNotes ?? "",
-        containsThirdPartyMaterial: rightsRow.containsThirdPartyMaterial,
-        thirdPartyMaterialDetails: rightsRow.thirdPartyMaterialDetails ?? "",
-        restrictions: rightsRow.restrictions ?? "",
-        territories: rightsRow.territories,
-        distributorName: rightsRow.distributorName ?? "",
-        distributorReleaseId: rightsRow.distributorReleaseId ?? "",
-        isrc: rightsRow.isrc ?? "",
-        attestation: rightsRow.attestation ?? "",
-      },
-      process: {
-        id: processRow.id,
-        version: processRow.version,
-        status: processRow.status,
-        revisionAuthorRole: processRow.revisionAuthorRole,
-        revisionAuthorName: processRow.revisionAuthorName,
-        revisionAuthorEmail: processRow.revisionAuthorEmail,
-        revisionReason: processRow.revisionReason,
-        aiUsed: processRow.aiUsed,
-        aiUseDescription: processRow.aiUseDescription ?? "",
-        meaningfulHumanContribution: processRow.meaningfulHumanContribution,
-        toolsAndSystems: processRow.toolsAndSystems,
-        humanRoles: processRow.humanRoles,
-        aiTools: processRow.aiTools,
-        lyricsUsed: processRow.lyricsUsed,
-        lyricsDetails: processRow.lyricsDetails ?? "",
-        voiceCloneUsed: processRow.voiceCloneUsed,
-        voiceCloneDetails: processRow.voiceCloneDetails ?? "",
-        samplesUsed: processRow.samplesUsed,
-        sampleDetails: processRow.sampleDetails ?? "",
-        sourceMaterialContext: processRow.sourceMaterialContext ?? "",
-        publicSummary: processRow.artistSummary,
-        privateNotes: processRow.privateNotes ?? "",
-      },
-      provenance: {
-        id: provenanceRow.id,
-        version: provenanceRow.version,
-        status: provenanceRow.status,
-        revisionAuthorRole: provenanceRow.revisionAuthorRole,
-        revisionAuthorName: provenanceRow.revisionAuthorName,
-        revisionAuthorEmail: provenanceRow.revisionAuthorEmail,
-        revisionReason: provenanceRow.revisionReason,
-        summary: provenanceRow.summary,
-        publicNotes: provenanceRow.publicNotes ?? "",
-        privateNotes: provenanceRow.privateNotes ?? "",
-        steps,
-        sources,
-      },
-      evidence,
-      activities,
-    };
+    const invitationsById = new Map(invitationRows.map((row) => [row.id, row]));
+    const rightsBySubmission = new Map(rightsRows.map((row) => [row.submissionId, row]));
+    const processBySubmission = new Map(processRows.map((row) => [row.submissionId, row]));
+    const provenanceBySubmission = new Map(provenanceRows.map((row) => [row.submissionId, row]));
+    const stepsByProvenance = groupRowsBy(stepRows, (row) => row.provenanceRecordId);
+    const sourcesByProvenance = groupRowsBy(sourceRows, (row) => row.provenanceRecordId);
+    const evidenceByProvenance = groupRowsBy(evidenceRows, (row) => row.provenanceRecordId);
+    const activitiesBySubmission = groupRowsBy(activityRows, (row) => row.submissionId);
+    const aggregates: SubmissionAggregate[] = [];
+    for (const submissionRow of submissionRows) {
+      const submission = mapSubmission(submissionRow);
+      const invitationRow = invitationsById.get(submission.invitationId);
+      const rightsRow = rightsBySubmission.get(submission.id);
+      const processRow = processBySubmission.get(submission.id);
+      const provenanceRow = provenanceBySubmission.get(submission.id);
+      if (!invitationRow || !rightsRow || !processRow || !provenanceRow) continue;
+      const steps = (stepsByProvenance.get(provenanceRow.id) ?? []).map((row) => ({
+        position: row.position,
+        processType: row.processType,
+        description: row.description,
+        occurredAt: row.occurredAt ? row.occurredAt.toISOString() : null,
+      }));
+      const sources = (sourcesByProvenance.get(provenanceRow.id) ?? []).map((row) => ({
+        position: row.position,
+        sourceType: row.sourceType,
+        reference: row.reference,
+        rightsContext: row.rightsContext,
+      }));
+      const evidence = (evidenceByProvenance.get(provenanceRow.id) ?? []).map(mapEvidence);
+      const activities = (activitiesBySubmission.get(submission.id) ?? []).map(mapActivity);
+      aggregates.push({
+        invitation: mapInvitation(invitationRow),
+        submission,
+        rights: {
+          id: rightsRow.id,
+          version: rightsRow.version,
+          status: rightsRow.status,
+          revisionAuthorRole: rightsRow.revisionAuthorRole,
+          revisionAuthorName: rightsRow.revisionAuthorName,
+          revisionAuthorEmail: rightsRow.revisionAuthorEmail,
+          revisionReason: rightsRow.revisionReason,
+          authorityBasis: rightsRow.authorityBasis,
+          authorityDetails: rightsRow.authorityDetails ?? "",
+          entitlementStatement: rightsRow.entitlementStatement,
+          publicSummary: rightsRow.publicSummary,
+          publicNotes: rightsRow.publicNotes ?? "",
+          privateNotes: rightsRow.privateNotes ?? "",
+          containsThirdPartyMaterial: rightsRow.containsThirdPartyMaterial,
+          thirdPartyMaterialDetails: rightsRow.thirdPartyMaterialDetails ?? "",
+          restrictions: rightsRow.restrictions ?? "",
+          territories: rightsRow.territories,
+          distributorName: rightsRow.distributorName ?? "",
+          distributorReleaseId: rightsRow.distributorReleaseId ?? "",
+          isrc: rightsRow.isrc ?? "",
+          attestation: rightsRow.attestation ?? "",
+        },
+        process: {
+          id: processRow.id,
+          version: processRow.version,
+          status: processRow.status,
+          revisionAuthorRole: processRow.revisionAuthorRole,
+          revisionAuthorName: processRow.revisionAuthorName,
+          revisionAuthorEmail: processRow.revisionAuthorEmail,
+          revisionReason: processRow.revisionReason,
+          aiUsed: processRow.aiUsed,
+          aiUseDescription: processRow.aiUseDescription ?? "",
+          meaningfulHumanContribution: processRow.meaningfulHumanContribution,
+          toolsAndSystems: processRow.toolsAndSystems,
+          humanRoles: processRow.humanRoles,
+          aiTools: processRow.aiTools,
+          lyricsUsed: processRow.lyricsUsed,
+          lyricsDetails: processRow.lyricsDetails ?? "",
+          voiceCloneUsed: processRow.voiceCloneUsed,
+          voiceCloneDetails: processRow.voiceCloneDetails ?? "",
+          samplesUsed: processRow.samplesUsed,
+          sampleDetails: processRow.sampleDetails ?? "",
+          sourceMaterialContext: processRow.sourceMaterialContext ?? "",
+          publicSummary: processRow.artistSummary,
+          privateNotes: processRow.privateNotes ?? "",
+        },
+        provenance: {
+          id: provenanceRow.id,
+          version: provenanceRow.version,
+          status: provenanceRow.status,
+          revisionAuthorRole: provenanceRow.revisionAuthorRole,
+          revisionAuthorName: provenanceRow.revisionAuthorName,
+          revisionAuthorEmail: provenanceRow.revisionAuthorEmail,
+          revisionReason: provenanceRow.revisionReason,
+          summary: provenanceRow.summary,
+          publicNotes: provenanceRow.publicNotes ?? "",
+          privateNotes: provenanceRow.privateNotes ?? "",
+          steps,
+          sources,
+        },
+        evidence,
+        activities,
+      });
+    }
+    return aggregates;
+  }
+
+  async function buildAggregate(submissionId: string): Promise<SubmissionAggregate | null> {
+    return (await buildAggregates([submissionId]))[0] ?? null;
   }
 
   async function loadValidInvitationByHash(tokenHash: string, now: Date) {
@@ -1421,13 +1451,12 @@ export function createSubmissionRepository(db: Database): SubmissionRepository {
         .orderBy(desc(submissions.submittedAt), desc(submissions.updatedAt))
         .limit(Math.min(Math.max(filter.limit ?? 100, 1), 101))
         .offset(Math.max(filter.offset ?? 0, 0));
-      const values = await Promise.all(
-        rows.map(async ({ id, claimable }) => {
-          const aggregate = await buildAggregate(id);
-          return aggregate ? { ...aggregate, claimable } : null;
-        }),
-      );
-      return values.filter((value) => value !== null);
+      const aggregates = await buildAggregates(rows.map(({ id }) => id));
+      const byId = new Map(aggregates.map((aggregate) => [aggregate.submission.id, aggregate]));
+      return rows.flatMap(({ id, claimable }) => {
+        const aggregate = byId.get(id);
+        return aggregate ? [{ ...aggregate, claimable }] : [];
+      });
     },
     async findCuratorSubmission(submissionId) {
       return buildAggregate(submissionId);
