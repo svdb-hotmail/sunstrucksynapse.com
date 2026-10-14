@@ -203,6 +203,246 @@ describe("review audio declarations", () => {
 });
 
 describe("review audio finalization", () => {
+  it("does not run application lease work for every audio chunk", async () => {
+    const bucket = new MemoryMediaBucket();
+    const fragmentedBytes = new Uint8Array(1024);
+    const hash = new IncrementalSha256();
+    hash.update(fragmentedBytes);
+    const fragmentedSession = {
+      ...session,
+      byteSize: fragmentedBytes.byteLength,
+      checksumSha256: hash.digestHex(),
+    };
+    bucket.objects.set(session.stagingObjectKey, fragmentedBytes);
+    const get = bucket.get.bind(bucket);
+    vi.spyOn(bucket, "get").mockImplementation(async (key, options) => {
+      const source = await get(key, options);
+      if (!source) return null;
+      let offset = 0;
+      return {
+        ...source,
+        body: new ReadableStream<Uint8Array>({
+          pull(controller) {
+            if (offset === fragmentedBytes.byteLength) controller.close();
+            else controller.enqueue(fragmentedBytes.slice(offset, ++offset));
+          },
+        }),
+      };
+    });
+    const repository = createRepository({
+      claimAudioFinalization: vi.fn(async () => fragmentedSession),
+    });
+    const clock = vi.fn(() => new Date("2026-09-07T12:00:00.000Z"));
+    const service = new ReviewAudioService(repository, { MEDIA_BUCKET: bucket }, clock);
+
+    await expect(service.finalize("token", session.id)).resolves.toMatchObject({ ok: true });
+    expect(clock.mock.calls.length).toBeLessThanOrEqual(4);
+    expect(repository.renewAudioFinalizationLease).toHaveBeenCalledOnce();
+  });
+
+  it("renews the lease while a transfer stalls without receiving a chunk", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-07T12:00:00.000Z"));
+    try {
+      const { bucket, repository } = createFinalization();
+      let sourceController: ReadableStreamDefaultController<Uint8Array>;
+      const get = bucket.get.bind(bucket);
+      vi.spyOn(bucket, "get").mockImplementation(async (key, options) => {
+        const source = await get(key, options);
+        if (!source) return null;
+        return {
+          ...source,
+          body: new ReadableStream<Uint8Array>({
+            start(controller) {
+              sourceController = controller;
+            },
+          }),
+        };
+      });
+      const service = new ReviewAudioService(repository, { MEDIA_BUCKET: bucket });
+      const result = service.finalize("token", session.id);
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(repository.renewAudioFinalizationLease).toHaveBeenCalledOnce();
+      sourceController!.enqueue(bytes);
+      sourceController!.close();
+      await expect(result).resolves.toMatchObject({ ok: true });
+      expect(repository.renewAudioFinalizationLease).toHaveBeenCalledTimes(2);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("aborts a stalled transfer when renewal loses the lease", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-07T12:00:00.000Z"));
+    try {
+      const repository = createRepository({
+        renewAudioFinalizationLease: vi.fn(async () => false),
+      });
+      const { bucket } = createFinalization(new MemoryMediaBucket(), repository);
+      const get = bucket.get.bind(bucket);
+      vi.spyOn(bucket, "get").mockImplementation(async (key, options) => {
+        const source = await get(key, options);
+        return source ? { ...source, body: new ReadableStream<Uint8Array>() } : null;
+      });
+      const result = new ReviewAudioService(repository, { MEDIA_BUCKET: bucket }).finalize(
+        "token",
+        session.id,
+      );
+      await vi.advanceTimersByTimeAsync(30_000);
+      await expect(result).resolves.toMatchObject({ ok: false });
+      expect(repository.completeAudioFinalization).not.toHaveBeenCalled();
+      expect(bucket.objects.has(session.stagingObjectKey)).toBe(true);
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("settles and releases the lease when storage rejects before reading", async () => {
+    const { bucket, repository, service } = createFinalization();
+    bucket.rejectPut = true;
+    await expect(service.finalize("token", session.id)).resolves.toMatchObject({ ok: false });
+    expect(repository.completeAudioFinalization).not.toHaveBeenCalled();
+    expect(repository.releaseAudioFinalization).toHaveBeenCalled();
+  });
+
+  it("releases a lost lease while storage backpressures an in-flight write", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-07T12:00:00.000Z"));
+    try {
+      const repository = createRepository({
+        renewAudioFinalizationLease: vi.fn(async () => false),
+      });
+      const { bucket } = createFinalization(new MemoryMediaBucket(), repository);
+      let resumeStorage: () => void = () => {};
+      const storage = new Promise<void>((resolve) => {
+        resumeStorage = resolve;
+      });
+      const put = bucket.put.bind(bucket);
+      vi.spyOn(bucket, "put").mockImplementation(async (...args) => {
+        await storage;
+        return put(...args);
+      });
+      const deferred: Promise<unknown>[] = [];
+      const service = new ReviewAudioService(
+        repository,
+        { MEDIA_BUCKET: bucket },
+        undefined,
+        (work) => deferred.push(work),
+      );
+      const result = service.finalize("token", session.id);
+      await vi.advanceTimersByTimeAsync(30_000);
+      await expect(result).resolves.toMatchObject({
+        ok: false,
+        message: expect.stringContaining("lease was lost"),
+      });
+      expect(repository.releaseAudioFinalization).toHaveBeenCalledWith(
+        session.id,
+        session.leaseToken,
+        "LEASE_LOST",
+        expect.any(Date),
+      );
+      expect(repository.completeAudioFinalization).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(2 * 60_000);
+      expect(repository.renewAudioFinalizationLease).toHaveBeenCalledOnce();
+      expect(vi.getTimerCount()).toBe(0);
+      resumeStorage();
+      await Promise.all(deferred);
+      expect(bucket.objects.has(session.stagingObjectKey)).toBe(true);
+      expect(bucket.deleted.some((key) => key.startsWith("private/review-audio/final/"))).toBe(
+        true,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("expires a stalled provider commit, releases the lease, and cleans up a late write", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-07T12:00:00.000Z"));
+    try {
+      const { bucket, repository } = createFinalization();
+      let releaseCommit: () => void = () => {};
+      const commit = new Promise<void>((resolve) => {
+        releaseCommit = resolve;
+      });
+      const put = bucket.put.bind(bucket);
+      vi.spyOn(bucket, "put").mockImplementation(async (key, value, options) => {
+        const transferred = new Uint8Array(await new Response(value).arrayBuffer());
+        await commit;
+        return put(
+          key,
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.enqueue(transferred);
+              controller.close();
+            },
+          }),
+          options,
+        );
+      });
+      const deferred: Promise<unknown>[] = [];
+      const service = new ReviewAudioService(
+        repository,
+        { MEDIA_BUCKET: bucket },
+        undefined,
+        (work) => deferred.push(work),
+      );
+      const result = service.finalize("token", session.id);
+      await vi.advanceTimersByTimeAsync(15 * 60_000);
+      await expect(result).resolves.toMatchObject({
+        ok: false,
+        message: expect.stringContaining("timed out"),
+      });
+      expect(repository.releaseAudioFinalization).toHaveBeenCalledWith(
+        session.id,
+        session.leaseToken,
+        "TRANSFER_TIMEOUT",
+        expect.any(Date),
+      );
+      expect(repository.completeAudioFinalization).not.toHaveBeenCalled();
+      const renewals = vi.mocked(repository.renewAudioFinalizationLease).mock.calls.length;
+      await vi.advanceTimersByTimeAsync(5 * 60_000);
+      expect(repository.renewAudioFinalizationLease).toHaveBeenCalledTimes(renewals);
+      expect(vi.getTimerCount()).toBe(0);
+      releaseCommit();
+      await Promise.all(deferred);
+      expect(bucket.objects.has(session.stagingObjectKey)).toBe(true);
+      expect(
+        [...bucket.objects.keys()].some((key) => key.startsWith("private/review-audio/final/")),
+      ).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([bytes.slice(1), new Uint8Array([...bytes, 1])])(
+    "rejects a source whose bytes changed after HEAD",
+    async (changedBytes) => {
+      const { bucket, repository, service } = createFinalization();
+      const get = bucket.get.bind(bucket);
+      vi.spyOn(bucket, "get").mockImplementation(async (key, options) => {
+        const source = await get(key, options);
+        return source
+          ? {
+              ...source,
+              body: new ReadableStream<Uint8Array>({
+                start(controller) {
+                  controller.enqueue(changedBytes);
+                  controller.close();
+                },
+              }),
+            }
+          : null;
+      });
+      await expect(service.finalize("token", session.id)).resolves.toMatchObject({ ok: false });
+      expect(repository.completeAudioFinalization).not.toHaveBeenCalled();
+      expect(repository.releaseAudioFinalization).toHaveBeenCalled();
+    },
+  );
+
   it("seals verified bytes under a lease-fenced key and removes staging", async () => {
     const { bucket, repository, service } = createFinalization();
 

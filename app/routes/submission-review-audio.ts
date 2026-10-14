@@ -18,7 +18,12 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
       { status: 429, headers: { "retry-after": String(rateLimit.retryAfterSeconds) } },
     );
   }
-  const service = new ReviewAudioService(createCurationWorkflowRepository(runtime.db), runtime.env);
+  const service = new ReviewAudioService(
+    createCurationWorkflowRepository(runtime.db),
+    runtime.env,
+    undefined,
+    (work) => runtime.ctx.waitUntil(work),
+  );
   const sessionId = params.sessionId;
   if (sessionId) {
     if (
