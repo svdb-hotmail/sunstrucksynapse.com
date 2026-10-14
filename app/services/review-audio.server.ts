@@ -105,7 +105,18 @@ function createFixedLengthStream(expectedSize: number): {
 } {
   const fixedLengthStream = Reflect.get(globalThis, "FixedLengthStream");
   if (typeof fixedLengthStream === "function") return new fixedLengthStream(expectedSize);
-  const stream = new TransformStream<Uint8Array, Uint8Array>();
+  // Match the native Worker length check in non-Worker tests as well.
+  let bytes = 0;
+  const stream = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      bytes += chunk.byteLength;
+      if (bytes > expectedSize) throw new Error("Uploaded audio exceeds its declared size.");
+      controller.enqueue(chunk);
+    },
+    flush() {
+      if (bytes !== expectedSize) throw new Error("Uploaded audio is incomplete.");
+    },
+  });
   return { readable: stream.readable, writable: stream.writable };
 }
 
@@ -257,44 +268,56 @@ export class ReviewAudioService {
       return renewed;
     };
     const { readable, writable } = createFixedLengthStream(session.byteSize);
-    let streamed = 0;
-    const pump = (async () => {
-      const reader = source.body.getReader();
-      const writer = writable.getWriter();
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          if (value) {
-            if (!(await renewLease())) throw new Error("finalization lease lost");
-            streamed += value.byteLength;
-            if (streamed > session.byteSize) throw new Error("oversized");
-            await writer.write(value);
-          }
-        }
-        await writer.close();
-      } catch (error) {
-        await writer.abort(error);
+    const transfer = new AbortController();
+    let stopped = false;
+    let leaseLost = false;
+    let pendingRenewal = Promise.resolve();
+    // Renew by elapsed time, including while I/O stalls. Running a JS callback
+    // for every R2 chunk exhausted the Worker CPU budget on ordinary WAV files.
+    const leaseTimer = setInterval(() => {
+      pendingRenewal = pendingRenewal
+        .then(async () => {
+          if (stopped) return;
+          if (!(await renewLease(true))) throw new Error("finalization lease lost");
+        })
+        .catch(() => {
+          leaseLost = true;
+          transfer.abort(new Error("finalization lease lost"));
+        });
+    }, REVIEW_AUDIO_FINALIZE_LEASE_RENEWAL_MS);
+    // R2 and FixedLengthStream are native streams: pipe bytes without bringing
+    // each chunk into JS. R2 still verifies SHA-256 before committing the copy.
+    const pump = Promise.resolve().then(() =>
+      source.body.pipeTo(writable, { signal: transfer.signal }),
+    );
+    const put = Promise.resolve()
+      .then(() =>
+        this.env.MEDIA_BUCKET.put(fencedFinalObjectKey, readable, {
+          httpMetadata: { contentType: session.mimeType },
+          customMetadata: {
+            checksumSha256: session.checksumSha256,
+            uploadSessionId: session.id,
+            submissionId: session.submissionId,
+          },
+          sha256: session.checksumSha256,
+        }),
+      )
+      .catch(async (error: unknown) => {
+        transfer.abort(error);
+        // An early storage rejection may never acquire the readable side.
+        // Cancel it too, so a write waiting on backpressure can settle.
+        if (!readable.locked) await readable.cancel(error).catch(() => {});
         throw error;
-      } finally {
-        reader.releaseLock();
-      }
-    })();
-    const put = this.env.MEDIA_BUCKET.put(fencedFinalObjectKey, readable, {
-      httpMetadata: { contentType: session.mimeType },
-      customMetadata: {
-        checksumSha256: session.checksumSha256,
-        uploadSessionId: session.id,
-        submissionId: session.submissionId,
-      },
-      sha256: session.checksumSha256,
-    });
+      });
     const [putResult, pumpResult] = await Promise.allSettled([put, pump]);
-    if (
-      putResult.status === "rejected" ||
-      pumpResult.status === "rejected" ||
-      streamed !== session.byteSize
-    ) {
+    stopped = true;
+    clearInterval(leaseTimer);
+    await pendingRenewal;
+    if (leaseLost) {
+      await cleanupFencedFinal();
+      return fail("Audio finalization lease was lost. Try uploading again.", "LEASE_LOST");
+    }
+    if (putResult.status === "rejected" || pumpResult.status === "rejected") {
       await cleanupFencedFinal();
       return fail("Audio verification failed. Upload the file again.", "VERIFICATION_FAILED");
     }
