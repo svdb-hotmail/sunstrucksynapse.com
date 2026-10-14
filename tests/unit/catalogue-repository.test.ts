@@ -27,6 +27,27 @@ describe("catalogue repository", () => {
     await client.close();
   });
 
+  it("uses the selected video's duration for published video tracks", async () => {
+    const [video] = (
+      await client.query<{ id: string; track_id: string; duration_ms: number | null }>(
+        "select id,track_id,duration_ms from video_assets where is_primary=true limit 1",
+      )
+    ).rows;
+    await client.query("update video_assets set duration_ms=90000 where id=$1", [video.id]);
+    try {
+      const track = (await repository.listPublishedTracks()).find(
+        (item) => item.id === video.track_id,
+      );
+      expect(track?.mediaKind).toBe("video");
+      expect(track?.durationMs).toBe(90000);
+    } finally {
+      await client.query("update video_assets set duration_ms=$1 where id=$2", [
+        video.duration_ms,
+        video.id,
+      ]);
+    }
+  });
+
   it("returns the five rights-cleared production tracks with track-specific media and artwork", async () => {
     const items = await repository.listPublishedTracks();
 

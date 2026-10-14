@@ -36,6 +36,7 @@ interface CatalogueItemBase {
     href: string;
   };
   href: string;
+  durationMs?: number;
   artwork: Artwork;
   description: DescriptiveText;
   discovery?: {
@@ -74,6 +75,7 @@ export interface PlayerState {
 }
 
 export interface QueueEntry {
+  albumId?: string;
   itemId: CatalogueItem["id"];
   title: string;
   subtitle: string;
@@ -93,6 +95,8 @@ export interface PlayerOutletContext {
   selectItem: (item: CatalogueItem) => void;
   queueItem: (item: CatalogueItem, collectionId?: string) => void;
   playItem: (item: CatalogueItem, collectionId?: string) => void;
+  playAlbum?: (tracks: CatalogueItem[]) => void;
+  queueAlbum?: (tracks: CatalogueItem[]) => void;
 }
 
 export interface PublicArtist {

@@ -4,4 +4,4 @@ export const SITE_MARK = "SS";
 export const SITE_SHORT_NAME = "SunSyn";
 export const SITE_DESCRIPTION =
   "SunSyn Radio is a human-curated listening destination for intentional AI-assisted music.";
-export const SITE_URL = "https://sunsyn.art";
+export const SITE_URL = "https://sunstrucksynapse.com";

@@ -7,11 +7,14 @@ interface PersistedPlayer {
   version: 1;
   selectedItemId: string | null;
   queueItemIds: string[];
+  playbackScope?: string[];
+  queueAlbums?: Record<string, string>;
 }
 
 export interface RestoredPlayer {
   selectedItemId: string | null;
   queue: QueueEntry[];
+  playbackScope?: string[];
 }
 
 export interface StorageRestoreResult {
@@ -19,11 +22,23 @@ export interface StorageRestoreResult {
   persistenceAvailable: boolean;
 }
 
-export function serializePlayerState(selectedItemId: string | null, queue: QueueEntry[]): string {
+export function serializePlayerState(
+  selectedItemId: string | null,
+  queue: QueueEntry[],
+  playbackScope?: string[] | null,
+): string {
   const value: PersistedPlayer = {
     version: 1,
     selectedItemId,
     queueItemIds: queue.map((entry) => entry.itemId),
+    ...(playbackScope ? { playbackScope } : {}),
+    ...(queue.some((entry) => entry.albumId)
+      ? {
+          queueAlbums: Object.fromEntries(
+            queue.filter((entry) => entry.albumId).map((entry) => [entry.itemId, entry.albumId!]),
+          ),
+        }
+      : {}),
   };
   return JSON.stringify(value);
 }
@@ -57,12 +72,32 @@ export function restorePlayerState(
     const queue = (Reflect.get(value, "queueItemIds") as unknown[]).reduce<QueueEntry[]>(
       (entries, itemId) => {
         const item = typeof itemId === "string" ? itemsById.get(itemId) : undefined;
-        return item ? addQueueItem(entries, item) : entries;
+        if (!item) return entries;
+        const next = addQueueItem(entries, item);
+        const albums = Reflect.get(value, "queueAlbums");
+        const albumId = albums && typeof albums === "object" ? Reflect.get(albums, item.id) : null;
+        return albumId === item.release.id
+          ? next.map((entry) => (entry.itemId === item.id ? { ...entry, albumId } : entry))
+          : next;
       },
       [],
     );
 
-    return { selectedItemId: restoredSelectedItemId, queue };
+    const rawScope = Reflect.get(value, "playbackScope");
+    const scope = Array.isArray(rawScope)
+      ? [
+          ...new Set(
+            rawScope.filter(
+              (id): id is string => typeof id === "string" && Boolean(itemsById.get(id)?.media),
+            ),
+          ),
+        ]
+      : null;
+    return {
+      selectedItemId: restoredSelectedItemId,
+      queue,
+      ...(scope?.includes(restoredSelectedItemId ?? "") ? { playbackScope: scope } : {}),
+    };
   } catch {
     return { selectedItemId: defaultItemId, queue: [] };
   }
@@ -97,13 +132,14 @@ export function persistPlayerToStorage(
   storage: Pick<Storage, "setItem"> | null,
   selectedItemId: string | null,
   queue: QueueEntry[],
+  playbackScope?: string[] | null,
 ): boolean {
   if (!storage) {
     return false;
   }
 
   try {
-    storage.setItem(PLAYER_STORAGE_KEY, serializePlayerState(selectedItemId, queue));
+    storage.setItem(PLAYER_STORAGE_KEY, serializePlayerState(selectedItemId, queue, playbackScope));
     return true;
   } catch {
     return false;

@@ -209,7 +209,7 @@ test("serves canonical artist, release and track pages with global-player action
   ).toBeVisible();
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     "href",
-    "https://sunsyn.art/releases/phase-zero-transmissions",
+    "https://sunstrucksynapse.com/releases/phase-zero-transmissions",
   );
 
   await page.goto("/tracks/phase-zero-transmissions/revolution-will-be-televised");

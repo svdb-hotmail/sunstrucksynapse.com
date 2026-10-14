@@ -6,6 +6,7 @@ import {
   findAdjacentPlayableItem,
   findNextPlayableQueueEntry,
   removeQueueItem,
+  queuedPlaybackScope,
 } from "../../app/utils/queue";
 import { makeCatalogueItem } from "../fixtures/catalogue";
 
@@ -97,4 +98,55 @@ describe("queue operations", () => {
     expect(findAdjacentPlayableItem(items, first.id, -1)).toBeUndefined();
     expect(findAdjacentPlayableItem(items, third.id, 1)).toBeUndefined();
   });
+});
+
+import { albumQueue, appendAlbumQueue } from "../../app/utils/queue";
+describe("ordered album queue", () => {
+  it("keeps tracks removed before an album starts out of automatic playback scope", () => {
+    const tracks = ["a", "b", "c"].map((id) => makeCatalogueItem(id));
+    const surviving = removeQueueItem(albumQueue(tracks), "c");
+    const scope = queuedPlaybackScope(surviving, surviving[0], null);
+    expect(scope).toEqual(["a", "b"]);
+    const afterFirst = removeQueueItem(surviving, "a");
+    expect(queuedPlaybackScope(afterFirst, afterFirst[0], scope)).toEqual(["a", "b"]);
+    expect(
+      findAdjacentPlayableItem(
+        tracks.filter((track) => scope?.includes(track.id)),
+        "b",
+        1,
+      ),
+    ).toBeUndefined();
+  });
+  it("preserves edited scope when a queued album entry is selected manually", () => {
+    const entries = albumQueue(["a", "b"].map((id) => makeCatalogueItem(id)));
+    const editedScope = ["a", "b"];
+    expect(queuedPlaybackScope(entries, entries[1], editedScope)).toBe(editedScope);
+    expect(queuedPlaybackScope(entries, entries[1], null)).toEqual(["b", "a"]);
+  });
+  it("uses album order even when global catalogue order differs, and excludes unavailable media", () => {
+    const first = makeCatalogueItem("album-second"),
+      second = makeCatalogueItem("album-first");
+    const queue = albumQueue([
+      first,
+      makeCatalogueItem("missing", { media: false }),
+      second,
+      first,
+    ]);
+    expect(queue.map((entry) => entry.itemId)).toEqual([first.id, second.id]);
+    expect(queue.every((entry) => entry.albumId === first.release.id)).toBe(true);
+    expect(findAdjacentPlayableItem([first, second], second.id, 1)).toBeUndefined();
+    expect(findAdjacentPlayableItem([first, second], second.id, -1)?.id).toBe(first.id);
+  });
+});
+
+it("appends a complete album in order even when some album tracks were already queued", () => {
+  const first = makeCatalogueItem("first"),
+    second = makeCatalogueItem("second"),
+    outside = makeCatalogueItem("outside");
+  const existing = addQueueItem(addQueueItem([], second), outside);
+  expect(appendAlbumQueue(existing, [first, second]).map((entry) => entry.itemId)).toEqual([
+    outside.id,
+    first.id,
+    second.id,
+  ]);
 });

@@ -68,3 +68,15 @@ describe("player persistence", () => {
     expect(persistPlayerToStorage(storage, second.id, addQueueItem([], first))).toBe(false);
   });
 });
+
+it("retains the album scope and queue attribution across a reload", () => {
+  const first = makeCatalogueItem("album-one"),
+    second = makeCatalogueItem("album-two");
+  const queue = addQueueItem([], second).map((entry) => ({ ...entry, albumId: second.release.id }));
+  const stored = serializePlayerState(first.id, queue, [first.id, second.id]);
+  expect(restorePlayerState(stored, [first, second], first.id)).toEqual({
+    selectedItemId: first.id,
+    queue,
+    playbackScope: [first.id, second.id],
+  });
+});

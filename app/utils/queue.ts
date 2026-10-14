@@ -55,3 +55,38 @@ export function findAdjacentPlayableItem(
 
   return undefined;
 }
+
+/** Preserve the release query's order; never use the global catalogue as an album. */
+export function albumQueue(tracks: CatalogueItem[]): QueueEntry[] {
+  return tracks.reduce<QueueEntry[]>((entries, item) => {
+    const next = addQueueItem(entries, item);
+    return next === entries
+      ? entries
+      : next.map((entry) =>
+          entry.itemId === item.id ? { ...entry, albumId: item.release.id } : entry,
+        );
+  }, []);
+}
+
+/** Re-queueing an album moves its complete ordered block to the end. */
+export function appendAlbumQueue(current: QueueEntry[], tracks: CatalogueItem[]): QueueEntry[] {
+  const album = albumQueue(tracks);
+  const ids = new Set(album.map((entry) => entry.itemId));
+  return [...current.filter((entry) => !ids.has(entry.itemId)), ...album];
+}
+
+/** Enter an album using the listener's surviving queue, preserving edits to an active scope. */
+export function queuedPlaybackScope(
+  entries: QueueEntry[],
+  selected: QueueEntry,
+  currentScope: string[] | null,
+): string[] | null {
+  if (!selected.albumId) return null;
+  if (currentScope?.includes(selected.itemId)) return currentScope;
+  return [
+    selected.itemId,
+    ...entries
+      .filter((entry) => entry.albumId === selected.albumId && entry.itemId !== selected.itemId)
+      .map((entry) => entry.itemId),
+  ];
+}

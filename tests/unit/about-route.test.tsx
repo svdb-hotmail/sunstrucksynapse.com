@@ -65,7 +65,7 @@ describe("about route composition", () => {
   });
 
   it("keeps Offerings and Contact off the home route", () => {
-    const markup = renderRoute(<Home />);
+    const markup = renderRoute(<Home loaderData={{ albums: [] }} />);
 
     expect(markup).not.toContain('id="about"');
     expect(markup).not.toContain('id="contact"');
