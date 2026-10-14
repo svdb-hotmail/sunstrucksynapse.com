@@ -273,6 +273,10 @@ export class ReviewAudioService {
     let stopped = false;
     let leaseLost = false;
     let pendingRenewal = Promise.resolve();
+    let stopForLeaseLoss: () => void = () => {};
+    const leaseLoss = new Promise<"lease_lost">((resolve) => {
+      stopForLeaseLoss = () => resolve("lease_lost");
+    });
     // Renew by elapsed time, including while I/O stalls. Running a JS callback
     // for every R2 chunk exhausted the Worker CPU budget on ordinary WAV files.
     const leaseTimer = setInterval(() => {
@@ -283,7 +287,12 @@ export class ReviewAudioService {
         })
         .catch(() => {
           leaseLost = true;
-          transfer.abort(new Error("finalization lease lost"));
+          stopped = true;
+          clearInterval(leaseTimer);
+          const error = new Error("finalization lease lost");
+          transfer.abort(error);
+          if (!readable.locked) void readable.cancel(error).catch(() => {});
+          stopForLeaseLoss();
         });
     }, REVIEW_AUDIO_FINALIZE_LEASE_RENEWAL_MS);
     // R2 and FixedLengthStream are native streams: pipe bytes without bringing
@@ -311,30 +320,32 @@ export class ReviewAudioService {
         throw error;
       });
     let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
-    const deadline = new Promise<null>((resolve) => {
+    const deadline = new Promise<"timed_out">((resolve) => {
       deadlineTimer = setTimeout(
         () => {
           const error = new Error("Audio transfer deadline reached.");
           transfer.abort(error);
           if (!readable.locked) void readable.cancel(error).catch(() => {});
-          resolve(null);
+          resolve("timed_out");
         },
         Math.max(0, session.expiresAt.getTime() - this.clock().getTime()),
       );
     });
     const transferResult = Promise.allSettled([put, pump]);
-    const results = await Promise.race([transferResult, deadline]);
+    const results = await Promise.race([transferResult, deadline, leaseLoss]);
     stopped = true;
     clearInterval(leaseTimer);
     clearTimeout(deadlineTimer);
     await pendingRenewal;
-    if (results === null) {
+    if (typeof results === "string") {
       // A provider commit can remain pending even after its body is aborted.
       // Release the lease now; remove any late fenced write when it settles.
       const cleanup = transferResult.then(cleanupFencedFinal);
       if (this.defer) this.defer(cleanup);
       else void cleanup;
-      return fail("Audio verification timed out. Try upload again.", "TRANSFER_TIMEOUT");
+      return results === "timed_out"
+        ? fail("Audio verification timed out. Try upload again.", "TRANSFER_TIMEOUT")
+        : fail("Audio finalization lease was lost. Try upload again.", "LEASE_LOST");
     }
     const [putResult, pumpResult] = results;
     if (leaseLost) {

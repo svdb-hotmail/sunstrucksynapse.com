@@ -308,6 +308,57 @@ describe("review audio finalization", () => {
     expect(repository.releaseAudioFinalization).toHaveBeenCalled();
   });
 
+  it("releases a lost lease while storage backpressures an in-flight write", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-09-07T12:00:00.000Z"));
+    try {
+      const repository = createRepository({
+        renewAudioFinalizationLease: vi.fn(async () => false),
+      });
+      const { bucket } = createFinalization(new MemoryMediaBucket(), repository);
+      let resumeStorage: () => void = () => {};
+      const storage = new Promise<void>((resolve) => {
+        resumeStorage = resolve;
+      });
+      const put = bucket.put.bind(bucket);
+      vi.spyOn(bucket, "put").mockImplementation(async (...args) => {
+        await storage;
+        return put(...args);
+      });
+      const deferred: Promise<unknown>[] = [];
+      const service = new ReviewAudioService(
+        repository,
+        { MEDIA_BUCKET: bucket },
+        undefined,
+        (work) => deferred.push(work),
+      );
+      const result = service.finalize("token", session.id);
+      await vi.advanceTimersByTimeAsync(30_000);
+      await expect(result).resolves.toMatchObject({
+        ok: false,
+        message: expect.stringContaining("lease was lost"),
+      });
+      expect(repository.releaseAudioFinalization).toHaveBeenCalledWith(
+        session.id,
+        session.leaseToken,
+        "LEASE_LOST",
+        expect.any(Date),
+      );
+      expect(repository.completeAudioFinalization).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(2 * 60_000);
+      expect(repository.renewAudioFinalizationLease).toHaveBeenCalledOnce();
+      expect(vi.getTimerCount()).toBe(0);
+      resumeStorage();
+      await Promise.all(deferred);
+      expect(bucket.objects.has(session.stagingObjectKey)).toBe(true);
+      expect(bucket.deleted.some((key) => key.startsWith("private/review-audio/final/"))).toBe(
+        true,
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("expires a stalled provider commit, releases the lease, and cleans up a late write", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-09-07T12:00:00.000Z"));
