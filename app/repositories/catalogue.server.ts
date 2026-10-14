@@ -41,7 +41,10 @@ export interface CatalogueRepository {
   listPublishedCollections(publishedItems?: CatalogueItem[]): Promise<PublicEditorialCollection[]>;
   findPublishedCollection(slug: string): Promise<PublicEditorialCollection | null>;
   findPublishedArtist(slug: string): Promise<PublicArtist | null>;
-  findPublishedRelease(slug: string): Promise<PublicRelease | null>;
+  findPublishedRelease(
+    slug: string,
+    publishedItems?: CatalogueItem[],
+  ): Promise<PublicRelease | null>;
   findPublishedTrack(releaseSlug: string, trackSlug: string): Promise<PublicTrack | null>;
   findPublicTrackDisclosure(
     releaseSlug: string,
@@ -77,6 +80,7 @@ interface PublishedTrackRow {
   audioDurationMs?: number | null;
   videoObjectKey: string | null;
   videoMimeType: string | null;
+  videoDurationMs?: number | null;
 }
 
 function publicAssetPath(objectKey: string): string {
@@ -129,7 +133,7 @@ export function mapPublishedTracks(rows: PublishedTrackRow[]): CatalogueItem[] {
       release,
       href: `/tracks/${row.releaseSlug}/${row.trackSlug}`,
       artwork,
-      durationMs: row.audioDurationMs ?? undefined,
+      durationMs: (mediaKind === "video" ? row.videoDurationMs : row.audioDurationMs) ?? undefined,
       description: {
         title: row.trackTitle,
         subtitle: `${row.releaseTitle} · ${row.artistName}`,
@@ -317,6 +321,7 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         audioDurationMs: audioAssets.durationMs,
         videoObjectKey: videoAssets.objectKey,
         videoMimeType: videoAssets.mimeType,
+        videoDurationMs: videoAssets.durationMs,
       })
       .from(tracks)
       .innerJoin(releases, eq(releases.id, tracks.releaseId))
@@ -769,7 +774,7 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         tracks: items.filter((item) => creditedTrackIds.has(item.id)),
       };
     },
-    async findPublishedRelease(slug) {
+    async findPublishedRelease(slug, publishedItems) {
       const releaseRows = await db
         .select({
           id: releases.id,
@@ -817,7 +822,7 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         return null;
       }
 
-      const items = mapPublishedTracks(await readPublishedRows()).filter(
+      const items = (publishedItems ?? (await listPublishedTracks())).filter(
         (item) => item.release.id === release.id,
       );
       const artworkSrc = await artworkPath(

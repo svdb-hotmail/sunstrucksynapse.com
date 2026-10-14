@@ -39,6 +39,7 @@ import {
   appendAlbumQueue,
   findAdjacentPlayableItem,
   findNextPlayableQueueEntry,
+  queuedPlaybackScope,
   removeQueueItem,
 } from "~/utils/queue";
 
@@ -223,19 +224,13 @@ export default function App() {
       const item = itemsById.get(entry.itemId);
       setQueue((current) => removeQueueItem(current, entry.itemId));
       if (item?.media) {
-        setPlaybackScope(
-          entry.albumId
-            ? catalogueItems
-                .filter((track) => track.release.id === entry.albumId && track.media)
-                .map((track) => track.id)
-            : null,
-        );
+        setPlaybackScope(queuedPlaybackScope(queue, entry, playbackScope));
         requestPlayback(item, true, entry.collectionId);
       } else if (item) {
         selectItem(item);
       }
     },
-    [catalogueItems, itemsById, requestPlayback, selectItem],
+    [itemsById, playbackScope, queue, requestPlayback, selectItem],
   );
 
   const advancePlayback = useCallback(
@@ -245,15 +240,7 @@ export default function App() {
         const queuedItem = itemsById.get(nextQueued.itemId);
         setQueue((current) => removeQueueItem(current, nextQueued.itemId));
         if (queuedItem) {
-          setPlaybackScope(
-            nextQueued.albumId
-              ? playbackScope?.includes(nextQueued.itemId)
-                ? playbackScope
-                : catalogueItems
-                    .filter((track) => track.release.id === nextQueued.albumId && track.media)
-                    .map((track) => track.id)
-              : null,
-          );
+          setPlaybackScope(queuedPlaybackScope(queue, nextQueued, playbackScope));
           requestPlayback(queuedItem, moveFocus, nextQueued.collectionId);
         }
         return;

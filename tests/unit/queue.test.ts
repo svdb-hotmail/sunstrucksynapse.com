@@ -6,6 +6,7 @@ import {
   findAdjacentPlayableItem,
   findNextPlayableQueueEntry,
   removeQueueItem,
+  queuedPlaybackScope,
 } from "../../app/utils/queue";
 import { makeCatalogueItem } from "../fixtures/catalogue";
 
@@ -101,6 +102,27 @@ describe("queue operations", () => {
 
 import { albumQueue, appendAlbumQueue } from "../../app/utils/queue";
 describe("ordered album queue", () => {
+  it("keeps tracks removed before an album starts out of automatic playback scope", () => {
+    const tracks = ["a", "b", "c"].map((id) => makeCatalogueItem(id));
+    const surviving = removeQueueItem(albumQueue(tracks), "c");
+    const scope = queuedPlaybackScope(surviving, surviving[0], null);
+    expect(scope).toEqual(["a", "b"]);
+    const afterFirst = removeQueueItem(surviving, "a");
+    expect(queuedPlaybackScope(afterFirst, afterFirst[0], scope)).toEqual(["a", "b"]);
+    expect(
+      findAdjacentPlayableItem(
+        tracks.filter((track) => scope?.includes(track.id)),
+        "b",
+        1,
+      ),
+    ).toBeUndefined();
+  });
+  it("preserves edited scope when a queued album entry is selected manually", () => {
+    const entries = albumQueue(["a", "b"].map((id) => makeCatalogueItem(id)));
+    const editedScope = ["a", "b"];
+    expect(queuedPlaybackScope(entries, entries[1], editedScope)).toBe(editedScope);
+    expect(queuedPlaybackScope(entries, entries[1], null)).toEqual(["b", "a"]);
+  });
   it("uses album order even when global catalogue order differs, and excludes unavailable media", () => {
     const first = makeCatalogueItem("album-second"),
       second = makeCatalogueItem("album-first");

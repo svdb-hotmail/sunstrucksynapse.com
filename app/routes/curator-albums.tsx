@@ -1,6 +1,5 @@
 import { sql } from "drizzle-orm";
-import { SITE_URL } from "~/config/brand";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   Link,
   useFetcher,
@@ -153,7 +152,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
         );
       const slug = await repository.publish(releaseId, identity);
       return Response.json(
-        { albumId: releaseId, publicUrl: `${SITE_URL}/releases/${slug}` },
+        { albumId: releaseId, publicUrl: `/releases/${slug}` },
         { headers: { "cache-control": "no-store" } },
       );
     } else throw new Error("Unsupported album action.");
@@ -194,7 +193,13 @@ export function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<ty
   const [sharedProcess, setSharedProcess] = useState("");
   const [metadataNotice, setMetadataNotice] = useState("");
   const [confirmed, setConfirmed] = useState(false);
-  const busy = fetcher.state !== "idle" || artist.state !== "idle";
+  const [activeUploads, setActiveUploads] = useState<string[]>([]);
+  const reportUpload = useCallback((id: string, active: boolean) => {
+    setActiveUploads((ids) =>
+      active ? [...new Set([...ids, id])] : ids.filter((value) => value !== id),
+    );
+  }, []);
+  const busy = fetcher.state !== "idle" || artist.state !== "idle" || activeUploads.length > 0;
   useEffect(() => {
     if (artist.state === "idle" && artist.data?.artistId) setArtistId(artist.data.artistId);
   }, [artist.state, artist.data]);
@@ -208,7 +213,7 @@ export function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<ty
       tracks.map((t) => ({
         id: t.id,
         title: t.title,
-        genre: t.genre ?? "",
+        genre: (t.genre ?? "").trim(),
         moods: t.moods,
         processTags: t.processTags,
       })),
@@ -328,13 +333,16 @@ export function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<ty
           One submission per track for this launch. Accepted declarations and review links stay
           pinned.
         </p>
+        {data.albumId ? (
+          <p>Saved tracks stay in this album. Add more tracks or adjust their order below.</p>
+        ) : null}
         {data.tracks
           .filter((t) => t.accepted)
           .map((t) => (
             <label key={t.id}>
               <input
                 type="checkbox"
-                disabled={busy}
+                disabled={busy || (Boolean(data.albumId) && t.releaseId === data.albumId)}
                 checked={selected.some((s) => s.id === t.id)}
                 onChange={(e) =>
                   setSelected((rows) =>
@@ -473,6 +481,7 @@ export function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<ty
                 <PublicMediaUpload
                   kind="audio"
                   disabled={busy}
+                  onBusyChange={(active) => reportUpload(track.id, active)}
                   targetId={track.id}
                   label={`Public listening file for ${track.title}`}
                 />
@@ -512,6 +521,7 @@ export function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<ty
           <PublicMediaUpload
             kind="artwork"
             disabled={busy}
+            onBusyChange={(active) => reportUpload("album-cover", active)}
             targetId={data.albumId}
             label="One public album cover"
           />

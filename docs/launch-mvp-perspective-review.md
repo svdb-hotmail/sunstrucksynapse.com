@@ -1,6 +1,6 @@
 # MVP review from each role
 
-This is the primary implementer's critical review under the maintainer's recorded SOLO exception, not an independent Village review or release approval. All PRs remain Draft. The live catalogue is test content; it was preserved.
+This is the primary implementer's critical review under the maintainer's recorded SOLO exception, not an independent Village review or release approval. The maintainer authorized Ready, merge and production deployment on 14 October 2026, retaining their own production E2E validation. The live catalogue is test content; it was preserved.
 
 - Artist: private invitation, saved details, in-place private upload, explicit Submit and visible status/questions. Submit no longer depends on hidden required fields. Internal grades, notes, actor IDs and audit metadata are excluded. Chromium draft/no-audio/privacy and focused service checks pass.
 - Curator: compact server-searched queue, selected context/private rights, private audition, exclusive claim, four assessments plus explicit grade/rationale, retained browser draft, finalize/next and native question dialog. Real score controls have usable hit targets. Chromium invitation/review/draft/modal/finalize and focused workflow/route/service checks pass.
@@ -21,3 +21,7 @@ The first submission/upload, private audition, rationale restoration after reloa
 No production database, media, secret, policy or Worker deployment was changed. Only the maintainer may mark Ready/merge. Merge #88 and #85, then retarget/verify/merge #86 and #87 in order; the existing main-base, Ready-gated broad workflow remains intact. Verify the approved production build, actual database target, signed-in curator upload and signed-out listening before calling this a real launch. The maintainer supplies and personally curates their real album through the implemented flow.
 
 When execution resumes, fetch the pushed branch heads before editing. Stop any remaining temporary test process and remove `/tmp/sunsyn-mvp.env`; cleanup could not be confirmed after the runtime interruption. Do not reuse in-memory R2 records from the interrupted server as proof of stored media. Resume the connected browser journey in a fresh isolated target, preserving existing test databases and production content. There is no new migration.
+
+## Ready review corrections, 14 October 2026
+
+The dependency and curator PRs passed their required full workflow and merged. Publisher review corrections are in `docs/launch-album-mvp-review.md`. Listener scope now uses surviving queue entries and preserves an edited active scope; manual selection and automatic advancement cannot recreate removed album tracks from the catalogue. Album shelf presentation uses the public release cover and all release credits; public track records are reused across release lookups. Displayed video duration comes from the selected video asset. Thirty-eight focused queue, catalogue, homepage and navigation/about cases, strict TypeScript and touched-source ESLint pass. These are focused regressions, not the maintainer's production E2E. No production submission, review, album or media was manufactured for verification.

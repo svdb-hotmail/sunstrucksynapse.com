@@ -61,7 +61,7 @@ function renderHome(catalogue: CatalogueLoadResult): string {
     <MemoryRouter>
       <Routes>
         <Route element={<Outlet context={context} />}>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Home loaderData={{ albums: [] }} />} />
         </Route>
       </Routes>
     </MemoryRouter>,

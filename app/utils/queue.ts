@@ -74,3 +74,19 @@ export function appendAlbumQueue(current: QueueEntry[], tracks: CatalogueItem[])
   const ids = new Set(album.map((entry) => entry.itemId));
   return [...current.filter((entry) => !ids.has(entry.itemId)), ...album];
 }
+
+/** Enter an album using the listener's surviving queue, preserving edits to an active scope. */
+export function queuedPlaybackScope(
+  entries: QueueEntry[],
+  selected: QueueEntry,
+  currentScope: string[] | null,
+): string[] | null {
+  if (!selected.albumId) return null;
+  if (currentScope?.includes(selected.itemId)) return currentScope;
+  return [
+    selected.itemId,
+    ...entries
+      .filter((entry) => entry.albumId === selected.albumId && entry.itemId !== selected.itemId)
+      .map((entry) => entry.itemId),
+  ];
+}
