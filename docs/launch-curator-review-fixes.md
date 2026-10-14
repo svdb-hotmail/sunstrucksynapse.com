@@ -18,7 +18,7 @@ The artist sees explicit received/review/clarification/accepted/declined/withdra
 
 Actual Chromium verification now passes invitation creation, private review claim, scoring, native clarification dialog focus/Escape/restoration, retained rationale through reload, finalization/next and the artist draft/no-audio/privacy journey. Broad CI remains maintainer Ready-gated. These local browser checks use the explicit test identity and fixtures, not production Access.
 
-Receipt and clarification notifications now run under Worker waitUntil after the durable submission/question succeeds. A missing or failed email provider cannot turn a saved question into a failed action; the curator sees a delivery warning and the artist can read it through their private link. Postmark requests have a ten-second timeout. Focused service/workspace checks pass (10 cases), including saved clarification on delivery failure; strict TypeScript passes.
+Receipt notifications run under Worker waitUntil after durable submission. Clarification delivery waits for the bounded provider request so its outcome reaches the curator before advancing. A missing or failed email provider cannot turn a saved question into a failed action; the curator sees a delivery warning and the artist can read it through their private link. Postmark requests have a ten-second timeout. Focused service/workspace checks pass (10 cases), including saved clarification on delivery failure; strict TypeScript passes.
 
 The maintainer clarified that the currently live catalogue is test content. It was preserved; this does not constitute a real first album launch.
 
@@ -37,3 +37,7 @@ ESLint, formatting and the application test build pass. New browser execution is
 this recovery runtime's socket restrictions; the earlier Chromium/WebKit evidence remains
 separate. Connected Neon route verification continues in `launch_recovery_20261012` on the
 existing isolated verification branch. Production records and deployment are unchanged.
+
+## Production testing authorization and delivery review
+
+On 14 October 2026 the maintainer authorized Ready, merge to main and deployment for their own production E2E validation. The solo exception remains active. A new review finding showed that configured email was incorrectly treated as delivered when a deferred clarification send failed. Clarification now awaits the existing ten-second-bounded provider call, returns actual delivery status and exposes a failed-delivery warning while preserving the saved question and next-item recovery. Receipt notifications remain background work. Service and production-action regressions cover configured provider failure even when a background scheduler is available. No migration or production content is needed.
