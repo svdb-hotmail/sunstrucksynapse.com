@@ -144,6 +144,7 @@ export class ReviewAudioService {
     private readonly repository: ReviewAudioRepository,
     private readonly env: ReviewAudioEnv,
     private readonly clock: () => Date = () => new Date(),
+    private readonly defer?: (work: Promise<unknown>) => void,
   ) {}
 
   async createUpload(
@@ -309,10 +310,33 @@ export class ReviewAudioService {
         if (!readable.locked) await readable.cancel(error).catch(() => {});
         throw error;
       });
-    const [putResult, pumpResult] = await Promise.allSettled([put, pump]);
+    let deadlineTimer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<null>((resolve) => {
+      deadlineTimer = setTimeout(
+        () => {
+          const error = new Error("Audio transfer deadline reached.");
+          transfer.abort(error);
+          if (!readable.locked) void readable.cancel(error).catch(() => {});
+          resolve(null);
+        },
+        Math.max(0, session.expiresAt.getTime() - this.clock().getTime()),
+      );
+    });
+    const transferResult = Promise.allSettled([put, pump]);
+    const results = await Promise.race([transferResult, deadline]);
     stopped = true;
     clearInterval(leaseTimer);
+    clearTimeout(deadlineTimer);
     await pendingRenewal;
+    if (results === null) {
+      // A provider commit can remain pending even after its body is aborted.
+      // Release the lease now; remove any late fenced write when it settles.
+      const cleanup = transferResult.then(cleanupFencedFinal);
+      if (this.defer) this.defer(cleanup);
+      else void cleanup;
+      return fail("Audio verification timed out. Try upload again.", "TRANSFER_TIMEOUT");
+    }
+    const [putResult, pumpResult] = results;
     if (leaseLost) {
       await cleanupFencedFinal();
       return fail("Audio finalization lease was lost. Try uploading again.", "LEASE_LOST");
