@@ -1,7 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ActionFunctionArgs } from "react-router";
 import { action } from "../../app/routes/curator-submissions";
-import { createE2eSubmissionRepository } from "../../app/repositories/submissions-fixture.server";
+import {
+  createE2eSubmissionRepository,
+  e2eReviewSubmissionId,
+} from "../../app/repositories/submissions-fixture.server";
 
 vi.mock("../../app/services/access-auth.server", () => ({
   requireCuratorIdentity: async () => ({
@@ -11,6 +14,52 @@ vi.mock("../../app/services/access-auth.server", () => ({
 }));
 
 describe("durable review result", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("returns the saved question and a visible warning when configured email delivery fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 503 })));
+    const repository = createE2eSubmissionRepository();
+    const runtime = {
+      submissionRepository: repository,
+      curatorRepository: {},
+      env: {
+        POSTMARK_SERVER_TOKEN: "synthetic-provider-token",
+        TRANSACTIONAL_EMAIL_FROM: "sender@example.test",
+      },
+      curationWorkflowRepository: { claimNextSubmission: vi.fn().mockResolvedValue(null) },
+    };
+    const form = new FormData();
+    for (const [key, value] of Object.entries({
+      intent: "clarify",
+      workspace: "1",
+      submissionId: e2eReviewSubmissionId,
+      claimKey: "rights.authorityBasis",
+      message: "Please clarify permission.",
+    }))
+      form.set(key, value);
+    const response = await action({
+      request: new Request("https://example.test/curator/submissions", {
+        method: "POST",
+        body: form,
+      }),
+      context: { get: () => runtime },
+      params: {},
+    } as unknown as ActionFunctionArgs);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      clarifiedId: e2eReviewSubmissionId,
+      notificationWarning: expect.stringContaining("email delivery failed"),
+    });
+    const saved = await repository.findCuratorSubmission(e2eReviewSubmissionId);
+    expect(saved?.activities).toEqual(
+      expect.arrayContaining([expect.objectContaining({ message: "Please clarify permission." })]),
+    );
+  });
+
   it("returns saved decision even when claiming the following item fails", async () => {
     const finalizeReview = vi.fn().mockResolvedValue({ status: "accepted" });
     const runtime = {

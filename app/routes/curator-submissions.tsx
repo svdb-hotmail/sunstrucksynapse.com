@@ -278,9 +278,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
         {
           clarifiedId: submissionId,
           ...(await claimFollowing(workflow, auth)),
-          notificationWarning: result.notificationConfigured
+          notificationWarning: result.notificationDelivered
             ? undefined
-            : "Question saved. Email is not configured; the artist can read it through their existing submission link.",
+            : result.notificationConfigured
+              ? "Question saved, but email delivery failed. Follow up with the artist using their private submission link."
+              : "Question saved. Email is not configured; the artist can read it through their existing submission link.",
         },
         { headers: { "cache-control": "no-store" } },
       );

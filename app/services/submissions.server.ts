@@ -394,13 +394,25 @@ export class SubmissionService {
     if (!value) {
       return { ok: false, error: { code: "not_found", message: "Submission not found." } } as const;
     }
-    const notify = async () => {
+    const notificationConfigured = this.email.mode === "postmark";
+    let notificationDelivered = false;
+    if (notificationConfigured) {
       try {
         await this.email.send({
           to: value.submission.submitterEmail,
           subject: `Clarification requested: ${value.submission.publicReference}`,
           textBody: input.message,
         });
+        notificationDelivered = true;
+      } catch (error) {
+        console.error("Clarification notification failed after request was saved.", {
+          submissionId: value.submission.id,
+          error: error instanceof Error ? error.message : "Unknown notification error",
+        });
+      }
+    }
+    if (notificationDelivered) {
+      try {
         await this.repository.recordEmailActivity(
           value.submission.id,
           input.createdAt,
@@ -408,15 +420,15 @@ export class SubmissionService {
           "clarification_requested",
         );
       } catch (error) {
-        console.error("Clarification notification failed after request was saved.", {
+        console.error("Clarification delivery activity could not be recorded.", {
           submissionId: value.submission.id,
-          error: error instanceof Error ? error.message : "Unknown notification error",
+          error: error instanceof Error ? error.message : "Unknown activity error",
         });
       }
-    };
-    if (this.defer) this.defer(notify());
-    else await notify();
-    return { ok: true, value, notificationConfigured: this.email.mode === "postmark" } as const;
+    }
+    // Wait for the bounded provider request so the next-item response can expose
+    // delivery failure; configuration alone cannot establish that the artist was notified.
+    return { ok: true, value, notificationConfigured, notificationDelivered } as const;
   }
 
   async accept(input: SubmissionAcceptInput) {

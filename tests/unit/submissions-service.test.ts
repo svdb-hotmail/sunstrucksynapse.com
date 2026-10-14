@@ -431,12 +431,19 @@ describe("submission service", () => {
     });
     if (!submitted.ok) throw new Error("Expected saved submission");
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
-    const failing = new SubmissionService(repository, {
-      mode: "postmark",
-      send: async () => {
-        throw new Error("Offline email provider");
+    const defer = vi.fn();
+    const failing = new SubmissionService(
+      repository,
+      {
+        mode: "postmark",
+        send: async () => {
+          throw new Error("Offline email provider");
+        },
       },
-    });
+      undefined,
+      undefined,
+      defer,
+    );
     const question = await failing.requestClarification({
       submissionId: submitted.value.submission.id,
       actor: curator,
@@ -445,6 +452,11 @@ describe("submission service", () => {
       message: "Please clarify permission.",
     });
     expect(question.ok).toBe(true);
+    expect(question).toMatchObject({
+      notificationConfigured: true,
+      notificationDelivered: false,
+    });
+    expect(defer).not.toHaveBeenCalled();
     expect(
       (await service.loadPublic(tokenHash))?.activities.some(
         (a) => a.message === "Please clarify permission.",
