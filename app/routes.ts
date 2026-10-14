@@ -17,6 +17,7 @@ export default [
   route("submit/:invitationToken/review-audio/:sessionId?", "routes/submission-review-audio.ts"),
   route("submission-evidence/:token", "routes/submission-evidence.ts"),
   route("curator", "routes/curator.tsx"),
+  route("curator/albums", "routes/curator-albums.tsx"),
   route("curator/submissions", "routes/curator-submissions.tsx"),
   route("curator/review-audio/:audioId", "routes/curator-review-audio.ts"),
   route("curator/analytics", "routes/curator-analytics.tsx"),
