@@ -38,7 +38,7 @@
     "react-router": "8.3.0"
   },
   "devDependencies": {
-    "@cloudflare/vite-plugin": "1.52.1",
+    "@cloudflare/vite-plugin": "1.63.1",
     "@electric-sql/pglite": "0.5.5",
     "@eslint/js": "9.39.5",
     "@playwright/test": "1.62.1",
@@ -59,12 +59,16 @@
     "storybook": "10.6.0",
     "tsx": "4.23.12",
     "typescript": "5.9.3",
-    "typescript-eslint": "8.42.0",
+    "typescript-eslint": "8.71.1",
     "vite": "8.2.1",
-    "vitest": "^3.2.7",
-    "wrangler": "4.123.0"
+    "vitest": "4.1.11",
+    "wrangler": "4.149.0"
   },
   "overrides": {
-    "sharp": "0.35.4"
+    "sharp": "0.35.5",
+    "source-map-js": "1.2.2",
+    "brace-expansion@^1.1.7": "1.1.21",
+    "brace-expansion@^2.0.1": "2.1.7",
+    "brace-expansion@^5.0.8": "5.0.12"
   }
 }
