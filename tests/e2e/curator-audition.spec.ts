@@ -47,7 +47,14 @@ test.beforeAll(async () => {
     configFile: false,
     optimizeDeps: {
       noDiscovery: true,
-      include: ["react", "react/jsx-runtime", "react-dom", "react-dom/client", "react-router"],
+      include: [
+        "react",
+        "react/jsx-runtime",
+        "react/jsx-dev-runtime",
+        "react-dom",
+        "react-dom/client",
+        "react-router",
+      ],
       holdUntilCrawlEnd: false,
     },
     root: process.cwd(),
