@@ -140,6 +140,9 @@ export function PublishingWorkspace({
             src={selectedTrack ? `/curator/prepared-audio/${selectedTrack.id}` : undefined}
             preload="metadata"
             aria-label="Private streaming preview"
+            onPlay={() => {
+              if (selectedTrack) setListening(selectedTrack.id);
+            }}
             onError={() =>
               setAudioError("Streaming preview unavailable. Refresh preparation and retry.")
             }
@@ -223,6 +226,7 @@ export function PublishingWorkspace({
                       // Commit the selected source before play(), retaining the
                       // user gesture required by mobile browsers.
                       if (selectedTrack?.id !== track.id) flushSync(() => setListening(track.id));
+                      if (element.error) element.load();
                       void element
                         .play()
                         .catch(() => setAudioError("Preview could not play. Try again."));
