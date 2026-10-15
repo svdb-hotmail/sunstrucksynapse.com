@@ -1,5 +1,5 @@
-import { STREAMING_PROFILE } from "~/config/music-metadata";
-import type { EncodingOutput, PreparationLease } from "~/repositories/release-preparation.server";
+import { STREAMING_PROFILE } from "../config/music-metadata";
+import type { EncodingOutput, PreparationLease } from "../repositories/release-preparation.server";
 
 export function validateEncodingOutput(job: PreparationLease, value: unknown): EncodingOutput {
   const output = value as EncodingOutput | null;

@@ -21,17 +21,25 @@ Older accepted tracks have no invented cover or discovery choices. Their origina
 - Local Chromium exits with signal 11; the Playwright browser download is truncated by this environment. No local browser pass is claimed. Remote Storybook is used for visual review where available; production E2E remains a separate deployment check.
 - Read-only Cloudflare checks confirmed the media bucket has managed public access disabled and no custom public domains. Its existing signed application delivery remains the public boundary.
 
-## Deployment blocker and exact sequence
+## Deployment status and exact sequence
 
-The connected Cloudflare account is `f9db1511596713616ac19b4f7538d337`. The Containers API currently rejects access with: “Deploying containers requires the Workers Paid plan.” No plan or billing setting was changed.
+The connected Cloudflare account is `f9db1511596713616ac19b4f7538d337`. The account owner enabled Workers Paid on 15 October; a subsequent Containers API read returned HTTP 200. The agent did not change billing. The initial cloud build exposed a standalone TypeScript alias/configuration problem; the encoder now uses a portable relative import, and all three Worker configurations pass a Wrangler bundle dry run. A Docker image build is still required and is performed by Workers Builds, not claimed by the local dry run.
 
-1. The account owner enables Workers Paid at [the account's Workers plans page](https://dash.cloudflare.com/f9db1511596713616ac19b4f7538d337/workers/plans).
-2. Deploy the private service first: `npx wrangler deploy --config services/encoder/wrangler.jsonc`, from a Cloudflare-authenticated environment with Docker available. The service name must be `sunstruck-synapse-encoder`; it has no public workers.dev or preview URL.
+1. Workers Paid is enabled. The account's existing GitHub connection and build token are reused; no credentials need to be sent in chat.
+2. Deploy the private service first: `npx wrangler deploy --config services/encoder/wrangler.jsonc`, from Cloudflare Workers Builds or a Cloudflare-authenticated environment with Docker available. The service name must be `sunstruck-synapse-encoder`; it has no public workers.dev or preview URL.
 3. Verify real R2 source → container → checksum-sealed private derivative using synthetic media on isolated database/bucket bindings. This provider integration is not replaced by unit tests or a Storybook fixture. Never point preview code at the production database or private source media by default.
 4. Run full PR CI through the existing maintainer Ready-for-Review gate. Do not bypass its checks. Apply committed migration 0013 with a direct connection to the explicitly identified production database, using the normal Drizzle migration command. Do not reset, seed or clean production.
 5. Deploy the application with the `AUDIO_ENCODER` service binding included in `wrangler.jsonc`, after the encoder exists. Verify the deployed revision, invitation upload, real human review/acceptance, private preparation, explicit publication, public ranges, album playback and mobile/theme behavior. The maintainer performs the production journey with their own material and decisions.
 
 Do not merge/deploy the main application configuration while the encoder service is absent. The current production version remains the WAV hotfix from PR #90. This increment is not a production launch claim.
+
+### Isolated provider check
+
+`services/encoder/wrangler.verification.jsonc` deploys the same encoder code to a separate private Worker and container, bound only to `sunstruck-synapse-media-preview`. After that service is active, `services/encoder/wrangler.probe.jsonc` deploys a private scheduled probe. Neither has a public URL, and neither has a database binding.
+
+The probe creates one second of synthetic WAV audio, calls the encoder through its private service binding, reads back and hashes the actual stored MP3, verifies the fixed profile and original source preservation, and confirms that a wrong source checksum produces no derivative. It records a structured `sunsyn.encoder.verification` event and a private result under its explicit run ID. Conditional creation of the result marker admits one attempt per run ID, so a failed run does not repeatedly consume encoding resources. Change `VERIFICATION_RUN` explicitly for a new attempt. Remove the probe's cron after verification. No production recordings are used or copied.
+
+The encoder Workers Builds triggers are separate from the live application trigger. During implementation they watch `agent/guided-publishing-workspace`; switch them to `main` when the maintainer merges this PR. Deploying the encoder alone does not activate the new artist or publishing UI.
 
 ## Authority and acceptance
 

@@ -61,4 +61,4 @@ repository CI skips Draft PRs, so workflow evidence will not exist until that hu
 
 ## 15 October: automatic preparation continuation
 
-The maintainer's SOLO exception remains active. The latest “go” authorizes the artist-cover/single-or-album intake and automatic streaming preparation contract. See [implementation, focused evidence and deployment blocker](launch-automatic-publishing.md). No independent acceptance is claimed. Production has not received this increment; Workers Paid and a deployed private encoder are still required.
+The maintainer's SOLO exception remains active. The latest “go” authorizes the artist-cover/single-or-album intake and automatic streaming preparation contract. See [implementation, focused evidence and deployment status](launch-automatic-publishing.md). No independent acceptance is claimed. Production has not received this increment. The maintainer enabled Workers Paid on 15 October; encoder deployment and isolated provider verification are in progress.

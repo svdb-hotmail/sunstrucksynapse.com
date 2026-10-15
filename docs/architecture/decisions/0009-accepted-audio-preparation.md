@@ -2,7 +2,7 @@
 
 ## Status
 
-Implemented for review; production activation blocked by Cloudflare Containers entitlement.
+Implemented for review; Workers Paid is enabled, with encoder deployment and provider verification in progress.
 
 The maintainer's 15 October 2026 direction authorizes SunSyn-controlled encoding, artist-supplied cover and release intent, and a publishing queue after acceptance. This activates the previously deferred processing part of ADR 0004. It retains React Router, Workers, Neon, R2 and Cloudflare Access.
 
