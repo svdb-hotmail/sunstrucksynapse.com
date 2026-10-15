@@ -1,4 +1,5 @@
 import {
+  redirect,
   useFetcher,
   useLoaderData,
   type ActionFunctionArgs,
@@ -31,16 +32,12 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
   const row = await createSubmissionEditRepository(runtime.db).find(runtime.id);
   if (!row) throw new Response("Not found.", { status: 404 });
   if (new URL(request.url).searchParams.get("cover") === "1") {
-    if (!row.coverObjectKey || !row.coverMimeType)
-      throw new Response("Not found.", { status: 404 });
-    const object = await runtime.env.MEDIA_BUCKET.get(row.coverObjectKey, { range: new Headers() });
-    if (!object) throw new Response("Not found.", { status: 404 });
-    return new Response(object.body, {
-      headers: {
-        "content-type": row.coverMimeType,
-        "cache-control": "private, no-store",
-        "x-content-type-options": "nosniff",
-      },
+    if (!row.coverId) throw new Response("Not found.", { status: 404 });
+    // Old open tabs may still request this URL. Page loaders render HTML;
+    // redirect image requests to a resource route instead of returning bytes.
+    return redirect(`/curator/submissions/${row.id}/artwork?v=${row.coverId}`, {
+      status: 307,
+      headers: { "cache-control": "private, no-store" },
     });
   }
   return {
@@ -56,7 +53,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
       revision: JSON.stringify(row.revision),
       editable: row.editable,
       releaseFieldsEditable: row.releaseFieldsEditable,
-      coverUrl: row.coverId ? `/curator/submissions/${row.id}/edit?cover=1&v=${row.coverId}` : null,
+      coverUrl: row.coverId ? `/curator/submissions/${row.id}/artwork?v=${row.coverId}` : null,
     },
   };
 }
@@ -111,7 +108,12 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
       artwork,
     );
     return Response.json(
-      { savedRevision: JSON.stringify(saved!.revision) },
+      {
+        savedRevision: JSON.stringify(saved!.revision),
+        savedCoverUrl: saved!.coverId
+          ? `/curator/submissions/${saved!.id}/artwork?v=${saved!.coverId}`
+          : null,
+      },
       { headers: { "cache-control": "no-store" } },
     );
   } catch (error) {
@@ -128,7 +130,11 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
 }
 export default function CuratorSubmissionEditRoute() {
   const loaded = useLoaderData<typeof loader>();
-  const fetcher = useFetcher<{ error?: string; savedRevision?: string }>();
+  const fetcher = useFetcher<{
+    error?: string;
+    savedRevision?: string;
+    savedCoverUrl?: string | null;
+  }>();
   return (
     <CuratorShell
       activeSection="queue"
@@ -148,6 +154,7 @@ export default function CuratorSubmissionEditRoute() {
         pending={fetcher.state !== "idle"}
         error={fetcher.data?.error}
         savedRevision={fetcher.data?.savedRevision}
+        savedCoverUrl={fetcher.data?.savedCoverUrl}
         onSave={(form) => {
           void fetcher.submit(form, { method: "post", encType: "multipart/form-data" });
         }}

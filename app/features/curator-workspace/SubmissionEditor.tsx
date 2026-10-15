@@ -49,12 +49,14 @@ export function SubmissionEditor({
   pending = false,
   error,
   savedRevision,
+  savedCoverUrl,
   onSave,
 }: {
   data: SubmissionEditView;
   pending?: boolean;
   error?: string;
   savedRevision?: string;
+  savedCoverUrl?: string | null;
   onSave: (form: FormData) => void;
 }) {
   const [revision, setRevision] = useState(data.revision);
@@ -81,6 +83,7 @@ export function SubmissionEditor({
     setPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
+  const coverUrl = preview ?? savedCoverUrl ?? data.coverUrl;
   const busy = pending || preparing;
   return (
     <>
@@ -136,12 +139,8 @@ export function SubmissionEditor({
         <fieldset disabled={busy || !data.editable}>
           <CuratorPanel>
             <h2>Artwork</h2>
-            {preview || data.coverUrl ? (
-              <img
-                className="curator-edit-cover"
-                src={preview ?? data.coverUrl!}
-                alt="Release cover preview"
-              />
+            {coverUrl ? (
+              <img className="curator-edit-cover" src={coverUrl} alt="Release cover preview" />
             ) : (
               <p>No cover supplied.</p>
             )}
