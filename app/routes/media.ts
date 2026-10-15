@@ -1,9 +1,18 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { artworkAssets, audioAssets } from "~/db/schema";
 import { createMediaDeliveryUrl, verifyMediaSignature } from "~/services/media-signing";
+
+// A UUID or an old signed URL never grants access to unpublished catalogue media.
+const publishedArtwork = sql`(
+  exists(select 1 from artist_artwork_assets l join artists a on a.id=l.artist_id where l.artwork_asset_id=${artworkAssets.id} and a.lifecycle_status='published')
+  or exists(select 1 from release_artwork_assets l join releases r on r.id=l.release_id where l.artwork_asset_id=${artworkAssets.id} and r.lifecycle_status='published')
+  or exists(select 1 from track_artwork_assets l join tracks t on t.id=l.track_id join releases r on r.id=t.release_id where l.artwork_asset_id=${artworkAssets.id} and t.lifecycle_status='published' and r.lifecycle_status='published')
+  or exists(select 1 from editorial_collections c where c.artwork_asset_id=${artworkAssets.id} and c.lifecycle_status='published')
+)`;
+const publishedAudio = sql`exists(select 1 from tracks t join releases r on r.id=t.release_id where t.id=${audioAssets.trackId} and t.lifecycle_status='published' and r.lifecycle_status='published')`;
 
 export async function loader({ request, params, context }: LoaderFunctionArgs) {
   const runtime = context.get(cloudflareContext);
@@ -30,6 +39,7 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
                 eq(artworkAssets.storageProvider, "r2"),
                 eq(artworkAssets.status, "ready"),
                 eq(artworkAssets.scope, "publishable_derivative"),
+                publishedArtwork,
               ),
             )
             .limit(1)
@@ -42,6 +52,7 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
                 eq(audioAssets.storageProvider, "r2"),
                 eq(audioAssets.status, "ready"),
                 eq(audioAssets.scope, "publishable_derivative"),
+                publishedAudio,
               ),
             )
             .limit(1);
@@ -88,6 +99,7 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
               eq(artworkAssets.storageProvider, "r2"),
               eq(artworkAssets.status, "ready"),
               eq(artworkAssets.scope, "publishable_derivative"),
+              publishedArtwork,
             ),
           )
           .limit(1)
@@ -100,6 +112,7 @@ export async function loader({ request, params, context }: LoaderFunctionArgs) {
               eq(audioAssets.storageProvider, "r2"),
               eq(audioAssets.status, "ready"),
               eq(audioAssets.scope, "publishable_derivative"),
+              publishedAudio,
             ),
           )
           .limit(1);

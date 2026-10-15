@@ -16,6 +16,7 @@ export interface PreparedTrack {
   processTags: string[];
   preparationStatus: string | null;
   coverId: string | null;
+  submissionId?: string | null;
   failureCode: string | null;
 }
 export function PublishingWorkspace({
@@ -34,6 +35,7 @@ export function PublishingWorkspace({
   onRefresh,
   onSaveMetadata,
   onReorder,
+  revisionKey,
 }: {
   title: string;
   artistName: string;
@@ -50,9 +52,11 @@ export function PublishingWorkspace({
   onRefresh: () => void;
   onSaveMetadata?: (tracks: AlbumTrackInput[]) => void;
   onReorder?: (ids: string[]) => void;
+  revisionKey?: string;
 }) {
   const [confirmedRevision, setConfirmedRevision] = useState<string | null>(null);
   const revision = JSON.stringify([
+    revisionKey,
     title,
     artistName,
     releaseKind,
@@ -124,8 +128,7 @@ export function PublishingWorkspace({
         <CuratorPanel className="publishing-editor">
           <h2>Release preparation</h2>
           <p>
-            The artist supplied the details and cover. SunSyn prepares the streaming files
-            automatically.
+            Check the release details and cover. SunSyn prepares the streaming files automatically.
           </p>
           <audio
             ref={audio}
@@ -153,7 +156,7 @@ export function PublishingWorkspace({
                     }
                   >
                     {!track.coverId
-                      ? "Artist cover needed"
+                      ? "Cover needed"
                       : track.preparationStatus === "ready"
                         ? "Ready"
                         : track.preparationStatus === "failed"
@@ -166,6 +169,13 @@ export function PublishingWorkspace({
                   · {track.moods.join(", ")}
                 </p>
                 <small>{track.processTags.join(", ")}</small>
+                {track.submissionId ? (
+                  <p>
+                    <Link to={`/curator/submissions/${track.submissionId}/edit`}>
+                      Edit artwork and details →
+                    </Link>
+                  </p>
+                ) : null}
                 {releaseKind === "album" && onReorder ? (
                   <div>
                     <CuratorButton
@@ -223,7 +233,7 @@ export function PublishingWorkspace({
                       : " Retry preparation or ask the operator to investigate."}
                   </p>
                 ) : null}
-                {track.preparationStatus === "failed" && track.coverId ? (
+                {track.preparationStatus === "failed" ? (
                   <CuratorButton
                     disabled={pending || !encodingAvailable}
                     onClick={() => onRetry(track.id)}
@@ -245,8 +255,8 @@ export function PublishingWorkspace({
           ) : null}
           {tracks.some((t) => !t.coverId) ? (
             <p className="publishing-message">
-              This earlier submission has no artist cover. Ask the artist to add it through their
-              original invitation link. Their accepted review stays unchanged.
+              Artwork is still needed. Open Edit artwork and details to add it, or ask the artist to
+              use their original invitation. The accepted review stays unchanged.
             </p>
           ) : null}
           {missingMetadata && onSaveMetadata ? (
@@ -334,10 +344,10 @@ export function PublishingWorkspace({
               {cover ? (
                 <img
                   src={coverPreviewUrl ?? `/curator/submission-covers/${cover}`}
-                  alt={`${title} submitted cover`}
+                  alt={`${title} release cover`}
                 />
               ) : (
-                <span>Artist cover needed</span>
+                <span>Cover needed</span>
               )}
             </div>
             <h2>{title}</h2>

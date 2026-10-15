@@ -1,5 +1,9 @@
 # Curation implementation traceability
 
+## Curator editing continuation, 15 October 2026
+
+PR #91 was merged by the maintainer. The subsequent request authorizes curator artwork and presentation-metadata corrections for legacy and current submissions. See [curator editing and rollout](curator-submission-editing.md). This continues the SOLO exception; no independent acceptance is claimed. The maintainer stopped direct image-upload work and owns UAT. Cloudflare website UI use requires asking first; use API/CLI for authorized operations. This increment remains a separate Draft PR, with forward migration 0015 required before deployment.
+
 Status: implementation complete on `feat/curation-listening-workflow`; automated validation is
 intentionally deferred to the pull-request workflow at the maintainer's request.
 
@@ -62,3 +66,9 @@ repository CI skips Draft PRs, so workflow evidence will not exist until that hu
 ## 15 October: automatic preparation continuation
 
 The maintainer's SOLO exception remains active. The latest “go” authorizes the artist-cover/single-or-album intake and automatic streaming preparation contract. See [implementation, focused evidence and deployment status](launch-automatic-publishing.md). No independent acceptance is claimed. The maintainer enabled Workers Paid on 15 October; the private encoder is deployed and passed an isolated R2/container smoke test. PR #91 is Ready at the maintainer's explicit direction; its media-integrity and album-flow comments are addressed. Application deployment remains a separate step, and the maintainer owns UAT.
+
+## PR 92 review fixes — 15 October 2026
+
+Maintainer requested all comments fixed and then merge. SOLO exception remains active; no subagents or manufactured independent acceptance. Migration 0015 was applied in isolated Neon and production (16 journal entries, 40 tables, 67 foreign keys; catalogue/submission/review/job counts unchanged). Its committed SQL is preserved exactly. Follow-up 0016 closes legacy release-only editing without rewriting migration history.
+
+Review fixes require published associations for canonical and signed media delivery; fully decode artwork through the existing private encoder container before storing it; use consistent catalogue lock order; return saved editor revisions inside the transaction; retain cleared descriptions; show shared release fields read-only for pending existing-album members; retry publication view loads if the revision changes; and preserve identical publish retry behavior. Original artist evidence and accepted review pins remain unchanged. Human UAT is deferred to the maintainer; focused checks and normal PR CI provide smoke evidence. Cloudflare website UI and direct artist image attachment remain prohibited.

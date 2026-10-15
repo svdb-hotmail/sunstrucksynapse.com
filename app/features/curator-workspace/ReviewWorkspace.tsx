@@ -1,4 +1,5 @@
 import { SITE_NAME } from "~/config/brand";
+import { Link } from "react-router";
 import {
   useCallback,
   useEffect,
@@ -338,6 +339,11 @@ export function ReviewWorkspace({
         {activeTab === "metadata" ? (
           <div className="curator-review-context__content">
             <h2>Track information</h2>
+            <p>
+              <Link to={`/curator/submissions/${review.submission.id}/edit`}>
+                Edit artwork and details →
+              </Link>
+            </p>
             <dl>
               <div>
                 <dt>Artist</dt>

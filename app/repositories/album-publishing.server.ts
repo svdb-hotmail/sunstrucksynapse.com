@@ -29,7 +29,7 @@ function rows<T>(result: unknown): T[] {
 }
 // Serialize catalogue edits during these short launch commands, including legacy writers.
 // Neon HTTP batch executes all statements in one transaction; no network transaction callback.
-const lockCatalogue = sql`lock table artists, releases, tracks, release_artist_credits, track_artist_credits, release_artwork_assets, track_artwork_assets, audio_assets, artwork_assets, submissions, release_preparation_jobs, submission_cover_uploads in share row exclusive mode`;
+export const lockCatalogue = sql`lock table artists, releases, tracks, release_artist_credits, track_artist_credits, release_artwork_assets, track_artwork_assets, audio_assets, artwork_assets, submissions, release_preparation_jobs, submission_cover_uploads in share row exclusive mode`;
 
 const accepted = sql`exists (
   select 1 from submissions s join curation_reviews review on review.submission_id = s.id
@@ -43,19 +43,51 @@ const accepted = sql`exists (
     and review.provenance_record_id = provenance.id and provenance.status = 'finalized'
 )`;
 
+// Resolve curator artwork separately from immutable artist cover declarations.
+const effectiveCovers = sql`select t.id as track_id,coalesce(a.id,c.id) as id,
+  coalesce(a.object_key,c.object_key) as object_key,coalesce(a.mime_type,c.mime_type) as mime_type,
+  coalesce(a.checksum_sha256,c.checksum_sha256) as checksum_sha256,coalesce(a.byte_size,c.byte_size) as byte_size,
+  coalesce(a.width,c.width) as width,coalesce(a.height,c.height) as height
+  from tracks t left join submissions s on s.resulting_track_id=t.id
+  left join release_preparation_jobs j on j.track_id=t.id
+  left join lateral(select e.artwork_asset_id from submission_editorial_artwork e join submissions member on member.id=e.submission_id join tracks mt on mt.id=member.resulting_track_id where mt.release_id=t.release_id order by e.updated_at desc,e.submission_id limit 1) ea on true
+  left join release_artwork_assets ra on ra.release_id=t.release_id and ra.role='primary' and ra.position=1
+  left join track_artwork_assets ta on ta.track_id=t.id and ta.role='primary' and ta.position=1
+  left join artwork_assets a on a.id=coalesce(ea.artwork_asset_id,ra.artwork_asset_id,ta.artwork_asset_id) and a.status='ready' and a.scope='publishable_derivative'
+  left join submission_cover_selections sc on sc.submission_id=s.id
+  left join submission_cover_uploads c on c.id=coalesce(j.cover_id,sc.cover_id) and c.status='ready'
+  where a.id is not null or c.id is not null`;
+
 function readinessQuery(releaseId: string): SQL {
   return sql`select t.id, t.title, array_remove(array[
     case when not (${accepted}) then 'accepted A/B review with exact pinned declarations and private audio' end,
-    case when exists(select 1 from release_preparation_jobs j where j.track_id=t.id and (j.status<>'ready' or j.profile<>${STREAMING_PROFILE} or j.cover_id is null)) then 'verified automatic streaming preparation' when not exists(select 1 from release_preparation_jobs j where j.track_id=t.id and j.status='ready') and not exists(select 1 from audio_assets a where a.track_id=t.id and a.scope='publishable_derivative' and a.status='ready' and a.is_primary and a.duration_ms > 0) then 'ready primary public listening file' end,
-    case when not exists(select 1 from release_preparation_jobs j join submission_cover_uploads c on c.id=j.cover_id where j.track_id=t.id and c.status='ready') and not exists(select 1 from track_artwork_assets l join artwork_assets a on a.id=l.artwork_asset_id where l.track_id=t.id and l.role='primary' and a.scope='publishable_derivative' and a.status='ready') then 'ready primary track cover (apply album cover)' end,
+    case when exists(select 1 from release_preparation_jobs j where j.track_id=t.id and (j.status<>'ready' or j.profile<>${STREAMING_PROFILE})) then 'verified automatic streaming preparation' when not exists(select 1 from release_preparation_jobs j where j.track_id=t.id and j.status='ready') and not exists(select 1 from audio_assets a where a.track_id=t.id and a.scope='publishable_derivative' and a.status='ready' and a.is_primary and a.duration_ms > 0) then 'ready primary public listening file' end,
+    case when not exists(select 1 from (${effectiveCovers}) c where c.track_id=t.id) then 'ready primary track cover (add artwork in Edit details)' end,
     case when nullif(btrim(t.genre),'') is null or cardinality(t.moods)=0 or cardinality(t.creative_process_tags)=0 then 'genre, moods and creative process tags' end,
     case when t.lifecycle_status not in ('draft','in_review','published') then 'track must be draft or in review' end,
     case when not exists(select 1 from track_artist_credits c where c.track_id=t.id and c.position=1) or exists(select 1 from track_artist_credits c join artists a on a.id=c.artist_id where c.track_id=t.id and a.lifecycle_status not in ('draft','in_review','published')) then 'eligible credited artists' end
   ], null)::text[] as blockers from tracks t where t.release_id=${releaseId}::uuid order by t.disc_number,t.position,t.id`;
 }
 
+function publicationRevisionQuery(releaseId: string) {
+  return sql`select jsonb_build_object('release',r.updated_at,'artists',(
+    select jsonb_agg(jsonb_build_object('credit',to_jsonb(c),'updated',a.updated_at) order by c.position,c.artist_id)
+    from release_artist_credits c join artists a on a.id=c.artist_id where c.release_id=r.id), 'trackCredits',(
+    select jsonb_agg(jsonb_build_object('credit',to_jsonb(c),'updated',a.updated_at) order by c.track_id,c.position,c.artist_id)
+    from track_artist_credits c join artists a on a.id=c.artist_id join tracks member on member.id=c.track_id where member.release_id=r.id), 'tracks',(
+    select jsonb_agg(jsonb_build_object('id',t.id,'updated',t.updated_at,'cover',c.id,'coverChecksum',c.checksum_sha256) order by t.disc_number,t.position,t.id)
+    from tracks t left join (${effectiveCovers}) c on c.track_id=t.id where t.release_id=r.id)) as revision
+    from releases r where r.id=${releaseId}::uuid`;
+}
+
 export function createAlbumPublishingRepository(db: Database) {
   return {
+    async publicationRevision(releaseId: string) {
+      return JSON.stringify(
+        rows<{ revision: unknown }>(await db.execute(publicationRevisionQuery(releaseId)))[0]
+          ?.revision ?? null,
+      );
+    },
     async releaseForAcceptedTrack(id: string) {
       return (
         rows<{ releaseId: string }>(
@@ -70,12 +102,13 @@ export function createAlbumPublishingRepository(db: Database) {
         await db.execute(sql`select t.id, t.title, t.release_id as "releaseId", coalesce(t.genre,'') as genre, t.genres, t.moods, t.creative_process_tags as "processTags", t.position,
         (${accepted}) as accepted,
         (select j.status from release_preparation_jobs j where j.track_id=t.id) as "preparationStatus",
-        (select j.cover_id from release_preparation_jobs j where j.track_id=t.id) as "coverId",
+        (select c.id from (${effectiveCovers}) c where c.track_id=t.id) as "coverId",
+        (select s.id from submissions s where s.resulting_track_id=t.id) as "submissionId",
         (select j.failure_code from release_preparation_jobs j where j.track_id=t.id) as "failureCode",
         (select s.release_details->>'kind' from submissions s where s.resulting_track_id=t.id) as "releaseKind",
         (select c.artist_id from track_artist_credits c where c.track_id=t.id and c.position=1) as "artistId",
         (select a.display_name from track_artist_credits c join artists a on a.id=c.artist_id where c.track_id=t.id and c.position=1) as "artistName",
-        (exists(select 1 from release_preparation_jobs j where j.track_id=t.id and j.status='ready' and j.cover_id is not null) or exists(select 1 from audio_assets a where a.track_id=t.id and a.is_primary and a.scope='publishable_derivative' and a.status='ready')) as "publicAudioReady" from tracks t where t.lifecycle_status in ('draft','in_review') order by t.release_id,t.position`);
+        (exists(select 1 from release_preparation_jobs j where j.track_id=t.id and j.status='ready') or exists(select 1 from audio_assets a where a.track_id=t.id and a.is_primary and a.scope='publishable_derivative' and a.status='ready')) as "publicAudioReady" from tracks t where t.lifecycle_status in ('draft','in_review') order by t.release_id,t.position`);
       return rows<
         AlbumTrackInput & {
           releaseId: string;
@@ -86,6 +119,7 @@ export function createAlbumPublishingRepository(db: Database) {
           publicAudioReady: boolean;
           preparationStatus: string | null;
           coverId: string | null;
+          submissionId: string | null;
           failureCode: string | null;
           releaseKind: string | null;
         }
@@ -98,7 +132,7 @@ export function createAlbumPublishingRepository(db: Database) {
         await db.execute(sql`
         select exists(select 1 from releases r where r.id=${releaseId}::uuid and r.lifecycle_status in ('draft','in_review','published') and nullif(btrim(r.title),'') is not null) as "titleReady",
         (exists(select 1 from release_artist_credits c where c.release_id=${releaseId}::uuid and c.position=1) and not exists(select 1 from release_artist_credits c join artists a on a.id=c.artist_id where c.release_id=${releaseId}::uuid and a.lifecycle_status not in ('draft','in_review','published'))) as "artistReady",
-        (exists(select 1 from release_artwork_assets l join artwork_assets a on a.id=l.artwork_asset_id where l.release_id=${releaseId}::uuid and l.role='primary' and l.position=1 and a.status='ready' and a.scope='publishable_derivative') or exists(select 1 from tracks t join release_preparation_jobs j on j.track_id=t.id join submission_cover_uploads c on c.id=j.cover_id where t.release_id=${releaseId}::uuid and c.status='ready')) as "coverReady"
+        exists(select 1 from tracks t join (${effectiveCovers}) c on c.track_id=t.id where t.release_id=${releaseId}::uuid) as "coverReady"
       `),
       );
       const blockers = [];
@@ -111,7 +145,7 @@ export function createAlbumPublishingRepository(db: Database) {
         await db.execute(sql`
         select (select count(*)::int from submissions s join submission_release_projects p on p.id::text=s.release_details->>'albumProjectId'
           where p.release_id=${releaseId}::uuid and s.status not in ('accepted','rejected','withdrawn')) as pending,
-        (select count(distinct c.checksum_sha256)::int from tracks t join release_preparation_jobs j on j.track_id=t.id join submission_cover_uploads c on c.id=j.cover_id where t.release_id=${releaseId}::uuid) as "coverVariants",
+        (select count(distinct c.checksum_sha256)::int from tracks t join (${effectiveCovers}) c on c.track_id=t.id where t.release_id=${releaseId}::uuid) as "coverVariants",
         (select coalesce(min(t.position)=1 and max(t.position)=count(*),false) from tracks t where t.release_id=${releaseId}::uuid) as "orderReady"`),
       )[0];
       if (issues?.pending)
@@ -124,7 +158,7 @@ export function createAlbumPublishingRepository(db: Database) {
         tracks.unshift({
           id: releaseId,
           title: "Album",
-          blockers: ["consistent artist-supplied album cover"],
+          blockers: ["one consistent album cover (replace artwork in Edit details)"],
         });
       if (!issues?.orderReady)
         tracks.unshift({
@@ -213,16 +247,20 @@ export function createAlbumPublishingRepository(db: Database) {
       releaseId: string,
       actor: CuratorIdentity,
       expectedTrackIds?: string[],
+      expectedRevision?: string,
     ): Promise<string> {
       const result = await db.batch([
         db.execute(lockCatalogue),
         db.execute(
+          sql`select 1 / (${expectedRevision ? sql`(exists(select 1 from releases where id=${releaseId}::uuid and lifecycle_status='published') or exists(select 1 from (${publicationRevisionQuery(releaseId)}) current where current.revision=${expectedRevision}::jsonb))` : sql`true`})::int as confirmed_revision`,
+        ),
+        db.execute(
           sql`select 1 / (${expectedTrackIds ? sql`(select jsonb_agg(t.id::text order by t.disc_number,t.position,t.id) from tracks t where t.release_id=${releaseId}::uuid)=${JSON.stringify(expectedTrackIds)}::jsonb` : sql`true`})::int as confirmed_tracks`,
         ),
         db.execute(sql`select 1 / (
-          not exists(select 1 from tracks t join release_preparation_jobs j on j.track_id=t.id where t.release_id=${releaseId}::uuid and (j.status<>'ready' or j.profile<>${STREAMING_PROFILE} or j.cover_id is null))
+          not exists(select 1 from tracks t join release_preparation_jobs j on j.track_id=t.id where t.release_id=${releaseId}::uuid and (j.status<>'ready' or j.profile<>${STREAMING_PROFILE}))
           and not exists(select 1 from submissions s join submission_release_projects p on p.id::text=s.release_details->>'albumProjectId' where p.release_id=${releaseId}::uuid and s.status not in ('accepted','rejected','withdrawn'))
-          and (select count(distinct c.checksum_sha256)<=1 from tracks t join release_preparation_jobs j on j.track_id=t.id join submission_cover_uploads c on c.id=j.cover_id where t.release_id=${releaseId}::uuid)
+          and (select count(distinct c.checksum_sha256)<=1 from tracks t join (${effectiveCovers}) c on c.track_id=t.id where t.release_id=${releaseId}::uuid)
           and (select coalesce(min(t.position)=1 and max(t.position)=count(*),false) from tracks t where t.release_id=${releaseId}::uuid)
         )::int as prepared`),
         db.execute(sql`insert into audio_assets(id,track_id,object_key,storage_provider,status,scope,mime_type,checksum_sha256,byte_size,duration_ms,codec,is_primary)
@@ -231,11 +269,11 @@ export function createAlbumPublishingRepository(db: Database) {
           on conflict(track_id,scope) where is_primary do update set object_key=excluded.object_key,storage_provider='r2',status='ready',mime_type=excluded.mime_type,checksum_sha256=excluded.checksum_sha256,byte_size=excluded.byte_size,duration_ms=excluded.duration_ms,codec=excluded.codec`),
         db.execute(sql`insert into artwork_assets(id,object_key,storage_provider,status,scope,mime_type,checksum_sha256,byte_size,width,height)
           select distinct c.id,c.object_key,'r2'::storage_provider,'ready'::managed_asset_status,'publishable_derivative'::asset_scope,c.mime_type,c.checksum_sha256,c.byte_size,c.width,c.height
-          from tracks t join release_preparation_jobs j on j.track_id=t.id join submission_cover_uploads c on c.id=j.cover_id
-          where t.release_id=${releaseId}::uuid and j.status='ready' and c.status='ready' and t.lifecycle_status<>'published' on conflict(id) do nothing`),
+          from tracks t join (${effectiveCovers}) c on c.track_id=t.id
+          where t.release_id=${releaseId}::uuid and t.lifecycle_status<>'published' on conflict(id) do nothing`),
         db.execute(sql`insert into release_artwork_assets(release_id,artwork_asset_id,role,position)
-          select ${releaseId}::uuid,j.cover_id,'primary',1 from tracks t join release_preparation_jobs j on j.track_id=t.id
-          where t.release_id=${releaseId}::uuid and j.status='ready' and t.lifecycle_status<>'published' order by t.position limit 1
+          select ${releaseId}::uuid,c.id,'primary',1 from tracks t join (${effectiveCovers}) c on c.track_id=t.id
+          where t.release_id=${releaseId}::uuid and t.lifecycle_status<>'published' order by t.position limit 1
           on conflict(release_id,role,position) do update set artwork_asset_id=excluded.artwork_asset_id`),
         db.execute(sql`insert into track_artwork_assets(track_id,artwork_asset_id,role,position)
           select t.id,c.artwork_asset_id,'primary',1 from tracks t join release_artwork_assets c on c.release_id=t.release_id and c.role='primary' and c.position=1

@@ -28,3 +28,7 @@ Artists submit one track at a time. Album identity comes from the verified invit
 - Lease fencing prevents late writes from becoming selected media. A provider that commits after a timed-out request can leave an unreferenced private object; operational prefix/lifecycle cleanup remains necessary. Such objects have no public asset registration.
 
 See [rollout and evidence](../../launch-automatic-publishing.md).
+
+## Curator corrections, 15 October 2026
+
+At the maintainer's direction, artwork and public presentation can be corrected by authenticated curators through a separate audited editor. The artist's submission, cover declaration, accepted review and private audio remain unchanged. A curator cover records its own permission acknowledgement and replaces artwork for the release. Audio preparation runs independently of missing artwork; the atomic publisher still requires a ready cover and the exact verified streaming derivative. See [curator editing](../../curator-submission-editing.md).

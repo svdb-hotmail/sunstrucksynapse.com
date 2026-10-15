@@ -11,7 +11,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 import { submissions } from "./submissions";
-import { tracks } from "./catalogue";
+import { tracks, artworkAssets } from "./catalogue";
 import { curationReviews, submissionReviewAudio } from "./curation-workflow";
 
 export const submissionReleaseProjects = pgTable(
@@ -84,6 +84,17 @@ export const submissionCoverSelections = pgTable("submission_cover_selections", 
   coverId: uuid("cover_id")
     .notNull()
     .references(() => submissionCoverUploads.id),
+});
+
+// A curator correction is separate from the artist's immutable cover declaration.
+export const submissionEditorialArtwork = pgTable("submission_editorial_artwork", {
+  submissionId: uuid("submission_id")
+    .primaryKey()
+    .references(() => submissions.id),
+  artworkAssetId: uuid("artwork_asset_id")
+    .notNull()
+    .references(() => artworkAssets.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const releasePreparationJobs = pgTable(

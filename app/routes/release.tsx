@@ -58,6 +58,7 @@ export default function ReleaseRoute({ loaderData }: Route.ComponentProps) {
         <img src={release.artwork.src} alt={release.artwork.alt} />
         <div>
           <h1>{release.title}</h1>
+          {release.description ? <p>{release.description}</p> : null}
           <p>
             By{" "}
             {release.artists.map((artist, index) => (

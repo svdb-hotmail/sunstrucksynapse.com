@@ -25,6 +25,7 @@ export default [
   route("curator", "routes/curator.tsx"),
   route("curator/albums", "routes/curator-albums.tsx"),
   route("curator/submissions", "routes/curator-submissions.tsx"),
+  route("curator/submissions/:submissionId/edit", "routes/curator-submission-edit.tsx"),
   route("curator/review-audio/:audioId", "routes/curator-review-audio.ts"),
   route("curator/prepared-audio/:trackId", "routes/curator-prepared-audio.ts"),
   route("curator/analytics", "routes/curator-analytics.tsx"),

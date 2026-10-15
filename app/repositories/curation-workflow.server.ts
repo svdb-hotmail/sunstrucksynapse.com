@@ -518,15 +518,17 @@ export function createCurationWorkflowRepository(db: Database) {
       const accepted = input.finalGrade !== "C";
       const rows = await execute<Record<string, unknown>>(sql`
         with locked as (
-          select submissions.*
+          select submissions.*,editorial.metadata->'fields' as editorial_fields
           from submissions
+          left join lateral(select metadata from submission_activities where submission_id=submissions.id
+            and actor_role='curator' and metadata->>'kind'='curator_metadata' order by created_at desc,id desc limit 1) editorial on true
           where id = ${input.submissionId}::uuid and status = 'listening'
             and assigned_curator_id = ${curator.id}
             and (not ${accepted} or coalesce(submissions.track_details->>'intakeVersion','0') <> '1' or exists (
               select 1 from submission_cover_selections cs join submission_cover_uploads c on c.id=cs.cover_id
               where cs.submission_id=submissions.id and c.status='ready'))
             and not exists(select 1 from releases r where r.id=${releaseId}::uuid and r.lifecycle_status not in ('draft','in_review'))
-          for update
+          for update of submissions
         ), current_rights as (
           select rights_declarations.* from rights_declarations join locked on locked.id = rights_declarations.submission_id
           where rights_declarations.status = 'attested'
@@ -572,8 +574,8 @@ export function createCurationWorkflowRepository(db: Database) {
           on conflict(id) do update set id=excluded.id
           returning id
         ), created_release as (
-          insert into releases (id, slug, title)
-          select ${releaseId}::uuid, ${releaseSlug}, ${reference.releaseTitle ?? reference.title}
+          insert into releases (id, slug, title, description)
+          select ${releaseId}::uuid, ${releaseSlug}, coalesce(locked.editorial_fields->>'releaseTitle',${reference.releaseTitle ?? reference.title}),nullif(coalesce(locked.editorial_fields->>'summary',locked.release_details->>'summary'),'')
           from locked, inserted_review where ${accepted}
           on conflict(id) do update set id=excluded.id
           returning id
@@ -584,11 +586,11 @@ export function createCurationWorkflowRepository(db: Database) {
           from created_release, created_artist, locked on conflict(release_id,position) do update set artist_id=excluded.artist_id returning release_id
         ), created_track as (
           insert into tracks (id, release_id, slug, title, position,genre,genres,moods,creative_process_tags)
-          select ${trackId}::uuid, created_release.id, ${trackSlug}, locked.title, ${reference.trackPosition ?? 1},
-            locked.track_details->'genres'->>0,
-            array(select jsonb_array_elements_text(coalesce(locked.track_details->'genres','[]'::jsonb))),
-            array(select jsonb_array_elements_text(coalesce(locked.track_details->'moods','[]'::jsonb))),
-            array(select jsonb_array_elements_text(coalesce(locked.track_details->'processTags','[]'::jsonb)))
+          select ${trackId}::uuid, created_release.id, ${trackSlug}, coalesce(locked.editorial_fields->>'title',locked.title), ${reference.trackPosition ?? 1},
+            coalesce(locked.editorial_fields->'genres',locked.track_details->'genres')->>0,
+            array(select jsonb_array_elements_text(coalesce(locked.editorial_fields->'genres',locked.track_details->'genres','[]'::jsonb))),
+            array(select jsonb_array_elements_text(coalesce(locked.editorial_fields->'moods',locked.track_details->'moods','[]'::jsonb))),
+            array(select jsonb_array_elements_text(coalesce(locked.editorial_fields->'processTags',locked.track_details->'processTags','[]'::jsonb)))
           from created_release, release_credit, locked returning id
         ), track_credit as (
           insert into track_artist_credits (track_id, artist_id, position, credited_as)
