@@ -52,7 +52,7 @@ export function createReleasePreparationRepository(db: Database) {
             await db.execute(sql`with candidate as (
         select j.id from release_preparation_jobs j join curation_reviews r on r.id=j.review_id
         join submissions s on s.id=r.submission_id and s.resulting_track_id=j.track_id
-        where s.status='accepted' and j.profile=${STREAMING_PROFILE} and j.attempts<4 and j.cover_id is not null
+        where s.status='accepted' and j.profile=${STREAMING_PROFILE} and j.attempts<4
           and j.status='queued' and j.next_attempt_at<=now()
           and not exists(select 1 from release_preparation_jobs active where active.status='processing')
         order by j.created_at,j.id limit 1 for update of j skip locked
@@ -97,7 +97,7 @@ export function createReleasePreparationRepository(db: Database) {
     async retry(trackId: string, actor: { id: string; email: string }) {
       await db.batch([
         db.execute(sql`with retried as (update release_preparation_jobs set status='queued',attempts=0,next_attempt_at=now(),failure_code=null,updated_at=now()
-          where track_id=${trackId}::uuid and status in ('queued','failed') and cover_id is not null returning track_id)
+          where track_id=${trackId}::uuid and status in ('queued','failed') returning track_id)
           insert into publication_audit(entity_type,entity_id,from_lifecycle,to_lifecycle,actor_id,actor_email,reason)
           select 'track',t.id,t.lifecycle_status,t.lifecycle_status,${actor.id},${actor.email},'Retry automatic streaming preparation'
           from tracks t join retried r on r.track_id=t.id`),

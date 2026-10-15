@@ -19,6 +19,7 @@ import { createTransactionalEmailService } from "~/services/transactional-email.
 import { validateUuid } from "~/services/curator-validation";
 import type { SubmissionStatus } from "~/types/submissions";
 import { curationRationaleError } from "~/types/curation";
+import { createSubmissionEditRepository } from "~/repositories/submission-edit.server";
 
 import type { Route } from "./+types/curator-submissions";
 
@@ -85,6 +86,32 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const reviewAudio = workflow
     ? await workflow.currentAudioForSubmissions(submissions.map(({ submission }) => submission.id))
     : {};
+  if (runtime.db) {
+    const overrides = await createSubmissionEditRepository(runtime.db).overrides(
+      submissions.map((row) => row.submission.id),
+    );
+    for (const override of overrides) {
+      const row = submissions.find((item) => item.submission.id === override.submissionId);
+      if (row) {
+        row.submission = {
+          ...row.submission,
+          title: override.fields.title,
+          trackDetails: {
+            ...row.submission.trackDetails,
+            title: override.fields.title,
+            genres: override.fields.genres,
+            moods: override.fields.moods,
+            processTags: override.fields.processTags,
+          },
+          releaseDetails: {
+            ...row.submission.releaseDetails,
+            title: override.fields.releaseTitle,
+            summary: override.fields.summary,
+          },
+        };
+      }
+    }
+  }
   const outbox = await outboxPromise;
   return {
     identity: auth.identity,

@@ -603,7 +603,7 @@ function queueConditions(filter: SubmissionFilter) {
   if (filter.query?.trim()) {
     const search = `%${filter.query.trim().replace(/[\\%_]/g, (value) => `\\${value}`)}%`;
     conditions.push(
-      sql`concat_ws(' ', submissions.title, submissions.public_reference, submissions.artist_details->>'displayName') ilike ${search}`,
+      sql`concat_ws(' ', submissions.title, submissions.public_reference, submissions.artist_details->>'displayName', (select a.metadata->'fields'->>'title' from submission_activities a where a.submission_id=submissions.id and a.actor_role='curator' and a.metadata->>'kind'='curator_metadata' order by a.created_at desc,a.id desc limit 1)) ilike ${search}`,
     );
   }
   switch (filter.queue) {

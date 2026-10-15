@@ -130,6 +130,7 @@ export const releases = pgTable(
     id: uuid("id").defaultRandom().primaryKey(),
     slug: text("slug").notNull(),
     title: text("title").notNull(),
+    description: text("description"),
     releaseDate: timestamp("release_date", { withTimezone: true }),
     lifecycleStatus: catalogueLifecycle("lifecycle_status").default("draft").notNull(),
     scheduledFor: timestamp("scheduled_for", { withTimezone: true }),

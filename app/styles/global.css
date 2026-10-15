@@ -4072,6 +4072,40 @@ body {
   gap: var(--space-2);
   font-size: 0.88rem;
 }
+.curator-submission-editor > fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: var(--space-4);
+}
+.curator-submission-editor .curator-panel {
+  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.curator-submission-editor label {
+  display: grid;
+  gap: var(--space-2);
+}
+.curator-submission-editor input:not([type="checkbox"]),
+.curator-submission-editor textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 44px;
+}
+.curator-submission-editor .music-multiselect__menu label {
+  display: flex;
+}
+.curator-edit-cover {
+  width: min(100%, 280px);
+  aspect-ratio: 1;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+}
 .publishing-fields {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));

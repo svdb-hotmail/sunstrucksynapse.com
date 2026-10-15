@@ -151,6 +151,12 @@ export function SubmissionQueue({
                   <td>
                     <strong>{item.title}</strong>
                     <small>{item.publicReference}</small>
+                    <a
+                      href={`/curator/submissions/${item.id}/edit`}
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      Edit details
+                    </a>
                   </td>
                   <td>{item.artistName}</td>
                   <td>

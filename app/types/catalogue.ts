@@ -114,6 +114,7 @@ export interface PublicRelease {
   id: string;
   slug: string;
   title: string;
+  description?: string | null;
   releaseDate: string | null;
   href: string;
   artwork: Artwork;

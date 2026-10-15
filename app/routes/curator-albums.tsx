@@ -55,13 +55,14 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const albumId = selected ?? focusedRelease;
   if (albumId && !releases.some((r) => r.id === albumId))
     throw new Response("Release not found.", { status: 404 });
-  const [readiness, preview] = await Promise.all([
+  const [readiness, preview, publicationRevision] = await Promise.all([
     albumId ? repository.readiness(albumId) : Promise.resolve([]),
     albumId
       ? db.execute<{ artistId: string; coverId: string | null }>(
           sql`select c.artist_id as "artistId", l.artwork_asset_id as "coverId" from release_artist_credits c left join release_artwork_assets l on l.release_id=c.release_id and l.role='primary' and l.position=1 where c.release_id=${albumId}::uuid and c.position=1`,
         )
       : Promise.resolve(null),
+    albumId ? repository.publicationRevision(albumId) : Promise.resolve(null),
   ]);
   return {
     identity,
@@ -72,6 +73,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     albumId,
     showQueue: !albumId,
     encodingAvailable,
+    publicationRevision,
     preview: preview?.rows[0] ?? null,
   };
 }
@@ -202,7 +204,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
         new Set(expected).size !== expected.length
       )
         throw new Error("Refresh and confirm the complete track list before publishing.");
-      const slug = await repository.publish(releaseId, identity, expected as string[]);
+      const revision = form.get("publicationRevision");
+      if (typeof revision !== "string" || !revision || revision.length > 50000)
+        throw new Error("Refresh and confirm the current release details before publishing.");
+      JSON.parse(revision);
+      const slug = await repository.publish(releaseId, identity, expected as string[], revision);
       return Response.json(
         { albumId: releaseId, publicUrl: `/releases/${slug}` },
         { headers: { "cache-control": "no-store" } },
@@ -244,6 +250,12 @@ function AlbumEditor({ data }: { data: PublishingRouteData }) {
       artistName={tracks[0]?.artistName ?? ""}
       releaseKind={tracks[0]?.releaseKind === "album" || tracks.length > 1 ? "album" : "single"}
       tracks={tracks}
+      revisionKey={data.publicationRevision ?? undefined}
+      coverPreviewUrl={
+        tracks[0]?.submissionId && tracks[0]?.coverId
+          ? `/curator/submissions/${tracks[0].submissionId}/edit?cover=1&v=${tracks[0].coverId}`
+          : undefined
+      }
       readiness={data.readiness}
       encodingAvailable={data.encodingAvailable}
       pending={fetcher.state !== "idle"}
@@ -256,6 +268,7 @@ function AlbumEditor({ data }: { data: PublishingRouteData }) {
             releaseId: data.albumId!,
             confirmed: "yes",
             trackIds: JSON.stringify(tracks.map((t) => t.id)),
+            publicationRevision: data.publicationRevision ?? "",
           },
           { method: "post" },
         )

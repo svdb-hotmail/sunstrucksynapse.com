@@ -783,6 +783,7 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
           id: releases.id,
           slug: releases.slug,
           title: releases.title,
+          description: releases.description,
           releaseDate: releases.releaseDate,
           artworkAssetId: artworkAssets.id,
           artworkObjectKey: artworkAssets.objectKey,
@@ -837,6 +838,7 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         id: release.id,
         slug: release.slug,
         title: release.title,
+        description: release.description,
         releaseDate: release.releaseDate?.toISOString() ?? null,
         href: `/releases/${release.slug}`,
         artwork: {

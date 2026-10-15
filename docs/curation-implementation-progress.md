@@ -1,5 +1,9 @@
 # Curation implementation traceability
 
+## Curator editing continuation, 15 October 2026
+
+PR #91 was merged by the maintainer. The subsequent request authorizes curator artwork and presentation-metadata corrections for legacy and current submissions. See [curator editing and rollout](curator-submission-editing.md). This continues the SOLO exception; no independent acceptance is claimed. The maintainer stopped direct image-upload work and owns UAT. Cloudflare website UI use requires asking first; use API/CLI for authorized operations. This increment remains a separate Draft PR, with forward migration 0015 required before deployment.
+
 Status: implementation complete on `feat/curation-listening-workflow`; automated validation is
 intentionally deferred to the pull-request workflow at the maintainer's request.
 

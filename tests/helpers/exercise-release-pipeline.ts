@@ -6,6 +6,7 @@ import { createReleaseIntakeRepository } from "../../app/repositories/release-in
 import { createCurationWorkflowRepository } from "../../app/repositories/curation-workflow.server";
 import { createReleasePreparationRepository } from "../../app/repositories/release-preparation.server";
 import { createAlbumPublishingRepository } from "../../app/repositories/album-publishing.server";
+import { createSubmissionEditRepository } from "../../app/repositories/submission-edit.server";
 import { SubmissionService } from "../../app/services/submissions.server";
 import { STREAMING_PROFILE } from "../../app/config/music-metadata";
 import { validateEncodingOutput } from "../../app/services/encoding-contract";
@@ -131,6 +132,26 @@ export async function exerciseReleasePipeline(db: Database) {
   const first = await save(1);
   const coverId = await addCover(first.token);
   const firstId = await accept(first);
+  const editor = createSubmissionEditRepository(db);
+  const editable = (await editor.find(first.id))!;
+  const curatorCover = crypto.randomUUID();
+  await editor.save(
+    first.id,
+    JSON.stringify(editable.revision),
+    editable.fields,
+    "Synthetic curator replacement cover",
+    actor,
+    {
+      id: curatorCover,
+      objectKey: `private/curator-artwork/${curatorCover}`,
+      checksumSha256: "f".repeat(64),
+      byteSize: 33,
+      width: 1400,
+      height: 1400,
+      mimeType: "image/png",
+      filename: "synthetic.png",
+    },
+  );
   const second = await save(2, first.input.release.albumProjectId);
   assert.equal((await intake.currentCover(second.token))?.id, coverId);
   assert.equal((await intake.findCover(coverId, second.token))?.id, coverId);
@@ -280,7 +301,14 @@ export async function exerciseReleasePipeline(db: Database) {
     });
   }
   assert.equal(rows(await db.execute(sql`select id from audio_assets`)).length, 0);
-  assert.equal(rows(await db.execute(sql`select id from artwork_assets`)).length, 0);
+  assert.equal(rows(await db.execute(sql`select id from artwork_assets`)).length, 1);
+  assert.equal(rows(await db.execute(sql`select id from track_artwork_assets`)).length, 0);
+  const editedAlbum = (await publisher.inventory()).filter((t) =>
+    [firstId, secondId].includes(t.id),
+  );
+  assert(editedAlbum.every((t) => t.coverId === curatorCover));
+  assert.equal((await intake.currentCover(first.token))?.id, coverId);
+  assert.equal((await intake.currentCover(second.token))?.id, coverId);
   const ready = await publisher.readiness(releaseId);
   assert(
     ready.every((t) => t.blockers.length === 0),
