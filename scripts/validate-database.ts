@@ -45,13 +45,17 @@ const expectedTables = [
   "publication_audit",
   "release_artist_credits",
   "release_artwork_assets",
+  "release_preparation_jobs",
   "releases",
   "request_rate_limits",
   "rights_declarations",
   "submission_activities",
   "submission_audio_upload_sessions",
+  "submission_cover_selections",
+  "submission_cover_uploads",
   "submission_invitation_issuance_audit",
   "submission_invitations",
+  "submission_release_projects",
   "submission_review_audio",
   "submission_review_audio_selections",
   "submissions",
@@ -63,6 +67,12 @@ const expectedTables = [
 ] as const;
 
 const requiredIndexes = [
+  "release_preparation_track_unique",
+  "release_preparation_review_unique",
+  "release_preparation_one_processing",
+  "release_preparation_pending_idx",
+  "submission_release_projects_origin_unique",
+  "submission_release_projects_owner_idx",
   "artists_slug_unique",
   "tracks_release_order_idx",
   "track_artwork_assets_track_id_idx",
@@ -97,6 +107,13 @@ const requiredIndexes = [
 ] as const;
 
 const requiredChecks = [
+  "release_preparation_status_check",
+  "release_preparation_ready_check",
+  "submission_cover_size_check",
+  "submission_cover_dimensions_check",
+  "submission_cover_hash_check",
+  "submission_cover_status_check",
+  "submission_cover_ready_check",
   "artwork_assets_dimensions_check",
   "audio_assets_mime_type_check",
   "collection_items_exactly_one_target_check",
@@ -142,6 +159,15 @@ const requiredChecks = [
 ] as const;
 
 const requiredTriggers = [
+  "submission_cover_immutable",
+  "submission_cover_selection_guard",
+  "release_preparation_integrity",
+  "track_preparation_publication_gate",
+  "submission_release_project_immutable",
+  "album_track_insert_gate",
+  "submission_album_choice_gate",
+  "submission_release_intake_reconcile",
+  "release_atomic_publication_gate",
   "artists_set_updated_at",
   "artwork_assets_set_updated_at",
   "audio_assets_set_updated_at",
@@ -236,7 +262,7 @@ async function verifySchemaObjects(client: PGlite) {
     assert(constraints.get(checkName) === "c", `required check ${checkName} is missing`);
   }
   const foreignKeyCount = constraintResult.rows.filter(({ type }) => type === "f").length;
-  assert(foreignKeyCount === 57, `expected 57 foreign keys, found ${foreignKeyCount}`);
+  assert(foreignKeyCount === 65, `expected 65 foreign keys, found ${foreignKeyCount}`);
 
   const triggerResult = await client.query<{ name: string }>(
     `select tgname as name
@@ -1000,7 +1026,7 @@ async function validateExistingHistoryGuard() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 13, "expected the original and twelve forward migrations");
+    assert(migrations.length === 15, "expected the original and fourteen forward migrations");
     for (const statement of migrations[0]!.sql) {
       await client.exec(statement);
     }
@@ -1043,7 +1069,7 @@ async function validateVideoAssetForwardMigration() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 13, "expected the original and twelve forward migrations");
+    assert(migrations.length === 15, "expected the original and fourteen forward migrations");
     for (const migration of migrations.slice(0, 4)) {
       for (const statement of migration.sql) {
         await client.exec(statement);
@@ -1172,7 +1198,7 @@ async function validateHomepageCollectionsForwardMigration() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 13, "expected the original and twelve forward migrations");
+    assert(migrations.length === 15, "expected the original and fourteen forward migrations");
     for (const migration of migrations.slice(0, 5)) {
       for (const statement of migration.sql) {
         await client.exec(statement);

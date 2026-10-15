@@ -3,6 +3,13 @@
 CREATE OR REPLACE FUNCTION guard_submission_album_choice() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE project submission_release_projects%ROWTYPE;
 BEGIN
+  -- Cover finalization uses the same project lock. Lock both sides of an edit
+  -- before checking borrowers so a concurrent adoption cannot slip past it.
+  IF TG_OP='UPDATE' THEN
+    PERFORM p.id FROM submission_release_projects p
+      WHERE p.id::text IN (OLD.release_details->>'albumProjectId',NEW.release_details->>'albumProjectId')
+      ORDER BY p.id FOR UPDATE;
+  END IF;
   IF TG_OP='UPDATE' AND OLD.status NOT IN ('draft','clarification_requested') AND ROW(NEW.artist_details,NEW.release_details,NEW.track_details,NEW.invitation_id) IS DISTINCT FROM ROW(OLD.artist_details,OLD.release_details,OLD.track_details,OLD.invitation_id) THEN
     RAISE EXCEPTION 'Submitted release details are immutable outside artist clarification.';
   END IF;
