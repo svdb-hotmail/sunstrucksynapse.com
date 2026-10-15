@@ -19,7 +19,7 @@ export interface MediaBucket {
   } | null>;
   get(
     key: string,
-    options: { range: Headers },
+    options: { range: Headers; onlyIf?: Headers },
   ): Promise<{
     body: ReadableStream;
     size: number;

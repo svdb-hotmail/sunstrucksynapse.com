@@ -17,14 +17,21 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
   const tokenHash = sha256Hex(params.invitationToken);
   if (!(await rateLimitRepository.consume("review_audio", tokenHash, 20, 300)).allowed)
     return Response.json({ error: "Wait before retrying the cover upload." }, { status: 429 });
-  if (request.method !== "POST") return new Response(null, { status: 405 });
+  if (!["POST", "PUT"].includes(request.method)) return new Response(null, { status: 405 });
   try {
     const service = new SubmissionCoverService(db, env);
     if (params.coverId) {
       if (!validateUuid(params.coverId, "cover").ok) throw new Error("Invalid cover upload.");
+      if (request.method === "PUT")
+        return Response.json(await service.upload(tokenHash, params.coverId, request));
       return Response.json(await service.finalize(tokenHash, params.coverId));
     }
-    return Response.json(await service.create(tokenHash, validateCover(await request.json())));
+    if (request.method !== "POST") return new Response(null, { status: 405 });
+    const upload = await service.create(tokenHash, validateCover(await request.json()));
+    return Response.json({
+      ...upload,
+      uploadUrl: `${new URL(request.url).pathname}/${upload.sessionId}`,
+    });
   } catch (error) {
     return Response.json(
       {

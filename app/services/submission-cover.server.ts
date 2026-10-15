@@ -1,4 +1,3 @@
-import { AwsClient } from "aws4fetch";
 import { imageSize } from "image-size";
 import { COVER_MAX_BYTES, COVER_MIN_PIXELS, COVER_MIME_TYPES } from "~/config/music-metadata";
 import type { WorkerEnv } from "~/config/env.server";
@@ -48,9 +47,6 @@ export class SubmissionCoverService {
     this.repository = createReleaseIntakeRepository(db);
   }
   async create(tokenHash: string, declaration: CoverDeclaration) {
-    const { R2_ACCOUNT_ID, R2_BUCKET_NAME, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY } = this.env;
-    if (!R2_ACCOUNT_ID || !R2_BUCKET_NAME || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY)
-      throw new Error("Cover storage is unavailable.");
     const id = crypto.randomUUID();
     const stagingObjectKey = `private/submission-covers/staging/${id}`;
     const expiresAt = new Date(Date.now() + 15 * 60_000);
@@ -64,25 +60,50 @@ export class SubmissionCoverService {
       throw new Error(
         "Save an editable draft first. An album with a shared cover keeps that cover; reload your invitation to reuse it.",
       );
-    const client = new AwsClient({
-      accessKeyId: R2_ACCESS_KEY_ID,
-      secretAccessKey: R2_SECRET_ACCESS_KEY,
-      service: "s3",
-      region: "auto",
-    });
-    const url = new URL(
-      `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET_NAME}/${stagingObjectKey}`,
-    );
-    url.searchParams.set("X-Amz-Expires", "900");
-    const headers = {
-      "content-type": declaration.mimeType,
-      "x-amz-meta-checksum-sha256": declaration.checksumSha256,
-      "x-amz-meta-upload-session-id": id,
-    };
-    const signed = await client.sign(new Request(url, { method: "PUT", headers }), {
-      aws: { signQuery: true },
-    });
-    return { sessionId: id, uploadUrl: signed.url, uploadHeaders: headers };
+    return { sessionId: id, uploadHeaders: { "content-type": declaration.mimeType } };
+  }
+  async upload(tokenHash: string, id: string, request: Request) {
+    const lease = crypto.randomUUID();
+    const cover = await this.repository.claimCover(tokenHash, id, lease);
+    if (!cover) throw new Error("Cover changed or expired. Reload and retry.");
+    try {
+      if (
+        request.headers.get("content-length") !== String(cover.byteSize) ||
+        request.headers.get("content-type") !== cover.mimeType ||
+        cover.byteSize > COVER_MAX_BYTES ||
+        !request.body
+      )
+        throw new Error(
+          "The uploaded cover must match its declared format and size, up to 20 MiB.",
+        );
+      // Covers pass through the authorized app route. FixedLengthStream rejects
+      // oversized/chunked bodies before R2 can commit an object.
+      const fixed = new FixedLengthStream(cover.byteSize);
+      const transfer = new AbortController();
+      const timer = setTimeout(() => transfer.abort(new Error("Cover upload timeout")), 60000);
+      try {
+        await Promise.all([
+          request.body.pipeTo(fixed.writable, { signal: transfer.signal }),
+          this.env.MEDIA_BUCKET.put(cover.stagingObjectKey, fixed.readable, {
+            httpMetadata: { contentType: cover.mimeType },
+            customMetadata: { checksumSha256: cover.checksumSha256, uploadSessionId: id },
+            sha256: cover.checksumSha256,
+          }).catch((error) => {
+            transfer.abort(error);
+            throw error;
+          }),
+        ]);
+      } finally {
+        clearTimeout(timer);
+        transfer.abort();
+      }
+      return { uploaded: true };
+    } catch (error) {
+      await this.env.MEDIA_BUCKET.delete(cover.stagingObjectKey).catch(() => {});
+      throw error;
+    } finally {
+      await this.repository.releaseCover(id, lease);
+    }
   }
   async finalize(tokenHash: string, id: string) {
     const lease = crypto.randomUUID();
@@ -90,6 +111,7 @@ export class SubmissionCoverService {
     if (!cover)
       throw new Error("Cover changed, expired, or is already verifying. Reload and retry.");
     const key = `private/submission-covers/final/${id}/${lease}`;
+    let completionUncertain = false;
     try {
       const header = await this.env.MEDIA_BUCKET.get(cover.stagingObjectKey, {
         range: new Headers({ Range: "bytes=0-1048575" }),
@@ -105,8 +127,14 @@ export class SubmissionCoverService {
         throw new Error("The cover format or dimensions do not match the uploaded image.");
       const source = await this.env.MEDIA_BUCKET.get(cover.stagingObjectKey, {
         range: new Headers(),
+        onlyIf: new Headers({ "if-match": header.httpEtag }),
       });
-      if (!source || source.size !== cover.byteSize)
+      if (
+        !source ||
+        !("body" in source) ||
+        source.httpEtag !== header.httpEtag ||
+        source.size !== cover.byteSize
+      )
         throw new Error("The cover upload is incomplete.");
       // Native R2 checksum validation avoids hashing large image bodies in JS.
       await this.env.MEDIA_BUCKET.put(key, source.body, {
@@ -114,15 +142,17 @@ export class SubmissionCoverService {
         customMetadata: { checksumSha256: cover.checksumSha256, submissionId: cover.submissionId },
         sha256: cover.checksumSha256,
       });
-      if (
-        (await this.env.MEDIA_BUCKET.head(key))?.size !== cover.byteSize ||
-        !(await this.repository.completeCover(tokenHash, id, lease, key))
-      )
-        throw new Error("The submission changed before the cover was saved.");
+      if ((await this.env.MEDIA_BUCKET.head(key))?.size !== cover.byteSize)
+        throw new Error("The cover upload is incomplete.");
+      completionUncertain = true;
+      const completed = await this.repository.completeCover(tokenHash, id, lease, key);
+      completionUncertain = false;
+      if (!completed) throw new Error("The submission changed before the cover was saved.");
+      if (completed.id !== id) await this.env.MEDIA_BUCKET.delete(key).catch(() => {});
       await this.env.MEDIA_BUCKET.delete(cover.stagingObjectKey).catch(() => {});
-      return { coverId: id };
+      return { coverId: completed.id };
     } catch (error) {
-      await this.env.MEDIA_BUCKET.delete(key).catch(() => {});
+      if (!completionUncertain) await this.env.MEDIA_BUCKET.delete(key).catch(() => {});
       await this.repository.releaseCover(id, lease);
       throw error;
     }

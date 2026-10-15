@@ -32,12 +32,10 @@ function environment(value: unknown = output) {
   return {
     AUDIO_ENCODER: { fetch: vi.fn().mockResolvedValue(Response.json(value)) },
     MEDIA_BUCKET: {
-      head: vi
-        .fn()
-        .mockResolvedValue({
-          size: output.byteSize,
-          customMetadata: { checksumSha256: output.checksumSha256 },
-        }),
+      head: vi.fn().mockResolvedValue({
+        size: output.byteSize,
+        customMetadata: { checksumSha256: output.checksumSha256 },
+      }),
       delete: vi.fn().mockResolvedValue(undefined),
     },
   };
@@ -104,5 +102,14 @@ describe("durable streaming preparation", () => {
     });
     expect(env.MEDIA_BUCKET.delete.mock.calls).toEqual([[job.outputKey]]);
     expect(repository.fail).toHaveBeenCalledWith(job, "LEASE_LOST");
+  });
+  it("retains the potentially selected derivative when the completion response is lost", async () => {
+    repository.complete.mockRejectedValueOnce(new Error("Database response lost"));
+    const env = environment();
+    expect(await prepareNextRelease({} as never, env as unknown as WorkerEnv)).toEqual({
+      state: "failed",
+      code: "PREPARATION_INTERRUPTED",
+    });
+    expect(env.MEDIA_BUCKET.delete).not.toHaveBeenCalled();
   });
 });

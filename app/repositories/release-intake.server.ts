@@ -1,7 +1,6 @@
 import { sql } from "drizzle-orm";
 import { COVER_RIGHTS_STATEMENT } from "~/config/music-metadata";
 import type { Database } from "~/db/client.server";
-import type { SubmissionDraftInput } from "./submissions.server";
 
 function rows<T>(value: unknown): T[] {
   return (Array.isArray(value) ? value : (value as { rows: T[] }).rows) as T[];
@@ -44,41 +43,6 @@ export function createReleaseIntakeRepository(db: Database) {
           and (r.id is null or r.lifecycle_status in ('draft','in_review')) order by p.created_at,p.id`),
       );
     },
-    async saveAlbumChoice(tokenHash: string, input: SubmissionDraftInput) {
-      const album = input.release.kind === "album";
-      const projectId = input.release.albumProjectId || null;
-      if (!album) return;
-      const newId = crypto.randomUUID();
-      await db.batch([
-        db.execute(sql`select 1 / exists(select 1 from submissions s join submission_invitations i on i.id=s.invitation_id
-          where i.token_hash=${tokenHash} and i.revoked_at is null and i.expires_at>now() and s.status in ('draft','clarification_requested'))::int`),
-        ...(projectId
-          ? []
-          : [
-              db.execute(sql`insert into submission_release_projects(id,owner_email,artist_name,title,origin_submission_id)
-          select ${newId}::uuid,lower(i.invitee_email),${input.artist.displayName},${input.release.title},s.id
-          from submissions s join submission_invitations i on i.id=s.invitation_id where i.token_hash=${tokenHash}
-          on conflict(origin_submission_id) do update set artist_name=excluded.artist_name,title=excluded.title
-          where not exists(select 1 from releases where id=submission_release_projects.release_id)
-            and not exists(select 1 from submissions other where other.release_details->>'albumProjectId'=submission_release_projects.id::text and other.id<>submission_release_projects.origin_submission_id)`),
-            ]),
-        db.execute(sql`with eligible as (
-          select s.id,p.id as project_id,p.title from submissions s join submission_invitations i on i.id=s.invitation_id
-          join submission_release_projects p on p.owner_email=lower(i.invitee_email)
-            and (${projectId}::uuid is not null and p.id=${projectId}::uuid or ${projectId}::uuid is null and p.origin_submission_id=s.id)
-          left join releases r on r.id=p.release_id
-          where i.token_hash=${tokenHash} and i.revoked_at is null and i.expires_at>now()
-            and s.status in ('draft','clarification_requested')
-            and lower(p.artist_name)=lower(${input.artist.displayName})
-            and (r.id is null or r.lifecycle_status in ('draft','in_review'))
-            and not exists(select 1 from submissions other where other.id<>s.id and other.release_details->>'albumProjectId'=p.id::text
-              and other.status not in ('rejected','withdrawn') and other.release_details->>'trackNumber'=${String(input.release.trackNumber)})
-          for update of s
-        ), saved as (update submissions s set release_details=s.release_details || jsonb_build_object('albumProjectId',e.project_id,'title',e.title)
-          from eligible e where s.id=e.id returning s.id)
-        select 1 / exists(select 1 from saved)::int as valid`),
-      ]);
-    },
     async validateAlbumChoice(tokenHash: string) {
       return (
         rows<{ valid: boolean }>(
@@ -93,15 +57,6 @@ export function createReleaseIntakeRepository(db: Database) {
       ) as valid`),
         )[0]?.valid ?? false
       );
-    },
-    async reuseAlbumCover(tokenHash: string) {
-      await db.execute(sql`insert into submission_cover_selections(submission_id,cover_id)
-        select s.id,c.id from submissions s join submission_invitations i on i.id=s.invitation_id
-        join submissions other on nullif(other.release_details->>'albumProjectId','')=nullif(s.release_details->>'albumProjectId','') and other.id<>s.id
-        join submission_cover_selections sc on sc.submission_id=other.id join submission_cover_uploads c on c.id=sc.cover_id
-        where i.token_hash=${tokenHash} and i.revoked_at is null and i.expires_at>now()
-          and s.status in ('draft','clarification_requested') and c.status='ready' and submission_may_use_cover(s.id,c.id)
-        order by c.created_at,c.id limit 1 on conflict(submission_id) do nothing`);
     },
     async currentCover(tokenHash: string) {
       const result = await db.execute(sql`select ${coverColumns},
@@ -141,7 +96,11 @@ export function createReleaseIntakeRepository(db: Database) {
         from submissions s join submission_invitations i on i.id=s.invitation_id
         where i.token_hash=${tokenHash} and i.revoked_at is null and i.expires_at>now() and ${editableCover} and not exists(select 1 from submissions other join submission_cover_selections sc on sc.submission_id=other.id
           where s.release_details->>'kind'='album' and other.id<>s.id and nullif(other.release_details->>'albumProjectId','')=nullif(s.release_details->>'albumProjectId','')) returning *
-      ) select ${coverColumns} from created c`),
+      ), cleanup as (
+        insert into curation_outbox(idempotency_key,kind,payload,available_at)
+        select 'cover-upload:'||id||':staging-cleanup','cover_staging_cleanup',jsonb_build_object('uploadSessionId',id),expires_at from created
+        on conflict(idempotency_key) do nothing returning id
+      ) select ${coverColumns} from created c,cleanup`),
         )[0] ?? null
       );
     },
@@ -160,33 +119,66 @@ export function createReleaseIntakeRepository(db: Database) {
       );
     },
     async completeCover(tokenHash: string, id: string, lease: string, key: string) {
-      return (
-        rows<{ id: string }>(
-          await db.execute(sql`with eligible as (
-        select c.id,c.submission_id from submission_cover_uploads c join submissions s on s.id=c.submission_id join submission_invitations i on i.id=s.invitation_id
-        where c.id=${id}::uuid and c.lease_token=${lease}::uuid and c.status='finalizing' and c.lease_expires_at>now()
-          and i.token_hash=${tokenHash} and i.revoked_at is null and i.expires_at>now() and ${editableCover} and not exists(select 1 from submissions other join submission_cover_selections sc on sc.submission_id=other.id
-            where s.release_details->>'kind'='album' and other.id<>s.id and nullif(other.release_details->>'albumProjectId','')=nullif(s.release_details->>'albumProjectId','')) for update of s,c
-      ), sealed as (update submission_cover_uploads c set status='ready',object_key=${key},finalized_at=now(),lease_token=null,lease_expires_at=null
-        from eligible e where c.id=e.id returning c.id,c.submission_id), selected as (
-        insert into submission_cover_selections(submission_id,cover_id) select submission_id,id from sealed
-        on conflict(submission_id) do update set cover_id=excluded.cover_id returning cover_id
-      ), attached as (
-        update release_preparation_jobs j set cover_id=chosen.cover_id,updated_at=now()
-        from selected chosen,curation_reviews r where j.review_id=r.id and r.submission_id in (select submission_id from eligible)
-          and j.cover_id is null and j.status in ('queued','failed') returning j.track_id
-      ), audited as (
-        insert into publication_audit(entity_type,entity_id,from_lifecycle,to_lifecycle,actor_id,actor_email,reason)
-        select 'track',t.id,t.lifecycle_status,t.lifecycle_status,'submitter:'||s.id,i.invitee_email,'Artist supplied missing cover through invitation; accepted review unchanged'
-        from attached a join tracks t on t.id=a.track_id join submissions s on s.resulting_track_id=t.id join submission_invitations i on i.id=s.invitation_id
-      ) select cover_id as id from selected`),
-        )[0] ?? null
-      );
+      const result = await db.batch([
+        db.execute(sql`select p.id from submission_release_projects p join submissions s on p.id::text=s.release_details->>'albumProjectId'
+          join submission_invitations i on i.id=s.invitation_id join submission_cover_uploads c on c.submission_id=s.id
+          where c.id=${id}::uuid and i.token_hash=${tokenHash} and c.lease_token=${lease}::uuid for update of p`),
+        db.execute(sql`with eligible as (
+          select c.id,c.submission_id from submission_cover_uploads c join submissions s on s.id=c.submission_id join submission_invitations i on i.id=s.invitation_id
+          where c.id=${id}::uuid and c.lease_token=${lease}::uuid and c.status='finalizing' and c.lease_expires_at>now()
+            and i.token_hash=${tokenHash} and i.revoked_at is null and i.expires_at>now() and ${editableCover} for update of s,c
+        ), winner as (
+          select e.submission_id,e.id as uploaded_id,coalesce((select sc.cover_id from submissions s join submissions other
+            on nullif(other.release_details->>'albumProjectId','')=nullif(s.release_details->>'albumProjectId','') and other.id<>s.id
+            join submission_cover_selections sc on sc.submission_id=other.id join submission_cover_uploads c on c.id=sc.cover_id
+            where s.id=e.submission_id and s.release_details->>'kind'='album' and c.status='ready' and submission_may_use_cover(s.id,c.id)
+            order by c.created_at,c.id limit 1),e.id) as cover_id from eligible e
+        ), sealed as (
+          update submission_cover_uploads c set status='ready',object_key=${key},finalized_at=now(),lease_token=null,lease_expires_at=null
+          from winner w where c.id=w.uploaded_id and w.cover_id=c.id returning c.id
+        ), superseded as (
+          update submission_cover_uploads c set status='failed',lease_token=null,lease_expires_at=null
+          from winner w where c.id=w.uploaded_id and w.cover_id<>c.id returning c.id
+        ), selected as (
+          insert into submission_cover_selections(submission_id,cover_id) select w.submission_id,w.cover_id from winner w
+          where exists(select 1 from sealed where id=w.uploaded_id) or exists(select 1 from superseded where id=w.uploaded_id)
+          on conflict(submission_id) do update set cover_id=excluded.cover_id returning cover_id
+        ), attached as (
+          update release_preparation_jobs j set cover_id=chosen.cover_id,updated_at=now()
+          from selected chosen,curation_reviews r where j.review_id=r.id and r.submission_id in (select submission_id from eligible)
+            and j.cover_id is null and j.status in ('queued','failed') returning j.track_id
+        ), audited as (
+          insert into publication_audit(entity_type,entity_id,from_lifecycle,to_lifecycle,actor_id,actor_email,reason)
+          select 'track',t.id,t.lifecycle_status,t.lifecycle_status,'submitter:'||s.id,i.invitee_email,'Artist supplied missing cover through invitation; accepted review unchanged'
+          from attached a join tracks t on t.id=a.track_id join submissions s on s.resulting_track_id=t.id join submission_invitations i on i.id=s.invitation_id
+        ) select cover_id as id from selected`),
+      ]);
+      return rows<{ id: string }>(result[1])[0] ?? null;
     },
     async releaseCover(id: string, lease: string) {
       await db.execute(
         sql`update submission_cover_uploads set status='pending',lease_token=null,lease_expires_at=null where id=${id}::uuid and lease_token=${lease}::uuid and status='finalizing'`,
       );
+    },
+    async coverStagingCleanupTarget(id: string, now: Date) {
+      const [cover] = rows<SubmissionCover>(
+        await db.execute(
+          sql`select ${coverColumns} from submission_cover_uploads c where c.id=${id}::uuid`,
+        ),
+      );
+      if (!cover) return { status: "missing" } as const;
+      if (new Date(cover.expiresAt) > now) return { status: "defer" } as const;
+      const busy = rows<{ busy: boolean }>(
+        await db.execute(
+          sql`select exists(select 1 from submission_cover_uploads where id=${id}::uuid and status='finalizing' and lease_expires_at>${now.toISOString()}::timestamptz) as busy`,
+        ),
+      )[0]?.busy;
+      if (busy) return { status: "defer" } as const;
+      // Derive the exact staging key from the validated session ID. Never clean
+      // selected covers or any prefix supplied by an outbox payload.
+      if (cover.stagingObjectKey !== `private/submission-covers/staging/${id}`)
+        throw new Error("Invalid staging key");
+      return { status: "ready", stagingObjectKey: cover.stagingObjectKey } as const;
     },
   };
 }

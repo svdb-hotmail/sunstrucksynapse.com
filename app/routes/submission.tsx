@@ -683,27 +683,25 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
           { status: 409 },
         );
     }
-    const result = await service.saveDraft(tokenHash, draft, abuseMeta);
+    let result;
+    try {
+      // Project identity, position reservation and cover adoption are enforced
+      // inside the draft write by migration 0014.
+      result = await service.saveDraft(tokenHash, draft, abuseMeta);
+    } catch {
+      return Response.json(
+        {
+          error:
+            "Album details changed or that track number is already used. Keep a shared cover in its original album, or choose an unused track number and save again.",
+        },
+        { status: 409 },
+      );
+    }
     if (!result.ok) {
       return Response.json(
         { error: result.error.message },
         { status: submissionHttpStatus(result.error.code) },
       );
-    }
-    if (runtime.db && draft.release.kind === "album") {
-      try {
-        const intake = createReleaseIntakeRepository(runtime.db);
-        await intake.saveAlbumChoice(tokenHash, draft);
-        await intake.reuseAlbumCover(tokenHash);
-      } catch {
-        return Response.json(
-          {
-            error:
-              "Album or track number unavailable. Choose your unpublished album and an unused track number, then save again.",
-          },
-          { status: 409 },
-        );
-      }
     }
     return redirect(`/submit/${params.invitationToken}?saved=1#review-audio`);
   }

@@ -47,10 +47,12 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     curator.list("release"),
     repository.inventory(),
   ]);
-  const track = focusedTrack ? tracks.find((t) => t.id === focusedTrack && t.accepted) : null;
-  if (focusedTrack && !track)
-    throw new Response("This track is not awaiting publication.", { status: 404 });
-  const albumId = selected ?? track?.releaseId ?? null;
+  const focusedRelease = focusedTrack
+    ? await repository.releaseForAcceptedTrack(focusedTrack)
+    : null;
+  if (focusedTrack && !focusedRelease)
+    throw new Response("Accepted track not found.", { status: 404 });
+  const albumId = selected ?? focusedRelease;
   if (albumId && !releases.some((r) => r.id === albumId))
     throw new Response("Release not found.", { status: 404 });
   const [readiness, preview] = await Promise.all([
@@ -109,6 +111,21 @@ export async function action({ request, context }: ActionFunctionArgs) {
       )
         throw new Error("This track is not awaiting preparation in this release.");
       await createReleasePreparationRepository(db).retry(trackId, identity);
+    } else if (intent === "reorder") {
+      const ids: unknown = JSON.parse(String(form.get("trackIds") ?? "null"));
+      const previous: unknown = JSON.parse(String(form.get("previousTrackIds") ?? "null"));
+      if (
+        ![ids, previous].every(
+          (value) =>
+            Array.isArray(value) &&
+            value.length > 0 &&
+            value.length <= 100 &&
+            value.every(validId) &&
+            new Set(value).size === value.length,
+        )
+      )
+        throw new Error("Refresh the release and choose every track once.");
+      await repository.reorder(releaseId, ids as string[], previous as string[], identity);
     } else if (intent === "prepare") {
       let parsed: unknown;
       try {
@@ -250,6 +267,17 @@ function AlbumEditor({ data }: { data: PublishingRouteData }) {
         )
       }
       onRefresh={() => void revalidator.revalidate()}
+      onReorder={(ids) =>
+        void fetcher.submit(
+          {
+            intent: "reorder",
+            releaseId: data.albumId!,
+            trackIds: JSON.stringify(ids),
+            previousTrackIds: JSON.stringify(tracks.map((t) => t.id)),
+          },
+          { method: "post" },
+        )
+      }
       onSaveMetadata={(updated) =>
         void fetcher.submit(
           {

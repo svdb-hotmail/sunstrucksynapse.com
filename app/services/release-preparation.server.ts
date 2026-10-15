@@ -9,6 +9,7 @@ export async function prepareNextRelease(db: Database, env: WorkerEnv) {
   const repository = createReleasePreparationRepository(db);
   const job = await repository.claim();
   if (!job) return { state: "idle" } as const;
+  let completionUncertain = false;
   try {
     const response = await env.AUDIO_ENCODER.fetch("https://encoder.internal/encode", {
       method: "POST",
@@ -24,7 +25,10 @@ export async function prepareNextRelease(db: Database, env: WorkerEnv) {
       sealed.customMetadata?.checksumSha256 !== output.checksumSha256
     )
       throw new Error("OUTPUT_STORAGE_MISMATCH");
-    if (!(await repository.complete(job, output))) throw new Error("LEASE_LOST");
+    completionUncertain = true;
+    const completed = await repository.complete(job, output);
+    completionUncertain = false;
+    if (!completed) throw new Error("LEASE_LOST");
     return { state: "ready" } as const;
   } catch (error) {
     const safeCodes = new Set([
@@ -38,8 +42,9 @@ export async function prepareNextRelease(db: Database, env: WorkerEnv) {
         ? error.message
         : "PREPARATION_INTERRUPTED";
     await repository.fail(job, code);
-    // The output key contains this lease token, so cleanup cannot delete a newer attempt.
-    await env.MEDIA_BUCKET.delete(job.outputKey).catch(() => {});
+    // A committed completion can lose its response. Keep that potentially selected
+    // object; a failed uncommitted completion is recovered by the ordinary retry.
+    if (!completionUncertain) await env.MEDIA_BUCKET.delete(job.outputKey).catch(() => {});
     return { state: "failed", code } as const;
   }
 }

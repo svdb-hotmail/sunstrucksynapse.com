@@ -33,6 +33,7 @@ export function PublishingWorkspace({
   onRetry,
   onRefresh,
   onSaveMetadata,
+  onReorder,
 }: {
   title: string;
   artistName: string;
@@ -48,6 +49,7 @@ export function PublishingWorkspace({
   onRetry: (id: string) => void;
   onRefresh: () => void;
   onSaveMetadata?: (tracks: AlbumTrackInput[]) => void;
+  onReorder?: (ids: string[]) => void;
 }) {
   const [confirmedRevision, setConfirmedRevision] = useState<string | null>(null);
   const revision = JSON.stringify([
@@ -136,7 +138,7 @@ export function PublishingWorkspace({
           />
           {audioError ? <p role="alert">{audioError}</p> : null}
           <ol className="publishing-track-list">
-            {tracks.map((track) => (
+            {tracks.map((track, index) => (
               <li key={track.id}>
                 <div className="publishing-track-heading">
                   <span className="publishing-number">{track.position}</span>
@@ -164,6 +166,34 @@ export function PublishingWorkspace({
                   · {track.moods.join(", ")}
                 </p>
                 <small>{track.processTags.join(", ")}</small>
+                {releaseKind === "album" && onReorder ? (
+                  <div>
+                    <CuratorButton
+                      variant="ghost"
+                      disabled={pending || index === 0}
+                      aria-label={`Move ${track.title} up`}
+                      onClick={() => {
+                        const ids = tracks.map((t) => t.id);
+                        [ids[index - 1], ids[index]] = [ids[index], ids[index - 1]];
+                        onReorder(ids);
+                      }}
+                    >
+                      Move up
+                    </CuratorButton>
+                    <CuratorButton
+                      variant="ghost"
+                      disabled={pending || index === tracks.length - 1}
+                      aria-label={`Move ${track.title} down`}
+                      onClick={() => {
+                        const ids = tracks.map((t) => t.id);
+                        [ids[index], ids[index + 1]] = [ids[index + 1], ids[index]];
+                        onReorder(ids);
+                      }}
+                    >
+                      Move down
+                    </CuratorButton>
+                  </div>
+                ) : null}
                 {track.preparationStatus === "ready" ? (
                   <CuratorButton
                     variant="ghost"
@@ -204,6 +234,15 @@ export function PublishingWorkspace({
               </li>
             ))}
           </ol>
+          {onReorder && tracks.some((t, index) => t.position !== index + 1) ? (
+            <p className="publishing-message">
+              Some submitted tracks did not enter this release. Keep this order and number the
+              remaining tracks from 1.
+              <CuratorButton disabled={pending} onClick={() => onReorder(tracks.map((t) => t.id))}>
+                Close gaps in track numbers
+              </CuratorButton>
+            </p>
+          ) : null}
           {tracks.some((t) => !t.coverId) ? (
             <p className="publishing-message">
               This earlier submission has no artist cover. Ask the artist to add it through their

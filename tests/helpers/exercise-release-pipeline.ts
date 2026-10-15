@@ -71,15 +71,13 @@ export async function exerciseReleasePipeline(db: Database) {
       return { ...record, input };
     }
     assert.equal((await service.saveDraft(record.token, input, meta)).ok, true);
-    await intake.saveAlbumChoice(record.token, input);
-    await intake.reuseAlbumCover(record.token);
     const saved = await submissions.findByInvitationTokenHash(record.token, new Date());
     assert.deepEqual(saved!.submission.trackDetails.genres, ["Ambient", "Electronic"]);
     assert.deepEqual(saved!.submission.trackDetails.processTags, ["Human composition", "Mixing"]);
     input.release = saved!.submission.releaseDetails;
     return { ...record, input };
   }
-  async function addCover(token: string) {
+  async function beginCover(token: string, checksum = "c".repeat(64)) {
     const id = crypto.randomUUID(),
       lease = crypto.randomUUID();
     assert(
@@ -87,7 +85,7 @@ export async function exerciseReleasePipeline(db: Database) {
         id,
         filename: "synthetic.png",
         mimeType: "image/png",
-        checksumSha256: "c".repeat(64),
+        checksumSha256: checksum,
         byteSize: 100,
         width: 1400,
         height: 1400,
@@ -96,6 +94,10 @@ export async function exerciseReleasePipeline(db: Database) {
       }),
     );
     assert(await intake.claimCover(token, id, lease));
+    return { id, lease };
+  }
+  async function addCover(token: string) {
+    const { id, lease } = await beginCover(token);
     assert.equal(
       await intake.completeCover(
         token,
@@ -145,11 +147,95 @@ export async function exerciseReleasePipeline(db: Database) {
   );
   assert.deepEqual(inventory[0].genres, ["Ambient", "Electronic"]);
   const releaseId = inventory[0].releaseId;
+  const duplicate = await seed(5);
+  await assert.rejects(
+    service.saveDraft(
+      duplicate.token,
+      { ...first.input, release: { ...first.input.release, trackNumber: 1 } },
+      meta,
+    ),
+  );
+  assert.notEqual(
+    (await submissions.findByInvitationTokenHash(duplicate.token, new Date()))?.submission
+      .releaseDetails.albumProjectId,
+    first.input.release.albumProjectId,
+  );
+  assert.equal(await intake.validateAlbumChoice(first.token), true);
+  assert.equal(await intake.validateAlbumChoice(second.token), true);
+  const moved = await seed(6);
+  const single = {
+    ...first.input,
+    release: {
+      ...first.input.release,
+      kind: "single" as const,
+      albumProjectId: undefined,
+      trackNumber: undefined,
+    },
+  };
+  assert.equal((await service.saveDraft(moved.token, single, meta)).ok, true);
+  const oldCover = await addCover(moved.token);
+  assert.equal(
+    (
+      await service.saveDraft(
+        moved.token,
+        { ...first.input, release: { ...first.input.release, trackNumber: 3 } },
+        meta,
+      )
+    ).ok,
+    true,
+  );
+  assert.equal((await intake.currentCover(moved.token))?.id, coverId);
+  assert.notEqual(oldCover, coverId);
+  // Moving a borrower into a new project removes the previous album's cover.
+  assert.equal(
+    (
+      await service.saveDraft(
+        moved.token,
+        {
+          ...first.input,
+          release: {
+            ...first.input.release,
+            title: "Another project",
+            albumProjectId: undefined,
+            trackNumber: 1,
+          },
+        },
+        meta,
+      )
+    ).ok,
+    true,
+  );
+  assert.equal(await intake.currentCover(moved.token), null);
+  await assert.rejects(async () => {
+    await db.execute(
+      sql`update releases set lifecycle_status='published' where id=${releaseId}::uuid`,
+    );
+  });
   const lineage = rows(
     await db.execute(
       sql`select id,resulting_track_id,accepted_rights_declaration_id,accepted_creative_process_disclosure_id,accepted_provenance_record_id from submissions where status='accepted' order by id`,
     ),
   );
+  await db.execute(sql`update tracks set position=4 where id=${secondId}::uuid`);
+  assert(
+    (await publisher.readiness(releaseId)).some((r) =>
+      r.blockers.includes("complete consecutive track order starting at 1"),
+    ),
+  );
+  await publisher.reorder(releaseId, [secondId, firstId], [firstId, secondId], actor);
+  assert.deepEqual(
+    (await publisher.inventory())
+      .filter((t) => t.releaseId === releaseId)
+      .map((t) => [t.id, t.position]),
+    [
+      [secondId, 1],
+      [firstId, 2],
+    ],
+  );
+  await assert.rejects(
+    publisher.reorder(releaseId, [firstId, secondId], [firstId, secondId], actor),
+  );
+  await publisher.reorder(releaseId, [firstId, secondId], [secondId, firstId], actor);
   await assert.rejects(publisher.publish(releaseId, actor));
   assert(
     rows<{ blockers: string[] }>(await publisher.readiness(releaseId)).some(
@@ -201,6 +287,8 @@ export async function exerciseReleasePipeline(db: Database) {
     JSON.stringify(ready),
   );
   const slug = await publisher.publish(releaseId, actor);
+  assert.equal(await publisher.releaseForAcceptedTrack(firstId), releaseId);
+  assert(!(await publisher.inventory()).some((t) => t.id === firstId));
   assert.equal(
     rows(await db.execute(sql`select id from audio_assets where scope='publishable_derivative'`))
       .length,
@@ -279,5 +367,60 @@ export async function exerciseReleasePipeline(db: Database) {
   );
   await preparation.retry(legacyDecision.resultingTrackId, actor);
   assert.equal((await preparation.claim())?.id, interrupted.id);
+  const provider = await save(9);
+  const borrower = await save(10, provider.input.release.albumProjectId);
+  // Both uploads acquire leases before either finalizes, matching the dangerous
+  // concurrent interleaving. PGlite serializes calls; no multi-connection claim.
+  const winner = await beginCover(provider.token);
+  const contender = await beginCover(borrower.token, "e".repeat(64));
+  assert.equal(
+    (
+      await intake.completeCover(
+        provider.token,
+        winner.id,
+        winner.lease,
+        `private/submission-covers/final/${winner.id}/${winner.lease}`,
+      )
+    )?.id,
+    winner.id,
+  );
+  assert.equal(
+    (
+      await intake.completeCover(
+        borrower.token,
+        contender.id,
+        contender.lease,
+        `private/submission-covers/final/${contender.id}/${contender.lease}`,
+      )
+    )?.id,
+    winner.id,
+  );
+  assert.equal((await intake.currentCover(borrower.token))?.id, winner.id);
+  await assert.rejects(
+    service.saveDraft(
+      provider.token,
+      {
+        ...provider.input,
+        release: { ...provider.input.release, kind: "single", albumProjectId: undefined },
+      },
+      meta,
+    ),
+  );
+  assert.equal((await intake.currentCover(borrower.token))?.id, winner.id);
+  const cleanup = await intake.coverStagingCleanupTarget(
+    contender.id,
+    new Date(Date.now() + 20 * 60000),
+  );
+  assert.deepEqual(cleanup, {
+    status: "ready",
+    stagingObjectKey: `private/submission-covers/staging/${contender.id}`,
+  });
+  assert(
+    rows(
+      await db.execute(
+        sql`select id from curation_outbox where kind='cover_staging_cleanup' and payload->>'uploadSessionId'=${contender.id}`,
+      ),
+    ).length === 1,
+  );
   return { releaseId, slug, tracks: 2, publishAuditCount: count };
 }

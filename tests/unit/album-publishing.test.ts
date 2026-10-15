@@ -22,6 +22,21 @@ describe("album publishing atomicity", () => {
     client = new PGlite();
     db = drizzle(client, { schema });
     await migrate(db, { migrationsFolder: "./drizzle" });
+    // PGlite has no Neon HTTP batch. Execute the same lazy statements inside a
+    // real PostgreSQL transaction, including SQL locks and rollback semantics.
+    const adapter = Object.create(db);
+    adapter.batch = async (queries: Promise<unknown>[]) => {
+      await client.exec("begin");
+      try {
+        const results = [];
+        for (const query of queries) results.push(await query);
+        await client.exec("commit");
+        return results;
+      } catch (error) {
+        await client.exec("rollback");
+        throw error;
+      }
+    };
     const fixture = `
       insert into submission_invitations (
         id, public_reference, token_hash, invitee_name, invitee_email, expires_at
@@ -120,7 +135,7 @@ describe("album publishing atomicity", () => {
       await client.query("update submissions set status='draft',submitted_at=null where id=$1", [
         sid,
       ]);
-      const intake = createReleaseIntakeRepository(db as never);
+      const intake = createReleaseIntakeRepository(adapter as Database);
       const coverId = crypto.randomUUID(),
         lease = crypto.randomUUID();
       await intake.createCover(token, {
@@ -163,21 +178,6 @@ describe("album publishing atomicity", () => {
       trackIds.push(result!.resultingTrackId!);
     }
     artistId = (await db.select().from(schema.artists))[0].id;
-    // PGlite has no Neon HTTP batch. Execute the same lazy statements inside a
-    // real PostgreSQL transaction, including SQL locks and rollback semantics.
-    const adapter = Object.create(db);
-    adapter.batch = async (queries: Promise<unknown>[]) => {
-      await client.exec("begin");
-      try {
-        const results = [];
-        for (const query of queries) results.push(await query);
-        await client.exec("commit");
-        return results;
-      } catch (error) {
-        await client.exec("rollback");
-        throw error;
-      }
-    };
     repository = createAlbumPublishingRepository(adapter as Database);
   }, 30000);
   afterAll(async () => client.close());

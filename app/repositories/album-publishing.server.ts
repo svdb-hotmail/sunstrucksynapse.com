@@ -56,6 +56,15 @@ function readinessQuery(releaseId: string): SQL {
 
 export function createAlbumPublishingRepository(db: Database) {
   return {
+    async releaseForAcceptedTrack(id: string) {
+      return (
+        rows<{ releaseId: string }>(
+          await db.execute(
+            sql`select t.release_id as "releaseId" from tracks t where t.id=${id}::uuid and (${accepted})`,
+          ),
+        )[0]?.releaseId ?? null
+      );
+    },
     async inventory() {
       const result =
         await db.execute(sql`select t.id, t.title, t.release_id as "releaseId", coalesce(t.genre,'') as genre, t.genres, t.moods, t.creative_process_tags as "processTags", t.position,
@@ -124,6 +133,29 @@ export function createAlbumPublishingRepository(db: Database) {
           blockers: ["complete consecutive track order starting at 1"],
         });
       return tracks;
+    },
+    async reorder(releaseId: string, ids: string[], expectedIds: string[], actor: CuratorIdentity) {
+      if (!ids.length || ids.length > 100 || new Set(ids).size !== ids.length)
+        throw new Error("Choose every accepted track once.");
+      const json = JSON.stringify(ids.map((id, index) => ({ id, position: index + 1 })));
+      const selected = sql`select * from jsonb_to_recordset(${json}::jsonb) as x(id uuid,position integer)`;
+      await db.batch([
+        db.execute(lockCatalogue),
+        db.execute(sql`select 1 / (
+          exists(select 1 from releases where id=${releaseId}::uuid and lifecycle_status in ('draft','in_review'))
+          and (select jsonb_agg(t.id::text order by t.disc_number,t.position,t.id) from tracks t where t.release_id=${releaseId}::uuid)=${JSON.stringify(expectedIds)}::jsonb
+          and (select count(*) from tracks t where t.release_id=${releaseId}::uuid)=${ids.length}
+          and (select count(*) from tracks t join (${selected}) x on x.id=t.id where t.release_id=${releaseId}::uuid and t.lifecycle_status in ('draft','in_review') and (${accepted}))=${ids.length}
+        )::int as valid`),
+        db.execute(
+          sql`update tracks set position=position+1000000 where release_id=${releaseId}::uuid`,
+        ),
+        db.execute(sql`with prior as materialized (select id,position-1000000 as position from tracks where release_id=${releaseId}::uuid), changed as (
+          update tracks t set position=x.position,disc_number=1 from (${selected}) x where t.id=x.id returning t.id,t.lifecycle_status,t.position
+        ) insert into publication_audit(entity_type,entity_id,from_lifecycle,to_lifecycle,actor_id,actor_email,reason)
+          select 'track',c.id,c.lifecycle_status,c.lifecycle_status,${actor.id},${actor.email},'Curator album order: '||jsonb_build_object('releaseId',${releaseId}::uuid,'previousPosition',p.position,'position',c.position)::text
+          from changed c join prior p on p.id=c.id where p.position<>c.position`),
+      ]);
     },
     async prepare(input: AlbumPreparation, actor: CuratorIdentity) {
       const ids = input.tracks.map((t) => t.id);
@@ -215,6 +247,7 @@ export function createAlbumPublishingRepository(db: Database) {
           and exists(select 1 from release_artwork_assets l join artwork_assets a on a.id=l.artwork_asset_id where l.release_id=${releaseId}::uuid and l.role='primary' and a.scope='publishable_derivative' and a.status='ready')
           and exists(select 1 from release_artist_credits c where c.release_id=${releaseId}::uuid and c.position=1)
           and not exists(select 1 from release_artist_credits c join artists a on a.id=c.artist_id where c.release_id=${releaseId}::uuid and a.lifecycle_status not in ('draft','in_review','published')))::int as valid`),
+        db.execute(sql`select set_config('sunsyn.atomic_publish_release',${releaseId},true)`),
         db.execute(sql`with artist_before as materialized (select a.id,a.lifecycle_status from artists a where a.id in (select artist_id from release_artist_credits where release_id=${releaseId}::uuid union select c.artist_id from track_artist_credits c join tracks t on t.id=c.track_id where t.release_id=${releaseId}::uuid) and a.lifecycle_status in ('draft','in_review')),
           release_before as materialized (select id,lifecycle_status from releases where id=${releaseId}::uuid and lifecycle_status in ('draft','in_review')),
           track_before as materialized (select id,lifecycle_status from tracks where release_id=${releaseId}::uuid and lifecycle_status in ('draft','in_review')),

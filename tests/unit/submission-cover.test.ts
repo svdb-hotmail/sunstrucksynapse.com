@@ -30,12 +30,11 @@ const declaration = {
 };
 function runtime(header = bytes, sourceSize = bytes.length) {
   const bucket = {
-    get: vi
-      .fn()
-      .mockImplementation(async (_key, options) => ({
-        size: options.range.has("range") ? header.length : sourceSize,
-        body: new Blob([header]).stream(),
-      })),
+    get: vi.fn().mockImplementation(async (_key, options) => ({
+      size: options.range.has("range") ? header.length : sourceSize,
+      httpEtag: "same-immutable-version",
+      body: new Blob([header]).stream(),
+    })),
     put: vi.fn().mockResolvedValue({ size: bytes.length }),
     head: vi.fn().mockResolvedValue({ size: bytes.length }),
     delete: vi.fn().mockResolvedValue(undefined),
@@ -119,5 +118,46 @@ describe("artist cover sealing", () => {
       expect.stringMatching(/^private\/submission-covers\/final\//),
     );
     expect(next.bucket.delete).not.toHaveBeenCalledWith(`private/submission-covers/staging/${id}`);
+  });
+  it("retains a possibly selected cover if the completion response is lost", async () => {
+    repository.completeCover.mockRejectedValueOnce(new Error("Database response lost"));
+    const { bucket, service } = runtime();
+    await expect(service.finalize("invitation-hash", id)).rejects.toThrow("Database response lost");
+    expect(bucket.delete).not.toHaveBeenCalled();
+  });
+  it.each([undefined, "20971521", "1000"])(
+    "rejects an unbounded or mismatched upload length %s before storage",
+    async (length) => {
+      const { bucket, service } = runtime();
+      const headers = new Headers({ "content-type": "image/png" });
+      if (length) headers.set("content-length", length);
+      await expect(
+        service.upload(
+          "invitation-hash",
+          id,
+          new Request("https://example.test/cover", { method: "PUT", headers, body: bytes }),
+        ),
+      ).rejects.toThrow("declared format and size");
+      expect(bucket.put).not.toHaveBeenCalled();
+      expect(repository.releaseCover).toHaveBeenCalledOnce();
+    },
+  );
+  it("rejects a staging replacement between the header and body reads", async () => {
+    const { bucket, service } = runtime();
+    bucket.get
+      .mockResolvedValueOnce({
+        httpEtag: "first",
+        size: bytes.length,
+        body: new Blob([bytes]).stream(),
+      })
+      .mockResolvedValueOnce({
+        httpEtag: "replacement",
+        size: bytes.length,
+        body: new Blob([bytes]).stream(),
+      });
+    await expect(service.finalize("invitation-hash", id)).rejects.toThrow("incomplete");
+    expect(bucket.get.mock.calls[1][1].onlyIf.get("if-match")).toBe("first");
+    expect(bucket.put).not.toHaveBeenCalled();
+    expect(repository.completeCover).not.toHaveBeenCalled();
   });
 });

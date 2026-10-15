@@ -11,6 +11,6 @@
   },
   "r2_buckets": [{ "binding": "MEDIA_BUCKET", "bucket_name": "sunstruck-synapse-media-preview" }],
   "services": [{ "binding": "AUDIO_ENCODER", "service": "sunstruck-synapse-encoder-verification" }],
-  "triggers": { "crons": ["* * * * *"] },
+  "triggers": { "crons": [] },
   "observability": { "enabled": true },
 }

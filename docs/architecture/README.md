@@ -16,7 +16,7 @@ The accepted architecture decisions are:
 6. [Postmark for transactional email](decisions/0006-postmark-transactional-email.md)
 7. [First-party, privacy-conscious analytics](decisions/0007-first-party-analytics.md)
 8. [No Kubernetes dependency](decisions/0008-no-kubernetes.md)
-9. [Prepare streaming audio from the accepted private recording](decisions/0009-accepted-audio-preparation.md) — implemented for review; Workers Paid enabled, encoder activation in progress.
+9. [Prepare streaming audio from the accepted private recording](decisions/0009-accepted-audio-preparation.md) — implemented for review; private encoder deployed and verified, application rollout pending.
 
 The implementation-facing design-system contract is documented in [Design system, tokens, theming, and Storybook](../design-system.md). It defines how the application shell and production components consume visual tokens without changing the data and media boundaries above.
 
