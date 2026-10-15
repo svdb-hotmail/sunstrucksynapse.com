@@ -17,6 +17,17 @@ test("saves a practical invited draft and requires private review audio before s
   await page
     .getByLabel(/Rights details/)
     .fill("Private licence agreement LIC-8472 with a session musician.");
+  for (const [name, options] of [
+    ["Genres", ["Ambient", "Electronic"]],
+    ["Moods", ["Calm", "Reflective"]],
+    ["Creative process tags", ["Human composition", "Mixing"]],
+  ] as const) {
+    const dropdown = page.getByRole("group", { name, exact: true });
+    await dropdown.locator("summary").click();
+    for (const option of options)
+      await dropdown.getByRole("checkbox", { name: option, exact: true }).check();
+    await dropdown.locator("summary").click();
+  }
   await page.getByLabel(/This invitation is mine/).check();
   await page.getByRole("button", { name: /Save (details and continue|changes)/ }).click();
 
@@ -25,6 +36,11 @@ test("saves a practical invited draft and requires private review audio before s
   await expect(page.getByLabel("Artist name")).not.toBeVisible();
   await page.getByRole("button", { name: "Edit details" }).click();
   await expect(page.getByLabel("Artist name")).toHaveValue("Invited Artist");
+  const genres = page.getByRole("group", { name: "Genres", exact: true });
+  await genres.locator("summary").click();
+  await expect(genres.getByRole("checkbox", { name: "Ambient", exact: true })).toBeChecked();
+  await expect(genres.getByRole("checkbox", { name: "Electronic", exact: true })).toBeChecked();
+  await genres.locator("summary").click();
   await expect(page.getByLabel("Audio file")).toBeEnabled();
   const submitButton = page.getByRole("button", { name: "Submit track for review" });
   await expect(submitButton).toBeDisabled();

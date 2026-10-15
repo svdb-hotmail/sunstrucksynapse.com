@@ -14,7 +14,7 @@ Store artwork and audio assets in Cloudflare R2. Keep original masters, publisha
 
 Masters and evidence remain private and are never served through a public route. The application authorizes access to published derivatives and returns short-lived signed access. Delivery must define expiry, cache policy, content type, and byte-range behavior. Evidence receives stricter private handling than publishable media.
 
-Signed access is an authorization and hotlink-mitigation control, not DRM. It cannot prevent a determined user from capturing media that their device can play. Transcoding and derivative-generation infrastructure are deferred.
+Signed access is an authorization and hotlink-mitigation control, not DRM. It cannot prevent a determined user from capturing media that their device can play. Transcoding and derivative-generation infrastructure were initially deferred. [ADR 0009](0009-accepted-audio-preparation.md) now defines the maintainer-authorized preparation pipeline; its production activation remains pending.
 
 ## Consequences
 

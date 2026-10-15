@@ -80,6 +80,17 @@ function ReviewDraft({
           ),
         })
       }
+      onFinishAndPublish={() =>
+        submit({
+          intent: "grade",
+          afterDecision: "publish",
+          finalGrade: draft.grade ?? "",
+          rationale: draft.rationale,
+          ...Object.fromEntries(
+            Object.entries(draft.scores).map(([name, score]) => [name, String(score ?? "")]),
+          ),
+        })
+      }
     />
   );
 }
@@ -95,6 +106,8 @@ export function ProductionQueue({
     error?: string;
     claimedId?: string | null;
     finalizedId?: string;
+    acceptedTrackId?: string | null;
+    publishingTrackId?: string;
     nextWarning?: string;
     notificationWarning?: string;
   }>();
@@ -164,6 +177,10 @@ export function ProductionQueue({
       } catch {
         /* Optional storage. */
       }
+    }
+    if (fetcher.data.publishingTrackId) {
+      navigate(`/curator/albums?track=${fetcher.data.publishingTrackId}`);
+      return;
     }
     if ("claimedId" in fetcher.data)
       navigate(
@@ -266,13 +283,21 @@ export function ProductionQueue({
       }}
       navigation={[
         { id: "queue", label: "Submissions", href: "/curator/submissions" },
-        { id: "collections", label: "Catalogue & publishing", href: "/curator" },
+        { id: "collections", label: "Publishing queue", href: "/curator/albums" },
         { id: "analytics", label: "Analytics", href: "/curator/analytics" },
       ]}
       searchValue={query}
       onSearch={setQuery}
     >
       <h1>Curator workspace</h1>
+      {fetcher.data?.acceptedTrackId ? (
+        <p className="publishing-message" role="status">
+          Accepted and queued for publishing.{" "}
+          <Link to={`/curator/albums?track=${fetcher.data.acceptedTrackId}`}>
+            Prepare release now →
+          </Link>
+        </p>
+      ) : null}
       {(aggregate ?? data.submissions.find((row) => row.submission.id === selectedId))?.evidence
         .length ? (
         <details className="curator-panel">
@@ -394,6 +419,14 @@ export function ProductionQueue({
           {selectedId ? (
             <section aria-label="Selected submission" className="curator-panel">
               <h2>{items.find((row) => row.id === selectedId)?.title}</h2>
+              {data.submissions.find((row) => row.submission.id === selectedId)?.submission
+                .resultingTrackId ? (
+                <Link
+                  to={`/curator/albums?track=${data.submissions.find((row) => row.submission.id === selectedId)!.submission.resultingTrackId}`}
+                >
+                  Continue to publishing →
+                </Link>
+              ) : null}
               <p>
                 {
                   data.submissions.find((row) => row.submission.id === selectedId)?.rights

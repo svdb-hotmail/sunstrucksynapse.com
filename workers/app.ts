@@ -21,6 +21,7 @@ import { createCurationWorkflowRepository } from "../app/repositories/curation-w
 import { createE2eCurationWorkflowRepository } from "../app/repositories/curation-workflow-fixture.server";
 import { dispatchCurationOutbox } from "../app/services/curation-outbox-dispatch.server";
 import { createTransactionalEmailService } from "../app/services/transactional-email.server";
+import { prepareNextRelease } from "../app/services/release-preparation.server";
 
 const requestHandler = createRequestHandler(
   () => import("virtual:react-router/server-build"),
@@ -178,6 +179,7 @@ export default {
         validatedEnv.MEDIA_BUCKET,
         now,
       ),
+      prepareNextRelease(db, validatedEnv),
     ]);
   },
 } satisfies ExportedHandler<Env>;

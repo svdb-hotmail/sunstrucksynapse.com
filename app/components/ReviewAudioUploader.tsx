@@ -109,8 +109,9 @@ export function ReviewAudioUploader({
         </>
       ) : null}
       <p>
-        Upload one finished track. It is stored privately and never becomes the public listening
-        file. Uploading a replacement creates a new retained version.
+        Upload one finished track. WAV or FLAC is preferred; MP3, M4A, OGG and WebM are also
+        accepted. Maximum 500 MiB. Your original stays private. After acceptance SunSyn encodes a
+        separate, standard streaming copy. Uploading a replacement creates a new retained version.
       </p>
       {currentAudio ? (
         <p role="status">

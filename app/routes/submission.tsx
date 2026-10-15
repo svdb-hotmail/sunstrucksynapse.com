@@ -14,6 +14,10 @@ import {
 import { SITE_NAME } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { ReviewAudioUploader } from "~/components/ReviewAudioUploader";
+import { SubmissionCoverUploader } from "~/components/SubmissionCoverUploader";
+import { SubmissionReleaseFields } from "~/components/SubmissionReleaseFields";
+import { GENRES, MOODS, PROCESS_TAGS, validSelections } from "~/config/music-metadata";
+import { createReleaseIntakeRepository } from "~/repositories/release-intake.server";
 import { createCurationWorkflowRepository } from "~/repositories/curation-workflow.server";
 import type { SubmissionAggregate, SubmissionDraftInput } from "~/repositories/submissions.server";
 import {
@@ -23,6 +27,7 @@ import {
   normalizeEvidenceMimeType,
   parseEvidenceDeclaration,
 } from "~/services/submission-evidence.server";
+import { validateUuid } from "~/services/curator-validation";
 import { sha256Hex } from "~/services/submission-security.server";
 import {
   SUBMISSION_RIGHTS_ATTESTATION,
@@ -156,13 +161,30 @@ function readDraft(form: FormData, base: SubmissionDraftInput): SubmissionDraftI
     },
     release: {
       ...base.release,
-      title: trackTitle,
+      kind: formString(form, "release.kind") === "album" ? "album" : "single",
+      title:
+        formString(form, "release.kind") === "album"
+          ? formString(form, "release.title")
+          : trackTitle,
+      albumProjectId:
+        formString(form, "release.kind") === "album"
+          ? formString(form, "release.albumProjectId")
+          : "",
+      trackNumber:
+        formString(form, "release.kind") === "album"
+          ? Number(formString(form, "release.trackNumber"))
+          : 1,
+      artworkRightsConfirmed: confirmed,
       plannedReleaseDate: formString(form, "release.plannedReleaseDate"),
       territories,
     },
     track: {
       ...base.track,
       title: trackTitle,
+      intakeVersion: 1,
+      genres: form.getAll("track.genres").map(String),
+      moods: form.getAll("track.moods").map(String),
+      processTags: form.getAll("track.processTags").map(String),
     },
     contact: {
       ...base.contact,
@@ -420,6 +442,25 @@ export async function loader({ context, params, request }: LoaderFunctionArgs) {
     flash: flowMessage(new URL(request.url)),
     reviewAudio,
     reviewAudioEndpoint: `/submit/${encodeURIComponent(rawToken)}/review-audio`,
+    cover: runtime.db
+      ? await createReleaseIntakeRepository(runtime.db)
+          .currentCover(tokenHash)
+          .then((c) =>
+            c
+              ? {
+                  id: c.id,
+                  filename: c.filename,
+                  width: c.width,
+                  height: c.height,
+                  canReplace: c.canReplace,
+                }
+              : null,
+          )
+      : null,
+    coverEndpoint: `/submit/${encodeURIComponent(rawToken)}/cover`,
+    albums: runtime.db
+      ? await createReleaseIntakeRepository(runtime.db).albumsForInvitation(tokenHash)
+      : [],
   };
 }
 
@@ -557,7 +598,31 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
         { status: 409 },
       );
     }
-    const result = await service.submit(tokenHash, draftFromAggregate(aggregate), abuseMeta);
+    if (runtime.db && !(await createReleaseIntakeRepository(runtime.db).currentCover(tokenHash)))
+      return Response.json(
+        { error: "Upload the artist's cover before submitting." },
+        { status: 409 },
+      );
+    if (
+      runtime.db &&
+      aggregate.submission.releaseDetails.kind === "album" &&
+      !(await createReleaseIntakeRepository(runtime.db).validateAlbumChoice(tokenHash))
+    )
+      return Response.json(
+        {
+          error:
+            "This album or track number is no longer available. Edit the details and choose an unused position in your album.",
+        },
+        { status: 409 },
+      );
+    const result = await service.submit(
+      tokenHash,
+      {
+        ...draftFromAggregate(aggregate),
+        track: { ...aggregate.submission.trackDetails, intakeVersion: 1 },
+      },
+      abuseMeta,
+    );
     if (!result.ok) {
       return Response.json(
         { error: result.error.message },
@@ -575,12 +640,70 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     return Response.json({ error: "Choose a supported rights basis." }, { status: 400 });
   }
   if (intent === "save-draft") {
+    for (const [field, options] of [
+      ["track.genres", GENRES],
+      ["track.moods", MOODS],
+      ["track.processTags", PROCESS_TAGS],
+    ] as const) {
+      if (
+        form
+          .getAll(field)
+          .some((v) => typeof v !== "string" || !(options as readonly string[]).includes(v))
+      )
+        return Response.json(
+          { error: "Choose discovery details from the available options." },
+          { status: 400 },
+        );
+    }
+    if (
+      draft.release.kind === "album" &&
+      (!draft.release.title.trim() ||
+        !Number.isInteger(draft.release.trackNumber) ||
+        draft.release.trackNumber! < 1 ||
+        draft.release.trackNumber! > 100 ||
+        (draft.release.albumProjectId && !validateUuid(draft.release.albumProjectId, "album").ok))
+    )
+      return Response.json(
+        { error: "Choose an album title and track number between 1 and 100." },
+        { status: 400 },
+      );
+    if (runtime.db && draft.release.albumProjectId) {
+      const choices = await createReleaseIntakeRepository(runtime.db).albumsForInvitation(
+        tokenHash,
+      );
+      if (
+        !choices.some(
+          (a) =>
+            a.id === draft.release.albumProjectId &&
+            a.artistName.toLowerCase() === draft.artist.displayName.toLowerCase(),
+        )
+      )
+        return Response.json(
+          { error: "Choose an unpublished album belonging to this invitation and artist." },
+          { status: 409 },
+        );
+    }
     const result = await service.saveDraft(tokenHash, draft, abuseMeta);
     if (!result.ok) {
       return Response.json(
         { error: result.error.message },
         { status: submissionHttpStatus(result.error.code) },
       );
+    }
+    if (runtime.db && draft.release.kind === "album") {
+      try {
+        const intake = createReleaseIntakeRepository(runtime.db);
+        await intake.saveAlbumChoice(tokenHash, draft);
+        await intake.reuseAlbumCover(tokenHash);
+      } catch {
+        return Response.json(
+          {
+            error:
+              "Album or track number unavailable. Choose your unpublished album and an unused track number, then save again.",
+          },
+          { status: 409 },
+        );
+      }
     }
     return redirect(`/submit/${params.invitationToken}?saved=1#review-audio`);
   }
@@ -648,7 +771,7 @@ export default function SubmissionRoute() {
     clarification_requested:
       "The curator needs more information. Update the relevant details or supporting evidence, then submit again.",
     accepted:
-      "Accepted for catalogue preparation. Acceptance does not mean publication; the curator will prepare the public release.",
+      "Accepted — SunSyn prepares the streaming file automatically. The curator will check and publish the release.",
     rejected: "Review complete — this track was not selected for the catalogue.",
     withdrawn: "Withdrawn — this track is no longer waiting for review.",
   };
@@ -661,9 +784,18 @@ export default function SubmissionRoute() {
     navigation.state === "submitting" && navigation.formData?.get("intent") === "save-draft";
   const [editingDetails, setEditingDetails] = useState(!data.aggregate);
   const [lastSubmittedIntent, setLastSubmittedIntent] = useState<string | null>(null);
+  const missingIntake =
+    !validSelections(draft.track.genres, GENRES) ||
+    !validSelections(draft.track.moods, MOODS) ||
+    !validSelections(draft.track.processTags, PROCESS_TAGS) ||
+    !draft.release.kind ||
+    !draft.release.artworkRightsConfirmed;
   const showDetailsEditor =
-    editingDetails || (Boolean(actionData?.error) && lastSubmittedIntent === "save-draft");
-  const readyToSubmit = audioEditable && Boolean(data.reviewAudio) && !showDetailsEditor;
+    editingDetails ||
+    (detailsEditable && missingIntake) ||
+    (Boolean(actionData?.error) && lastSubmittedIntent === "save-draft");
+  const readyToSubmit =
+    audioEditable && Boolean(data.reviewAudio) && Boolean(data.cover) && !showDetailsEditor;
 
   return (
     <main className="entity-page submission-page">
@@ -748,6 +880,11 @@ export default function SubmissionRoute() {
                 defaultValue={draft.contact.contactEmail}
                 type="email"
                 required
+              />
+              <SubmissionReleaseFields
+                release={draft.release}
+                track={draft.track}
+                albums={data.albums}
               />
               <div className="submission-field-full">
                 <DraftTextArea
@@ -856,13 +993,15 @@ export default function SubmissionRoute() {
               <input
                 type="checkbox"
                 name="ack.confirmed"
-                defaultChecked={acknowledgementConfirmed}
+                defaultChecked={
+                  acknowledgementConfirmed && Boolean(draft.release.artworkRightsConfirmed)
+                }
                 required
               />
               <span>
                 This invitation is mine. The information is accurate, I control or have permission
-                for the material, and I have disclosed the creative process. I understand review
-                does not guarantee publication.
+                for the material including the audio and cover artwork, and I have disclosed the
+                creative process. I understand review does not guarantee publication.
               </span>
             </label>
 
@@ -927,6 +1066,35 @@ export default function SubmissionRoute() {
         />
       </div>
 
+      <section className="submission-step-card" aria-label="Artist cover artwork">
+        <h2>Cover artwork</h2>
+        {data.cover ? (
+          <>
+            <img
+              src={`${data.coverEndpoint}/${data.cover.id}`}
+              alt="Your submitted cover"
+              width={180}
+              height={180}
+            />
+            <p>
+              {data.cover.filename} · {data.cover.width} × {data.cover.height} pixels
+            </p>
+          </>
+        ) : (
+          <p>Add the cover for this single or album.</p>
+        )}
+        {draft.release.kind === "album" && data.cover?.canReplace === false ? (
+          <p>This album uses its saved artist cover. It is attached to this track automatically.</p>
+        ) : null}
+        <SubmissionCoverUploader
+          endpoint={data.coverEndpoint}
+          disabled={
+            !(audioEditable || (status === "accepted" && !data.cover)) ||
+            (draft.release.kind === "album" && data.cover?.canReplace === false)
+          }
+        />
+      </section>
+
       <section className="submission-step-card" aria-labelledby="submission-send-heading">
         <div className="submission-step-heading">
           <span aria-hidden="true">3</span>
@@ -940,9 +1108,13 @@ export default function SubmissionRoute() {
         ) : (
           <>
             <p>
-              {data.reviewAudio
-                ? "Your details and private listening copy are ready."
-                : "Upload the private listening copy to unlock submission."}
+              {missingIntake
+                ? "Choose your single or album, discovery options and permissions in the details above, then save."
+                : data.reviewAudio && data.cover
+                  ? "Your details, private listening copy and cover are ready."
+                  : data.reviewAudio
+                    ? "Upload your cover to unlock submission."
+                    : "Upload the private listening copy to unlock submission."}
             </p>
             <Form method="post" onSubmit={() => setLastSubmittedIntent("submit")}>
               <input type="hidden" name="intent" value="submit" />

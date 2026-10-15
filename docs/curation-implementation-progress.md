@@ -58,3 +58,7 @@ Cloudflare deployment was run after the maintainer said to stop tests and let th
 rest. Migration generation and Prettier authoring were run; these are not behavioral validation.
 The PR must remain Draft until the maintainer decides whether to mark it Ready for Review. In this
 repository CI skips Draft PRs, so workflow evidence will not exist until that human transition.
+
+## 15 October: automatic preparation continuation
+
+The maintainer's SOLO exception remains active. The latest “go” authorizes the artist-cover/single-or-album intake and automatic streaming preparation contract. See [implementation, focused evidence and deployment blocker](launch-automatic-publishing.md). No independent acceptance is claimed. Production has not received this increment; Workers Paid and a deployed private encoder are still required.

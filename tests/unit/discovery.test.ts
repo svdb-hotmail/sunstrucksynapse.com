@@ -58,6 +58,32 @@ describe("catalogue discovery", () => {
     ).toEqual([]);
   });
 
+  it("finds every selected genre and retains legacy single-genre filtering", () => {
+    const multi = {
+      ...ambient,
+      discovery: { ...ambient.discovery, genres: ["ambient", "electronic"] },
+    };
+    expect(discoveryOptions([multi, folk]).genres).toEqual(["ambient", "electronic", "folk"]);
+    expect(
+      filterCatalogue([multi, folk], {
+        query: "",
+        genre: "electronic",
+        mood: "",
+        year: null,
+        process: "",
+      }),
+    ).toEqual([multi]);
+    expect(
+      filterCatalogue([{ ...ambient, discovery: { ...ambient.discovery, genres: [] } }], {
+        query: "",
+        genre: "ambient",
+        mood: "",
+        year: null,
+        process: "",
+      }),
+    ).toHaveLength(1);
+  });
+
   it("deduplicates and sorts available filter options", () => {
     expect(discoveryOptions(items)).toEqual({
       genres: ["ambient", "folk"],

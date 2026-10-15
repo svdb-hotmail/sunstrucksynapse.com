@@ -33,6 +33,10 @@ export interface ArtistSubmissionDetails {
 }
 
 export interface ReleaseSubmissionDetails {
+  kind?: "single" | "album";
+  albumProjectId?: string;
+  trackNumber?: number;
+  artworkRightsConfirmed?: boolean;
   title: string;
   summary: string;
   plannedReleaseDate: string;
@@ -43,6 +47,10 @@ export interface ReleaseSubmissionDetails {
 }
 
 export interface TrackSubmissionDetails {
+  intakeVersion?: number;
+  genres?: string[];
+  moods?: string[];
+  processTags?: string[];
   title: string;
   versionTitle: string;
   durationNotes: string;

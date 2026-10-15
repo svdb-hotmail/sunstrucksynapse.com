@@ -209,24 +209,38 @@ export async function action({ request, context }: ActionFunctionArgs) {
     const rationale = String(form.get("rationale") ?? "").trim();
     const rationaleError = curationRationaleError(rationale);
     if (rationaleError) return bad(rationaleError);
-    const result = await workflow.finalizeReview(
-      {
-        submissionId,
-        artisticQuality,
-        originalityIntent,
-        productionReadiness,
-        editorialFit,
-        finalGrade,
-        rationale,
-      },
-      auth.identity,
-      new Date(),
-    );
-    if (!result) return bad("Submission changed or is not ready for a final decision.", 409);
+    const preparePublishing = form.get("afterDecision") === "publish";
+    if (preparePublishing && finalGrade === "C")
+      return bad("Only an accepted track can continue to publishing.");
+    const result = await workflow
+      .finalizeReview(
+        {
+          submissionId,
+          artisticQuality,
+          originalityIntent,
+          productionReadiness,
+          editorialFit,
+          finalGrade,
+          rationale,
+        },
+        auth.identity,
+        new Date(),
+      )
+      .catch(() => null);
+    if (!result)
+      return bad(
+        "Submission or album order changed, or this review is not ready. Refresh and retry; ask the artist to clarify an occupied album position.",
+        409,
+      );
     if (form.get("workspace") === "1") {
+      if (preparePublishing && result.resultingTrackId)
+        return Response.json(
+          { finalizedId: submissionId, publishingTrackId: result.resultingTrackId },
+          { headers: { "cache-control": "no-store" } },
+        );
       const next = await claimFollowing(workflow, auth);
       return Response.json(
-        { finalizedId: submissionId, ...next },
+        { finalizedId: submissionId, acceptedTrackId: result.resultingTrackId, ...next },
         { headers: { "cache-control": "no-store" } },
       );
     }

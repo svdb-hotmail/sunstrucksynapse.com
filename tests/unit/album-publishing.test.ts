@@ -4,6 +4,9 @@ import { migrate } from "drizzle-orm/pglite/migrator";
 import { beforeAll, afterAll, describe, expect, it } from "vitest";
 import * as schema from "../../app/db/schema";
 import { createCurationWorkflowRepository } from "../../app/repositories/curation-workflow.server";
+import { createReleaseIntakeRepository } from "../../app/repositories/release-intake.server";
+import { createReleasePreparationRepository } from "../../app/repositories/release-preparation.server";
+import { STREAMING_PROFILE } from "../../app/config/music-metadata";
 import { createAlbumPublishingRepository } from "../../app/repositories/album-publishing.server";
 import type { Database } from "../../app/db/client.server";
 
@@ -111,6 +114,38 @@ describe("album publishing atomicity", () => {
               .replaceAll("000000000001", "000000000002")
               .replaceAll("CURATION-001", "CURATION-002")
               .replaceAll("repeat('a', 64)", "repeat('b', 64)"),
+      );
+      const sid = `20000000-0000-4000-8000-00000000000${n}`;
+      const token = (n === 1 ? "a" : "b").repeat(64);
+      await client.query("update submissions set status='draft',submitted_at=null where id=$1", [
+        sid,
+      ]);
+      const intake = createReleaseIntakeRepository(db as never);
+      const coverId = crypto.randomUUID(),
+        lease = crypto.randomUUID();
+      await intake.createCover(token, {
+        id: coverId,
+        filename: "synthetic-test-cover.png",
+        mimeType: "image/png",
+        checksumSha256: "c".repeat(64),
+        byteSize: 100,
+        width: 1400,
+        height: 1400,
+        stagingObjectKey: `private/submission-covers/staging/${coverId}`,
+        expiresAt: new Date(Date.now() + 900000),
+      });
+      expect(await intake.claimCover(token, coverId, lease)).not.toBeNull();
+      expect(
+        await intake.completeCover(
+          token,
+          coverId,
+          lease,
+          `private/submission-covers/final/${coverId}/${lease}`,
+        ),
+      ).not.toBeNull();
+      await client.query(
+        "update submissions set status='listening',submitted_at=now() where id=$1",
+        [sid],
       );
       const result = await workflow.finalizeReview(
         {
@@ -239,7 +274,7 @@ describe("album publishing atomicity", () => {
   it("rejects publication with private-only media and does not publish parents", async () => {
     expect(
       (await repository.readiness(releaseId)).some((t) =>
-        t.blockers.includes("ready primary public listening file"),
+        t.blockers.includes("verified automatic streaming preparation"),
       ),
     ).toBe(true);
     await expect(repository.publish(releaseId, actor)).rejects.toThrow();
@@ -254,41 +289,40 @@ describe("album publishing atomicity", () => {
       (await client.query("select * from publication_audit where to_lifecycle='published'")).rows,
     ).toHaveLength(0);
   });
-  it("reorders safely, applies one cover, publishes atomically and retries without duplicate audit", async () => {
+  it("reorders safely, publishes prepared audio and artist cover atomically, and retries once", async () => {
     await repository.prepare(preparation([...trackIds].reverse()), actor);
-    await db.insert(schema.artworkAssets).values({
-      id: "a0000000-0000-4000-8000-000000000001",
-      objectKey: "public/artwork/test.png",
-      scope: "publishable_derivative",
-      mimeType: "image/png",
-      checksumSha256: "a".repeat(64),
-      byteSize: 100,
-      width: 100,
-      height: 100,
-    });
-    await db.insert(schema.releaseArtworkAssets).values({
-      releaseId,
-      artworkAssetId: "a0000000-0000-4000-8000-000000000001",
-      role: "primary",
-      position: 1,
-    });
-    await repository.applyCover(releaseId, actor);
-    for (const trackId of trackIds)
-      await db.insert(schema.audioAssets).values({
-        trackId,
-        objectKey: `public/audio/${trackId}.mp3`,
-        scope: "publishable_derivative",
-        mimeType: "audio/mpeg",
-        checksumSha256: "b".repeat(64),
-        byteSize: 100,
-        durationMs: 1000,
-        codec: "mpeg",
-        isPrimary: true,
-      });
+    const preparationJobs = createReleasePreparationRepository(db as never);
+    for (let n = 0; n < trackIds.length; n++) {
+      const job = await preparationJobs.claim();
+      expect(job).not.toBeNull();
+      expect(
+        await preparationJobs.complete(job!, {
+          objectKey: job!.outputKey,
+          profile: STREAMING_PROFILE,
+          checksumSha256: "d".repeat(64),
+          byteSize: 7200000,
+          durationMs: 180000,
+          sampleRate: 44100,
+          channels: 2,
+          bitRate: 320000,
+        }),
+      ).toBe(true);
+    }
+    // Completing preparation does not register publicly deliverable assets.
+    expect(await db.select().from(schema.audioAssets)).toHaveLength(0);
+    expect(await db.select().from(schema.artworkAssets)).toHaveLength(0);
     expect((await repository.readiness(releaseId)).every((t) => t.blockers.length === 0)).toBe(
       true,
     );
-    expect(await repository.publish(releaseId, actor)).toBe("a-full-album");
+    await expect(repository.publish(releaseId, actor, [trackIds[0]])).rejects.toThrow();
+    expect(await db.select().from(schema.audioAssets)).toHaveLength(0);
+    expect(await repository.publish(releaseId, actor, [...trackIds].reverse())).toBe(
+      "a-full-album",
+    );
+    expect(await db.select().from(schema.audioAssets)).toHaveLength(2);
+    const linkedCovers = await db.select().from(schema.trackArtworkAssets);
+    expect(linkedCovers).toHaveLength(2);
+    expect(new Set(linkedCovers.map((c) => c.artworkAssetId)).size).toBe(1);
     const audit = (
       await client.query("select * from publication_audit where to_lifecycle='published'")
     ).rows;
