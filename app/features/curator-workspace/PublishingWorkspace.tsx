@@ -1,3 +1,4 @@
+import { flushSync } from "react-dom";
 import { useRef, useState } from "react";
 import { Link } from "react-router";
 import { CuratorBadge, CuratorButton, CuratorPanel } from "./CuratorPrimitives";
@@ -75,6 +76,9 @@ export function PublishingWorkspace({
   const [listening, setListening] = useState<string | null>(null);
   const [audioError, setAudioError] = useState("");
   const audio = useRef<HTMLAudioElement>(null);
+  const selectedTrack =
+    tracks.find((t) => t.id === listening && t.preparationStatus === "ready") ??
+    tracks.find((t) => t.preparationStatus === "ready");
   const blockers = readiness.flatMap((row) =>
     row.blockers.map((blocker) => ({ title: row.title, blocker })),
   );
@@ -133,8 +137,12 @@ export function PublishingWorkspace({
           <audio
             ref={audio}
             controls
-            preload="none"
+            src={selectedTrack ? `/curator/prepared-audio/${selectedTrack.id}` : undefined}
+            preload="metadata"
             aria-label="Private streaming preview"
+            onPlay={() => {
+              if (selectedTrack) setListening(selectedTrack.id);
+            }}
             onError={() =>
               setAudioError("Streaming preview unavailable. Refresh preparation and retry.")
             }
@@ -211,12 +219,14 @@ export function PublishingWorkspace({
                       const element = audio.current;
                       if (!element) return;
                       setAudioError("");
-                      if (listening === track.id && !element.paused) {
+                      if (selectedTrack?.id === track.id && !element.paused) {
                         element.pause();
                         return;
                       }
-                      element.src = `/curator/prepared-audio/${track.id}`;
-                      setListening(track.id);
+                      // Commit the selected source before play(), retaining the
+                      // user gesture required by mobile browsers.
+                      if (selectedTrack?.id !== track.id) flushSync(() => setListening(track.id));
+                      if (element.error) element.load();
                       void element
                         .play()
                         .catch(() => setAudioError("Preview could not play. Try again."));

@@ -104,3 +104,35 @@ it("rejects cross-origin edits and requires an artwork permission acknowledgemen
   expect(bucket.put).toHaveBeenCalledOnce();
   expect(bucket.delete).not.toHaveBeenCalled(); // An unknown commit must not erase a selected cover.
 });
+
+it("returns the saved private cover URL immediately after a successful save", async () => {
+  const { args } = context();
+  const id = args.params.submissionId;
+  const coverId = "40000000-0000-4000-8000-000000000001";
+  mocks.auth.mockResolvedValue({
+    ok: true,
+    identity: { id: "curator", email: "curator@example.test" },
+  });
+  mocks.find.mockResolvedValue({ editable: true, revision: {} });
+  mocks.save.mockResolvedValue({ id, coverId, revision: { cover: coverId } });
+  const fields = new URLSearchParams({
+    title: "Track",
+    releaseTitle: "Release",
+    summary: "",
+    revision: "{}",
+    reason: "Metadata correction",
+  });
+  const response = await action({
+    ...args,
+    request: new Request(url, {
+      method: "POST",
+      headers: { "content-length": String(fields.toString().length) },
+      body: fields,
+    }),
+  } as unknown as ActionFunctionArgs);
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({
+    savedRevision: JSON.stringify({ cover: coverId }),
+    savedCoverUrl: `/curator/submissions/${id}/artwork?v=${coverId}`,
+  });
+});

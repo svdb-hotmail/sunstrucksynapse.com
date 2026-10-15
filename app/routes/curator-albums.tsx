@@ -260,7 +260,7 @@ function AlbumEditor({ data }: { data: PublishingRouteData }) {
       revisionKey={data.publicationRevision ?? undefined}
       coverPreviewUrl={
         tracks[0]?.submissionId && tracks[0]?.coverId
-          ? `/curator/submissions/${tracks[0].submissionId}/edit?cover=1&v=${tracks[0].coverId}`
+          ? `/curator/submissions/${tracks[0].submissionId}/artwork?v=${tracks[0].coverId}`
           : undefined
       }
       readiness={data.readiness}
