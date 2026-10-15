@@ -24,6 +24,31 @@ export async function storeCuratorArtwork(file: File, env: WorkerEnv): Promise<E
     throw new Error("Use a square cover between 1400 and 10000 pixels.");
   const checksum = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
   const checksumSha256 = Array.from(checksum, (b) => b.toString(16).padStart(2, "0")).join("");
+  if (!env.AUDIO_ENCODER)
+    throw new Error("Artwork validation is unavailable. Please retry shortly.");
+  const response = await env.AUDIO_ENCODER.fetch("https://encoder/validate-artwork", {
+    method: "POST",
+    body: new Blob([bytes]),
+    headers: {
+      "content-type": mimeType,
+      "content-length": String(bytes.byteLength),
+      "x-source-checksum": checksumSha256,
+    },
+    signal: AbortSignal.timeout(60_000),
+  });
+  if (!response.ok)
+    throw new Error(
+      "The image could not be fully decoded. Use a complete, still JPG, PNG, WebP or AVIF cover, or retry if the encoder is busy.",
+    );
+  const verified = (await response.json()) as Record<string, unknown>;
+  if (
+    verified.checksumSha256 !== checksumSha256 ||
+    verified.byteSize !== bytes.byteLength ||
+    verified.width !== dimensions.width ||
+    verified.height !== dimensions.height ||
+    verified.mimeType !== mimeType
+  )
+    throw new Error("Artwork validation did not match the uploaded file. Retry the upload.");
   const id = crypto.randomUUID();
   const objectKey = `private/curator-artwork/${id}`;
   const stored = await env.MEDIA_BUCKET.put(objectKey, new Blob([bytes]).stream(), {

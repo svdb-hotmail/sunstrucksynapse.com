@@ -44,5 +44,6 @@ export interface SubmissionEditView {
   fields: SubmissionEditorialFields;
   revision: string;
   editable: boolean;
+  releaseFieldsEditable?: boolean;
   coverUrl: string | null;
 }

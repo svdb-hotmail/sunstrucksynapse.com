@@ -16,7 +16,18 @@ afterEach(() => vi.unstubAllGlobals());
 it("validates actual image dimensions and stores a private cover with native SHA verification", async () => {
   const bytes = png(1400);
   const put = vi.fn().mockResolvedValue({ size: bytes.length });
-  const env = { MEDIA_BUCKET: { put } } as unknown as WorkerEnv;
+  const validate = vi.fn(async (_url, init: RequestInit) =>
+    Response.json({
+      width: 1400,
+      height: 1400,
+      mimeType: "image/png",
+      byteSize: bytes.length,
+      checksumSha256: createHash("sha256")
+        .update(Buffer.from(await (init.body as Blob).arrayBuffer()))
+        .digest("hex"),
+    }),
+  );
+  const env = { MEDIA_BUCKET: { put }, AUDIO_ENCODER: { fetch: validate } } as unknown as WorkerEnv;
   const cover = await storeCuratorArtwork(
     new File([bytes], "cover.png", { type: "image/png" }),
     env,
@@ -37,6 +48,18 @@ it("validates actual image dimensions and stores a private cover with native SHA
       storeCuratorArtwork(new File([bytes], "fake.png", { type: "image/png" }), env),
     ).rejects.toThrow();
   }
+  expect(put).toHaveBeenCalledTimes(1);
+  validate.mockResolvedValueOnce(new Response(null, { status: 422 }));
+  await expect(storeCuratorArtwork(new File([png(1400)], "truncated.png"), env)).rejects.toThrow(
+    "fully decoded",
+  );
+  expect(put).toHaveBeenCalledTimes(1);
+  validate.mockResolvedValueOnce(
+    Response.json({ width: 1400, height: 1400, checksumSha256: "wrong" }),
+  );
+  await expect(storeCuratorArtwork(new File([png(1400)], "mismatch.png"), env)).rejects.toThrow(
+    "did not match",
+  );
   expect(put).toHaveBeenCalledTimes(1);
 });
 it("resizes a small square cover without cropping and preserves a large cover unchanged", async () => {

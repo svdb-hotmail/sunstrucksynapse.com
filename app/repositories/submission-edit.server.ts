@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { lockCatalogue } from "./album-publishing.server";
 import type { Database } from "~/db/client.server";
 import type { CuratorIdentity } from "~/types/curator";
 import type { SubmissionEditorialFields } from "~/types/submission-edit";
@@ -21,19 +22,19 @@ export interface EditorialArtwork {
 // accepted catalogue presentation is updated in the same transaction as the note.
 function editorQuery(id: string) {
   return sql`select s.id,s.public_reference as reference,s.status,s.artist_details->>'displayName' as "artistName",
-    s.resulting_track_id as "trackId",t.release_id as "releaseId",
+    s.resulting_track_id as "trackId",r.id as "releaseId", (s.resulting_track_id is not null or r.id is null) as "releaseFieldsEditable",
     jsonb_build_object('title',coalesce(t.title,n.metadata->'fields'->>'title',s.title),
       'releaseTitle',coalesce(r.title,n.metadata->'fields'->>'releaseTitle',nullif(s.release_details->>'title',''),s.title),
-      'summary',coalesce(r.description,n.metadata->'fields'->>'summary',s.release_details->>'summary',''),
+      'summary',case when r.id is not null then coalesce(r.description,'') else coalesce(n.metadata->'fields'->>'summary',s.release_details->>'summary','') end,
       'genres',coalesce(to_jsonb(t.genres),n.metadata->'fields'->'genres',s.track_details->'genres','[]'::jsonb),
       'moods',coalesce(to_jsonb(t.moods),n.metadata->'fields'->'moods',s.track_details->'moods','[]'::jsonb),
       'processTags',coalesce(to_jsonb(t.creative_process_tags),n.metadata->'fields'->'processTags',s.track_details->'processTags','[]'::jsonb)) as fields,
     jsonb_build_object('submission',s.updated_at,'track',t.updated_at,'release',r.updated_at,'note',n.id,
       'curatorCover',ea.artwork_asset_id,'releaseCover',ra.artwork_asset_id,'trackCover',ta.artwork_asset_id,'artistCover',cs.cover_id) as revision,
-    (s.status not in ('rejected','withdrawn') and (s.resulting_track_id is null or (t.lifecycle_status in ('draft','in_review') and r.lifecycle_status in ('draft','in_review')))) as editable,
+    (s.status not in ('rejected','withdrawn') and (s.resulting_release_id is null and s.resulting_track_id is null or (t.lifecycle_status in ('draft','in_review') and r.lifecycle_status in ('draft','in_review')))) as editable,
     coalesce(a.object_key,ac.object_key) as "coverObjectKey",coalesce(a.mime_type,ac.mime_type) as "coverMimeType",
     coalesce(a.id,ac.id) as "coverId"
-    from submissions s left join tracks t on t.id=s.resulting_track_id left join releases r on r.id=t.release_id
+    from submissions s left join tracks t on t.id=s.resulting_track_id left join submission_release_projects project on project.id::text=s.release_details->>'albumProjectId' left join releases r on r.id=coalesce(t.release_id,s.resulting_release_id,project.release_id)
     left join lateral(select id,metadata from submission_activities where submission_id=s.id and actor_role='curator' and metadata->>'kind'='curator_metadata' order by created_at desc,id desc limit 1) n on true
     left join lateral(select e.artwork_asset_id from submission_editorial_artwork e left join submissions member on member.id=e.submission_id left join tracks mt on mt.id=member.resulting_track_id where e.submission_id=s.id or mt.release_id=t.release_id order by e.updated_at desc,e.submission_id limit 1) ea on true
     left join release_artwork_assets ra on ra.release_id=t.release_id and ra.role='primary' and ra.position=1
@@ -53,6 +54,7 @@ export interface SubmissionEditorRecord {
   fields: SubmissionEditorialFields;
   revision: unknown;
   editable: boolean;
+  releaseFieldsEditable: boolean;
   coverObjectKey: string | null;
   coverMimeType: string | null;
   coverId: string | null;
@@ -81,11 +83,12 @@ export function createSubmissionEditRepository(db: Database) {
       artwork?: EditorialArtwork,
     ) {
       const tasks = [
+        db.execute(lockCatalogue),
         db.execute(
-          sql`lock table submissions,tracks,releases,submission_activities,submission_editorial_artwork,artwork_assets,track_artwork_assets in share row exclusive mode`,
+          sql`lock table submission_activities,submission_editorial_artwork,submission_cover_selections,submission_release_projects in share row exclusive mode`,
         ),
         db.execute(
-          sql`select 1 / (exists(select 1 from (${editorQuery(id)}) current where current.editable and current.revision=${revision}::jsonb))::int as valid`,
+          sql`select 1 / (exists(select 1 from (${editorQuery(id)}) current where current.editable and (current."releaseFieldsEditable" or (current.fields->>'releaseTitle'=${fields.releaseTitle} and current.fields->>'summary'=${fields.summary})) and current.revision=${revision}::jsonb))::int as valid`,
         ),
         db.execute(sql`insert into submission_activities(submission_id,activity_type,actor_role,actor_id,actor_email,message,metadata)
           select ${id}::uuid,'note','curator',${actor.id},${actor.email},${reason},
@@ -114,8 +117,9 @@ export function createSubmissionEditRepository(db: Database) {
           select s.id,${artwork.id}::uuid from submissions source join submissions s on s.id=source.id or (s.status='accepted' and s.resulting_track_id in (select member.id from tracks member join tracks selected on selected.id=source.resulting_track_id where member.release_id=selected.release_id))
           where source.id=${id}::uuid on conflict(submission_id) do update set artwork_asset_id=excluded.artwork_asset_id,updated_at=now()`),
         );
-      await db.batch(tasks as [(typeof tasks)[number], ...(typeof tasks)[number][]]);
-      return this.find(id);
+      tasks.push(db.execute(editorQuery(id)));
+      const result = await db.batch(tasks as [(typeof tasks)[number], ...(typeof tasks)[number][]]);
+      return rows<SubmissionEditorRecord>(result[result.length - 1])[0] ?? null;
     },
   };
 }

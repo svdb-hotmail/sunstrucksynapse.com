@@ -55,6 +55,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
       fields: row.fields,
       revision: JSON.stringify(row.revision),
       editable: row.editable,
+      releaseFieldsEditable: row.releaseFieldsEditable,
       coverUrl: row.coverId ? `/curator/submissions/${row.id}/edit?cover=1&v=${row.coverId}` : null,
     },
   };

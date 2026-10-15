@@ -17,6 +17,29 @@ interface EncoderEnv {
 
 export default {
   async fetch(request: Request, env: EncoderEnv) {
+    if (request.method === "POST" && new URL(request.url).pathname === "/validate-artwork") {
+      const size = Number(request.headers.get("content-length"));
+      const mime = request.headers.get("content-type");
+      const checksum = request.headers.get("x-source-checksum") ?? "";
+      if (
+        !Number.isSafeInteger(size) ||
+        size < 1 ||
+        size > 20 * 1024 * 1024 ||
+        !["image/png", "image/jpeg", "image/webp", "image/avif"].includes(mime ?? "") ||
+        !/^[a-f0-9]{64}$/.test(checksum)
+      )
+        return new Response(null, { status: 400 });
+      return env.ENCODERS.getByName("primary").fetch("http://encoder/validate-artwork", {
+        method: "POST",
+        body: request.body,
+        headers: {
+          "content-type": mime!,
+          "content-length": String(size),
+          "x-source-checksum": checksum,
+        },
+        signal: AbortSignal.timeout(60_000),
+      });
+    }
     if (request.method !== "POST" || new URL(request.url).pathname !== "/encode")
       return new Response(null, { status: 404 });
     let job: PreparationLease;

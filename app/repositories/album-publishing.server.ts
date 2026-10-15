@@ -29,7 +29,7 @@ function rows<T>(result: unknown): T[] {
 }
 // Serialize catalogue edits during these short launch commands, including legacy writers.
 // Neon HTTP batch executes all statements in one transaction; no network transaction callback.
-const lockCatalogue = sql`lock table artists, releases, tracks, release_artist_credits, track_artist_credits, release_artwork_assets, track_artwork_assets, audio_assets, artwork_assets, submissions, release_preparation_jobs, submission_cover_uploads in share row exclusive mode`;
+export const lockCatalogue = sql`lock table artists, releases, tracks, release_artist_credits, track_artist_credits, release_artwork_assets, track_artwork_assets, audio_assets, artwork_assets, submissions, release_preparation_jobs, submission_cover_uploads in share row exclusive mode`;
 
 const accepted = sql`exists (
   select 1 from submissions s join curation_reviews review on review.submission_id = s.id
@@ -70,7 +70,11 @@ function readinessQuery(releaseId: string): SQL {
 }
 
 function publicationRevisionQuery(releaseId: string) {
-  return sql`select jsonb_build_object('release',r.updated_at,'tracks',(
+  return sql`select jsonb_build_object('release',r.updated_at,'artists',(
+    select jsonb_agg(jsonb_build_object('credit',to_jsonb(c),'updated',a.updated_at) order by c.position,c.artist_id)
+    from release_artist_credits c join artists a on a.id=c.artist_id where c.release_id=r.id), 'trackCredits',(
+    select jsonb_agg(jsonb_build_object('credit',to_jsonb(c),'updated',a.updated_at) order by c.track_id,c.position,c.artist_id)
+    from track_artist_credits c join artists a on a.id=c.artist_id join tracks member on member.id=c.track_id where member.release_id=r.id), 'tracks',(
     select jsonb_agg(jsonb_build_object('id',t.id,'updated',t.updated_at,'cover',c.id,'coverChecksum',c.checksum_sha256) order by t.disc_number,t.position,t.id)
     from tracks t left join (${effectiveCovers}) c on c.track_id=t.id where t.release_id=r.id)) as revision
     from releases r where r.id=${releaseId}::uuid`;
@@ -248,7 +252,7 @@ export function createAlbumPublishingRepository(db: Database) {
       const result = await db.batch([
         db.execute(lockCatalogue),
         db.execute(
-          sql`select 1 / (${expectedRevision ? sql`exists(select 1 from (${publicationRevisionQuery(releaseId)}) current where current.revision=${expectedRevision}::jsonb)` : sql`true`})::int as confirmed_revision`,
+          sql`select 1 / (${expectedRevision ? sql`(exists(select 1 from releases where id=${releaseId}::uuid and lifecycle_status='published') or exists(select 1 from (${publicationRevisionQuery(releaseId)}) current where current.revision=${expectedRevision}::jsonb))` : sql`true`})::int as confirmed_revision`,
         ),
         db.execute(
           sql`select 1 / (${expectedTrackIds ? sql`(select jsonb_agg(t.id::text order by t.disc_number,t.position,t.id) from tracks t where t.release_id=${releaseId}::uuid)=${JSON.stringify(expectedTrackIds)}::jsonb` : sql`true`})::int as confirmed_tracks`,

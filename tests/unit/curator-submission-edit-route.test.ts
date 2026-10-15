@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { afterEach, expect, it, vi } from "vitest";
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
 import { action, loader } from "../../app/routes/curator-submission-edit";
@@ -14,7 +15,26 @@ function context() {
   return {
     bucket,
     args: {
-      context: { get: () => ({ db: {}, env: { MEDIA_BUCKET: bucket } }) },
+      context: {
+        get: () => ({
+          db: {},
+          env: {
+            MEDIA_BUCKET: bucket,
+            AUDIO_ENCODER: {
+              fetch: async (_url: string, init: RequestInit) => {
+                const bytes = Buffer.from(await (init.body as Blob).arrayBuffer());
+                return Response.json({
+                  width: 1400,
+                  height: 1400,
+                  mimeType: "image/png",
+                  byteSize: bytes.length,
+                  checksumSha256: createHash("sha256").update(bytes).digest("hex"),
+                });
+              },
+            },
+          },
+        }),
+      },
       params: { submissionId: "20000000-0000-4000-8000-000000000001" },
     },
   };

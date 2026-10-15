@@ -187,6 +187,7 @@ export function SubmissionEditor({
               Release title
               <input
                 name="releaseTitle"
+                readOnly={data.releaseFieldsEditable === false}
                 defaultValue={data.fields.releaseTitle}
                 required
                 maxLength={200}
@@ -196,11 +197,18 @@ export function SubmissionEditor({
               Release description
               <textarea
                 name="summary"
+                readOnly={data.releaseFieldsEditable === false}
                 defaultValue={data.fields.summary}
                 maxLength={5000}
                 rows={4}
               />
             </label>
+            {data.releaseFieldsEditable === false ? (
+              <p>
+                Release title and description are shared with an existing album. Accept this track
+                first, then edit these fields for the release.
+              </p>
+            ) : null}
             <MultiSelect
               name="genres"
               label="Genres"

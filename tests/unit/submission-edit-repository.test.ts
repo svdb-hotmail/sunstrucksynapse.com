@@ -10,6 +10,9 @@ import { createCurationWorkflowRepository } from "../../app/repositories/curatio
 import { createReleasePreparationRepository } from "../../app/repositories/release-preparation.server";
 import { createAlbumPublishingRepository } from "../../app/repositories/album-publishing.server";
 import { releaseSubmissionFixture } from "../helpers/release-submission";
+import { loader as deliverMedia } from "../../app/routes/media";
+import { createMediaDeliveryUrl } from "../../app/services/media-signing";
+import type { LoaderFunctionArgs } from "react-router";
 import { STREAMING_PROFILE } from "../../app/config/music-metadata";
 
 it("edits a legacy submission, preserves accepted evidence, and publishes with curator artwork", async () => {
@@ -18,12 +21,14 @@ it("edits a legacy submission, preserves accepted evidence, and publishes with c
     const raw = drizzle(client, { schema });
     await migrate(raw, { migrationsFolder: "./drizzle" });
     const adapter = Object.create(raw);
+    let afterCommit: (() => Promise<void>) | undefined;
     adapter.batch = async (queries: Promise<unknown>[]) => {
       await client.exec("begin");
       try {
         const results = [];
         for (const query of queries) results.push(await query);
         await client.exec("commit");
+        await afterCommit?.();
         return results;
       } catch (e) {
         await client.exec("rollback");
@@ -74,6 +79,23 @@ it("edits a legacy submission, preserves accepted evidence, and publishes with c
         "update submission_activities set message='Rewrite history' where metadata->>'kind'='curator_metadata'",
       ),
     ).rejects.toThrow("append-only");
+    // Simulate another committed correction immediately after the save batch.
+    afterCommit = async () => {
+      afterCommit = undefined;
+      await raw.execute(sql`insert into submission_activities(submission_id,activity_type,actor_role,actor_id,actor_email,message,metadata)
+        values(${id}::uuid,'note','curator','other','other@example.test','Competing correction',jsonb_build_object('kind','curator_metadata','fields',${JSON.stringify(fields)}::jsonb))`);
+    };
+    const ownSave = (await edits.save(
+      id,
+      JSON.stringify(saved.revision),
+      fields,
+      "Save before competing correction",
+      actor,
+    ))!;
+    expect(ownSave.revision).not.toEqual((await edits.find(id))!.revision);
+    await expect(
+      edits.save(id, JSON.stringify(ownSave.revision), fields, "Must detect competitor", actor),
+    ).rejects.toThrow();
     const decision = await createCurationWorkflowRepository(db).finalizeReview(
       {
         submissionId: id,
@@ -92,7 +114,7 @@ it("edits a legacy submission, preserves accepted evidence, and publishes with c
     expect(accepted.fields).toEqual(fields);
     const pins = (
       await client.query(
-        "select resulting_track_id,accepted_rights_declaration_id,accepted_creative_process_disclosure_id,accepted_provenance_record_id from submissions",
+        "select resulting_track_id,accepted_rights_declaration_id,accepted_creative_process_disclosure_id,accepted_provenance_record_id from submissions where id='20000000-0000-4000-8000-000000000001'",
       )
     ).rows;
     const preparation = createReleasePreparationRepository(db);
@@ -136,17 +158,92 @@ it("edits a legacy submission, preserves accepted evidence, and publishes with c
       artwork,
     ))!;
     expect(withCover.coverId).toBe(artwork.id);
+    const secret = "synthetic-media-secret";
+    const signed = await createMediaDeliveryUrl("", "artwork", artwork.id, secret);
+    const delivery = (path: string) =>
+      deliverMedia({
+        request: new Request(new URL(path, "https://example.test")),
+        params: { kind: "artwork", assetId: artwork.id },
+        context: {
+          get: () => ({
+            db,
+            env: {
+              MEDIA_DELIVERY_SIGNING_SECRET: secret,
+              MEDIA_BUCKET: {
+                get: async () => ({
+                  body: "cover",
+                  size: 5,
+                  httpEtag: '"test"',
+                  writeHttpMetadata: () => {},
+                }),
+              },
+            },
+          }),
+        },
+      } as unknown as LoaderFunctionArgs);
+    expect((await delivery(`/media/artwork/${artwork.id}`)).status).toBe(404);
+    expect((await delivery(signed)).status).toBe(404);
     expect(
       (await client.query("select status,cover_id from release_preparation_jobs")).rows,
     ).toEqual([{ status: "ready", cover_id: null }]);
     expect((await publishing.readiness(accepted.releaseId!)).flatMap((r) => r.blockers)).toEqual(
       [],
     );
+    // Pending members see existing shared fields and cannot save overrides
+    // that acceptance would discard. A cleared description stays authoritative.
+    const pending = "20000000-0000-4000-8000-000000000003";
+    const project = "80000000-0000-4000-8000-000000000003";
+    await raw.execute(sql`insert into submission_release_projects(id,owner_email,artist_name,title,artist_id,release_id,origin_submission_id)
+      select ${project}::uuid,'artist@example.test','New Signal','Old project title',artist_id,${accepted.releaseId}::uuid,${id}::uuid from release_artist_credits where release_id=${accepted.releaseId}::uuid and position=1`);
+    await client.exec(
+      releaseSubmissionFixture(3)
+        .replace("title, artist_details, status", "title, release_details, artist_details, status")
+        .replace(
+          "'Unwritten Frequency',",
+          `'Unwritten Frequency', '{"kind":"album","albumProjectId":"${project}","trackNumber":2,"summary":"Old member description"}'::jsonb,`,
+        ),
+    );
+    await raw.execute(
+      sql`update releases set description=null where id=${accepted.releaseId}::uuid`,
+    );
+    const member = (await edits.find(pending))!;
+    expect(member.fields.summary).toBe("");
+    expect(member.releaseFieldsEditable).toBe(false);
+    await expect(
+      edits.save(
+        pending,
+        JSON.stringify(member.revision),
+        { ...member.fields, releaseTitle: "Discarded override" },
+        "Cannot change shared fields before acceptance",
+        actor,
+      ),
+    ).rejects.toThrow();
+    const memberSaved = (await edits.save(
+      pending,
+      JSON.stringify(member.revision),
+      { ...member.fields, title: "Member correction" },
+      "Track correction preserves release",
+      actor,
+    ))!;
+    expect(memberSaved.fields.summary).toBe("");
+    await createCurationWorkflowRepository(db).finalizeReview(
+      {
+        submissionId: pending,
+        artisticQuality: 2,
+        originalityIntent: 2,
+        productionReadiness: 2,
+        editorialFit: 2,
+        finalGrade: "C",
+        rationale: "Synthetic pending-member rejection for isolated verification.",
+      },
+      actor,
+      new Date(),
+    );
     const oldPublicationRevision = await publishing.publicationRevision(accepted.releaseId!);
     await edits.save(
       id,
-      JSON.stringify(withCover.revision),
-      { ...fields, title: "Updated after confirmation" },
+      JSON.stringify((await edits.find(id))!.revision),
+      { ...fields, title: "Updated after confirmation", summary: "" },
       "Corrected after a publishing confirmation",
       actor,
     );
@@ -158,19 +255,35 @@ it("edits a legacy submission, preserves accepted evidence, and publishes with c
         oldPublicationRevision,
       ),
     ).rejects.toThrow();
-    const slug = await publishing.publish(accepted.releaseId!, actor);
-    expect(await publishing.publish(accepted.releaseId!, actor)).toBe(slug);
+    const confirmation = await publishing.publicationRevision(accepted.releaseId!);
+    const trackIds = [decision!.resultingTrackId!];
+    const slug = await publishing.publish(accepted.releaseId!, actor, trackIds, confirmation);
+    expect(await publishing.publish(accepted.releaseId!, actor, trackIds, confirmation)).toBe(slug);
     expect(
       (await client.query("select artwork_asset_id from track_artwork_assets")).rows[0],
     ).toEqual({ artwork_asset_id: artwork.id });
     expect(
       (
         await client.query(
-          "select resulting_track_id,accepted_rights_declaration_id,accepted_creative_process_disclosure_id,accepted_provenance_record_id from submissions",
+          "select resulting_track_id,accepted_rights_declaration_id,accepted_creative_process_disclosure_id,accepted_provenance_record_id from submissions where id='20000000-0000-4000-8000-000000000001'",
         )
       ).rows,
     ).toEqual(pins);
+    expect((await delivery(`/media/artwork/${artwork.id}`)).status).toBe(307);
+    expect((await delivery(signed)).status).toBe(200);
     expect((await edits.find(id))?.editable).toBe(false);
+    // A legacy release-only target is closed even without a resulting track.
+    await client.exec(releaseSubmissionFixture(2));
+    const legacy = "20000000-0000-4000-8000-000000000002";
+    await raw.execute(
+      sql`update submissions set status='accepted',accepted_at=now(),resulting_release_id=${accepted.releaseId}::uuid,accepted_rights_declaration_id='30000000-0000-4000-8000-000000000002',accepted_creative_process_disclosure_id='40000000-0000-4000-8000-000000000002',accepted_provenance_record_id='50000000-0000-4000-8000-000000000002' where id=${legacy}::uuid`,
+    );
+    expect((await edits.find(legacy))?.editable).toBe(false);
+    await expect(
+      raw.execute(
+        sql`insert into submission_editorial_artwork(submission_id,artwork_asset_id) values(${legacy}::uuid,${artwork.id}::uuid)`,
+      ),
+    ).rejects.toThrow();
     await expect(
       edits.save(
         id,

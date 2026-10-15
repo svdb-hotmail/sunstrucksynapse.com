@@ -1029,7 +1029,7 @@ async function validateExistingHistoryGuard() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 16, "expected the original and fifteen forward migrations");
+    assert(migrations.length === 17, "expected the original and sixteen forward migrations");
     for (const statement of migrations[0]!.sql) {
       await client.exec(statement);
     }
@@ -1072,7 +1072,7 @@ async function validateVideoAssetForwardMigration() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 16, "expected the original and fifteen forward migrations");
+    assert(migrations.length === 17, "expected the original and sixteen forward migrations");
     for (const migration of migrations.slice(0, 4)) {
       for (const statement of migration.sql) {
         await client.exec(statement);
@@ -1201,7 +1201,7 @@ async function validateHomepageCollectionsForwardMigration() {
   const client = new PGlite();
   try {
     const migrations = readMigrationFiles({ migrationsFolder: "./drizzle" });
-    assert(migrations.length === 16, "expected the original and fifteen forward migrations");
+    assert(migrations.length === 17, "expected the original and sixteen forward migrations");
     for (const migration of migrations.slice(0, 5)) {
       for (const statement of migration.sql) {
         await client.exec(statement);

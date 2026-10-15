@@ -6,6 +6,8 @@ import os
 import subprocess
 import tempfile
 import threading
+import struct
+import zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
@@ -46,13 +48,63 @@ def encode_file(source, target, mime_type, expected_duration_ms):
     return {"profile": PROFILE, "checksumSha256": output_hash, "byteSize": size, "durationMs": output_duration, "sampleRate": 44100, "channels": 2, "bitRate": 320000}
 
 
+IMAGE_FORMATS = {"image/png": ("png_pipe", "png"), "image/jpeg": ("jpeg_pipe", "mjpeg"), "image/webp": ("webp_pipe", "webp"), "image/avif": ("mov", "av1")}
+
+
+def validate_artwork(path, mime):
+    data = path.read_bytes()
+    # Decode errors alone do not catch PNG truncation after the pixel data.
+    if mime == "image/png":
+        if data[:8] != b"\x89PNG\r\n\x1a\n":
+            raise ValueError("Invalid PNG")
+        offset = 8
+        ended = False
+        while offset < len(data):
+            if offset + 12 > len(data):
+                raise ValueError("Truncated PNG")
+            size = struct.unpack_from(">I", data, offset)[0]
+            end = offset + size + 12
+            if end > len(data) or zlib.crc32(data[offset+4:end-4]) != struct.unpack_from(">I", data, end-4)[0]:
+                raise ValueError("Corrupt PNG")
+            kind = data[offset+4:offset+8]
+            if kind == b"acTL":
+                raise ValueError("Use a still cover")
+            offset = end
+            if kind == b"IEND":
+                if size or offset != len(data):
+                    raise ValueError("Invalid PNG ending")
+                ended = True
+                break
+        if not ended:
+            raise ValueError("Missing PNG ending")
+    elif mime == "image/jpeg" and not data.endswith(b"\xff\xd9"):
+        raise ValueError("Truncated JPEG")
+    elif mime == "image/webp" and (len(data) < 12 or data[:4] != b"RIFF" or data[8:12] != b"WEBP" or int.from_bytes(data[4:8], "little") + 8 != len(data)):
+        raise ValueError("Truncated WebP")
+    input_format, codec = IMAGE_FORMATS[mime]
+    before = probe(path, input_format)
+    streams = before.get("streams", [])
+    if len(streams) != 1 or streams[0].get("codec_name") != codec:
+        raise ValueError("Invalid cover stream")
+    width, height = streams[0].get("width", 0), streams[0].get("height", 0)
+    if width != height or not 1400 <= width <= 10000:
+        raise ValueError("Invalid cover dimensions")
+    # Fully decode pixels in the existing isolated container, never in the
+    # memory-limited application Worker. Reject corruption and animation.
+    decoded = subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-xerror", "-err_detect", "explode", "-protocol_whitelist", "file,pipe", "-f", input_format, "-i", str(path), "-map", "0:v:0", "-frames:v", "2", "-f", "framemd5", "-"], capture_output=True, timeout=45, check=True)
+    frames = [line for line in decoded.stdout.splitlines() if line and not line.startswith(b"#")]
+    if len(frames) != 1:
+        raise ValueError("Use one still image")
+    return {"width": width, "height": height, "mimeType": mime, "checksumSha256": hashlib.sha256(data).hexdigest(), "byteSize": len(data)}
+
+
 class Handler(BaseHTTPRequestHandler):
     # Never log private headers, media bodies, source paths or ffmpeg stderr.
     def log_message(self, *_):
         pass
 
     def do_POST(self):
-        if self.path != "/encode" or not LOCK.acquire(blocking=False):
+        if self.path not in ("/encode", "/validate-artwork") or not LOCK.acquire(blocking=False):
             self.send_error(409)
             return
         try:
@@ -60,7 +112,8 @@ class Handler(BaseHTTPRequestHandler):
             mime = self.headers.get("Content-Type", "")
             expected_hash = self.headers.get("X-Source-Checksum", "")
             duration = int(self.headers.get("X-Source-Duration", "0"))
-            if not 0 < size <= MAX_BYTES or mime not in FORMATS or len(expected_hash) != 64 or any(c not in "0123456789abcdef" for c in expected_hash) or not 0 < duration <= 86400000:
+            image = self.path == "/validate-artwork"
+            if not 0 < size <= (20 * 1024 * 1024 if image else MAX_BYTES) or mime not in (IMAGE_FORMATS if image else FORMATS) or len(expected_hash) != 64 or any(c not in "0123456789abcdef" for c in expected_hash) or (not image and not 0 < duration <= 86400000):
                 raise ValueError("Invalid input")
             self.connection.settimeout(60)
             with tempfile.TemporaryDirectory(prefix="sunsyn-") as directory:
@@ -77,6 +130,14 @@ class Handler(BaseHTTPRequestHandler):
                         handle.write(chunk)
                 if digest.hexdigest() != expected_hash:
                     raise ValueError("Source checksum mismatch")
+                if image:
+                    result = json.dumps(validate_artwork(source, mime), separators=(",", ":")).encode()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/json")
+                    self.send_header("Content-Length", str(len(result)))
+                    self.end_headers()
+                    self.wfile.write(result)
+                    return
                 metadata = encode_file(source, target, mime, duration)
                 self.send_response(200)
                 self.send_header("Content-Type", "audio/mpeg")
@@ -87,7 +148,7 @@ class Handler(BaseHTTPRequestHandler):
                     while chunk := handle.read(1024 * 1024):
                         self.wfile.write(chunk)
         except (ValueError, OSError, KeyError, subprocess.SubprocessError):
-            self.send_error(422, "Audio preparation failed")
+            self.send_error(422, "Media validation or preparation failed")
         finally:
             LOCK.release()
 

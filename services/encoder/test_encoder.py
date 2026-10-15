@@ -8,7 +8,7 @@ import tempfile
 import threading
 import unittest
 from http.server import ThreadingHTTPServer
-from server import encode_file, probe, Handler, PROFILE
+from server import encode_file, probe, Handler, PROFILE, validate_artwork
 
 class EncoderTests(unittest.TestCase):
     def setUp(self):
@@ -17,6 +17,19 @@ class EncoderTests(unittest.TestCase):
         self.source = Path(self.tmp.name) / "tone.wav"
         self.output = Path(self.tmp.name) / "stream.mp3"
         subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=2", "-ac", "1", "-metadata", "title=private-source-title", str(self.source)], check=True)
+
+    def test_full_image_decode_and_complete_structure(self):
+        for ext, mime in [("png", "image/png"), ("jpg", "image/jpeg"), ("webp", "image/webp"), ("avif", "image/avif")]:
+            image = Path(self.tmp.name) / ("cover." + ext)
+            subprocess.run(["ffmpeg", "-v", "error", "-f", "lavfi", "-i", "color=blue:size=1400x1400", "-frames:v", "1", "-threads", "1", str(image)], check=True)
+            valid = image.read_bytes()
+            self.assertEqual(validate_artwork(image, mime)["width"], 1400)
+            image.write_bytes(valid[:33])
+            with self.assertRaises((ValueError, subprocess.SubprocessError)):
+                validate_artwork(image, mime)
+            image.write_bytes(valid[:-12])
+            with self.assertRaises((ValueError, subprocess.SubprocessError)):
+                validate_artwork(image, mime)
 
     def test_real_lossless_encode_has_uniform_profile_and_preserves_source(self):
         original = self.source.read_bytes()
