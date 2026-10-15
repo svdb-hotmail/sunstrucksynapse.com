@@ -69,20 +69,24 @@ export function CuratorShell({
       </aside>
       <div className="curator-stage">
         <header className="curator-topbar">
-          <form className="curator-search" role="search" onSubmit={submitSearch}>
-            <span aria-hidden="true">⌕</span>
-            <label className="sr-only" htmlFor="curator-search-query">
-              Search curator workspace
-            </label>
-            <input
-              id="curator-search-query"
-              name="query"
-              type="search"
-              placeholder={searchPlaceholder}
-              value={searchValue}
-              onChange={changeSearch}
-            />
-          </form>
+          {onSearch ? (
+            <form className="curator-search" role="search" onSubmit={submitSearch}>
+              <span aria-hidden="true">⌕</span>
+              <label className="sr-only" htmlFor="curator-search-query">
+                Search curator workspace
+              </label>
+              <input
+                id="curator-search-query"
+                name="query"
+                type="search"
+                placeholder={searchPlaceholder}
+                value={searchValue}
+                onChange={changeSearch}
+              />
+            </form>
+          ) : (
+            <span className="curator-overline">Curator workspace</span>
+          )}
           <ThemeToggle />
           <div className="curator-identity" aria-label={`Curator account: ${identity.name}`}>
             <span aria-hidden="true">{identity.initials}</span>

@@ -1,22 +1,24 @@
+import { GENRES, MOODS, PROCESS_TAGS, validSelections } from "~/config/music-metadata";
 import { sql } from "drizzle-orm";
-import { useCallback, useEffect, useState } from "react";
 import {
   Link,
-  useFetcher,
   useLoaderData,
-  useNavigate,
+  useRevalidator,
+  useFetcher,
   type ActionFunctionArgs,
   type LoaderFunctionArgs,
 } from "react-router";
+import { PublishingWorkspace } from "~/features/curator-workspace/PublishingWorkspace";
+import { CuratorBadge, CuratorPanel } from "~/features/curator-workspace/CuratorPrimitives";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { requireCuratorIdentity } from "~/services/access-auth.server";
 import { validateUuid } from "~/services/curator-validation";
 import {
   createAlbumPublishingRepository,
   type AlbumPreparation,
-  type AlbumTrackInput,
 } from "~/repositories/album-publishing.server";
-import { PublicMediaUpload } from "~/components/PublicMediaUpload";
+import { useEffect, useState } from "react";
+import { createReleasePreparationRepository } from "~/repositories/release-preparation.server";
 import { CuratorShell } from "~/features/curator-workspace/CuratorShell";
 
 async function runtimeFor(request: Request, context: LoaderFunctionArgs["context"]) {
@@ -25,26 +27,42 @@ async function runtimeFor(request: Request, context: LoaderFunctionArgs["context
   if (!auth.ok) throw auth.response;
   if (!runtime.db || !runtime.curatorRepository)
     throw new Response("Album service unavailable.", { status: 503 });
-  return { db: runtime.db, curator: runtime.curatorRepository, identity: auth.identity };
+  return {
+    db: runtime.db,
+    curator: runtime.curatorRepository,
+    identity: auth.identity,
+    encodingAvailable: Boolean(runtime.env?.AUDIO_ENCODER),
+  };
 }
 export async function loader({ request, context }: LoaderFunctionArgs) {
-  const { db, curator, identity } = await runtimeFor(request, context);
+  const { db, curator, identity, encodingAvailable } = await runtimeFor(request, context);
   const repository = createAlbumPublishingRepository(db);
-  const selected = new URL(request.url).searchParams.get("album");
-  const albumId = selected && validateUuid(selected, "album").ok ? selected : null;
-  const [artists, releases, tracks, readiness] = await Promise.all([
+  const params = new URL(request.url).searchParams;
+  const selected = params.get("album");
+  const focusedTrack = params.get("track");
+  if ((selected && !validId(selected)) || (focusedTrack && !validId(focusedTrack)))
+    throw new Response("Invalid release or track.", { status: 400 });
+  const [artists, releases, tracks] = await Promise.all([
     curator.list("artist"),
     curator.list("release"),
     repository.inventory(),
-    albumId ? repository.readiness(albumId) : Promise.resolve([]),
   ]);
-  if (albumId && !releases.some((r) => r.id === albumId))
-    throw new Response("Album not found.", { status: 404 });
-  const preview = albumId
-    ? await db.execute<{ artistId: string; coverId: string | null }>(
-        sql`select c.artist_id as "artistId", l.artwork_asset_id as "coverId" from release_artist_credits c left join release_artwork_assets l on l.release_id=c.release_id and l.role='primary' and l.position=1 where c.release_id=${albumId}::uuid and c.position=1`,
-      )
+  const focusedRelease = focusedTrack
+    ? await repository.releaseForAcceptedTrack(focusedTrack)
     : null;
+  if (focusedTrack && !focusedRelease)
+    throw new Response("Accepted track not found.", { status: 404 });
+  const albumId = selected ?? focusedRelease;
+  if (albumId && !releases.some((r) => r.id === albumId))
+    throw new Response("Release not found.", { status: 404 });
+  const [readiness, preview] = await Promise.all([
+    albumId ? repository.readiness(albumId) : Promise.resolve([]),
+    albumId
+      ? db.execute<{ artistId: string; coverId: string | null }>(
+          sql`select c.artist_id as "artistId", l.artwork_asset_id as "coverId" from release_artist_credits c left join release_artwork_assets l on l.release_id=c.release_id and l.role='primary' and l.position=1 where c.release_id=${albumId}::uuid and c.position=1`,
+        )
+      : Promise.resolve(null),
+  ]);
   return {
     identity,
     artists,
@@ -52,18 +70,10 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     tracks,
     readiness,
     albumId,
+    showQueue: !albumId,
+    encodingAvailable,
     preview: preview?.rows[0] ?? null,
   };
-}
-function urlSlug(title: string) {
-  return title
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "")
-    .slice(0, 200)
-    .replace(/-$/g, "");
 }
 function validId(id: unknown) {
   return typeof id === "string" && validateUuid(id, "id").ok;
@@ -93,7 +103,30 @@ export async function action({ request, context }: ActionFunctionArgs) {
     }
     const releaseId = String(form.get("releaseId") ?? "");
     if (!validId(releaseId)) throw new Error("Choose an album.");
-    if (intent === "prepare") {
+    if (intent === "retry-preparation") {
+      const trackId = String(form.get("trackId") ?? "");
+      if (!validId(trackId)) throw new Error("Choose a track.");
+      if (
+        !(await repository.inventory()).some((t) => t.id === trackId && t.releaseId === releaseId)
+      )
+        throw new Error("This track is not awaiting preparation in this release.");
+      await createReleasePreparationRepository(db).retry(trackId, identity);
+    } else if (intent === "reorder") {
+      const ids: unknown = JSON.parse(String(form.get("trackIds") ?? "null"));
+      const previous: unknown = JSON.parse(String(form.get("previousTrackIds") ?? "null"));
+      if (
+        ![ids, previous].every(
+          (value) =>
+            Array.isArray(value) &&
+            value.length > 0 &&
+            value.length <= 100 &&
+            value.every(validId) &&
+            new Set(value).size === value.length,
+        )
+      )
+        throw new Error("Refresh the release and choose every track once.");
+      await repository.reorder(releaseId, ids as string[], previous as string[], identity);
+    } else if (intent === "prepare") {
       let parsed: unknown;
       try {
         parsed = JSON.parse(String(form.get("preparation")));
@@ -128,6 +161,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
             t.title.length > 200 ||
             typeof t.genre !== "string" ||
             t.genre.length > 100 ||
+            (t.genres !== undefined &&
+              (!validSelections(t.genres, GENRES) ||
+                t.genre !== t.genres[0] ||
+                !validSelections(t.moods, MOODS) ||
+                !validSelections(t.processTags, PROCESS_TAGS))) ||
             ![t.moods, t.processTags].every(
               (values) =>
                 Array.isArray(values) &&
@@ -150,7 +188,21 @@ export async function action({ request, context }: ActionFunctionArgs) {
           { error: "Resolve the readiness blockers before publishing.", blockers },
           { status: 409 },
         );
-      const slug = await repository.publish(releaseId, identity);
+      let expected: unknown;
+      try {
+        expected = JSON.parse(String(form.get("trackIds") ?? "null"));
+      } catch {
+        throw new Error("Refresh this release before publishing.");
+      }
+      if (
+        !Array.isArray(expected) ||
+        expected.length < 1 ||
+        expected.length > 100 ||
+        !expected.every(validId) ||
+        new Set(expected).size !== expected.length
+      )
+        throw new Error("Refresh and confirm the complete track list before publishing.");
+      const slug = await repository.publish(releaseId, identity, expected as string[]);
       return Response.json(
         { albumId: releaseId, publicUrl: `/releases/${slug}` },
         { headers: { "cache-control": "no-store" } },
@@ -169,422 +221,101 @@ export async function action({ request, context }: ActionFunctionArgs) {
   }
 }
 
-export function AlbumEditor({ data }: { data: ReturnType<typeof useLoaderData<typeof loader>> }) {
-  const fetcher = useFetcher<{
-    error?: string;
-    albumId?: string;
-    publicUrl?: string;
-    artistId?: string;
-  }>();
-  const navigate = useNavigate();
-  const artist = useFetcher<{ error?: string; artistId?: string }>();
-  const [newArtistName, setNewArtistName] = useState("");
-  const [newArtistSlug, setNewArtistSlug] = useState("");
-  const initial = data.releases.find((r) => r.id === data.albumId);
-  const [releaseId] = useState(() => data.albumId ?? crypto.randomUUID());
-  const [title, setTitle] = useState(initial?.title ?? "");
-  const [slug, setSlug] = useState(initial?.slug ?? "");
-  const [artistId, setArtistId] = useState(data.preview?.artistId ?? "");
-  const [selected, setSelected] = useState<AlbumTrackInput[]>(() =>
-    data.tracks.filter((t) => t.releaseId === data.albumId),
+type PublishingRouteData = ReturnType<typeof useLoaderData<typeof loader>>;
+
+function AlbumEditor({ data }: { data: PublishingRouteData }) {
+  const fetcher = useFetcher<{ error?: string; publicUrl?: string }>();
+  const revalidator = useRevalidator();
+  const release = data.releases.find((r) => r.id === data.albumId)!;
+  const tracks = data.tracks.filter((t) => t.releaseId === data.albumId);
+  const preparing = tracks.some(
+    (t) => t.preparationStatus === "queued" || t.preparationStatus === "processing",
   );
-  const [sharedGenre, setSharedGenre] = useState("");
-  const [sharedMoods, setSharedMoods] = useState("");
-  const [sharedProcess, setSharedProcess] = useState("");
-  const [metadataNotice, setMetadataNotice] = useState("");
-  const [confirmed, setConfirmed] = useState(false);
-  const [activeUploads, setActiveUploads] = useState<string[]>([]);
-  const reportUpload = useCallback((id: string, active: boolean) => {
-    setActiveUploads((ids) =>
-      active ? [...new Set([...ids, id])] : ids.filter((value) => value !== id),
-    );
-  }, []);
-  const busy = fetcher.state !== "idle" || artist.state !== "idle" || activeUploads.length > 0;
   useEffect(() => {
-    if (artist.state === "idle" && artist.data?.artistId) setArtistId(artist.data.artistId);
-  }, [artist.state, artist.data]);
-  useEffect(() => {
-    if (fetcher.state === "idle" && fetcher.data?.albumId && !data.albumId) {
-      navigate(`?album=${fetcher.data.albumId}`, { replace: true });
-    }
-  }, [fetcher.state, fetcher.data, data.albumId, navigate]);
-  const trackSignature = (tracks: AlbumTrackInput[]) =>
-    JSON.stringify(
-      tracks.map((t) => ({
-        id: t.id,
-        title: t.title,
-        genre: (t.genre ?? "").trim(),
-        moods: t.moods,
-        processTags: t.processTags,
-      })),
-    );
-  const unsaved =
-    title !== (initial?.title ?? "") ||
-    slug !== (initial?.slug ?? "") ||
-    artistId !== (data.preview?.artistId ?? "") ||
-    trackSignature(selected) !==
-      trackSignature(data.tracks.filter((t) => t.releaseId === data.albumId));
-  const albumId = data.albumId ?? fetcher.data?.albumId;
-  const save = () =>
-    void fetcher.submit(
-      {
-        intent: "prepare",
-        releaseId,
-        preparation: JSON.stringify({ releaseId, artistId, title, slug, tracks: selected }),
-      },
-      { method: "post" },
-    );
-  const split = (v: string) =>
-    v
-      .split(",")
-      .map((v) => v.trim())
-      .filter(Boolean);
-  const update = (id: string, values: Partial<AlbumTrackInput>) =>
-    setSelected((rows) => rows.map((row) => (row.id === id ? { ...row, ...values } : row)));
+    if (!data.encodingAvailable || !preparing) return;
+    const timer = setInterval(() => {
+      if (revalidator.state === "idle") void revalidator.revalidate();
+    }, 15000);
+    return () => clearInterval(timer);
+  }, [data.encodingAvailable, preparing, revalidator]);
   return (
-    <>
-      {artist.data?.error ? <p role="alert">{artist.data.error}</p> : null}
-      {fetcher.data?.error ? <p role="alert">{fetcher.data.error}</p> : null}
-      {fetcher.data?.publicUrl ? (
-        <p role="status">
-          Published: <a href={fetcher.data.publicUrl}>{fetcher.data.publicUrl}</a>
-        </p>
-      ) : null}
-      <section className="curator-panel">
-        <h2>Album essentials</h2>
-        <label>
-          Title
-          <input
-            value={title}
-            disabled={busy}
-            onChange={(e) => {
-              const next = e.currentTarget.value;
-              if (!slug || slug === urlSlug(title)) setSlug(urlSlug(next));
-              setTitle(next);
-            }}
-            maxLength={200}
-          />
-        </label>
-        <label>
-          Album URL slug
-          <input
-            value={slug}
-            disabled={busy}
-            onChange={(e) => setSlug(e.currentTarget.value)}
-            maxLength={200}
-          />
-        </label>
-        <label>
-          Primary artist
-          <select
-            value={artistId}
-            disabled={busy}
-            onChange={(e) => setArtistId(e.currentTarget.value)}
-          >
-            <option value="">Choose deliberately</option>
-            {data.artists
-              .filter((a) => ["draft", "in_review", "published"].includes(a.lifecycleStatus))
-              .map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.title} · {a.slug}
-                </option>
-              ))}
-          </select>
-        </label>
-        <details>
-          <summary>Create an artist</summary>
-          <artist.Form method="post">
-            <input type="hidden" name="intent" value="create-artist" />
-            <label>
-              Name
-              <input
-                name="title"
-                required
-                maxLength={200}
-                value={newArtistName}
-                disabled={busy}
-                onChange={(e) => {
-                  const next = e.currentTarget.value;
-                  if (!newArtistSlug || newArtistSlug === urlSlug(newArtistName))
-                    setNewArtistSlug(urlSlug(next));
-                  setNewArtistName(next);
-                }}
-              />
-            </label>
-            <label>
-              URL slug
-              <input
-                name="slug"
-                required
-                pattern="[a-z0-9]+(-[a-z0-9]+)*"
-                maxLength={200}
-                value={newArtistSlug}
-                disabled={busy}
-                onChange={(e) => setNewArtistSlug(e.currentTarget.value)}
-              />
-            </label>
-            <button disabled={busy}>Create artist</button>
-          </artist.Form>
-        </details>
-      </section>
-      <section className="curator-panel">
-        <h2>Select accepted tracks</h2>
-        <p>
-          One submission per track for this launch. Accepted declarations and review links stay
-          pinned.
-        </p>
-        {data.albumId ? (
-          <p>Saved tracks stay in this album. Add more tracks or adjust their order below.</p>
-        ) : null}
-        {data.tracks
-          .filter((t) => t.accepted)
-          .map((t) => (
-            <label key={t.id}>
-              <input
-                type="checkbox"
-                disabled={busy || (Boolean(data.albumId) && t.releaseId === data.albumId)}
-                checked={selected.some((s) => s.id === t.id)}
-                onChange={(e) =>
-                  setSelected((rows) =>
-                    e.target.checked ? [...rows, t] : rows.filter((row) => row.id !== t.id),
-                  )
-                }
-              />
-              {t.title}
-              {t.artistName ? ` — ${t.artistName}` : ""}
-            </label>
-          ))}
-        <details>
-          <summary>Set shared discovery metadata</summary>
-          <label>
-            Shared genre
-            <input
-              value={sharedGenre}
-              maxLength={100}
-              onChange={(e) => setSharedGenre(e.currentTarget.value)}
-              disabled={busy}
-            />
-          </label>
-          <label>
-            Shared moods (comma separated)
-            <input
-              value={sharedMoods}
-              onChange={(e) => setSharedMoods(e.currentTarget.value)}
-              disabled={busy}
-            />
-          </label>
-          <label>
-            Shared process tags (comma separated)
-            <input
-              value={sharedProcess}
-              onChange={(e) => setSharedProcess(e.currentTarget.value)}
-              disabled={busy}
-            />
-          </label>
-          <button
-            type="button"
-            disabled={
-              busy ||
-              !selected.length ||
-              !sharedGenre.trim() ||
-              !split(sharedMoods).length ||
-              !split(sharedProcess).length
-            }
-            onClick={() => {
-              setSelected((tracks) =>
-                tracks.map((track) => ({
-                  ...track,
-                  genre: sharedGenre.trim(),
-                  moods: split(sharedMoods),
-                  processTags: split(sharedProcess),
-                })),
-              );
-              setMetadataNotice(
-                "Shared metadata applied. Save the album to keep these changes; you can adjust each track below.",
-              );
-            }}
-          >
-            Apply shared metadata to selected tracks
-          </button>
-          {metadataNotice ? <p role="status">{metadataNotice}</p> : null}
-        </details>
-        <ol>
-          {selected.map((track, index) => (
-            <li key={track.id}>
-              <label>
-                Track title
-                <input
-                  disabled={busy}
-                  value={track.title}
-                  onChange={(e) => update(track.id, { title: e.currentTarget.value })}
-                />
-              </label>
-              <label>
-                Genre
-                <input
-                  disabled={busy}
-                  value={track.genre ?? ""}
-                  onChange={(e) => update(track.id, { genre: e.currentTarget.value })}
-                />
-              </label>
-              <label>
-                Moods (comma separated)
-                <input
-                  disabled={busy}
-                  key={JSON.stringify(track.moods)}
-                  defaultValue={track.moods.join(", ")}
-                  onBlur={(e) => update(track.id, { moods: split(e.currentTarget.value) })}
-                />
-              </label>
-              <label>
-                Process tags (comma separated)
-                <input
-                  disabled={busy}
-                  key={JSON.stringify(track.processTags)}
-                  defaultValue={track.processTags.join(", ")}
-                  onBlur={(e) => update(track.id, { processTags: split(e.currentTarget.value) })}
-                />
-              </label>
-              <button
-                type="button"
-                disabled={busy || index === 0}
-                onClick={() =>
-                  setSelected((rows) => {
-                    const next = [...rows];
-                    [next[index - 1], next[index]] = [next[index]!, next[index - 1]!];
-                    return next;
-                  })
-                }
-              >
-                Move up
-              </button>
-              <button
-                type="button"
-                disabled={busy || index === selected.length - 1}
-                onClick={() =>
-                  setSelected((rows) => {
-                    const next = [...rows];
-                    [next[index + 1], next[index]] = [next[index]!, next[index + 1]!];
-                    return next;
-                  })
-                }
-              >
-                Move down
-              </button>
-              {data.tracks.find((t) => t.id === track.id)?.publicAudioReady ? (
-                <p role="status">
-                  Public listening file ready. Selecting another file replaces the public listening
-                  asset.
-                </p>
-              ) : null}
-              {albumId ? (
-                <PublicMediaUpload
-                  kind="audio"
-                  disabled={busy}
-                  onBusyChange={(active) => reportUpload(track.id, active)}
-                  targetId={track.id}
-                  label={`Public listening file for ${track.title}`}
-                />
-              ) : null}
-            </li>
-          ))}
-        </ol>
-        <button disabled={busy || !artistId || !selected.length} onClick={save}>
-          Save album & order
-        </button>
-        {fetcher.data?.albumId && !data.albumId ? (
-          <Link to={`?album=${fetcher.data.albumId}`}>Continue with cover and readiness</Link>
-        ) : null}
-      </section>
-      {data.albumId ? (
-        <section className="curator-panel">
-          <h2>Cover & readiness</h2>
-          <details>
-            <summary>Public presentation preview</summary>
-            {data.preview?.coverId ? (
-              <img
-                src={`/media/artwork/${data.preview.coverId}`}
-                alt={`${title} album cover`}
-                width={240}
-              />
-            ) : null}
-            <h3>{title}</h3>
-            <p>{data.artists.find((a) => a.id === artistId)?.title}</p>
-            <ol>
-              {selected.map((t) => (
-                <li key={t.id}>
-                  {t.title} · {t.genre} · {t.moods.join(", ")}
-                </li>
-              ))}
-            </ol>
-          </details>
-          <PublicMediaUpload
-            kind="artwork"
-            disabled={busy}
-            onBusyChange={(active) => reportUpload("album-cover", active)}
-            targetId={data.albumId}
-            label="One public album cover"
-          />
-          <button
-            disabled={busy}
-            onClick={() =>
-              void fetcher.submit({ intent: "cover", releaseId: data.albumId! }, { method: "post" })
-            }
-          >
-            Apply album cover to all draft tracks
-          </button>
-          <ul>
-            {data.readiness.map((row) => (
-              <li key={row.id}>
-                <strong>{row.title}</strong>
-                {row.blockers.length ? (
-                  <ul>
-                    {row.blockers.map((b) => (
-                      <li key={b}>{b}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  " — Ready"
-                )}
-              </li>
-            ))}
-          </ul>
-          {unsaved ? <p role="status">Save album changes before publishing.</p> : null}
-          <label>
-            <input
-              type="checkbox"
-              checked={confirmed}
-              onChange={(e) => setConfirmed(e.currentTarget.checked)}
-            />
-            Publish this complete album for public listening
-          </label>
-          <button
-            disabled={
-              busy ||
-              unsaved ||
-              !confirmed ||
-              !data.readiness.length ||
-              data.readiness.some((r) => r.blockers.length)
-            }
-            onClick={() =>
-              void fetcher.submit(
-                { intent: "publish", releaseId: data.albumId!, confirmed: "yes" },
-                { method: "post" },
-              )
-            }
-          >
-            Publish album
-          </button>
-        </section>
-      ) : null}
-    </>
+    <PublishingWorkspace
+      title={release.title}
+      artistName={tracks[0]?.artistName ?? ""}
+      releaseKind={tracks[0]?.releaseKind === "album" || tracks.length > 1 ? "album" : "single"}
+      tracks={tracks}
+      readiness={data.readiness}
+      encodingAvailable={data.encodingAvailable}
+      pending={fetcher.state !== "idle"}
+      error={fetcher.data?.error}
+      publicUrl={fetcher.data?.publicUrl}
+      onPublish={() =>
+        void fetcher.submit(
+          {
+            intent: "publish",
+            releaseId: data.albumId!,
+            confirmed: "yes",
+            trackIds: JSON.stringify(tracks.map((t) => t.id)),
+          },
+          { method: "post" },
+        )
+      }
+      onRetry={(trackId) =>
+        void fetcher.submit(
+          { intent: "retry-preparation", releaseId: data.albumId!, trackId },
+          { method: "post" },
+        )
+      }
+      onRefresh={() => void revalidator.revalidate()}
+      onReorder={(ids) =>
+        void fetcher.submit(
+          {
+            intent: "reorder",
+            releaseId: data.albumId!,
+            trackIds: JSON.stringify(ids),
+            previousTrackIds: JSON.stringify(tracks.map((t) => t.id)),
+          },
+          { method: "post" },
+        )
+      }
+      onSaveMetadata={(updated) =>
+        void fetcher.submit(
+          {
+            intent: "prepare",
+            releaseId: data.albumId!,
+            preparation: JSON.stringify({
+              releaseId: data.albumId!,
+              artistId: tracks[0]?.artistId,
+              title: release.title,
+              slug: release.slug,
+              tracks: updated,
+            }),
+          },
+          { method: "post" },
+        )
+      }
+    />
   );
 }
+
 export default function CuratorAlbumsRoute() {
   const data = useLoaderData<typeof loader>();
+  const [query, setQuery] = useState("");
+  const selected = data.releases.find((r) => r.id === data.albumId);
+  const drafts = data.releases.filter(
+    (r) =>
+      ["draft", "in_review"].includes(r.lifecycleStatus) &&
+      data.tracks.some((t) => t.releaseId === r.id && t.accepted) &&
+      `${r.title} ${data.tracks.find((t) => t.releaseId === r.id)?.artistName ?? ""}`
+        .toLowerCase()
+        .includes(query.toLowerCase()),
+  );
   return (
     <CuratorShell
       activeSection="collections"
+      onSearch={data.showQueue ? setQuery : undefined}
+      searchValue={query}
+      searchPlaceholder="Find accepted releases or artists"
       identity={{
         name: data.identity.email,
         email: data.identity.email,
@@ -592,34 +323,75 @@ export default function CuratorAlbumsRoute() {
       }}
       navigation={[
         { id: "queue", label: "Submissions", href: "/curator/submissions" },
-        { id: "collections", label: "Album preparation", href: "/curator/albums" },
-        { id: "settings", label: "Catalogue", href: "/curator" },
+        {
+          id: "collections",
+          label: "Publishing queue",
+          href: "/curator/albums",
+          count: drafts.length,
+        },
+        { id: "settings", label: "Advanced catalogue", href: "/curator" },
       ]}
     >
-      <h1>Prepare & publish an album</h1>
-      <nav>
-        <Link to="/curator/albums">New album</Link>
-        {data.releases
-          .filter((r) => r.lifecycleStatus === "draft" || r.lifecycleStatus === "in_review")
-          .map((r) => (
-            <Link key={r.id} to={`?album=${r.id}`}>
-              {r.title}
-            </Link>
-          ))}
-      </nav>
-      {data.releases.find((r) => r.id === data.albumId)?.lifecycleStatus === "published" ? (
-        <section className="curator-panel" role="status">
-          <h2>Album published</h2>
-          <p>
-            This release is available for public listening. Its publication and review history are
-            retained.
-          </p>
-          <Link to={`/releases/${data.releases.find((r) => r.id === data.albumId)!.slug}`}>
-            Open published album
-          </Link>
-        </section>
+      {data.showQueue ? (
+        <>
+          <header className="curator-page-heading">
+            <div>
+              <p className="curator-overline">Accepted · awaiting publication</p>
+              <h1>Publishing queue</h1>
+              <p>Keep curating first. Every accepted draft waits here until you are ready.</p>
+            </div>
+          </header>
+          <div className="publishing-drafts">
+            {drafts.map((release) => {
+              const tracks = data.tracks.filter((t) => t.releaseId === release.id);
+              return (
+                <CuratorPanel key={release.id}>
+                  <CuratorBadge tone="success">Accepted</CuratorBadge>
+                  <h2>{release.title}</h2>
+                  <p>
+                    {tracks[0]?.artistName} · {tracks.length} track{tracks.length === 1 ? "" : "s"}
+                  </p>
+                  <p>
+                    {tracks.filter((t) => t.preparationStatus === "ready").length} of{" "}
+                    {tracks.length} streaming files ready
+                  </p>
+                  <Link
+                    className="curator-button curator-button--primary"
+                    to={`?album=${release.id}`}
+                  >
+                    Open preparation →
+                  </Link>
+                </CuratorPanel>
+              );
+            })}
+          </div>
+          {!drafts.length ? (
+            <CuratorPanel className="publishing-complete">
+              <h2>{query ? "No matching releases" : "No releases waiting"}</h2>
+              <p>
+                {query
+                  ? "Try another title or artist."
+                  : "Accepted music appears here automatically."}
+              </p>
+              <Link to="/curator/submissions">Continue curating →</Link>
+            </CuratorPanel>
+          ) : null}
+        </>
       ) : (
-        <AlbumEditor key={data.albumId ?? "new"} data={data} />
+        <>
+          <nav className="publishing-back">
+            <Link to="/curator/albums">← Publishing queue</Link>
+          </nav>
+          {selected?.lifecycleStatus === "published" ? (
+            <CuratorPanel className="publishing-complete">
+              <CuratorBadge tone="success">Published</CuratorBadge>
+              <h1>{selected.title}</h1>
+              <Link to={`/releases/${selected.slug}`}>Open published release →</Link>
+            </CuratorPanel>
+          ) : (
+            <AlbumEditor key={data.albumId ?? "new"} data={data} />
+          )}
+        </>
       )}
     </CuratorShell>
   );

@@ -1,6 +1,12 @@
 {
   "extends": "./tsconfig.json",
-  "include": [".react-router/types/**/*", "app/**/*", "workers/**/*", "worker-configuration.d.ts"],
+  "include": [
+    ".react-router/types/**/*",
+    "app/**/*",
+    "workers/**/*",
+    "services/**/*.ts",
+    "worker-configuration.d.ts"
+  ],
   "compilerOptions": {
     "composite": true,
     "lib": ["DOM", "DOM.Iterable", "ES2022"],

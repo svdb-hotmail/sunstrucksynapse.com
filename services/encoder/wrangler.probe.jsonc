@@ -1,0 +1,16 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "sunstruck-synapse-encoder-probe",
+  "main": "verification.ts",
+  "compatibility_date": "2026-08-14",
+  "workers_dev": false,
+  "preview_urls": false,
+  "vars": {
+    "VERIFICATION_RUN": "20261015-01",
+    "BUCKET_PURPOSE": "isolated-synthetic-verification",
+  },
+  "r2_buckets": [{ "binding": "MEDIA_BUCKET", "bucket_name": "sunstruck-synapse-media-preview" }],
+  "services": [{ "binding": "AUDIO_ENCODER", "service": "sunstruck-synapse-encoder-verification" }],
+  "triggers": { "crons": [] },
+  "observability": { "enabled": true },
+}

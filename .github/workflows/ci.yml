@@ -40,6 +40,11 @@ jobs:
           node-version: 22.22.0
           cache: npm
 
+      - name: Install audio encoder test dependency
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
       - name: Run Village quality gate
         run: bash .github/scripts/village-ci.sh
 

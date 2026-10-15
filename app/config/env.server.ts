@@ -19,7 +19,7 @@ export interface MediaBucket {
   } | null>;
   get(
     key: string,
-    options: { range: Headers },
+    options: { range: Headers; onlyIf?: Headers },
   ): Promise<{
     body: ReadableStream;
     size: number;
@@ -37,6 +37,7 @@ export type WorkerEnv = DatabaseEnv &
     CURATOR_EMAILS: string;
     MEDIA_DELIVERY_SIGNING_SECRET: string;
     MEDIA_BUCKET: MediaBucket;
+    AUDIO_ENCODER?: { fetch(input: string | Request, init?: RequestInit): Promise<Response> };
     POSTMARK_SERVER_TOKEN?: string;
     TRANSACTIONAL_EMAIL_FROM?: string;
     R2_ACCOUNT_ID?: string;
@@ -98,6 +99,9 @@ export function validateWorkerEnv(source: object): WorkerEnv {
     CURATOR_EMAILS: requiredString(source, "CURATOR_EMAILS"),
     MEDIA_DELIVERY_SIGNING_SECRET: requiredString(source, "MEDIA_DELIVERY_SIGNING_SECRET"),
     MEDIA_BUCKET: mediaBucket as MediaBucket,
+    ...(Reflect.get(source, "AUDIO_ENCODER")
+      ? { AUDIO_ENCODER: Reflect.get(source, "AUDIO_ENCODER") as WorkerEnv["AUDIO_ENCODER"] }
+      : {}),
     ...(typeof Reflect.get(source, "POSTMARK_SERVER_TOKEN") === "string"
       ? { POSTMARK_SERVER_TOKEN: String(Reflect.get(source, "POSTMARK_SERVER_TOKEN")).trim() }
       : {}),

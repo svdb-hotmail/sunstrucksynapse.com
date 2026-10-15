@@ -19,6 +19,52 @@ describe("durable review result", () => {
     vi.unstubAllGlobals();
   });
 
+  it.each(["publish", "queue"])(
+    "keeps an accepted track available for %s without publishing it",
+    async (afterDecision) => {
+      const trackId = "90000000-0000-4000-8000-000000000001";
+      const finalizeReview = vi
+        .fn()
+        .mockResolvedValue({ status: "accepted", resultingTrackId: trackId });
+      const claimNextSubmission = vi.fn().mockResolvedValue(null);
+      const form = new FormData();
+      Object.entries({
+        intent: "grade",
+        workspace: "1",
+        afterDecision,
+        submissionId: e2eReviewSubmissionId,
+        artisticQuality: "4",
+        originalityIntent: "4",
+        productionReadiness: "4",
+        editorialFit: "4",
+        finalGrade: "B",
+        rationale: "A deliberate signal suited to the station.",
+      }).forEach(([key, value]) => form.set(key, value));
+      const response = await action({
+        request: new Request("https://example.test/curator/submissions", {
+          method: "POST",
+          body: form,
+        }),
+        context: {
+          get: () => ({
+            submissionRepository: createE2eSubmissionRepository(),
+            curatorRepository: {},
+            curationWorkflowRepository: { finalizeReview, claimNextSubmission },
+          }),
+        },
+        params: {},
+      } as unknown as ActionFunctionArgs);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject(
+        afterDecision === "publish"
+          ? { publishingTrackId: trackId }
+          : { acceptedTrackId: trackId, claimedId: null },
+      );
+      expect(finalizeReview).toHaveBeenCalledOnce();
+      expect(claimNextSubmission).toHaveBeenCalledTimes(afterDecision === "publish" ? 0 : 1);
+    },
+  );
+
   it("returns the saved question and a visible warning when configured email delivery fails", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 503 })));

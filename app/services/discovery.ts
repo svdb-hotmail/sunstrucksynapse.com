@@ -27,7 +27,13 @@ export function filterCatalogue(
     ) {
       return false;
     }
-    if (filters.genre && discovery?.genre !== filters.genre) return false;
+    if (
+      filters.genre &&
+      !(
+        discovery?.genres?.length ? discovery.genres : discovery?.genre ? [discovery.genre] : []
+      ).includes(filters.genre)
+    )
+      return false;
     if (filters.mood && !discovery?.moods.includes(filters.mood)) return false;
     if (filters.year && discovery?.year !== filters.year) return false;
     if (filters.process && !discovery?.creativeProcessTags.includes(filters.process)) {
@@ -41,7 +47,15 @@ export function discoveryOptions(items: CatalogueItem[]) {
   const strings = (values: Array<string | null | undefined>) =>
     [...new Set(values.filter((value): value is string => Boolean(value)))].sort();
   return {
-    genres: strings(items.map((item) => item.discovery?.genre)),
+    genres: strings(
+      items.flatMap((item) =>
+        item.discovery?.genres?.length
+          ? item.discovery.genres
+          : item.discovery?.genre
+            ? [item.discovery.genre]
+            : [],
+      ),
+    ),
     moods: strings(items.flatMap((item) => item.discovery?.moods ?? [])),
     years: [...new Set(items.flatMap((item) => item.discovery?.year ?? []))].sort((a, b) => b - a),
     processes: strings(items.flatMap((item) => item.discovery?.creativeProcessTags ?? [])),

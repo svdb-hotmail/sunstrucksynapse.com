@@ -12,6 +12,7 @@ import type {
 import type { CuratorIdentity } from "~/types/curator";
 import type { SubmissionStatus } from "~/types/submissions";
 import { sha256Hex } from "~/services/submission-security.server";
+import { GENRES, MOODS, PROCESS_TAGS, validSelections } from "~/config/music-metadata";
 
 import type { TransactionalEmailService } from "./transactional-email.server";
 
@@ -77,6 +78,25 @@ function missing(fields: string[]): string {
 
 function validateForSubmit(input: SubmissionDraftInput): string | null {
   const required: string[] = [];
+  if (input.track.intakeVersion === 1) {
+    if (!validSelections(input.track.genres, GENRES))
+      required.push("genres from the available options");
+    if (!validSelections(input.track.moods, MOODS))
+      required.push("moods from the available options");
+    if (!validSelections(input.track.processTags, PROCESS_TAGS))
+      required.push("creative process tags from the available options");
+    if (!input.release.artworkRightsConfirmed) required.push("audio and cover artwork permissions");
+    if (input.release.kind !== "single" && input.release.kind !== "album")
+      required.push("single or album choice");
+    if (
+      input.release.kind === "album" &&
+      (!input.release.albumProjectId ||
+        !Number.isInteger(input.release.trackNumber) ||
+        input.release.trackNumber! < 1 ||
+        input.release.trackNumber! > 100)
+    )
+      required.push("saved album and track number");
+  }
   if (!input.workTitle.trim()) required.push("work title");
   if (!input.artist.displayName.trim()) required.push("artist name");
   if (!input.contact.contactName.trim()) required.push("contact name");

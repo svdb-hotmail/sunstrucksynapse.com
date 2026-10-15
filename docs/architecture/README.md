@@ -16,6 +16,7 @@ The accepted architecture decisions are:
 6. [Postmark for transactional email](decisions/0006-postmark-transactional-email.md)
 7. [First-party, privacy-conscious analytics](decisions/0007-first-party-analytics.md)
 8. [No Kubernetes dependency](decisions/0008-no-kubernetes.md)
+9. [Prepare streaming audio from the accepted private recording](decisions/0009-accepted-audio-preparation.md) — implemented for review; private encoder deployed and verified, application rollout pending.
 
 The implementation-facing design-system contract is documented in [Design system, tokens, theming, and Storybook](../design-system.md). It defines how the application shell and production components consume visual tokens without changing the data and media boundaries above.
 
@@ -76,7 +77,7 @@ Original masters, listening derivatives, artwork derivatives, and submission evi
 - Published artwork and audio derivatives are delivered through application-controlled access, with short-lived signed access, deliberate caching, and byte-range support for audio playback.
 - Signed URLs reduce casual hotlinking and uncontrolled long-lived access; they are not DRM and cannot prevent a determined listener from capturing media they can play.
 - Submission evidence is treated as stricter private material, not as a publishable derivative.
-- Transcoding and derivative generation are deferred implementation work. The architecture preserves separate source and derivative identities without selecting a media-processing pipeline yet.
+- ADR 0009 implements separate source and derivative identities with a private, queued encoding service. Production activation requires the encoder and its Cloudflare plan entitlement; preparation alone does not publish anything.
 
 ## Deferred details
 

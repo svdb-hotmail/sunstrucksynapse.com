@@ -222,6 +222,10 @@ export const tracks = pgTable(
     slug: text("slug").notNull(),
     title: text("title").notNull(),
     genre: text("genre"),
+    genres: text("genres")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
     moods: text("moods")
       .array()
       .default(sql`'{}'::text[]`)

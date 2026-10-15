@@ -577,7 +577,10 @@ export function createCuratorRepository(db: Database): CuratorRepository {
         .where(and(eq(table.lifecycleStatus, "scheduled"), lte(table.scheduledFor, now)))
         .orderBy(asc(table.scheduledFor), asc(table.id));
       for (const { id } of due) {
-        if (type === "track" && (await publicationBlockers(type, id, "published", null)).length > 0)
+        if (
+          (type === "track" || type === "release") &&
+          (await publicationBlockers(type, id, "published", null)).length > 0
+        )
           continue;
         if (
           await setLifecycle(
@@ -603,6 +606,14 @@ export function createCuratorRepository(db: Database): CuratorRepository {
     target: "scheduled" | "published",
     scheduledFor: Date | null,
   ): Promise<string[]> {
+    if (type === "release") {
+      const result = await db.execute<{ managed: boolean }>(
+        sql`select exists(select 1 from submission_release_projects where release_id=${id}::uuid union all select 1 from tracks t join release_preparation_jobs j on j.track_id=t.id where t.release_id=${id}::uuid) as managed`,
+      );
+      return result.rows[0]?.managed
+        ? ["publish this accepted release through the Publishing queue"]
+        : [];
+    }
     if (type !== "track") return [];
     if (target === "scheduled" && !scheduledFor) return ["valid scheduled publication time"];
     const releaseLifecycleReady =

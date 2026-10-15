@@ -2,6 +2,7 @@ import type { MediaBucket } from "~/config/env.server";
 import type { Database } from "~/db/client.server";
 import { createCurationOutboxRepository } from "~/repositories/curation-outbox.server";
 import { createCurationWorkflowRepository } from "~/repositories/curation-workflow.server";
+import { createReleaseIntakeRepository } from "~/repositories/release-intake.server";
 
 import type { TransactionalEmailService } from "./transactional-email.server";
 
@@ -46,13 +47,16 @@ export async function dispatchCurationOutbox(
   const jobs = await outbox.claim({ limit: 10, leaseSeconds: 90 });
   const outcomes = await Promise.allSettled(
     jobs.map(async (job) => {
-      if (job.kind === "review_audio_staging_cleanup") {
+      if (job.kind === "review_audio_staging_cleanup" || job.kind === "cover_staging_cleanup") {
         const sessionId = stagingCleanupSessionId(job.payload);
         if (!sessionId) {
           await outbox.retry(job.id, job.leaseToken, "INVALID_JOB_PAYLOAD", 3600);
           return;
         }
-        const cleanup = await workflow.audioUploadStagingCleanupTarget(sessionId, now);
+        const cleanup =
+          job.kind === "cover_staging_cleanup"
+            ? await createReleaseIntakeRepository(db).coverStagingCleanupTarget(sessionId, now)
+            : await workflow.audioUploadStagingCleanupTarget(sessionId, now);
         if (cleanup.status === "missing") {
           await outbox.acknowledge(job.id, job.leaseToken);
           return;

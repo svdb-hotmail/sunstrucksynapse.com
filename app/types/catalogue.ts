@@ -41,6 +41,7 @@ interface CatalogueItemBase {
   description: DescriptiveText;
   discovery?: {
     genre: string | null;
+    genres?: string[];
     moods: string[];
     year: number | null;
     creativeProcessTags: string[];

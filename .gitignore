@@ -58,3 +58,7 @@ storybook-static/
 playwright-report/
 test-results/
 *.tsbuildinfo
+
+# Python encoder test output
+__pycache__/
+*.pyc

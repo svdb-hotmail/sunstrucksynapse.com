@@ -20,6 +20,7 @@
       "preview_bucket_name": "sunstruck-synapse-media-preview",
     },
   ],
+  "services": [{ "binding": "AUDIO_ENCODER", "service": "sunstruck-synapse-encoder" }],
   "triggers": {
     "crons": ["* * * * *"],
   },

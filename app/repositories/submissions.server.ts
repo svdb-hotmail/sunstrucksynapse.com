@@ -433,6 +433,12 @@ function sanitizeDraftInput(input: SubmissionDraftInput): SubmissionDraftInput {
       priorWorkNotes: sanitizeString(input.artist.priorWorkNotes),
     },
     release: {
+      kind: input.release.kind,
+      albumProjectId: input.release.albumProjectId
+        ? sanitizeString(input.release.albumProjectId)
+        : undefined,
+      trackNumber: input.release.trackNumber,
+      artworkRightsConfirmed: input.release.artworkRightsConfirmed,
       title: sanitizeString(input.release.title),
       summary: sanitizeString(input.release.summary),
       plannedReleaseDate: sanitizeString(input.release.plannedReleaseDate),
@@ -442,6 +448,12 @@ function sanitizeDraftInput(input: SubmissionDraftInput): SubmissionDraftInput {
       territories: sanitizeStringList(input.release.territories),
     },
     track: {
+      intakeVersion: input.track.intakeVersion,
+      genres: input.track.genres ? sanitizeStringList(input.track.genres) : undefined,
+      moods: input.track.moods ? sanitizeStringList(input.track.moods) : undefined,
+      processTags: input.track.processTags
+        ? sanitizeStringList(input.track.processTags)
+        : undefined,
       title: sanitizeString(input.track.title),
       versionTitle: sanitizeString(input.track.versionTitle),
       durationNotes: sanitizeString(input.track.durationNotes),

@@ -1,3 +1,4 @@
+import { STREAMING_PROFILE } from "~/config/music-metadata";
 import { curationEligibilitySql } from "./curation-eligibility.server";
 import { sql, type SQL } from "drizzle-orm";
 
@@ -482,27 +483,37 @@ export function createCurationWorkflowRepository(db: Database) {
       now: Date,
     ): Promise<CurationReviewResult | null> {
       const reviewId = crypto.randomUUID();
-      const artistId = crypto.randomUUID();
-      const releaseId = crypto.randomUUID();
       const trackId = crypto.randomUUID();
       const referenceRows = await execute<{
         publicReference: string;
         artistName: string;
         title: string;
+        artistId: string | null;
+        releaseId: string | null;
+        releaseTitle: string | null;
+        trackPosition: number | null;
+        projectId: string | null;
       }>(sql`
-        select public_reference as "publicReference", artist_details->>'displayName' as "artistName", title
-        from submissions
-        where id = ${input.submissionId}::uuid and status = 'listening'
-          and assigned_curator_id = ${curator.id}
+        select s.public_reference as "publicReference", s.artist_details->>'displayName' as "artistName", s.title,
+          p.artist_id as "artistId",p.release_id as "releaseId",p.title as "releaseTitle",
+          case when p.id is not null then (s.release_details->>'trackNumber')::int end as "trackPosition",
+          s.release_details->>'albumProjectId' as "projectId"
+        from submissions s join submission_invitations i on i.id=s.invitation_id
+        left join submission_release_projects p on p.id::text=s.release_details->>'albumProjectId'
+          and p.owner_email=lower(i.invitee_email) and lower(p.artist_name)=lower(s.artist_details->>'displayName')
+        where s.id = ${input.submissionId}::uuid and s.status = 'listening'
+          and s.assigned_curator_id = ${curator.id}
       `);
       const reference = referenceRows[0];
-      if (!reference) return null;
+      if (!reference || (reference.projectId && !reference.releaseId)) return null;
+      const artistId = reference.artistId ?? crypto.randomUUID();
+      const releaseId = reference.releaseId ?? crypto.randomUUID();
       const suffix = reference.publicReference
         .toLowerCase()
         .replace(/[^a-z0-9]/g, "")
         .slice(-10);
-      const artistSlug = `${slug(reference.artistName, "artist")}-${suffix}`;
-      const releaseSlug = `${slug(reference.title, "release")}-${suffix}`;
+      const artistSlug = `${slug(reference.artistName, "artist")}-${reference.artistId ? artistId.slice(0, 12) : suffix}`;
+      const releaseSlug = `${slug(reference.releaseTitle ?? reference.title, "release")}-${reference.releaseId ? releaseId.slice(0, 12) : suffix}`;
       const trackSlug = `${slug(reference.title, "track")}-${suffix}`;
       const accepted = input.finalGrade !== "C";
       const rows = await execute<Record<string, unknown>>(sql`
@@ -511,6 +522,10 @@ export function createCurationWorkflowRepository(db: Database) {
           from submissions
           where id = ${input.submissionId}::uuid and status = 'listening'
             and assigned_curator_id = ${curator.id}
+            and (not ${accepted} or coalesce(submissions.track_details->>'intakeVersion','0') <> '1' or exists (
+              select 1 from submission_cover_selections cs join submission_cover_uploads c on c.id=cs.cover_id
+              where cs.submission_id=submissions.id and c.status='ready'))
+            and not exists(select 1 from releases r where r.id=${releaseId}::uuid and r.lifecycle_status not in ('draft','in_review'))
           for update
         ), current_rights as (
           select rights_declarations.* from rights_declarations join locked on locked.id = rights_declarations.submission_id
@@ -554,20 +569,26 @@ export function createCurationWorkflowRepository(db: Database) {
           select ${artistId}::uuid, ${artistSlug}, coalesce(nullif(locked.artist_details->>'displayName', ''), locked.submitter_name),
             nullif(locked.artist_details->>'shortBiography', '')
           from locked, inserted_review where ${accepted}
+          on conflict(id) do update set id=excluded.id
           returning id
         ), created_release as (
           insert into releases (id, slug, title)
-          select ${releaseId}::uuid, ${releaseSlug}, locked.title
+          select ${releaseId}::uuid, ${releaseSlug}, ${reference.releaseTitle ?? reference.title}
           from locked, inserted_review where ${accepted}
+          on conflict(id) do update set id=excluded.id
           returning id
         ), release_credit as (
           insert into release_artist_credits (release_id, artist_id, position, credited_as)
           select created_release.id, created_artist.id, 1,
             coalesce(nullif(locked.artist_details->>'displayName', ''), locked.submitter_name)
-          from created_release, created_artist, locked returning release_id
+          from created_release, created_artist, locked on conflict(release_id,position) do update set artist_id=excluded.artist_id returning release_id
         ), created_track as (
-          insert into tracks (id, release_id, slug, title, position)
-          select ${trackId}::uuid, created_release.id, ${trackSlug}, locked.title, 1
+          insert into tracks (id, release_id, slug, title, position,genre,genres,moods,creative_process_tags)
+          select ${trackId}::uuid, created_release.id, ${trackSlug}, locked.title, ${reference.trackPosition ?? 1},
+            locked.track_details->'genres'->>0,
+            array(select jsonb_array_elements_text(coalesce(locked.track_details->'genres','[]'::jsonb))),
+            array(select jsonb_array_elements_text(coalesce(locked.track_details->'moods','[]'::jsonb))),
+            array(select jsonb_array_elements_text(coalesce(locked.track_details->'processTags','[]'::jsonb)))
           from created_release, release_credit, locked returning id
         ), track_credit as (
           insert into track_artist_credits (track_id, artist_id, position, credited_as)
@@ -604,6 +625,12 @@ export function createCurationWorkflowRepository(db: Database) {
             ),
             ${now.toISOString()}::timestamptz
           from decided returning submission_id
+        ), preparation as (
+          insert into release_preparation_jobs(track_id,review_id,source_audio_id,cover_id,profile)
+          select decided.resulting_track_id,inserted_review.id,selected_audio.id,cs.cover_id,${STREAMING_PROFILE}
+          from decided join inserted_review on inserted_review.submission_id=decided.id cross join selected_audio
+          left join submission_cover_selections cs on cs.submission_id=decided.id
+          where decided.status='accepted' on conflict(track_id) do nothing returning id
         ), queued as (
           insert into curation_outbox (idempotency_key, kind, payload)
           select 'submission:' || decided.id::text || ':review:' || ${reviewId}::text || ':decision-email',

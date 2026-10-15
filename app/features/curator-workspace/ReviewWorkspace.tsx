@@ -56,6 +56,7 @@ export function ReviewWorkspace({
   scores,
   onAskArtist,
   onFinish,
+  onFinishAndPublish,
   onGrade,
   onLater,
   onRationale,
@@ -69,6 +70,7 @@ export function ReviewWorkspace({
   scores: ReviewScores;
   onAskArtist: (claimKey: string, question: string) => void;
   onFinish: () => void;
+  onFinishAndPublish?: () => void;
   onGrade: (grade: ReviewGrade) => void;
   onLater: () => void;
   onRationale: (value: string) => void;
@@ -295,9 +297,24 @@ export function ReviewWorkspace({
               Later
             </CuratorButton>
           </div>
-          <CuratorButton variant="primary" disabled={!complete || pending} onClick={onFinish}>
-            Finish & next →
-          </CuratorButton>
+          <div>
+            <CuratorButton
+              variant={onFinishAndPublish && grade !== "C" ? "secondary" : "primary"}
+              disabled={!complete || pending}
+              onClick={onFinish}
+            >
+              Finish & next →
+            </CuratorButton>
+            {onFinishAndPublish && (grade === "A" || grade === "B") ? (
+              <CuratorButton
+                variant="primary"
+                disabled={!complete || pending}
+                onClick={onFinishAndPublish}
+              >
+                Accept & prepare release →
+              </CuratorButton>
+            ) : null}
+          </div>
         </footer>
         <p className="curator-shortcuts">
           <kbd>Space</kbd> Play/pause · <kbd>1–5</kbd> Score · <kbd>A B C</kbd> Grade ·<kbd> Q</kbd>{" "}
