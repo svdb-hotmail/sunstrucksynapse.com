@@ -8,6 +8,7 @@ import { createReleaseIntakeRepository } from "../../app/repositories/release-in
 import { createReleasePreparationRepository } from "../../app/repositories/release-preparation.server";
 import { STREAMING_PROFILE } from "../../app/config/music-metadata";
 import { createAlbumPublishingRepository } from "../../app/repositories/album-publishing.server";
+import { createCuratorCatalogueRepository } from "../../app/repositories/curator-catalogue.server";
 import type { Database } from "../../app/db/client.server";
 
 describe("album publishing atomicity", () => {
@@ -314,6 +315,35 @@ describe("album publishing atomicity", () => {
     expect((await repository.readiness(releaseId)).every((t) => t.blockers.length === 0)).toBe(
       true,
     );
+    const catalogue = createCuratorCatalogueRepository(db as unknown as Database);
+    const query = { query: "", view: "all" as const, after: null, trackId: trackIds[0] };
+    expect((await catalogue.read(query)).selected?.state).toBe("ready");
+    const originalRevision = await repository.publicationRevision(releaseId);
+    // Reproduce a historical incomplete parent without changing accepted evidence.
+    // The production trigger is retained; the synthetic setup explicitly uses its gate.
+    await client.exec("begin");
+    await client.query("select set_config('sunsyn.atomic_publish_release',$1,true)", [releaseId]);
+    await client.query(
+      "update releases set lifecycle_status='published',published_at=now() where id=$1",
+      [releaseId],
+    );
+    await client.exec("commit");
+    expect(await repository.publicationState(releaseId)).toMatchObject({
+      complete: false,
+      trackCount: 2,
+      liveTrackCount: 0,
+    });
+    expect(await repository.inventory(releaseId)).toHaveLength(2);
+    expect((await catalogue.read(query)).selected?.state).toBe("attention");
+    // A published parent is not permission to ignore a changed confirmation revision.
+    await expect(
+      repository.publish(releaseId, actor, [...trackIds].reverse(), originalRevision),
+    ).rejects.toThrow();
+    expect(await db.select().from(schema.audioAssets)).toHaveLength(0);
+    await client.query(
+      "update releases set lifecycle_status='draft',published_at=null where id=$1",
+      [releaseId],
+    );
     await expect(repository.publish(releaseId, actor, [trackIds[0]])).rejects.toThrow();
     expect(await db.select().from(schema.audioAssets)).toHaveLength(0);
     expect(await repository.publish(releaseId, actor, [...trackIds].reverse())).toBe(
@@ -328,6 +358,15 @@ describe("album publishing atomicity", () => {
     ).rows;
     expect(audit).toHaveLength(4);
     expect(await repository.publish(releaseId, actor)).toBe("a-full-album");
+    expect(await repository.publicationState(releaseId)).toMatchObject({
+      complete: true,
+      trackCount: 2,
+      liveTrackCount: 2,
+    });
+    // A genuinely completed publication still accepts its original token on retry.
+    expect(
+      await repository.publish(releaseId, actor, [...trackIds].reverse(), originalRevision),
+    ).toBe("a-full-album");
     expect(
       (await client.query("select * from publication_audit where to_lifecycle='published'")).rows,
     ).toEqual(audit);

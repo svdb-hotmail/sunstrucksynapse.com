@@ -23,6 +23,7 @@ export default [
   }),
   route("submission-evidence/:token", "routes/submission-evidence.ts"),
   route("curator", "routes/curator.tsx"),
+  route("curator/tools", "routes/curator-tools.tsx"),
   route("curator/albums", "routes/curator-albums.tsx"),
   route("curator/submissions", "routes/curator-submissions.tsx"),
   route("curator/submissions/:submissionId/artwork", "routes/curator-submission-artwork.ts"),

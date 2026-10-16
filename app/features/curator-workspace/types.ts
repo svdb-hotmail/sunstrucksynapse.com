@@ -1,4 +1,5 @@
 export type CuratorSection =
+  | "catalogue"
   | "queue"
   | "mine"
   | "waiting"

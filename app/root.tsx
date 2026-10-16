@@ -45,6 +45,7 @@ import {
 
 import type { Route } from "./+types/root";
 import "./styles/global.css";
+import "./styles/curator-catalogue.css";
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", href: "/assets/favicon.svg", type: "image/svg+xml" },

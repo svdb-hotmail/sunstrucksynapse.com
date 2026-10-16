@@ -2,6 +2,10 @@ import { STREAMING_PROFILE } from "~/config/music-metadata";
 import { sql, type SQL } from "drizzle-orm";
 import type { Database } from "~/db/client.server";
 import type { CuratorIdentity } from "~/types/curator";
+import {
+  releasePublicationStateQuery,
+  type ReleasePublicationState,
+} from "./release-publication-state.server";
 
 export interface AlbumTrackInput {
   id: string;
@@ -58,15 +62,20 @@ const effectiveCovers = sql`select t.id as track_id,coalesce(a.id,c.id) as id,
   left join submission_cover_uploads c on c.id=coalesce(j.cover_id,sc.cover_id) and c.status='ready'
   where a.id is not null or c.id is not null`;
 
-function readinessQuery(releaseId: string): SQL {
+export const albumReadiness = {
+  audioPreparation: "verified automatic streaming preparation",
+  cover: "ready primary track cover (add artwork in Edit details)",
+};
+
+export function albumTrackReadinessQuery(releaseId?: string | SQL): SQL {
   return sql`select t.id, t.title, array_remove(array[
     case when not (${accepted}) then 'accepted A/B review with exact pinned declarations and private audio' end,
-    case when exists(select 1 from release_preparation_jobs j where j.track_id=t.id and (j.status<>'ready' or j.profile<>${STREAMING_PROFILE})) then 'verified automatic streaming preparation' when not exists(select 1 from release_preparation_jobs j where j.track_id=t.id and j.status='ready') and not exists(select 1 from audio_assets a where a.track_id=t.id and a.scope='publishable_derivative' and a.status='ready' and a.is_primary and a.duration_ms > 0) then 'ready primary public listening file' end,
-    case when not exists(select 1 from (${effectiveCovers}) c where c.track_id=t.id) then 'ready primary track cover (add artwork in Edit details)' end,
+    case when exists(select 1 from release_preparation_jobs j where j.track_id=t.id and (j.status<>'ready' or j.profile<>${STREAMING_PROFILE})) then ${albumReadiness.audioPreparation} when not exists(select 1 from release_preparation_jobs j where j.track_id=t.id and j.status='ready') and not exists(select 1 from audio_assets a where a.track_id=t.id and a.scope='publishable_derivative' and a.status='ready' and a.is_primary and a.duration_ms > 0) then 'ready primary public listening file' end,
+    case when not exists(select 1 from (${effectiveCovers}) c where c.track_id=t.id) then ${albumReadiness.cover} end,
     case when nullif(btrim(t.genre),'') is null or cardinality(t.moods)=0 or cardinality(t.creative_process_tags)=0 then 'genre, moods and creative process tags' end,
     case when t.lifecycle_status not in ('draft','in_review','published') then 'track must be draft or in review' end,
     case when not exists(select 1 from track_artist_credits c where c.track_id=t.id and c.position=1) or exists(select 1 from track_artist_credits c join artists a on a.id=c.artist_id where c.track_id=t.id and a.lifecycle_status not in ('draft','in_review','published')) then 'eligible credited artists' end
-  ], null)::text[] as blockers from tracks t where t.release_id=${releaseId}::uuid order by t.disc_number,t.position,t.id`;
+  ], null)::text[] as blockers from tracks t where ${releaseId ? sql`t.release_id=${releaseId}::uuid` : sql`true`} order by t.disc_number,t.position,t.id`;
 }
 
 function publicationRevisionQuery(releaseId: string) {
@@ -97,7 +106,12 @@ export function createAlbumPublishingRepository(db: Database) {
         )[0]?.releaseId ?? null
       );
     },
-    async inventory() {
+    async publicationState(releaseId: string): Promise<ReleasePublicationState> {
+      return rows<ReleasePublicationState>(
+        await db.execute(releasePublicationStateQuery(releaseId)),
+      )[0];
+    },
+    async inventory(releaseId?: string) {
       const result =
         await db.execute(sql`select t.id, t.title, t.release_id as "releaseId", coalesce(t.genre,'') as genre, t.genres, t.moods, t.creative_process_tags as "processTags", t.position,
         (${accepted}) as accepted,
@@ -108,7 +122,8 @@ export function createAlbumPublishingRepository(db: Database) {
         (select s.release_details->>'kind' from submissions s where s.resulting_track_id=t.id) as "releaseKind",
         (select c.artist_id from track_artist_credits c where c.track_id=t.id and c.position=1) as "artistId",
         (select a.display_name from track_artist_credits c join artists a on a.id=c.artist_id where c.track_id=t.id and c.position=1) as "artistName",
-        (exists(select 1 from release_preparation_jobs j where j.track_id=t.id and j.status='ready') or exists(select 1 from audio_assets a where a.track_id=t.id and a.is_primary and a.scope='publishable_derivative' and a.status='ready')) as "publicAudioReady" from tracks t where t.lifecycle_status in ('draft','in_review') order by t.release_id,t.position`);
+        t.lifecycle_status as "lifecycleStatus",
+        (exists(select 1 from release_preparation_jobs j where j.track_id=t.id and j.status='ready') or exists(select 1 from audio_assets a where a.track_id=t.id and a.is_primary and a.scope='publishable_derivative' and a.status='ready')) as "publicAudioReady" from tracks t where ${releaseId ? sql`t.release_id=${releaseId}::uuid` : sql`t.lifecycle_status in ('draft','in_review')`} order by t.release_id,t.position`);
       return rows<
         AlbumTrackInput & {
           releaseId: string;
@@ -122,11 +137,12 @@ export function createAlbumPublishingRepository(db: Database) {
           submissionId: string | null;
           failureCode: string | null;
           releaseKind: string | null;
+          lifecycleStatus: string;
         }
       >(result);
     },
     async readiness(releaseId: string): Promise<AlbumReadiness[]> {
-      const result = await db.execute(readinessQuery(releaseId));
+      const result = await db.execute(albumTrackReadinessQuery(releaseId));
       const tracks = rows<AlbumReadiness>(result);
       const [parent] = rows<{ titleReady: boolean; artistReady: boolean; coverReady: boolean }>(
         await db.execute(sql`
@@ -252,7 +268,7 @@ export function createAlbumPublishingRepository(db: Database) {
       const result = await db.batch([
         db.execute(lockCatalogue),
         db.execute(
-          sql`select 1 / (${expectedRevision ? sql`(exists(select 1 from releases where id=${releaseId}::uuid and lifecycle_status='published') or exists(select 1 from (${publicationRevisionQuery(releaseId)}) current where current.revision=${expectedRevision}::jsonb))` : sql`true`})::int as confirmed_revision`,
+          sql`select 1 / (${expectedRevision ? sql`(exists(select 1 from (${releasePublicationStateQuery(releaseId)}) state where state.complete) or exists(select 1 from (${publicationRevisionQuery(releaseId)}) current where current.revision=${expectedRevision}::jsonb))` : sql`true`})::int as confirmed_revision`,
         ),
         db.execute(
           sql`select 1 / (${expectedTrackIds ? sql`(select jsonb_agg(t.id::text order by t.disc_number,t.position,t.id) from tracks t where t.release_id=${releaseId}::uuid)=${JSON.stringify(expectedTrackIds)}::jsonb` : sql`true`})::int as confirmed_tracks`,
@@ -280,7 +296,7 @@ export function createAlbumPublishingRepository(db: Database) {
           where t.release_id=${releaseId}::uuid and t.lifecycle_status<>'published'
           on conflict(track_id,role,position) do update set artwork_asset_id=excluded.artwork_asset_id`),
         db.execute(sql`select 1 / (exists(select 1 from tracks where release_id=${releaseId}::uuid)
-          and not exists(select 1 from (${readinessQuery(releaseId)}) readiness where cardinality(blockers)>0)
+          and not exists(select 1 from (${albumTrackReadinessQuery(releaseId)}) readiness where cardinality(blockers)>0)
           and exists(select 1 from releases where id=${releaseId}::uuid and lifecycle_status in ('draft','in_review','published'))
           and exists(select 1 from release_artwork_assets l join artwork_assets a on a.id=l.artwork_asset_id where l.release_id=${releaseId}::uuid and l.role='primary' and a.scope='publishable_derivative' and a.status='ready')
           and exists(select 1 from release_artist_credits c where c.release_id=${releaseId}::uuid and c.position=1)

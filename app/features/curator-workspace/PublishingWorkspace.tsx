@@ -16,10 +16,18 @@ export interface PreparedTrack {
   moods: string[];
   processTags: string[];
   preparationStatus: string | null;
+  publicAudioReady?: boolean;
   coverId: string | null;
   submissionId?: string | null;
   failureCode: string | null;
 }
+function streamingReady(track: PreparedTrack) {
+  return (
+    track.preparationStatus === "ready" ||
+    (!track.preparationStatus && track.publicAudioReady === true)
+  );
+}
+
 export function PublishingWorkspace({
   title,
   artistName,
@@ -70,6 +78,7 @@ export function PublishingWorkspace({
       t.moods,
       t.processTags,
       t.preparationStatus,
+      t.publicAudioReady,
     ]),
   ]);
   const confirmed = confirmedRevision === revision;
@@ -83,9 +92,7 @@ export function PublishingWorkspace({
     row.blockers.map((blocker) => ({ title: row.title, blocker })),
   );
   const ready = Boolean(
-    tracks.length &&
-      !blockers.length &&
-      tracks.every((t) => t.preparationStatus === "ready" && t.coverId),
+    tracks.length && !blockers.length && tracks.every((t) => streamingReady(t) && t.coverId),
   );
   const cover = tracks[0]?.coverId;
   const missingMetadata = tracks.some((t) => !t.genre || !t.moods.length || !t.processTags.length);
@@ -122,7 +129,7 @@ export function PublishingWorkspace({
           {error}
         </p>
       ) : null}
-      {!encodingAvailable && tracks.some((t) => t.preparationStatus !== "ready") ? (
+      {!encodingAvailable && tracks.some((t) => !streamingReady(t)) ? (
         <p role="status" className="publishing-message">
           Automatic preparation is temporarily unavailable. Your accepted music is saved in this
           queue.
@@ -156,7 +163,7 @@ export function PublishingWorkspace({
                   <strong>{track.title}</strong>
                   <CuratorBadge
                     tone={
-                      track.preparationStatus === "ready"
+                      streamingReady(track)
                         ? "success"
                         : track.preparationStatus === "failed" || !track.coverId
                           ? "warning"
@@ -165,7 +172,7 @@ export function PublishingWorkspace({
                   >
                     {!track.coverId
                       ? "Cover needed"
-                      : track.preparationStatus === "ready"
+                      : streamingReady(track)
                         ? "Ready"
                         : track.preparationStatus === "failed"
                           ? "Needs attention"

@@ -2238,7 +2238,7 @@ form button[type="submit"] {
 
 @media (max-width: 820px) {
   .curator-app {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .curator-sidebar {

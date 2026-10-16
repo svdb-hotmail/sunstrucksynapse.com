@@ -18,7 +18,7 @@ test("keeps public routes available while curator mutations require Access", asy
 
   const curator = await request.get("/curator");
   expect(curator.status()).toBe(401);
-  expect(await curator.text()).toContain("Authentication required.");
+  expect(await curator.text()).toContain("Curator access required");
 
   const mutation = await request.post("/curator", {
     form: {
@@ -133,7 +133,7 @@ test("manages linked catalogue records and surfaces safe form failures", async (
   const releaseSlug = `release-${suffix}`;
   const trackSlug = `track-${suffix}`;
 
-  await page.goto("/curator");
+  await page.goto("/curator/tools");
   await expect(page.getByText("Signed in as curator@example.test")).toBeVisible();
 
   const artistSection = section(page, "Artist management");
@@ -216,7 +216,7 @@ test("orders multi-collection tracks and exposes auditable scheduled publication
   const trackSection = section(page, "Track management");
   const collectionSection = section(page, "Collection management");
 
-  await page.goto("/curator");
+  await page.goto("/curator/tools");
   await artistSection.getByLabel("Title").first().fill("Ordering Artist");
   await artistSection.getByLabel("Slug").first().fill(`ordering-artist-${suffix}`);
   await artistSection.getByRole("button", { name: "Create artist" }).click();
