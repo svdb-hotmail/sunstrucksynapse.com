@@ -37,7 +37,7 @@ export const catalogueTrackFixtures: CuratorCatalogueTrack[] = [
   coverReady: true,
   blockers: state === "preparing" ? ["verified automatic streaming preparation"] : [],
   submissionId: null,
-  preparationStatus: state === "preparing" ? "processing" : "ready",
+  preparationStatus: state === "preparing" || index === 0 ? "processing" : "ready",
   failureCode: null,
   scheduledFor: state === "scheduled" ? "2030-10-18T16:00:00.000Z" : null,
   previewUrl: null,

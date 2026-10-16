@@ -31,6 +31,10 @@ test("finds an incomplete publication, explains visibility and retains the catal
   await expect(page).toHaveURL(/view=attention/);
   const views = page.getByRole("navigation", { name: "Catalogue views" });
   await views.getByRole("link", { name: /All tracks/ }).click();
+  await expect(views.getByRole("link", { name: /All tracks/ })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
   await page.getByRole("searchbox", { name: "Search catalogue" }).fill("Open frequency");
   await page
     .getByRole("search", { name: "" })
@@ -70,5 +74,44 @@ test("groups ready tracks by complete release before handing off to audited publ
   );
   await review.getByRole("button", { name: "Keep browsing" }).click();
   await expect(review).not.toBeVisible();
+  await context.close();
+});
+
+test("refreshes an attention item with an active job and stops when browsing idle records", async ({
+  browser,
+}) => {
+  const context = await browser.newContext({
+    extraHTTPHeaders: { "x-test-curator-identity": "catalogue-curator|curator@example.test" },
+  });
+  const page = await context.newPage();
+  await page.clock.install({ time: new Date("2026-10-17T12:00:00Z") });
+  await page.clock.pauseAt(new Date("2026-10-17T12:00:01Z"));
+  const reads: string[] = [];
+  page.on("request", (request) => {
+    if (new URL(request.url()).pathname === "/curator.data") reads.push(request.url());
+  });
+  await page.goto("/curator?view=attention");
+  await expect(page.getByRole("heading", { name: "Catalogue", exact: true })).toBeVisible();
+  // The heading is server-rendered. A completed manual refresh proves hydration
+  // and effect setup before advancing the automatic-refresh clock.
+  await Promise.all([
+    page.waitForResponse((response) => new URL(response.url()).pathname === "/curator.data"),
+    page.getByRole("button", { name: "Refresh catalogue" }).click(),
+  ]);
+  await expect(page.getByRole("button", { name: "Refresh catalogue" })).toBeEnabled();
+  reads.length = 0;
+  await page.clock.runFor(5000);
+  await expect.poll(() => reads.length).toBe(1);
+  await expect(page.getByRole("button", { name: "Refresh catalogue" })).toBeEnabled();
+  await page.clock.runFor(10000);
+  await expect.poll(() => reads.length).toBe(2);
+  await page
+    .getByRole("navigation", { name: "Catalogue views" })
+    .getByRole("link", { name: /^Ready/ })
+    .click();
+  await expect(page.getByRole("link", { name: "First light", exact: true })).toBeVisible();
+  const idleReads = reads.length;
+  await page.clock.runFor(120000);
+  expect(reads).toHaveLength(idleReads);
   await context.close();
 });

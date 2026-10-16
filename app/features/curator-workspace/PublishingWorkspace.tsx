@@ -17,11 +17,13 @@ export interface PreparedTrack {
   processTags: string[];
   preparationStatus: string | null;
   publicAudioReady?: boolean;
+  lifecycleStatus?: string;
   coverId: string | null;
   submissionId?: string | null;
   failureCode: string | null;
 }
 function streamingReady(track: PreparedTrack) {
+  if (track.lifecycleStatus === "published") return track.publicAudioReady === true;
   return (
     track.preparationStatus === "ready" ||
     (!track.preparationStatus && track.publicAudioReady === true)
@@ -97,7 +99,12 @@ export function PublishingWorkspace({
   const cover = tracks[0]?.coverId;
   const missingMetadata = tracks.some((t) => !t.genre || !t.moods.length || !t.processTags.length);
   const needsAttention =
-    tracks.some((t) => !t.coverId || t.preparationStatus === "failed") || missingMetadata;
+    tracks.some(
+      (t) =>
+        !t.coverId ||
+        t.preparationStatus === "failed" ||
+        (t.lifecycleStatus === "published" && !t.publicAudioReady),
+    ) || missingMetadata;
   if (publicUrl)
     return (
       <CuratorPanel className="publishing-complete">

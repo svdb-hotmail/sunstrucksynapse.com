@@ -16,6 +16,7 @@ import {
 import { CuratorShell } from "./CuratorShell";
 import { CuratorBadge } from "./CuratorPrimitives";
 import type { CuratorIdentityView } from "./types";
+import { hasActivePreparation, startCatalogueRefresh } from "~/services/catalogue-refresh";
 
 const dateTime = (value: string) =>
   new Intl.DateTimeFormat("en-GB", {
@@ -41,20 +42,13 @@ export function CatalogueWorkspace({
   const drawer = useRef<HTMLDialogElement>(null);
   const batch = useRef<HTMLDialogElement>(null);
   const track = page.selected;
-  const preparing = page.items.some((t) => t.state === "preparing") || track?.state === "preparing";
+  const preparing = hasActivePreparation([...page.items, ...(track ? [track] : [])]);
   useEffect(() => {
     if (!preparing) return;
-    let attempts = 0;
-    let timer: ReturnType<typeof setTimeout>;
-    const refresh = () => {
-      if (document.visibilityState === "visible") {
-        attempts++;
-        void revalidator.revalidate();
-      }
-      if (attempts < 8) timer = setTimeout(refresh, Math.min(5000 * 2 ** attempts, 60000));
-    };
-    timer = setTimeout(refresh, 5000);
-    return () => clearTimeout(timer);
+    return startCatalogueRefresh(
+      revalidator.revalidate,
+      () => document.visibilityState === "visible",
+    );
   }, [preparing, revalidator.revalidate]);
   const href = (changes: Record<string, string | null>) => {
     const next = new URLSearchParams(params);

@@ -88,3 +88,24 @@ it("keeps the saved server cover visible while loader revalidation is still pend
   expect(html).toContain('src="/curator/submissions/submission/artwork?v=cover"');
   expect(html).not.toContain("No cover supplied.");
 });
+
+it("does not call published missing media ready merely because its preparation job succeeded", () => {
+  const html = renderToStaticMarkup(
+    <MemoryRouter>
+      <PublishingWorkspace
+        title="Incomplete release"
+        artistName="Artist"
+        releaseKind="single"
+        tracks={[{ ...track, lifecycleStatus: "published", publicAudioReady: false }]}
+        readiness={[]}
+        encodingAvailable
+        onPublish={() => {}}
+        onRetry={() => {}}
+        onRefresh={() => {}}
+      />
+    </MemoryRouter>,
+  );
+  expect(html).toContain("Needs attention");
+  expect(html).not.toContain("Ready to publish");
+  expect(html).toMatch(/<input[^>]*type="checkbox"[^>]*disabled/);
+});

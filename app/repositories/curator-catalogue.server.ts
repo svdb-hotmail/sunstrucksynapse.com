@@ -1,13 +1,20 @@
 import { sql } from "drizzle-orm";
 import type { Database } from "~/db/client.server";
-import { publishedCatalogueRow } from "~/services/catalogue-visibility.server";
+import {
+  publishedCatalogueRow,
+  publicListeningMedia,
+} from "~/services/catalogue-visibility.server";
 import {
   catalogueViews,
   type CatalogueQuery,
   type CuratorCataloguePage,
   type CuratorCatalogueRepository,
 } from "~/types/curator-catalogue";
-import { albumReadiness, albumTrackReadinessQuery } from "./album-publishing.server";
+import {
+  albumReadiness,
+  albumTrackReadinessQuery,
+  albumReleaseReadinessQuery,
+} from "./album-publishing.server";
 
 export const cataloguePageSize = 25;
 
@@ -17,7 +24,7 @@ export function createCuratorCatalogueRepository(db: Database): CuratorCatalogue
       // Facets, the keyset page and the selected track share one database snapshot.
       // No per-track HTTP calls, raw media keys, or private artist evidence are returned.
       const result = await db.execute<{ page: CuratorCataloguePage }>(sql`
-        with readiness as materialized (${albumTrackReadinessQuery()}), facts as materialized (
+        with readiness as materialized (${albumTrackReadinessQuery()}), release_readiness as materialized (${albumReleaseReadinessQuery()}), facts as materialized (
           select t.id,t.title,t.slug,t.release_id as "releaseId",r.title as "releaseTitle",r.slug as "releaseSlug",
             t.lifecycle_status as "lifecycleStatus",r.lifecycle_status as "releaseStatus",t.updated_at as "updatedAt",
             t.scheduled_for as "scheduledFor",j.status as "preparationStatus",j.failure_code as "failureCode",
@@ -26,14 +33,13 @@ export function createCuratorCatalogueRepository(db: Database): CuratorCatalogue
             coalesce((select jsonb_agg(a.lifecycle_status order by c.position) from track_artist_credits c join artists a on a.id=c.artist_id where c.track_id=t.id),'[]'::jsonb) as "artistStatuses",
             (select count(*)::int from tracks sibling where sibling.release_id=t.release_id) as "releaseTrackCount",
             exists(select 1 from track_artist_credits c join artists a on a.id=c.artist_id where c.track_id=t.id and ${publishedCatalogueRow(sql`t.lifecycle_status`, sql`r.lifecycle_status`, sql`a.lifecycle_status`)}) as "publiclyListed",
-            (exists(select 1 from audio_assets a where a.track_id=t.id and a.is_primary and a.status='ready' and a.scope='publishable_derivative') or exists(select 1 from video_assets a where a.track_id=t.id and a.is_primary and a.status='ready' and a.scope='publishable_derivative')) as "publicMediaReady",
+            ${publicListeningMedia(sql`t.id`)} as "publicMediaReady",
             not (${albumReadiness.cover}=any(ready.blockers)) as "coverReady",
             case when j.status='ready' then '/curator/prepared-audio/'||t.id::text end as "previewUrl",
-            ready.blockers || array_remove(array[
-              case when r.lifecycle_status not in ('draft','in_review','published') then 'Release is not eligible for atomic publication' end,
-              case when not exists(select 1 from release_artist_credits c where c.release_id=r.id and c.position=1) or exists(select 1 from release_artist_credits c join artists a on a.id=c.artist_id where c.release_id=r.id and a.lifecycle_status not in ('draft','in_review','published')) then 'Release needs eligible artist credits' end
+            ready.blockers || release_ready.blockers || array_remove(array[
+              case when exists(select 1 from readiness sibling_ready join tracks sibling on sibling.id=sibling_ready.id where sibling.release_id=t.release_id and sibling.id<>t.id and cardinality(sibling_ready.blockers)>0) then 'Other tracks in this release have unresolved publication checks' end
             ],null)::text[] as blockers
-          from tracks t join releases r on r.id=t.release_id join readiness ready on ready.id=t.id
+          from tracks t join releases r on r.id=t.release_id join readiness ready on ready.id=t.id join release_readiness release_ready on release_ready.id=r.id
           left join release_preparation_jobs j on j.track_id=t.id
         ), classified as materialized (
           select facts.*,case

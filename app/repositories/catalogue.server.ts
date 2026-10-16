@@ -1,5 +1,5 @@
 import { and, asc, eq, or, sql } from "drizzle-orm";
-import { publishedCatalogueRow } from "~/services/catalogue-visibility.server";
+import { publishedCatalogueRow } from "../services/catalogue-visibility.server";
 import type { PgDatabase } from "drizzle-orm/pg-core";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core/session";
 
