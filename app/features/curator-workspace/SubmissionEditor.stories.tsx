@@ -27,10 +27,12 @@ function EditorStory({
   error,
   pending = false,
   covered = false,
+  editable = true,
 }: {
   error?: string;
   pending?: boolean;
   covered?: boolean;
+  editable?: boolean;
 }) {
   return (
     <CuratorShell
@@ -42,7 +44,7 @@ function EditorStory({
       ]}
     >
       <SubmissionEditor
-        data={{ ...data, coverUrl: covered ? "/assets/thumbs/thumb-01.svg" : null }}
+        data={{ ...data, editable, coverUrl: covered ? "/assets/thumbs/thumb-01.svg" : null }}
         error={error}
         pending={pending}
         onSave={() => undefined}
@@ -65,3 +67,5 @@ export const StaleEdit: Story = {
 };
 export const LightTheme: Story = { globals: { theme: "light" } };
 export const Mobile: Story = { parameters: { viewport: { defaultViewport: "mobile1" } } };
+
+export const ReadOnly: Story = { args: { editable: false } };
