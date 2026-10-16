@@ -1,4 +1,5 @@
 import { and, asc, eq, or, sql } from "drizzle-orm";
+import { publishedCatalogueRow } from "../services/catalogue-visibility.server";
 import type { PgDatabase } from "drizzle-orm/pg-core";
 import type { PgQueryResultHKT } from "drizzle-orm/pg-core/session";
 
@@ -364,13 +365,7 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
           eq(videoAssets.status, "ready"),
         ),
       )
-      .where(
-        and(
-          eq(artists.lifecycleStatus, "published"),
-          eq(releases.lifecycleStatus, "published"),
-          eq(tracks.lifecycleStatus, "published"),
-        ),
-      )
+      .where(publishedCatalogueRow())
       .orderBy(
         sql`${releases.releaseDate} desc nulls last`,
         asc(releases.slug),

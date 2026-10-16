@@ -8,6 +8,7 @@ import type { SubmissionRepository } from "~/repositories/submissions.server";
 import type { AnalyticsRepository } from "~/repositories/analytics.server";
 import type { RateLimitRepository } from "~/repositories/rate-limit.server";
 import type { CuratorIdentity } from "~/types/curator";
+import type { CuratorCatalogueRepository } from "~/types/curator-catalogue";
 
 import type { WorkerEnv } from "./env.server";
 
@@ -15,6 +16,7 @@ export interface CloudflareContextValue {
   db?: Database;
   catalogueRepository: CatalogueRepository;
   curatorRepository?: CuratorRepository;
+  curatorCatalogueRepository?: CuratorCatalogueRepository;
   curationWorkflowRepository?: Pick<
     CurationWorkflowRepository,
     | "claimNextSubmission"

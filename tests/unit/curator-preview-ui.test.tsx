@@ -17,6 +17,25 @@ const track: PreparedTrack = {
   coverId: "cover",
   failureCode: null,
 };
+it("accepts an existing verified public file without requiring a second automatic job", () => {
+  const html = renderToStaticMarkup(
+    <MemoryRouter>
+      <PublishingWorkspace
+        title="Legacy release"
+        artistName="Artist"
+        releaseKind="single"
+        tracks={[{ ...track, preparationStatus: null, publicAudioReady: true }]}
+        readiness={[]}
+        encodingAvailable={false}
+        onPublish={() => {}}
+        onRetry={() => {}}
+        onRefresh={() => {}}
+      />
+    </MemoryRouter>,
+  );
+  expect(html).toContain("Ready to publish");
+  expect(html).not.toContain("Automatic preparation is temporarily unavailable");
+});
 it("loads a prepared track into the publishing player's main Play control on first render", () => {
   const html = renderToStaticMarkup(
     <MemoryRouter>
@@ -68,4 +87,25 @@ it("keeps the saved server cover visible while loader revalidation is still pend
   );
   expect(html).toContain('src="/curator/submissions/submission/artwork?v=cover"');
   expect(html).not.toContain("No cover supplied.");
+});
+
+it("does not call published missing media ready merely because its preparation job succeeded", () => {
+  const html = renderToStaticMarkup(
+    <MemoryRouter>
+      <PublishingWorkspace
+        title="Incomplete release"
+        artistName="Artist"
+        releaseKind="single"
+        tracks={[{ ...track, lifecycleStatus: "published", publicAudioReady: false }]}
+        readiness={[]}
+        encodingAvailable
+        onPublish={() => {}}
+        onRetry={() => {}}
+        onRefresh={() => {}}
+      />
+    </MemoryRouter>,
+  );
+  expect(html).toContain("Needs attention");
+  expect(html).not.toContain("Ready to publish");
+  expect(html).toMatch(/<input[^>]*type="checkbox"[^>]*disabled/);
 });

@@ -3,6 +3,7 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import type { Decorator, Preview } from "@storybook/react-vite";
 
 import "~/styles/global.css";
+import "~/styles/curator-catalogue.css";
 
 type Theme = "light" | "dark";
 

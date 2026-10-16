@@ -8,6 +8,7 @@ import { createReleaseIntakeRepository } from "../../app/repositories/release-in
 import { createReleasePreparationRepository } from "../../app/repositories/release-preparation.server";
 import { STREAMING_PROFILE } from "../../app/config/music-metadata";
 import { createAlbumPublishingRepository } from "../../app/repositories/album-publishing.server";
+import { createCuratorCatalogueRepository } from "../../app/repositories/curator-catalogue.server";
 import type { Database } from "../../app/db/client.server";
 
 describe("album publishing atomicity", () => {
@@ -314,6 +315,35 @@ describe("album publishing atomicity", () => {
     expect((await repository.readiness(releaseId)).every((t) => t.blockers.length === 0)).toBe(
       true,
     );
+    const catalogue = createCuratorCatalogueRepository(db as unknown as Database);
+    const query = { query: "", view: "all" as const, after: null, trackId: trackIds[0] };
+    expect((await catalogue.read(query)).selected?.state).toBe("ready");
+    const originalRevision = await repository.publicationRevision(releaseId);
+    // Reproduce a historical incomplete parent without changing accepted evidence.
+    // The production trigger is retained; the synthetic setup explicitly uses its gate.
+    await client.exec("begin");
+    await client.query("select set_config('sunsyn.atomic_publish_release',$1,true)", [releaseId]);
+    await client.query(
+      "update releases set lifecycle_status='published',published_at=now() where id=$1",
+      [releaseId],
+    );
+    await client.exec("commit");
+    expect(await repository.publicationState(releaseId)).toMatchObject({
+      complete: false,
+      trackCount: 2,
+      liveTrackCount: 0,
+    });
+    expect(await repository.inventory(releaseId)).toHaveLength(2);
+    expect((await catalogue.read(query)).selected?.state).toBe("attention");
+    // A published parent is not permission to ignore a changed confirmation revision.
+    await expect(
+      repository.publish(releaseId, actor, [...trackIds].reverse(), originalRevision),
+    ).rejects.toThrow();
+    expect(await db.select().from(schema.audioAssets)).toHaveLength(0);
+    await client.query(
+      "update releases set lifecycle_status='draft',published_at=null where id=$1",
+      [releaseId],
+    );
     await expect(repository.publish(releaseId, actor, [trackIds[0]])).rejects.toThrow();
     expect(await db.select().from(schema.audioAssets)).toHaveLength(0);
     expect(await repository.publish(releaseId, actor, [...trackIds].reverse())).toBe(
@@ -328,6 +358,15 @@ describe("album publishing atomicity", () => {
     ).rows;
     expect(audit).toHaveLength(4);
     expect(await repository.publish(releaseId, actor)).toBe("a-full-album");
+    expect(await repository.publicationState(releaseId)).toMatchObject({
+      complete: true,
+      trackCount: 2,
+      liveTrackCount: 2,
+    });
+    // A genuinely completed publication still accepts its original token on retry.
+    expect(
+      await repository.publish(releaseId, actor, [...trackIds].reverse(), originalRevision),
+    ).toBe("a-full-album");
     expect(
       (await client.query("select * from publication_audit where to_lifecycle='published'")).rows,
     ).toEqual(audit);
@@ -339,5 +378,165 @@ describe("album publishing atomicity", () => {
       ).rows.map((row) => row.id),
     ).toEqual([...trackIds].reverse());
     await expect(repository.prepare(preparation(), actor)).rejects.toThrow();
+  });
+  it("shares release order, cover and pending-curation blockers with catalogue facets", async () => {
+    const catalogue = createCuratorCatalogueRepository(db as unknown as Database);
+    const query = { query: "", view: "all" as const, after: null, trackId: trackIds[0] };
+    await client.exec("begin");
+    try {
+      await client.query(
+        "update tracks set lifecycle_status='draft',published_at=null where release_id=$1",
+        [releaseId],
+      );
+      await client.query(
+        "update releases set lifecycle_status='draft',published_at=null where id=$1",
+        [releaseId],
+      );
+      expect((await catalogue.read(query)).counts.ready).toBe(2);
+      await client.query("update tracks set genre=null where id=$1", [trackIds[1]]);
+      expect((await catalogue.read(query)).selected?.blockers).toContain(
+        "Other tracks in this release have unresolved publication checks",
+      );
+      expect((await catalogue.read(query)).counts.ready).toBe(0);
+      await client.query("update tracks set genre='Ambient' where id=$1", [trackIds[1]]);
+      await client.query("update tracks set position=3 where release_id=$1 and position=2", [
+        releaseId,
+      ]);
+      let page = await catalogue.read(query);
+      expect(page.selected?.blockers).toContain("complete consecutive track order starting at 1");
+      expect(page.counts.ready).toBe(0);
+      expect(page.counts.attention).toBe(2);
+      await client.query("update tracks set position=2 where release_id=$1 and position=3", [
+        releaseId,
+      ]);
+      // A curator can choose distinct ready artwork without changing immutable submitted covers.
+      await client.exec("delete from release_artwork_assets");
+      const replacement = crypto.randomUUID();
+      await client.query(
+        "insert into artwork_assets(id,object_key,storage_provider,status,scope,mime_type,checksum_sha256,byte_size,width,height) select $1,object_key||'/variant',storage_provider,status,scope,mime_type,repeat('e',64),byte_size,width,height from artwork_assets limit 1",
+        [replacement],
+      );
+      const priorCover = (
+        await client.query<{ artwork_asset_id: string }>(
+          "select artwork_asset_id from track_artwork_assets where track_id=$1",
+          [trackIds[0]],
+        )
+      ).rows[0].artwork_asset_id;
+      await client.query("update track_artwork_assets set artwork_asset_id=$1 where track_id=$2", [
+        replacement,
+        trackIds[0],
+      ]);
+      page = await catalogue.read(query);
+      expect(page.selected?.blockers).toContain(
+        "one consistent album cover (replace artwork in Edit details)",
+      );
+      expect(page.counts.ready).toBe(0);
+      expect((await repository.readiness(releaseId)).flatMap((t) => t.blockers)).toContain(
+        "one consistent album cover (replace artwork in Edit details)",
+      );
+      await client.query("update track_artwork_assets set artwork_asset_id=$1 where track_id=$2", [
+        priorCover,
+        trackIds[0],
+      ]);
+      const project = crypto.randomUUID();
+      await client.query(
+        "insert into submission_release_projects(id,owner_email,artist_name,title,release_id,origin_submission_id) values($1,'artist@example.test','Artist','Album',$2,'20000000-0000-4000-8000-000000000001')",
+        [project, releaseId],
+      );
+      const invitation = crypto.randomUUID();
+      await client.query(
+        "insert into submission_invitations(id,public_reference,token_hash,invitee_name,invitee_email,expires_at) values($1,'INV-PENDING',repeat('f',64),'Artist','artist@example.test',now()+interval '1 day')",
+        [invitation],
+      );
+      await client.query(
+        "insert into submissions(invitation_id,public_reference,invitation_reference,submitter_name,submitter_email,title,artist_details,release_details) values($1,'SUB-PENDING','INV-PENDING','Artist','artist@example.test','Pending',jsonb_build_object('displayName','Artist'),$2::jsonb)",
+        [invitation, JSON.stringify({ kind: "album", albumProjectId: project, trackNumber: 3 })],
+      );
+      page = await catalogue.read(query);
+      expect(page.selected?.blockers).toContain("album tracks still awaiting curation");
+      expect(page.counts.ready).toBe(0);
+      expect(page.counts.attention).toBe(2);
+      expect((await repository.readiness(releaseId)).flatMap((t) => t.blockers)).toContain(
+        "album tracks still awaiting curation",
+      );
+    } finally {
+      await client.exec("rollback");
+    }
+  });
+
+  it("rejects published missing media despite a ready job, without restoring it or committing sibling changes", async () => {
+    const audit = (await client.query("select * from publication_audit order by id")).rows;
+    const pins = (await client.query("select * from curation_reviews order by id")).rows;
+    await client.query("update audio_assets set status='deleted' where track_id=any($1::uuid[])", [
+      trackIds,
+    ]);
+    await client.query("update tracks set lifecycle_status='draft',published_at=null where id=$1", [
+      trackIds[1],
+    ]);
+    try {
+      const inventory = await repository.inventory(releaseId);
+      expect(inventory.find((t) => t.id === trackIds[0])).toMatchObject({
+        preparationStatus: "ready",
+        publicAudioReady: false,
+      });
+      expect((await repository.readiness(releaseId)).flatMap((t) => t.blockers)).toContain(
+        "ready public listening media (requires an audited media repair)",
+      );
+      await expect(repository.publish(releaseId, actor)).rejects.toThrow();
+      expect(
+        (await client.query<{ status: string }>("select status from audio_assets")).rows.every(
+          (a) => a.status === "deleted",
+        ),
+      ).toBe(true);
+      expect(
+        (await repository.inventory(releaseId)).find((t) => t.id === trackIds[1])?.lifecycleStatus,
+      ).toBe("draft");
+      expect((await client.query("select * from publication_audit order by id")).rows).toEqual(
+        audit,
+      );
+      expect((await client.query("select * from curation_reviews order by id")).rows).toEqual(pins);
+      expect((await repository.publicationState(releaseId)).complete).toBe(false);
+    } finally {
+      await client.query("update audio_assets set status='ready' where track_id=any($1::uuid[])", [
+        trackIds,
+      ]);
+    }
+  });
+
+  it("rolls back publication and its audit if media becomes unavailable after the updates", async () => {
+    // A trigger models a change after preflight, proving the final-state guard runs
+    // after lifecycle writes rather than merely repeating the initial readiness check.
+    await client.query("update tracks set lifecycle_status='draft',published_at=null where id=$1", [
+      trackIds[1],
+    ]);
+    const audit = (await client.query("select * from publication_audit order by id")).rows;
+    await client.exec(`create function test_remove_published_media() returns trigger language plpgsql as $$ begin
+      update audio_assets set status='deleted' where track_id=new.id; return new;
+    end $$;
+    create trigger test_remove_published_media after update of lifecycle_status on tracks
+      for each row when (new.lifecycle_status='published') execute function test_remove_published_media();`);
+    try {
+      expect((await repository.readiness(releaseId)).every((t) => t.blockers.length === 0)).toBe(
+        true,
+      );
+      await expect(repository.publish(releaseId, actor)).rejects.toThrow();
+      expect(
+        (await repository.inventory(releaseId)).find((t) => t.id === trackIds[1])?.lifecycleStatus,
+      ).toBe("draft");
+      expect(
+        (await client.query<{ status: string }>("select status from audio_assets")).rows.every(
+          (a) => a.status === "ready",
+        ),
+      ).toBe(true);
+      expect((await client.query("select * from publication_audit order by id")).rows).toEqual(
+        audit,
+      );
+    } finally {
+      await client.exec(
+        "drop trigger test_remove_published_media on tracks; drop function test_remove_published_media()",
+      );
+    }
+    expect(await repository.publish(releaseId, actor)).toBe("a-full-album");
+    expect((await repository.publicationState(releaseId)).complete).toBe(true);
   });
 });

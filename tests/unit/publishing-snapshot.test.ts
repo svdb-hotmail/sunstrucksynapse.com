@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   revision: vi.fn(),
   inventory: vi.fn(),
   readiness: vi.fn(),
+  state: vi.fn(),
   list: vi.fn(),
 }));
 vi.mock("../../app/repositories/album-publishing.server", () => ({
@@ -12,6 +13,7 @@ vi.mock("../../app/repositories/album-publishing.server", () => ({
     publicationRevision: mocks.revision,
     inventory: mocks.inventory,
     readiness: mocks.readiness,
+    publicationState: mocks.state,
   }),
 }));
 vi.mock("../../app/services/access-auth.server", () => ({
@@ -37,6 +39,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   mocks.inventory.mockResolvedValue([]);
   mocks.readiness.mockResolvedValue([]);
+  mocks.state.mockResolvedValue({ complete: false, trackCount: 1, liveTrackCount: 0 });
   mocks.list.mockResolvedValue([{ id, title: "Consistent details" }]);
 });
 it("reloads visible details if the confirmation revision changes during the read", async () => {

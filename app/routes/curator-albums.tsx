@@ -52,16 +52,17 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   // with a newer confirmation token if another curator saves during the load.
   for (let attempt = 0; attempt < 3; attempt++) {
     const before = albumId ? await repository.publicationRevision(albumId) : null;
-    const [artists, releases, tracks, readiness, preview] = await Promise.all([
+    const [artists, releases, tracks, readiness, preview, publicationState] = await Promise.all([
       curator.list("artist"),
       curator.list("release"),
-      repository.inventory(),
+      repository.inventory(albumId ?? undefined),
       albumId ? repository.readiness(albumId) : Promise.resolve([]),
       albumId
         ? db.execute<{ artistId: string; coverId: string | null }>(
             sql`select c.artist_id as "artistId", l.artwork_asset_id as "coverId" from release_artist_credits c left join release_artwork_assets l on l.release_id=c.release_id and l.role='primary' and l.position=1 where c.release_id=${albumId}::uuid and c.position=1`,
           )
         : Promise.resolve(null),
+      albumId ? repository.publicationState(albumId) : Promise.resolve(null),
     ]);
     const after = albumId ? await repository.publicationRevision(albumId) : null;
     if (before !== after) continue;
@@ -78,6 +79,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
       encodingAvailable,
       publicationRevision: after,
       preview: preview?.rows[0] ?? null,
+      publicationState,
     };
   }
   throw new Response("This release is changing. Reload before confirming publication.", {
@@ -241,6 +243,9 @@ function AlbumEditor({ data }: { data: PublishingRouteData }) {
   const revalidator = useRevalidator();
   const release = data.releases.find((r) => r.id === data.albumId)!;
   const tracks = data.tracks.filter((t) => t.releaseId === data.albumId);
+  const editable =
+    ["draft", "in_review"].includes(release.lifecycleStatus) &&
+    tracks.every((t) => ["draft", "in_review"].includes(t.lifecycleStatus));
   const preparing = tracks.some(
     (t) => t.preparationStatus === "queued" || t.preparationStatus === "processing",
   );
@@ -287,32 +292,38 @@ function AlbumEditor({ data }: { data: PublishingRouteData }) {
         )
       }
       onRefresh={() => void revalidator.revalidate()}
-      onReorder={(ids) =>
-        void fetcher.submit(
-          {
-            intent: "reorder",
-            releaseId: data.albumId!,
-            trackIds: JSON.stringify(ids),
-            previousTrackIds: JSON.stringify(tracks.map((t) => t.id)),
-          },
-          { method: "post" },
-        )
+      onReorder={
+        editable
+          ? (ids) =>
+              void fetcher.submit(
+                {
+                  intent: "reorder",
+                  releaseId: data.albumId!,
+                  trackIds: JSON.stringify(ids),
+                  previousTrackIds: JSON.stringify(tracks.map((t) => t.id)),
+                },
+                { method: "post" },
+              )
+          : undefined
       }
-      onSaveMetadata={(updated) =>
-        void fetcher.submit(
-          {
-            intent: "prepare",
-            releaseId: data.albumId!,
-            preparation: JSON.stringify({
-              releaseId: data.albumId!,
-              artistId: tracks[0]?.artistId,
-              title: release.title,
-              slug: release.slug,
-              tracks: updated,
-            }),
-          },
-          { method: "post" },
-        )
+      onSaveMetadata={
+        editable
+          ? (updated) =>
+              void fetcher.submit(
+                {
+                  intent: "prepare",
+                  releaseId: data.albumId!,
+                  preparation: JSON.stringify({
+                    releaseId: data.albumId!,
+                    artistId: tracks[0]?.artistId,
+                    title: release.title,
+                    slug: release.slug,
+                    tracks: updated,
+                  }),
+                },
+                { method: "post" },
+              )
+          : undefined
       }
     />
   );
@@ -324,7 +335,7 @@ export default function CuratorAlbumsRoute() {
   const selected = data.releases.find((r) => r.id === data.albumId);
   const drafts = data.releases.filter(
     (r) =>
-      ["draft", "in_review"].includes(r.lifecycleStatus) &&
+      ["draft", "in_review", "published"].includes(r.lifecycleStatus) &&
       data.tracks.some((t) => t.releaseId === r.id && t.accepted) &&
       `${r.title} ${data.tracks.find((t) => t.releaseId === r.id)?.artistName ?? ""}`
         .toLowerCase()
@@ -349,7 +360,7 @@ export default function CuratorAlbumsRoute() {
           href: "/curator/albums",
           count: drafts.length,
         },
-        { id: "settings", label: "Advanced catalogue", href: "/curator" },
+        { id: "catalogue", label: "Catalogue", href: "/curator" },
       ]}
     >
       {data.showQueue ? (
@@ -402,14 +413,23 @@ export default function CuratorAlbumsRoute() {
           <nav className="publishing-back">
             <Link to="/curator/albums">← Publishing queue</Link>
           </nav>
-          {selected?.lifecycleStatus === "published" ? (
+          {selected?.lifecycleStatus === "published" && data.publicationState?.complete ? (
             <CuratorPanel className="publishing-complete">
               <CuratorBadge tone="success">Published</CuratorBadge>
               <h1>{selected.title}</h1>
               <Link to={`/releases/${selected.slug}`}>Open published release →</Link>
             </CuratorPanel>
           ) : (
-            <AlbumEditor key={data.albumId ?? "new"} data={data} />
+            <>
+              {selected?.lifecycleStatus === "published" && (
+                <p className="publishing-message" role="alert">
+                  Publication is incomplete: {data.publicationState?.liveTrackCount ?? 0} of{" "}
+                  {data.publicationState?.trackCount ?? 0} tracks are live. Review the complete
+                  release and its blockers below.
+                </p>
+              )}
+              <AlbumEditor key={data.albumId ?? "new"} data={data} />
+            </>
           )}
         </>
       )}

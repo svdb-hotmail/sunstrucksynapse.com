@@ -1,3 +1,5 @@
+import { createCuratorCatalogueRepository } from "../app/repositories/curator-catalogue.server";
+import { fixtureCataloguePage } from "../app/features/curator-workspace/catalogue-fixtures";
 import { createRequestHandler, RouterContextProvider } from "react-router";
 
 import { cloudflareContext } from "../app/config/cloudflare-context.server";
@@ -114,6 +116,7 @@ export default {
           request.headers.get("x-test-catalogue-scenario"),
         ),
         curatorRepository: e2eCuratorRepository,
+        curatorCatalogueRepository: { read: async (query) => fixtureCataloguePage(query) },
         curationWorkflowRepository: e2eCurationWorkflowRepository,
         submissionRepository: e2eSubmissionRepository,
         analyticsRepository: e2eAnalyticsRepository,
@@ -141,6 +144,7 @@ export default {
         signingSecret: validatedEnv.MEDIA_DELIVERY_SIGNING_SECRET,
       }),
       curatorRepository: createCuratorRepository(db),
+      curatorCatalogueRepository: createCuratorCatalogueRepository(db),
       submissionRepository: createSubmissionRepository(db),
       analyticsRepository: createAnalyticsRepository(db),
       rateLimitRepository: createRateLimitRepository(db),

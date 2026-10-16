@@ -145,7 +145,8 @@ export default function CuratorSubmissionEditRoute() {
       }}
       navigation={[
         { id: "queue", label: "Submissions", href: "/curator/submissions" },
-        { id: "collections", label: "Publishing queue", href: "/curator/albums" },
+        { id: "catalogue", label: "Catalogue", href: "/curator" },
+        { id: "collections", label: "Release preparation", href: "/curator/albums" },
       ]}
     >
       <SubmissionEditor
