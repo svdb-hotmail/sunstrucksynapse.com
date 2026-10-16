@@ -142,7 +142,7 @@ export function CatalogueWorkspace({
       </div>
       <Form method="get" className="catalogue-search" role="search" key={query.query}>
         <input type="hidden" name="view" value={page.view} />
-        <label className="sr-only" htmlFor="catalogue-query">
+        <label className="visually-hidden" htmlFor="catalogue-query">
           Search catalogue
         </label>
         <input
@@ -184,7 +184,7 @@ export function CatalogueWorkspace({
       )}
       <div className="catalogue-library">
         <table>
-          <caption className="sr-only">
+          <caption className="visually-hidden">
             Catalogue tracks, listener visibility and next steps
           </caption>
           <thead>

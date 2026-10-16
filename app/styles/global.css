@@ -2008,7 +2008,7 @@ form button[type="submit"] {
   z-index: 10;
   min-height: var(--component-curator-header-height);
   display: grid;
-  grid-template-columns: minmax(260px, 720px) auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-5);
@@ -2266,7 +2266,7 @@ form button[type="submit"] {
   }
 
   .curator-topbar {
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
   }
 }
 
