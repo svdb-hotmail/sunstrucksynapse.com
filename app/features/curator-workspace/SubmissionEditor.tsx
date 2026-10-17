@@ -75,6 +75,13 @@ export function SubmissionEditor({
     }
   }, [savedRevision]);
   useEffect(() => {
+    if (!data.editable) {
+      setFile(null);
+      setPermission(false);
+      if (coverInput.current) coverInput.current.value = "";
+    }
+  }, [data.editable]);
+  useEffect(() => {
     if (!file) {
       setPreview(null);
       return;
@@ -83,8 +90,10 @@ export function SubmissionEditor({
     setPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
-  const coverUrl = preview ?? savedCoverUrl ?? data.coverUrl;
+  const coverUrl = (data.editable ? preview : null) ?? savedCoverUrl ?? data.coverUrl;
   const busy = pending || preparing;
+  const discoveryEditable = data.editable || data.discoveryEditable === true;
+  const canSave = data.editable || discoveryEditable;
   return (
     <>
       <header className="curator-page-heading">
@@ -92,7 +101,13 @@ export function SubmissionEditor({
           <p className="curator-overline">
             {data.reference} · {data.status}
           </p>
-          <h1>Edit artwork and details</h1>
+          <h1>
+            {data.editable
+              ? "Edit artwork and details"
+              : discoveryEditable
+                ? "Edit discovery details"
+                : "Read-only submission"}
+          </h1>
           <p>
             {data.artistName} · {data.fields.title}
           </p>
@@ -114,7 +129,11 @@ export function SubmissionEditor({
       ) : null}
       {!data.editable ? (
         <CuratorPanel>
-          <p>This submission is closed or already published. Its details are read-only.</p>
+          <p>
+            {discoveryEditable
+              ? "You can correct genres, moods and process tags. Artwork, track title and release details are read-only. Give a reason when saving your corrections."
+              : "This submission is closed or already published. Its details are read-only."}
+          </p>
         </CuratorPanel>
       ) : null}
       <form
@@ -126,7 +145,7 @@ export function SubmissionEditor({
           setPreparing(true);
           try {
             form.set("revision", revision);
-            if (file) form.set("cover", await prepareCuratorCover(file));
+            if (data.editable && file) form.set("cover", await prepareCuratorCover(file));
             else form.delete("cover");
             onSave(form);
           } catch (e) {
@@ -136,7 +155,7 @@ export function SubmissionEditor({
           }
         }}
       >
-        <fieldset disabled={busy || !data.editable}>
+        <fieldset disabled={busy || !canSave}>
           <CuratorPanel>
             <h2>Artwork</h2>
             {coverUrl ? (
@@ -148,6 +167,7 @@ export function SubmissionEditor({
               Choose or replace cover
               <input
                 type="file"
+                disabled={!data.editable}
                 ref={coverInput}
                 name="cover"
                 accept={COVER_MIME_TYPES.join(",")}
@@ -168,10 +188,11 @@ export function SubmissionEditor({
               <input
                 type="checkbox"
                 name="artworkPermission"
+                disabled={!data.editable}
                 checked={permission}
                 onChange={(e) => setPermission(e.currentTarget.checked)}
                 value="yes"
-                required={Boolean(file)}
+                required={data.editable && Boolean(file)}
               />{" "}
               I have permission to publish this artwork.
             </label>
@@ -180,13 +201,19 @@ export function SubmissionEditor({
             <h2>Track and release</h2>
             <label>
               Track title
-              <input name="title" defaultValue={data.fields.title} required maxLength={200} />
+              <input
+                name="title"
+                readOnly={!data.editable}
+                defaultValue={data.fields.title}
+                required
+                maxLength={200}
+              />
             </label>
             <label>
               Release title
               <input
                 name="releaseTitle"
-                readOnly={data.releaseFieldsEditable === false}
+                readOnly={!data.editable || data.releaseFieldsEditable === false}
                 defaultValue={data.fields.releaseTitle}
                 required
                 maxLength={200}
@@ -196,7 +223,7 @@ export function SubmissionEditor({
               Release description
               <textarea
                 name="summary"
-                readOnly={data.releaseFieldsEditable === false}
+                readOnly={!data.editable || data.releaseFieldsEditable === false}
                 defaultValue={data.fields.summary}
                 maxLength={5000}
                 rows={4}
@@ -213,25 +240,26 @@ export function SubmissionEditor({
               label="Genres"
               options={GENRES}
               defaultValue={data.fields.genres}
-              disabled={busy || !data.editable}
+              disabled={busy || !discoveryEditable}
             />
             <MultiSelect
               name="moods"
               label="Moods"
               options={MOODS}
               defaultValue={data.fields.moods}
-              disabled={busy || !data.editable}
+              disabled={busy || !discoveryEditable}
             />
             <MultiSelect
               name="processTags"
               label="Process tags"
               options={PROCESS_TAGS}
               defaultValue={data.fields.processTags}
-              disabled={busy || !data.editable}
+              disabled={busy || !discoveryEditable}
             />
             <p>
-              Publication still requires genres, moods and process tags. You can save incomplete
-              details and return later.
+              {data.editable
+                ? "Publication still requires genres, moods and process tags. You can save incomplete details and return later."
+                : "Choose at least one genre, mood and process tag before saving."}
             </p>
           </CuratorPanel>
           <CuratorPanel>
@@ -239,7 +267,7 @@ export function SubmissionEditor({
               Reason for these changes
               <textarea name="reason" required minLength={3} maxLength={1000} rows={2} />
             </label>
-            <CuratorButton type="submit" variant="primary" disabled={busy || !data.editable}>
+            <CuratorButton type="submit" variant="primary" disabled={busy || !canSave}>
               {preparing ? "Preparing artwork…" : pending ? "Saving…" : "Save changes"}
             </CuratorButton>
           </CuratorPanel>

@@ -12,7 +12,8 @@ import { createAlbumPublishingRepository } from "../../app/repositories/album-pu
 import { releaseSubmissionFixture } from "../helpers/release-submission";
 import { loader as deliverMedia } from "../../app/routes/media";
 import { createMediaDeliveryUrl } from "../../app/services/media-signing";
-import type { LoaderFunctionArgs } from "react-router";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import { action as saveEditor } from "../../app/routes/curator-submission-edit";
 import { STREAMING_PROFILE } from "../../app/config/music-metadata";
 
 it("edits a legacy submission, preserves accepted evidence, and publishes with curator artwork", async () => {
@@ -271,14 +272,200 @@ it("edits a legacy submission, preserves accepted evidence, and publishes with c
     ).toEqual(pins);
     expect((await delivery(`/media/artwork/${artwork.id}`)).status).toBe(307);
     expect((await delivery(signed)).status).toBe(200);
-    expect((await edits.find(id))?.editable).toBe(false);
+    // Legacy multiline text must survive the browser's multipart newline conversion.
+    await raw.execute(
+      sql`update releases set description=${"\n  First line\nSecond line  \n"} where id=${accepted.releaseId}::uuid`,
+    );
+    const live = (await edits.find(id))!;
+    expect(live).toMatchObject({ editable: false, discoveryEditable: true });
+    const protectedTables = [
+      "releases",
+      "submissions",
+      "curation_reviews",
+      "rights_declarations",
+      "creative_process_disclosures",
+      "provenance_records",
+      "audio_assets",
+      "artwork_assets",
+      "release_preparation_jobs",
+      "track_artist_credits",
+      "release_artist_credits",
+      "track_artwork_assets",
+      "release_artwork_assets",
+    ];
+    const protectedBefore = await Promise.all(
+      protectedTables.map(
+        async (table) =>
+          (
+            await client.query(
+              `select to_jsonb(row) as value from ${table} row order by to_jsonb(row)::text`,
+            )
+          ).rows,
+      ),
+    );
+    const trackBefore = (
+      await client.query(
+        "select to_jsonb(t)-array['genre','genres','moods','creative_process_tags','updated_at'] as value from tracks t where id=$1",
+        [live.trackId],
+      )
+    ).rows;
+    const corrections = {
+      ...live.fields,
+      genres: ["Electronic", "Ambient"],
+      moods: ["Dreamy"],
+      processTags: ["Human composition", "Mixing"],
+    };
+    const form = new FormData();
+    for (const [name, value] of Object.entries(corrections)) {
+      if (Array.isArray(value)) for (const item of value) form.append(name, item);
+      else form.set(name, value);
+    }
+    form.set("revision", JSON.stringify(live.revision));
+    form.set("reason", "Correct discovery details after publication");
+    const url = `https://example.test/curator/submissions/${id}/edit`;
+    const encoded = new Request(url, { method: "POST", body: form });
+    const body = await encoded.arrayBuffer();
+    const response = await saveEditor({
+      request: new Request(url, {
+        method: "POST",
+        body,
+        headers: {
+          "content-type": encoded.headers.get("content-type")!,
+          "content-length": String(body.byteLength),
+          "x-test-curator-identity": `${actor.id}|${actor.email}`,
+        },
+      }),
+      params: { submissionId: id },
+      context: { get: () => ({ db, env: {} }) },
+    } as unknown as ActionFunctionArgs);
+    expect(response.status).toBe(200);
+    const corrected = (await edits.find(id))!;
+    expect(await response.json()).toMatchObject({
+      savedRevision: JSON.stringify(corrected.revision),
+    });
+    expect(corrected.fields).toEqual(corrections);
+    expect(corrected.revision).not.toEqual(live.revision);
+    expect(
+      (
+        await client.query(
+          "select genre,genres,moods,creative_process_tags from tracks where id=$1",
+          [live.trackId],
+        )
+      ).rows,
+    ).toEqual([
+      {
+        genre: "Electronic",
+        genres: corrections.genres,
+        moods: corrections.moods,
+        creative_process_tags: corrections.processTags,
+      },
+    ]);
+    expect(
+      (
+        await client.query(
+          "select to_jsonb(t)-array['genre','genres','moods','creative_process_tags','updated_at'] as value from tracks t where id=$1",
+          [live.trackId],
+        )
+      ).rows,
+    ).toEqual(trackBefore);
+    expect(
+      await Promise.all(
+        protectedTables.map(
+          async (table) =>
+            (
+              await client.query(
+                `select to_jsonb(row) as value from ${table} row order by to_jsonb(row)::text`,
+              )
+            ).rows,
+        ),
+      ),
+    ).toEqual(protectedBefore);
+    const correctionNote = (
+      await client.query<{
+        metadata: { previous: unknown; fields: unknown; previousRevision: unknown };
+      }>(
+        "select metadata from submission_activities where message='Correct discovery details after publication'",
+      )
+    ).rows[0];
+    expect(correctionNote.metadata).toMatchObject({
+      previous: live.fields,
+      fields: corrections,
+      previousRevision: live.revision,
+    });
+    expect(
+      (
+        await client.query(
+          "select from_lifecycle,to_lifecycle,actor_id from publication_audit where reason='Curator submission details: Correct discovery details after publication'",
+        )
+      ).rows,
+    ).toEqual([{ from_lifecycle: "published", to_lifecycle: "published", actor_id: actor.id }]);
+    await expect(
+      edits.save(
+        id,
+        JSON.stringify(live.revision),
+        corrections,
+        "Stale published correction",
+        actor,
+      ),
+    ).rejects.toThrow();
+    const noteCount = (await client.query("select count(*) from submission_activities")).rows;
+    const auditCount = (await client.query("select count(*) from publication_audit")).rows;
+    for (const changed of [
+      { title: "Forged title" },
+      { releaseTitle: "Forged release" },
+      { summary: "Forged description" },
+      { genres: [] },
+      { moods: [] },
+      { processTags: [] },
+      { genres: ["Invented genre"] },
+      { moods: ["Invented mood"] },
+      { processTags: ["Invented process"] },
+      { processTags: ["Mixing", "Mixing"] },
+    ]) {
+      await expect(
+        edits.save(
+          id,
+          JSON.stringify(corrected.revision),
+          { ...corrections, ...changed },
+          "Forbidden published correction",
+          actor,
+        ),
+      ).rejects.toThrow();
+    }
+    await expect(
+      edits.save(
+        id,
+        JSON.stringify(corrected.revision),
+        corrections,
+        "Forbidden published cover",
+        actor,
+        { ...artwork, id: crypto.randomUUID() },
+      ),
+    ).rejects.toThrow();
+    expect((await client.query("select count(*) from submission_activities")).rows).toEqual(
+      noteCount,
+    );
+    expect((await client.query("select count(*) from publication_audit")).rows).toEqual(auditCount);
+    expect((await edits.find(id))?.fields).toEqual(corrections);
+    // Tag correction does not unpublish or break an idempotent completed retry.
+    expect(await publishing.publish(accepted.releaseId!, actor, trackIds, confirmation)).toBe(slug);
+    // Archived and rejected records remain closed.
+    await client.exec("begin");
+    await client.query(
+      "update tracks set lifecycle_status='archived',archived_at=now() where id=$1",
+      [live.trackId],
+    );
+    const archived = (await edits.find(id))!;
+    expect(archived.discoveryEditable).toBe(false);
+    await client.exec("rollback");
+    expect((await edits.find(pending))?.discoveryEditable).toBe(false);
     // A legacy release-only target is closed even without a resulting track.
     await client.exec(releaseSubmissionFixture(2));
     const legacy = "20000000-0000-4000-8000-000000000002";
     await raw.execute(
       sql`update submissions set status='accepted',accepted_at=now(),resulting_release_id=${accepted.releaseId}::uuid,accepted_rights_declaration_id='30000000-0000-4000-8000-000000000002',accepted_creative_process_disclosure_id='40000000-0000-4000-8000-000000000002',accepted_provenance_record_id='50000000-0000-4000-8000-000000000002' where id=${legacy}::uuid`,
     );
-    expect((await edits.find(legacy))?.editable).toBe(false);
+    expect(await edits.find(legacy)).toMatchObject({ editable: false, discoveryEditable: false });
     await expect(
       raw.execute(
         sql`insert into submission_editorial_artwork(submission_id,artwork_asset_id) values(${legacy}::uuid,${artwork.id}::uuid)`,
@@ -289,7 +476,7 @@ it("edits a legacy submission, preserves accepted evidence, and publishes with c
         id,
         JSON.stringify((await edits.find(id))!.revision),
         fields,
-        "Published metadata cannot be changed here",
+        "Protected published titles cannot be changed here",
         actor,
       ),
     ).rejects.toThrow();

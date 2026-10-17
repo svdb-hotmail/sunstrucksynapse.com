@@ -3949,6 +3949,10 @@ body {
   background: var(--color-surface-panel);
   cursor: pointer;
 }
+.music-multiselect summary[aria-disabled="true"] {
+  color: var(--color-content-secondary);
+  cursor: default;
+}
 .music-multiselect__menu {
   position: absolute;
   z-index: 25;

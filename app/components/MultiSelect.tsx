@@ -29,6 +29,7 @@ export function MultiSelect({
       <details
         ref={details}
         name="music-metadata-options"
+        open={disabled ? false : undefined}
         onKeyDown={(event) => {
           if (event.key === "Escape" && details.current) {
             details.current.open = false;
@@ -36,9 +37,22 @@ export function MultiSelect({
           }
         }}
       >
-        <summary aria-disabled={disabled}>
-          {selected.length ? `${selected.length} selected` : `Choose ${label.toLowerCase()}`}{" "}
-          <span aria-hidden="true">⌄</span>
+        <summary
+          aria-disabled={disabled}
+          tabIndex={disabled ? -1 : undefined}
+          onClick={(event) => {
+            if (disabled) event.preventDefault();
+          }}
+          onKeyDown={(event) => {
+            if (disabled && (event.key === "Enter" || event.key === " ")) event.preventDefault();
+          }}
+        >
+          {selected.length
+            ? `${selected.length} selected`
+            : disabled
+              ? "None selected"
+              : `Choose ${label.toLowerCase()}`}{" "}
+          {disabled ? <span>Read-only</span> : <span aria-hidden="true">⌄</span>}
         </summary>
         <div className="music-multiselect__menu">
           <label className="sr-only" htmlFor={`${name}-search`}>
