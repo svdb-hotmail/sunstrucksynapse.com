@@ -26,9 +26,19 @@ large featured artwork. It uses the existing published catalogue and media coord
   Play next moves an existing queued track rather than duplicating it. Remove, clear
   and move up/down offer a single Undo. Starting/advancing a track invalidates that
   queue snapshot so Undo cannot resurrect consumed entries.
+- The edited queue is authoritative for what plays next. Play next, reordering and
+  choosing a later queued track update the finite scope as well as its Undo snapshot;
+  consumed tracks cannot return through catalogue adjacency. Deliberately requeuing
+  a played track allows one further play. Outside insertions retain the finite boundary.
+- Album and selection context (including collection attribution) survives Previous,
+  interruption by an individual track and paused reloads, including at the end of an
+  empty queue. Cross-release selections retain their own grouping rather than acquiring
+  album identity. Older stored album queues remain readable.
 - Play selection and Play collection use an explicit finite playback scope and replace
   the current queue, as stated beside the action. Album playback retains its ordered
   scope. Existing unscoped individual-track continuation is preserved.
+- Static audio resumes the existing element and position from cards, track pages,
+  the dock and Media Session controls. Signed media retains URL refresh on resume.
 - Explore keeps the search field and results near the top. Optional filters are a
   disclosure, with an applied count; empty groups disappear. Unknown URL selections
   remain visible and clearable. Search and filters remain URL-backed.

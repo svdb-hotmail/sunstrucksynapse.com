@@ -5,7 +5,6 @@ import { ListenerSheet } from "~/components/ListenerSheet";
 import { ShareButton } from "~/components/ShareButton";
 import { Queue } from "~/components/Queue";
 import { SITE_URL } from "~/config/brand";
-import { isR2MediaUrl } from "~/services/media-signing";
 import { PlaybackCoordinator } from "~/services/playback-coordinator";
 import { recordPlaybackEvent } from "~/services/analytics.client";
 import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
@@ -244,38 +243,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       return;
     }
     if (media.paused) {
-      if (isR2MediaUrl(item.media.src)) {
-        void coordinator.handleNativePlay();
-        return;
-      }
-      try {
-        void media.play().catch((error: unknown) => {
-          if (
-            typeof error === "object" &&
-            error !== null &&
-            "name" in error &&
-            error.name === "AbortError"
-          ) {
-            return;
-          }
-          setIsPlaying(false);
-          setIsLoading(false);
-          setPlaybackError("Playback could not be loaded or started automatically. Try again.");
-        });
-      } catch (error) {
-        if (
-          !(
-            typeof error === "object" &&
-            error !== null &&
-            "name" in error &&
-            error.name === "AbortError"
-          )
-        ) {
-          setIsPlaying(false);
-          setIsLoading(false);
-          setPlaybackError("Playback could not be loaded or started automatically. Try again.");
-        }
-      }
+      void coordinator.handleNativePlay();
     } else {
       media.pause();
     }

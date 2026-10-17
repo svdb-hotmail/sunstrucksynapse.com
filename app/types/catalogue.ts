@@ -73,14 +73,19 @@ export interface PublicEditorialCollection {
 
 export interface PlayerState {
   selectedItemId: CatalogueItem["id"] | null;
+  origin?: PlaybackOrigin;
 }
 
-export interface QueueEntry {
+export interface PlaybackOrigin {
   albumId?: string;
+  selectionId?: string;
+  collectionId?: string;
+}
+
+export interface QueueEntry extends PlaybackOrigin {
   itemId: CatalogueItem["id"];
   title: string;
   subtitle: string;
-  collectionId?: string;
 }
 
 export interface Offering {

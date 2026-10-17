@@ -70,7 +70,11 @@ export default function TrackRoute({ loaderData }: Route.ComponentProps) {
           </p>
           <div className="entity-actions">
             <button type="button" onClick={() => player.playItem(item)} disabled={!item.media}>
-              {item.media ? "Play track" : "Media unavailable"}
+              {item.media
+                ? player.playingItemId === item.id
+                  ? "Pause track"
+                  : "Play track"
+                : "Media unavailable"}
             </button>
             <button type="button" onClick={() => player.queueItem(item)} disabled={!item.media}>
               Add to queue

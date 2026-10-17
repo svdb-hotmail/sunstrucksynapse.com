@@ -27,19 +27,20 @@ import {
 } from "~/services/catalogue";
 import type {
   CatalogueItem,
+  PlaybackOrigin,
   PlayerOutletContext,
   PlayerState,
   QueueEntry,
 } from "~/types/catalogue";
 import { persistPlayerToStorage, restorePlayerFromStorage } from "~/utils/player-storage";
 import {
-  addQueueItem,
-  albumQueue,
   appendAlbumQueue,
   findAdjacentPlayableItem,
   findNextPlayableQueueEntry,
   queuedPlaybackScope,
+  reconcilePlaybackScope,
   removeQueueItem,
+  scopedQueue,
 } from "~/utils/queue";
 
 import type { Route } from "./+types/root";
@@ -152,7 +153,7 @@ export default function App() {
     const restored = restorePlayerFromStorage(storage, catalogueItems, null);
     persistenceEnabled.current = restored.persistenceAvailable;
     if (!userInteractedBeforeRestore.current) {
-      setPlayer({ selectedItemId: restored.player.selectedItemId });
+      setPlayer({ selectedItemId: restored.player.selectedItemId, origin: restored.player.origin });
       setPlaybackScope(restored.player.playbackScope ?? null);
       setQueue(restored.player.queue);
     }
@@ -175,8 +176,9 @@ export default function App() {
       player.selectedItemId,
       queue,
       playbackScope,
+      player.origin,
     );
-  }, [hasRestoredPlayer, player.selectedItemId, queue, playbackScope]);
+  }, [hasRestoredPlayer, player.selectedItemId, player.origin, queue, playbackScope]);
 
   const [playingItemId, setPlayingItemId] = useState<string | null>(null);
   const [view, setView] = useState<"player" | "queue" | null>(null);
@@ -194,10 +196,19 @@ export default function App() {
   }, []);
 
   const requestPlayback = useCallback(
-    (item: CatalogueItem, collectionId?: string, intent?: "resume") => {
+    (item: CatalogueItem, collectionId?: string, intent?: "resume", origin?: PlaybackOrigin) => {
       if (!item.media) return;
       userInteractedBeforeRestore.current = true;
-      setPlayer({ selectedItemId: item.id });
+      setPlayer({
+        selectedItemId: item.id,
+        origin: origin
+          ? {
+              albumId: origin.albumId,
+              selectionId: origin.selectionId ?? (origin.albumId ? crypto.randomUUID() : undefined),
+              collectionId: origin.collectionId,
+            }
+          : undefined,
+      });
       setPlayingItemId(null);
       playbackSequence.current += 1;
       setPlaybackRequest({
@@ -213,11 +224,11 @@ export default function App() {
     [],
   );
 
-  const changeQueue = (next: QueueEntry[], message: string, scope = playbackScope) => {
+  const changeQueue = (next: QueueEntry[], message: string) => {
     userInteractedBeforeRestore.current = true;
     setUndoQueue({ queue, scope: playbackScope });
     setQueue(next);
-    setPlaybackScope(scope);
+    setPlaybackScope(reconcilePlaybackScope(playbackScope, player.selectedItemId, next));
     setQueueNotice(message);
   };
 
@@ -225,12 +236,12 @@ export default function App() {
     (entry: QueueEntry) => {
       const item = itemsById.get(entry.itemId);
       if (!item?.media) return;
-      setPlaybackScope(queuedPlaybackScope(queue, entry, playbackScope));
+      setPlaybackScope(queuedPlaybackScope(queue, entry, playbackScope, player.selectedItemId));
       setQueue((current) => removeQueueItem(current, entry.itemId));
-      requestPlayback(item, entry.collectionId);
+      requestPlayback(item, entry.collectionId, undefined, playbackScope ? player.origin : entry);
       setView(null);
     },
-    [itemsById, playbackScope, queue, requestPlayback],
+    [itemsById, playbackScope, player.origin, player.selectedItemId, queue, requestPlayback],
   );
 
   const advancePlayback = useCallback(() => {
@@ -238,27 +249,29 @@ export default function App() {
     if (nextQueued) {
       const queuedItem = itemsById.get(nextQueued.itemId);
       if (queuedItem) {
-        setPlaybackScope(queuedPlaybackScope(queue, nextQueued, playbackScope));
+        setPlaybackScope(
+          queuedPlaybackScope(queue, nextQueued, playbackScope, player.selectedItemId),
+        );
         setQueue((current) => removeQueueItem(current, nextQueued.itemId));
-        requestPlayback(queuedItem, nextQueued.collectionId);
+        requestPlayback(
+          queuedItem,
+          nextQueued.collectionId,
+          undefined,
+          playbackScope ? player.origin : nextQueued,
+        );
       }
       return;
     }
-    if (!selectedItem) return;
-    const nextItem = findAdjacentPlayableItem(
-      playbackScope
-        ? playbackScope
-            .map((id) => itemsById.get(id))
-            .filter((item): item is CatalogueItem => Boolean(item))
-        : catalogueItems,
-      selectedItem.id,
-      1,
-    );
+    // The queue is authoritative for a finite selection, including edits and repeats.
+    if (!selectedItem || playbackScope) return;
+    const nextItem = findAdjacentPlayableItem(catalogueItems, selectedItem.id, 1);
     if (nextItem) requestPlayback(nextItem, playbackRequest?.collectionId);
   }, [
     catalogueItems,
     itemsById,
     playbackScope,
+    player.origin,
+    player.selectedItemId,
     playbackRequest?.collectionId,
     queue,
     requestPlayback,
@@ -276,20 +289,21 @@ export default function App() {
     if (!previous) return;
     if (playbackScope) {
       const remaining = tracks.slice(tracks.findIndex((track) => track.id === previous.id) + 1);
-      const ordered = remaining.reduce<QueueEntry[]>(
-        (entries, track) => addQueueItem(entries, track, playbackRequest?.collectionId),
-        [],
+      const ordered = scopedQueue(remaining, player.origin).map(
+        (entry) => queue.find((queued) => queued.itemId === entry.itemId) ?? entry,
       );
       setQueue((current) => [
         ...ordered,
         ...current.filter((entry) => !playbackScope.includes(entry.itemId)),
       ]);
     }
-    requestPlayback(previous, playbackRequest?.collectionId);
+    requestPlayback(previous, playbackRequest?.collectionId, undefined, player.origin);
   }, [
     catalogueItems,
     itemsById,
     playbackScope,
+    player.origin,
+    queue,
     playbackRequest?.collectionId,
     requestPlayback,
     selectedItem,
@@ -302,7 +316,7 @@ export default function App() {
       setQueueNotice("Already in your queue.");
       return;
     }
-    const next = addQueueItem(queue, item, collectionId);
+    const next = [...queue, ...scopedQueue([item], { ...player.origin, collectionId })];
     changeQueue(next, `Added to queue · position ${next.length}.`);
   };
   const scopedItems = playbackScope
@@ -315,7 +329,7 @@ export default function App() {
   );
   const hasNext = Boolean(
     findNextPlayableQueueEntry(queue, (id) => itemsById.get(id)) ||
-      (selectedItem && findAdjacentPlayableItem(scopedItems, selectedItem.id, 1)),
+      (!playbackScope && selectedItem && findAdjacentPlayableItem(scopedItems, selectedItem.id, 1)),
   );
 
   const outletContext: PlayerOutletContext = {
@@ -329,7 +343,7 @@ export default function App() {
       if (item.id === selectedItem?.id) {
         if (playingItemId === item.id)
           playerPanelRef.current?.querySelector<HTMLMediaElement>("audio, video")?.pause();
-        else requestPlayback(item, collectionId, "resume");
+        else requestPlayback(item, collectionId, "resume", player.origin);
         return;
       }
       setPlaybackScope(null);
@@ -339,7 +353,11 @@ export default function App() {
     playNext: (item, collectionId) => {
       if (!item.media) return;
       changeQueue(
-        [...addQueueItem([], item, collectionId), ...removeQueueItem(queue, item.id)],
+        [
+          queue.find((entry) => entry.itemId === item.id) ??
+            scopedQueue([item], { ...player.origin, collectionId })[0],
+          ...removeQueueItem(queue, item.id),
+        ],
         "Added to play next.",
       );
     },
@@ -350,20 +368,18 @@ export default function App() {
         ).values(),
       ];
       if (!playable.length) return;
-      requestPlayback(playable[0], collectionId);
+      const origin = { selectionId: crypto.randomUUID(), collectionId };
+      requestPlayback(playable[0], collectionId, undefined, origin);
       setPlaybackScope(playable.map((track) => track.id));
-      setQueue(
-        playable
-          .slice(1)
-          .reduce<QueueEntry[]>((entries, track) => addQueueItem(entries, track, collectionId), []),
-      );
+      setQueue(scopedQueue(playable.slice(1), origin));
     },
     playAlbum: (tracks) => {
       const playable = tracks.filter((track) => track.media);
       if (!playable.length) return;
-      requestPlayback(playable[0]);
+      const origin = { albumId: playable[0].release.id, selectionId: crypto.randomUUID() };
+      requestPlayback(playable[0], undefined, undefined, origin);
       setPlaybackScope(playable.map((track) => track.id));
-      setQueue(albumQueue(playable.slice(1)));
+      setQueue(scopedQueue(playable.slice(1), origin));
     },
     queueAlbum: (tracks) =>
       changeQueue(appendAlbumQueue(queue, tracks), "Album added in track order."),
@@ -400,20 +416,10 @@ export default function App() {
                 }
               : undefined
           }
-          onClearQueue={() =>
-            changeQueue(
-              [],
-              "Queue cleared.",
-              selectedItem && playbackScope ? [selectedItem.id] : playbackScope,
-            )
-          }
+          onClearQueue={() => changeQueue([], "Queue cleared.")}
           onSelectQueueEntry={selectQueueEntry}
           onRemoveQueueEntry={(itemId) =>
-            changeQueue(
-              removeQueueItem(queue, itemId),
-              "Removed from queue.",
-              playbackScope?.filter((id) => id !== itemId || id === selectedItem?.id) ?? null,
-            )
+            changeQueue(removeQueueItem(queue, itemId), "Removed from queue.")
           }
           onMoveQueueEntry={(itemId, direction) => {
             const index = queue.findIndex((entry) => entry.itemId === itemId);
@@ -421,20 +427,7 @@ export default function App() {
             if (index < 0 || nextIndex < 0 || nextIndex >= queue.length) return;
             const next = [...queue];
             [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
-            const scope =
-              playbackScope && selectedItem
-                ? [
-                    ...playbackScope.slice(0, playbackScope.indexOf(selectedItem.id) + 1),
-                    ...next
-                      .filter((entry) => playbackScope.includes(entry.itemId))
-                      .map((entry) => entry.itemId),
-                  ]
-                : playbackScope;
-            changeQueue(
-              next,
-              direction === -1 ? "Moved up in queue." : "Moved down in queue.",
-              scope,
-            );
+            changeQueue(next, direction === -1 ? "Moved up in queue." : "Moved down in queue.");
           }}
           onPrevious={playPrevious}
           onNext={advancePlayback}

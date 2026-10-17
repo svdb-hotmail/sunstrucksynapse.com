@@ -7,6 +7,44 @@ test.beforeEach(async ({ page }) => {
 const title = "Sunstruck Synapse (Revolution will be televised)";
 const mushroom = "The Mushroom Circle (Gnome Revolution)";
 const href = "/tracks/phase-zero-transmissions/revolution-will-be-televised";
+
+test("static audio resumes from its card and restored track page without restarting the media", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const row = card(page, title),
+    audio = page.locator("audio");
+  await row.getByRole("button", { name: `Play ${title}`, exact: true }).click();
+  await expect
+    .poll(() => audio.evaluate((element: HTMLMediaElement) => element.currentTime))
+    .toBeGreaterThan(1);
+  await row.getByRole("button", { name: `Pause ${title}`, exact: true }).click();
+  const pausedTime = await audio.evaluate((element: HTMLMediaElement) => {
+    element.dataset.resumeProbe = "same-element";
+    element.dataset.loadStarts = "0";
+    element.addEventListener("loadstart", () => {
+      element.dataset.loadStarts = String(Number(element.dataset.loadStarts) + 1);
+    });
+    return element.currentTime;
+  });
+  await row.getByRole("button", { name: `Play ${title}`, exact: true }).click();
+  await expect
+    .poll(() => audio.evaluate((element: HTMLMediaElement) => element.currentTime))
+    .toBeGreaterThan(pausedTime);
+  await expect(audio).toHaveAttribute("data-resume-probe", "same-element");
+  await expect(audio).toHaveAttribute("data-load-starts", "0");
+  await row.getByRole("link", { name: title, exact: true }).click();
+  await expect(page.getByRole("button", { name: "Pause track", exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Play track", exact: true })).toBeVisible();
+  await expect.poll(() => audio.evaluate((element: HTMLMediaElement) => element.paused)).toBe(true);
+  await page.getByRole("button", { name: "Play track", exact: true }).click();
+  await expect
+    .poll(() =>
+      audio.evaluate((element: HTMLMediaElement) => !element.paused && element.currentTime > 0),
+    )
+    .toBe(true);
+});
 const card = (page: import("@playwright/test").Page, name: string) =>
   page
     .locator(".media-card")

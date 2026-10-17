@@ -7,6 +7,8 @@ import {
   findNextPlayableQueueEntry,
   removeQueueItem,
   queuedPlaybackScope,
+  reconcilePlaybackScope,
+  scopedQueue,
 } from "../../app/utils/queue";
 import { makeCatalogueItem } from "../fixtures/catalogue";
 
@@ -97,6 +99,48 @@ describe("queue operations", () => {
     expect(findAdjacentPlayableItem(items, third.id, -1)).toBe(first);
     expect(findAdjacentPlayableItem(items, first.id, -1)).toBeUndefined();
     expect(findAdjacentPlayableItem(items, third.id, 1)).toBeUndefined();
+  });
+});
+
+describe("finite listening edits", () => {
+  const tracks = ["a", "b", "c", "outside"].map((id) => makeCatalogueItem(id));
+  it("Play next follows queue order and Undo can restore the original scope", () => {
+    const scope = ["a", "b", "c"];
+    expect(reconcilePlaybackScope(scope, "a", scopedQueue([tracks[2], tracks[1]]))).toEqual([
+      "a",
+      "c",
+      "b",
+    ]);
+    expect(scope).toEqual(["a", "b", "c"]);
+  });
+  it("moves an already-played track into the future and includes outside insertions", () => {
+    expect(
+      reconcilePlaybackScope(["a", "b", "c"], "b", scopedQueue([tracks[3], tracks[0], tracks[2]])),
+    ).toEqual(["b", "outside", "a", "c"]);
+  });
+  it("selecting a later queue item rebuilds the scope around the surviving queue order", () => {
+    const queue = scopedQueue([tracks[1], tracks[2]]);
+    expect(queuedPlaybackScope(queue, queue[1], ["a", "b", "c"], "a")).toEqual(["a", "c", "b"]);
+  });
+  it("clearing the queue retains played history and a repeat of the current track adds no scope cycle", () => {
+    expect(reconcilePlaybackScope(["a", "b", "c"], "b", [])).toEqual(["a", "b"]);
+    expect(reconcilePlaybackScope(["a", "b"], "a", scopedQueue([tracks[0], tracks[1]]))).toEqual([
+      "a",
+      "b",
+    ]);
+    expect(reconcilePlaybackScope(null, "a", scopedQueue(tracks))).toBeNull();
+  });
+  it("rebuilt album and cross-release queues retain their distinct origins", () => {
+    const albumOrigin = { albumId: tracks[0].release.id, selectionId: "album-session" };
+    const rebuilt = scopedQueue(tracks.slice(1, 3), albumOrigin);
+    expect(rebuilt.every((entry) => entry.albumId === albumOrigin.albumId)).toBe(true);
+    expect(queuedPlaybackScope(rebuilt, rebuilt[0], null)).toEqual(["b", "c"]);
+    const outside = { ...tracks[3], release: { ...tracks[3].release, id: "other-release" } };
+    const selectionOrigin = { selectionId: "selection-session", collectionId: "cross-release" };
+    const selection = scopedQueue([tracks[0], outside, tracks[2]], selectionOrigin);
+    expect(selection.every((entry) => !entry.albumId)).toBe(true);
+    expect(queuedPlaybackScope(selection.slice(1), selection[1], null)).toEqual(["outside", "c"]);
+    expect(selection[1].collectionId).toBe("cross-release");
   });
 });
 

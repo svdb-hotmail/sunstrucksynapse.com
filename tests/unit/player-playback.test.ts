@@ -321,6 +321,41 @@ describe("player playback behavior and coordinator lifecycle", () => {
     expect(activeSrcChanges).toHaveLength(counts.callbacks);
   });
 
+  it("resumes paused static audio at its current position without loading or minting", async () => {
+    const media = createMockMediaElement();
+    const resolveUrl = vi.fn();
+    const coordinator = new PlaybackCoordinator({ resolveUrl });
+    coordinator.attachMedia(media);
+    coordinator.selectItem(createStaticTrack("resume-static"));
+    media.currentTime = 37;
+    await coordinator.handleNativePlay();
+    expect(media.paused).toBe(false);
+    expect(media.currentTime).toBe(37);
+    expect(media.loadCalls).toBe(0);
+    expect(media.playCalls).toBe(1);
+    await coordinator.handleNativePlay();
+    expect(media.playCalls).toBe(1);
+    expect(resolveUrl).not.toHaveBeenCalled();
+  });
+
+  it("reports rejected static resumes and clears loading feedback", async () => {
+    const media = createMockMediaElement();
+    media.play = vi.fn().mockRejectedValue(new Error("not allowed"));
+    const errors: (string | null)[] = [],
+      loading: boolean[] = [];
+    const coordinator = new PlaybackCoordinator({
+      onErrorChange: (error) => errors.push(error),
+      onLoadingChange: (value) => loading.push(value),
+    });
+    coordinator.attachMedia(media);
+    coordinator.selectItem(createStaticTrack("blocked-static"));
+    media.currentTime = 17;
+    await coordinator.handleNativePlay();
+    expect(errors.at(-1)).toContain("retry");
+    expect(loading.at(-1)).toBe(false);
+    expect(media.currentTime).toBe(17);
+  });
+
   it("resets a same-ID replacement when its canonical asset or media kind changes", () => {
     const item = createR2Track("replacement-item", "asset-before");
     const media = createMockMediaElement();

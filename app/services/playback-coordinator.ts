@@ -139,9 +139,10 @@ export class PlaybackCoordinator {
       return;
     }
 
-    if (!isR2MediaUrl(this.item.media.src)) {
-      return;
-    }
+    const signed = isR2MediaUrl(this.item.media.src);
+    // A native play event already started static media; card/Media Session resumes
+    // arrive while paused and must start the same element without resetting it.
+    if (!signed && (!this.media || !this.media.paused)) return;
 
     this.onErrorChange?.(null);
     this.setLoading(true);
@@ -150,23 +151,22 @@ export class PlaybackCoordinator {
     const generation = ++this.generation;
 
     try {
-      const savedTime = media ? media.currentTime : 0;
-      if (media && !media.paused) {
-        media.pause();
+      if (signed) {
+        const savedTime = media ? media.currentTime : 0;
+        if (media && !media.paused) media.pause();
+        const freshUrl = await this.resolveUrl(this.item.media.src);
+        if (this.generation !== generation || this.item?.id !== itemId || this.media !== media) {
+          return;
+        }
+        this.onActiveSrcChange?.(freshUrl, itemId);
+        if (media) {
+          media.src = freshUrl;
+          media.load();
+          if (savedTime > 0) media.currentTime = savedTime;
+        }
       }
-
-      const freshUrl = await this.resolveUrl(this.item.media.src);
-      if (this.generation !== generation || this.item?.id !== itemId || this.media !== media) {
-        return;
-      }
-      this.onActiveSrcChange?.(freshUrl, itemId);
 
       if (media) {
-        media.src = freshUrl;
-        media.load();
-        if (savedTime > 0) {
-          media.currentTime = savedTime;
-        }
         this.isInternalPlay = true;
         try {
           await media.play();
