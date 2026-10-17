@@ -52,6 +52,7 @@ export async function loader({ request, context, params }: LoaderFunctionArgs) {
       fields: row.fields,
       revision: JSON.stringify(row.revision),
       editable: row.editable,
+      discoveryEditable: row.discoveryEditable,
       releaseFieldsEditable: row.releaseFieldsEditable,
       coverUrl: row.coverId ? `/curator/submissions/${row.id}/artwork?v=${row.coverId}` : null,
     },
@@ -89,9 +90,22 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     JSON.parse(revision);
     const repository = createSubmissionEditRepository(runtime.db);
     const current = await repository.find(runtime.id);
-    if (!current?.editable || JSON.stringify(current.revision) !== revision)
+    if (!current?.editable && !current?.discoveryEditable)
+      throw new Error("This submission is read-only.");
+    if (JSON.stringify(current.revision) !== revision)
       throw new Error("This submission changed. Reload the editor before saving.");
     const cover = form.get("cover");
+    if (!current.editable) {
+      if (
+        (cover instanceof File && cover.size) ||
+        fields.title !== current.fields.title ||
+        fields.releaseTitle !== current.fields.releaseTitle ||
+        fields.summary !== current.fields.summary
+      )
+        throw new Error("Only genres, moods and process tags can be corrected for this track.");
+      if (!fields.genres.length || !fields.moods.length || !fields.processTags.length)
+        throw new Error("Choose at least one genre, mood and process tag for this track.");
+    }
     if (cover instanceof File && cover.size && form.get("artworkPermission") !== "yes")
       throw new Error("Confirm permission to publish the artwork.");
     const artwork =

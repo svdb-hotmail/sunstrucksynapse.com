@@ -136,3 +136,125 @@ it("returns the saved private cover URL immediately after a successful save", as
     savedCoverUrl: `/curator/submissions/${id}/artwork?v=${coverId}`,
   });
 });
+
+const liveFields = {
+  title: "Track",
+  releaseTitle: "Release",
+  summary: "Description",
+  genres: ["Ambient"],
+  moods: ["Calm"],
+  processTags: ["Mixing"],
+};
+function liveForm() {
+  const form = new FormData();
+  for (const [key, value] of Object.entries(liveFields)) {
+    if (Array.isArray(value)) for (const item of value) form.append(key, item);
+    else form.set(key, value);
+  }
+  form.set("revision", "{}");
+  form.set("reason", "Correct published discovery tags");
+  return form;
+}
+async function submitLive(form: FormData, args: ReturnType<typeof context>["args"]) {
+  const encoded = new Request(url, { method: "POST", body: form });
+  const body = await encoded.arrayBuffer();
+  return action({
+    ...args,
+    request: new Request(url, {
+      method: "POST",
+      headers: {
+        "content-type": encoded.headers.get("content-type")!,
+        "content-length": String(body.byteLength),
+        origin: "https://example.test",
+      },
+      body,
+    }),
+  } as unknown as ActionFunctionArgs);
+}
+function authorizeLive() {
+  mocks.auth.mockResolvedValue({
+    ok: true,
+    identity: { id: "curator", email: "curator@example.test" },
+  });
+  mocks.find.mockResolvedValue({
+    editable: false,
+    discoveryEditable: true,
+    revision: {},
+    fields: liveFields,
+  });
+}
+it("allows an authenticated, revision-checked discovery correction on a published track", async () => {
+  const { args, bucket } = context();
+  authorizeLive();
+  mocks.save.mockResolvedValue({
+    id: args.params.submissionId,
+    coverId: null,
+    revision: { track: "updated" },
+  });
+  const form = liveForm();
+  form.set("genres", "Electronic");
+  form.set("moods", "Dreamy");
+  form.set("processTags", "Human composition");
+  const response = await submitLive(form, args);
+  expect(response.status).toBe(200);
+  expect(mocks.save).toHaveBeenCalledWith(
+    args.params.submissionId,
+    "{}",
+    {
+      ...liveFields,
+      genres: ["Electronic"],
+      moods: ["Dreamy"],
+      processTags: ["Human composition"],
+    },
+    "Correct published discovery tags",
+    { id: "curator", email: "curator@example.test" },
+    undefined,
+  );
+  expect(bucket.put).not.toHaveBeenCalled();
+});
+it.each([
+  "title",
+  "releaseTitle",
+  "summary",
+  "cover",
+  "revision",
+  "reason",
+  "genres",
+  "moods",
+  "processTags",
+])(
+  "rejects a forbidden or invalid published edit to %s before saving or uploading",
+  async (field) => {
+    const { args, bucket } = context();
+    authorizeLive();
+    const form = liveForm();
+    if (field === "cover") {
+      form.set("cover", new File(["synthetic"], "cover.png", { type: "image/png" }));
+      form.set("artworkPermission", "yes");
+    } else if (["genres", "moods", "processTags", "reason"].includes(field)) form.delete(field);
+    else form.set(field, field === "revision" ? '{"track":"stale"}' : "Forged protected field");
+    const response = await submitLive(form, args);
+    expect(response.status).toBe(409);
+    expect(mocks.save).not.toHaveBeenCalled();
+    expect(bucket.put).not.toHaveBeenCalled();
+  },
+);
+it("exposes discovery permission in the loader and preserves the closed-record action gate", async () => {
+  const { args } = context();
+  authorizeLive();
+  const loaded = await loader({
+    ...args,
+    request: new Request(url),
+  } as unknown as LoaderFunctionArgs);
+  expect(loaded).toMatchObject({ data: { editable: false, discoveryEditable: true } });
+  mocks.find.mockResolvedValue({
+    editable: false,
+    discoveryEditable: false,
+    revision: {},
+    fields: liveFields,
+  });
+  const response = await submitLive(liveForm(), args);
+  expect(response.status).toBe(409);
+  expect(await response.json()).toEqual({ error: "This submission is read-only." });
+  expect(mocks.save).not.toHaveBeenCalled();
+});

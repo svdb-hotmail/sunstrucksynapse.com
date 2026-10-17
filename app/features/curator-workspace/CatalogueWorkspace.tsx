@@ -326,7 +326,7 @@ export function CatalogueWorkspace({
                   className="curator-button"
                   to={`/curator/submissions/${track.submissionId}/edit`}
                 >
-                  Edit details & artwork
+                  Edit details
                 </Link>
               )}
             </div>

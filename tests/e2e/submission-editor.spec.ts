@@ -11,9 +11,11 @@ import {createRoot} from 'react-dom/client';
 import {MemoryRouter} from 'react-router';
 import {SubmissionEditor} from '/app/features/curator-workspace/SubmissionEditor.tsx';
 import '/app/styles/global.css';
+const params=new URLSearchParams(location.search);
 const data={id:'synthetic',reference:'SUB-SYNTHETIC',status:'accepted',artistName:'Synthetic Artist',
  trackId:'synthetic-track',releaseId:'synthetic-release',revision:'{}',coverUrl:null,
- editable:!new URLSearchParams(location.search).has('readonly'),
+ editable:!params.has('readonly') && !params.has('published'),
+ discoveryEditable:params.has('published') || !params.has('readonly'),
  fields:{title:'Synthetic track',releaseTitle:'Synthetic release',summary:'',genres:['Ambient'],moods:['Calm'],processTags:[]}};
 function Harness(){
  const [pending,setPending]=useState(false);
@@ -55,7 +57,7 @@ test.beforeAll(async () => {
         },
         configureServer(vite) {
           vite.middlewares.use((req, res, next) => {
-            if (req.url !== "/" && req.url !== "/?readonly") return next();
+            if (new URL(req.url ?? "/", "http://local.test").pathname !== "/") return next();
             res.setHeader("content-type", "text/html");
             res.end(
               '<!DOCTYPE html><html data-theme="dark"><body><div id="root"></div><script type="module" src="/__submission-editor-smoke.jsx"></script></body></html>',
@@ -131,4 +133,30 @@ test("closes an open dropdown while saving and preserves selections when editing
   await expect(
     tags.getByRole("checkbox", { name: "Human composition", exact: true }),
   ).toBeChecked();
+});
+
+test("edits published discovery fields while titles and artwork remain read-only", async ({
+  page,
+}) => {
+  await page.goto(origin + "/?published");
+  await expect(
+    page.getByRole("heading", { name: "Edit discovery details", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Track title", exact: true })).not.toBeEditable();
+  await expect(
+    page.getByRole("textbox", { name: "Release title", exact: true }),
+  ).not.toBeEditable();
+  await expect(
+    page.getByRole("textbox", { name: "Release description", exact: true }),
+  ).not.toBeEditable();
+  await expect(page.getByLabel("Choose or replace cover")).toBeDisabled();
+  const tags = page.getByRole("group", { name: "Process tags", exact: true });
+  await tags.locator("summary").click();
+  await tags.getByRole("checkbox", { name: "AI-assisted composition", exact: true }).check();
+  await page.keyboard.press("Escape");
+  await page
+    .getByRole("textbox", { name: "Reason for these changes" })
+    .fill("Correct published process tags");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(page.getByLabel("Saved process tags")).toHaveText('["AI-assisted composition"]');
 });

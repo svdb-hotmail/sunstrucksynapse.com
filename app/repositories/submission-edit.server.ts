@@ -1,4 +1,5 @@
 import { sql } from "drizzle-orm";
+import { GENRES, MOODS, PROCESS_TAGS, validSelections } from "../config/music-metadata";
 import { lockCatalogue } from "./album-publishing.server";
 import type { Database } from "~/db/client.server";
 import type { CuratorIdentity } from "~/types/curator";
@@ -20,6 +21,8 @@ export interface EditorialArtwork {
 
 // The artist record is never rewritten. Corrections are explicit curator notes;
 // accepted catalogue presentation is updated in the same transaction as the note.
+const fullEditAllowed = sql`(s.status not in ('rejected','withdrawn') and (s.resulting_release_id is null and s.resulting_track_id is null or (t.lifecycle_status in ('draft','in_review') and r.lifecycle_status in ('draft','in_review'))))`;
+
 function editorQuery(id: string) {
   return sql`select s.id,s.public_reference as reference,s.status,s.artist_details->>'displayName' as "artistName",
     s.resulting_track_id as "trackId",r.id as "releaseId", (s.resulting_track_id is not null or r.id is null) as "releaseFieldsEditable",
@@ -31,7 +34,8 @@ function editorQuery(id: string) {
       'processTags',coalesce(to_jsonb(t.creative_process_tags),n.metadata->'fields'->'processTags',s.track_details->'processTags','[]'::jsonb)) as fields,
     jsonb_build_object('submission',s.updated_at,'track',t.updated_at,'release',r.updated_at,'note',n.id,
       'curatorCover',ea.artwork_asset_id,'releaseCover',ra.artwork_asset_id,'trackCover',ta.artwork_asset_id,'artistCover',cs.cover_id) as revision,
-    (s.status not in ('rejected','withdrawn') and (s.resulting_release_id is null and s.resulting_track_id is null or (t.lifecycle_status in ('draft','in_review') and r.lifecycle_status in ('draft','in_review')))) as editable,
+    ${fullEditAllowed} as editable,
+    (${fullEditAllowed} or (s.status='accepted' and t.id is not null and t.lifecycle_status in ('draft','in_review','published') and r.lifecycle_status in ('draft','in_review','published'))) as "discoveryEditable",
     coalesce(a.object_key,ac.object_key) as "coverObjectKey",coalesce(a.mime_type,ac.mime_type) as "coverMimeType",
     coalesce(a.id,ac.id) as "coverId"
     from submissions s left join tracks t on t.id=s.resulting_track_id left join submission_release_projects project on project.id::text=s.release_details->>'albumProjectId' left join releases r on r.id=coalesce(t.release_id,s.resulting_release_id,project.release_id)
@@ -54,6 +58,7 @@ export interface SubmissionEditorRecord {
   fields: SubmissionEditorialFields;
   revision: unknown;
   editable: boolean;
+  discoveryEditable: boolean;
   releaseFieldsEditable: boolean;
   coverObjectKey: string | null;
   coverMimeType: string | null;
@@ -88,16 +93,25 @@ export function createSubmissionEditRepository(db: Database) {
           sql`lock table submission_activities,submission_editorial_artwork,submission_cover_selections,submission_release_projects in share row exclusive mode`,
         ),
         db.execute(
-          sql`select 1 / (exists(select 1 from (${editorQuery(id)}) current where current.editable and (current."releaseFieldsEditable" or (current.fields->>'releaseTitle'=${fields.releaseTitle} and current.fields->>'summary'=${fields.summary})) and current.revision=${revision}::jsonb))::int as valid`,
+          sql`select 1 / (exists(select 1 from (${editorQuery(id)}) current where
+            (current.editable and (current."releaseFieldsEditable" or (current.fields->>'releaseTitle'=${fields.releaseTitle} and current.fields->>'summary'=${fields.summary}))
+              or (current."discoveryEditable" and ${!artwork} and ${validSelections(fields.genres, GENRES) && validSelections(fields.moods, MOODS) && validSelections(fields.processTags, PROCESS_TAGS)}
+                and current.fields->>'title'=${fields.title} and current.fields->>'releaseTitle'=${fields.releaseTitle} and current.fields->>'summary'=${fields.summary}))
+            and current.revision=${revision}::jsonb))::int as valid`,
         ),
         db.execute(sql`insert into submission_activities(submission_id,activity_type,actor_role,actor_id,actor_email,message,metadata)
           select ${id}::uuid,'note','curator',${actor.id},${actor.email},${reason},
             jsonb_build_object('kind','curator_metadata','fields',${JSON.stringify(fields)}::jsonb,'previous',current.fields,'previousRevision',current.revision)
           from (${editorQuery(id)}) current`),
-        db.execute(sql`update tracks t set title=${fields.title},genre=${fields.genres[0] ?? null},genres=array(select jsonb_array_elements_text(${JSON.stringify(fields.genres)}::jsonb)),moods=array(select jsonb_array_elements_text(${JSON.stringify(fields.moods)}::jsonb)),creative_process_tags=array(select jsonb_array_elements_text(${JSON.stringify(fields.processTags)}::jsonb)),updated_at=now()
+        db.execute(sql`update tracks t set genre=${fields.genres[0] ?? null},genres=array(select jsonb_array_elements_text(${JSON.stringify(fields.genres)}::jsonb)),moods=array(select jsonb_array_elements_text(${JSON.stringify(fields.moods)}::jsonb)),creative_process_tags=array(select jsonb_array_elements_text(${JSON.stringify(fields.processTags)}::jsonb)),updated_at=now()
           from submissions s where s.id=${id}::uuid and t.id=s.resulting_track_id`),
+        // Restricted discovery corrections never write protected title/release fields,
+        // including their timestamps and sibling confirmation revisions.
+        db.execute(sql`update tracks t set title=${fields.title} from submissions s where s.id=${id}::uuid and t.id=s.resulting_track_id
+          and exists(select 1 from (${editorQuery(id)}) current where current.editable)`),
         db.execute(sql`update releases r set title=${fields.releaseTitle},description=${fields.summary || null},updated_at=now()
-          from submissions s join tracks t on t.id=s.resulting_track_id where s.id=${id}::uuid and r.id=t.release_id`),
+          from submissions s join tracks t on t.id=s.resulting_track_id where s.id=${id}::uuid and r.id=t.release_id
+            and exists(select 1 from (${editorQuery(id)}) current where current.editable)`),
         db.execute(sql`insert into publication_audit(entity_type,entity_id,from_lifecycle,to_lifecycle,actor_id,actor_email,reason)
           select 'track',t.id,t.lifecycle_status,t.lifecycle_status,${actor.id},${actor.email},${"Curator submission details: " + reason}
           from submissions s join tracks t on t.id=s.resulting_track_id where s.id=${id}::uuid`),

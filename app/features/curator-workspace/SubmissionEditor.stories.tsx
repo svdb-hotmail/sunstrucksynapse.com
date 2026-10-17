@@ -28,11 +28,13 @@ function EditorStory({
   pending = false,
   covered = false,
   editable = true,
+  discoveryEditable,
 }: {
   error?: string;
   pending?: boolean;
   covered?: boolean;
   editable?: boolean;
+  discoveryEditable?: boolean;
 }) {
   return (
     <CuratorShell
@@ -44,7 +46,12 @@ function EditorStory({
       ]}
     >
       <SubmissionEditor
-        data={{ ...data, editable, coverUrl: covered ? "/assets/thumbs/thumb-01.svg" : null }}
+        data={{
+          ...data,
+          editable,
+          discoveryEditable: discoveryEditable ?? editable,
+          coverUrl: covered ? "/assets/thumbs/thumb-01.svg" : null,
+        }}
         error={error}
         pending={pending}
         onSave={() => undefined}
@@ -69,3 +76,7 @@ export const LightTheme: Story = { globals: { theme: "light" } };
 export const Mobile: Story = { parameters: { viewport: { defaultViewport: "mobile1" } } };
 
 export const ReadOnly: Story = { args: { editable: false } };
+
+export const PublishedDiscoveryCorrection: Story = {
+  args: { editable: false, discoveryEditable: true },
+};
