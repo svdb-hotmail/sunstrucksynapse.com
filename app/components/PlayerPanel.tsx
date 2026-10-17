@@ -1,17 +1,31 @@
 import { forwardRef, useEffect, useRef, useState } from "react";
 
-import { NowPlaying } from "~/components/NowPlaying";
+import { Link } from "react-router";
+import { ListenerSheet } from "~/components/ListenerSheet";
+import { ShareButton } from "~/components/ShareButton";
 import { Queue } from "~/components/Queue";
-import { SITE_NAME } from "~/config/brand";
+import { SITE_URL } from "~/config/brand";
 import { isR2MediaUrl } from "~/services/media-signing";
 import { PlaybackCoordinator } from "~/services/playback-coordinator";
 import { recordPlaybackEvent } from "~/services/analytics.client";
 import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
 
-interface PlayerPanelProps {
+export interface PlayerPanelProps {
   item: CatalogueItem | null;
   queue: QueueEntry[];
-  playbackRequest: { itemId: string; sequence: number; collectionId?: string } | null;
+  playbackRequest: {
+    itemId: string;
+    sequence: number;
+    collectionId?: string;
+    intent?: "resume";
+  } | null;
+  view?: "player" | "queue" | null;
+  onViewChange?: (view: "player" | "queue" | null) => void;
+  onPlaybackStateChange?: (itemId: string | null) => void;
+  onMoveQueueEntry?: (itemId: string, direction: -1 | 1) => void;
+  queueNotice?: string | null;
+  onUndoQueue?: () => void;
+  onDismissNotice?: () => void;
   onClearQueue: () => void;
   onSelectQueueEntry: (entry: QueueEntry) => void;
   onRemoveQueueEntry: (itemId: string) => void;
@@ -21,11 +35,6 @@ interface PlayerPanelProps {
   canNext: boolean;
   onMediaEnded: () => void;
 }
-
-const signalBars = [
-  18, 32, 24, 48, 30, 62, 38, 72, 44, 28, 54, 36, 66, 42, 78, 50, 34, 64, 40, 58, 28, 46, 34, 70,
-  44, 30, 60, 38, 74, 48, 32, 56, 42, 68, 36, 52, 26, 44, 30, 62,
-];
 
 function formatTime(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) {
@@ -54,10 +63,20 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     canPrevious,
     canNext,
     onMediaEnded,
+    view,
+    onViewChange,
+    onPlaybackStateChange,
+    onMoveQueueEntry,
+    queueNotice,
+    onUndoQueue,
+    onDismissNotice,
   },
   ref,
 ) {
   const mediaRef = useRef<HTMLMediaElement>(null);
+  const [localView, setLocalView] = useState<"player" | "queue" | null>(null);
+  const panel = onViewChange ? (view ?? null) : localView;
+  const changeView = onViewChange ?? setLocalView;
   const trackedPlayback = useRef<{
     itemId: string | null;
     collectionId?: string;
@@ -148,6 +167,10 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       itemId: playbackRequest.itemId,
       sequence: playbackRequest.sequence,
     };
+    if (playbackRequest.intent === "resume") {
+      void coordinator.handleNativePlay();
+      return;
+    }
     trackedPlayback.current.collectionId = playbackRequest.collectionId;
     recordPlaybackEvent("play_requested", {
       trackId: item.id,
@@ -160,6 +183,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
 
   const handlePlay = () => {
     setIsPlaying(true);
+    onPlaybackStateChange?.(item?.id ?? null);
     const tracked = trackedPlayback.current;
     if (item) {
       if (tracked.completed) {
@@ -196,6 +220,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
 
   const handleEnded = () => {
     setIsPlaying(false);
+    onPlaybackStateChange?.(null);
     if (item) {
       trackedPlayback.current.completed = true;
       recordPlaybackEvent("completion", {
@@ -353,12 +378,14 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     onPlay: handlePlay,
     onPause: () => {
       setIsPlaying(false);
+      onPlaybackStateChange?.(null);
       if (shouldClearLoadingOnPause(coordinator)) {
         setIsLoading(false);
       }
     },
     onEmptied: () => {
       setIsPlaying(false);
+      onPlaybackStateChange?.(null);
       setIsLoading(false);
       setCurrentTime(0);
       setDuration(0);
@@ -379,6 +406,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     onCanPlay: () => setIsLoading(false),
     onError: () => {
       setIsPlaying(false);
+      onPlaybackStateChange?.(null);
       setIsLoading(false);
       setPlaybackError("This preview could not be loaded. Check your connection and retry.");
       if (item) {
@@ -393,193 +421,231 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   const activeMediaSrc =
     activeMedia && activeMedia.itemId === item?.id ? activeMedia.src : (item?.media?.src ?? null);
 
-  return (
-    <aside ref={ref} className="player-panel" aria-label="Featured media player" tabIndex={-1}>
-      <div className="radio-hero">
-        <div className="now-playing">
-          {item ? (
-            <NowPlaying item={item} />
-          ) : (
-            <>
-              <p className="kicker">Featured transmission</p>
-              <h1>Signal unavailable</h1>
-              <p className="subtitle">Select a published track when the catalogue returns.</p>
-            </>
-          )}
-          <button
-            type="button"
-            className="hero-play"
-            onClick={togglePlayback}
-            disabled={!item?.media}
-            aria-label={isPlaying ? "Pause featured transmission" : "Play featured transmission"}
-          >
-            <span className="hero-play-icon" aria-hidden="true">
-              {isPlaying ? "Ⅱ" : "▶"}
-            </span>
-            <span>
-              <strong>{isPlaying ? "Pause transmission" : "Play transmission"}</strong>
-              <small>Curated for intentional listening.</small>
-            </span>
+  const notice = queueNotice ? (
+    <div className="listener-notice">
+      <span role="status">{queueNotice}</span>
+      {onUndoQueue ? (
+        <button type="button" onClick={onUndoQueue}>
+          Undo
+        </button>
+      ) : null}
+      <button type="button" onClick={onDismissNotice} aria-label="Dismiss queue message">
+        ×
+      </button>
+    </div>
+  ) : null;
+  const playbackStatus = (
+    <>
+      {isLoading ? (
+        <p className="player-loading" role="status">
+          Loading media…
+        </p>
+      ) : null}
+      {playbackError ? (
+        <div className="player-error" role="alert">
+          <p>{playbackError}</p>
+          <button type="button" onClick={retryPlayback}>
+            Retry
           </button>
         </div>
-
-        <div className="hero-art">
-          <img
-            src={playerArtwork}
-            alt={item?.artwork.alt ?? `${SITE_NAME} artwork`}
-            draggable={false}
-            onContextMenu={preventMediaAction}
-            onDragStart={preventMediaAction}
-          />
-        </div>
-
-        <div className="signal-stack">
-          <div className="signal-monitor">
-            <div className="frequency-scale" aria-hidden="true">
-              <span>88</span>
-              <span>92</span>
-              <span>96</span>
-              <span>100</span>
-              <span>104</span>
-              <span>108</span>
-            </div>
-            <div className="signal-wave" aria-hidden="true">
-              {signalBars.map((height, index) => (
-                <span key={index} style={{ height: `${height}%` }} />
-              ))}
-            </div>
-            <div className="signal-needle" aria-hidden="true" />
-            <div className="protected-player" aria-busy={isLoading}>
-              {!item?.media ? (
-                <p className="player-placeholder">Preview coming soon.</p>
-              ) : item.mediaKind === "audio" ? (
-                <audio
-                  key={item.id}
-                  ref={mediaRef as React.RefObject<HTMLAudioElement>}
-                  aria-label={`${item.description.title} audio player`}
-                  controls
-                  controlsList="nodownload noplaybackrate"
-                  {...mediaProps}
-                >
-                  <source src={activeMediaSrc ?? item.media.src} type={item.media.mimeType} />
-                </audio>
-              ) : (
-                <video
-                  key={item.id}
-                  ref={mediaRef as React.RefObject<HTMLVideoElement>}
-                  aria-label={`${item.description.title} video player`}
-                  poster={item.media.poster ?? "/assets/posters/video-poster.svg"}
-                  controls
-                  controlsList="nodownload noplaybackrate"
-                  disablePictureInPicture
-                  {...mediaProps}
-                >
-                  <source src={activeMediaSrc ?? item.media.src} type={item.media.mimeType} />
-                </video>
-              )}
-              {isLoading ? (
-                <p className="player-loading" role="status">
-                  Loading media…
-                </p>
-              ) : null}
-              {playbackError ? (
-                <div className="player-error" role="alert">
-                  <p>{playbackError}</p>
-                  <button type="button" onClick={retryPlayback}>
-                    Retry
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          </div>
-          <blockquote className="curator-note">
-            <strong>Curator’s note</strong>
-            <p>
-              Selected for musical character, clear intent, and a human hand you can still hear.
-            </p>
-            <cite>— SunSyn</cite>
-          </blockquote>
-        </div>
-      </div>
-
-      <div className="player-dock" aria-label="Playback controls">
-        <div className="dock-track">
-          <img src={playerArtwork} alt="" aria-hidden="true" />
-          <span>
-            <strong>{item?.description.title ?? "No transmission selected"}</strong>
-            <small>{item?.creator.name ?? SITE_NAME}</small>
-          </span>
-        </div>
-        <div className="player-transport" aria-label="Playback navigation">
-          <button type="button" onClick={onPrevious} disabled={!canPrevious}>
-            <span aria-hidden="true">|◀</span>
-            <span className="visually-hidden">Previous</span>
+      ) : null}
+    </>
+  );
+  const transport = (
+    <div className="player-transport" aria-label="Playback navigation">
+      <button type="button" onClick={onPrevious} disabled={!canPrevious} aria-label="Previous">
+        <span aria-hidden="true">|◂</span>
+      </button>
+      <button
+        type="button"
+        className="dock-play"
+        onClick={togglePlayback}
+        disabled={!item?.media}
+        aria-label={isPlaying ? "Pause" : "Play"}
+      >
+        <span aria-hidden="true">{isPlaying ? "Ⅱ" : "▸"}</span>
+      </button>
+      <button type="button" onClick={onNext} disabled={!canNext} aria-label="Next">
+        <span aria-hidden="true">▸|</span>
+      </button>
+    </div>
+  );
+  return (
+    <aside
+      ref={ref}
+      className="player-panel"
+      aria-label="Listening player"
+      data-active={Boolean(item)}
+    >
+      {item ? (
+        <div className="player-dock" aria-label="Playback controls">
+          <button
+            type="button"
+            className="dock-track"
+            onClick={() => changeView("player")}
+            aria-label={`Open player: ${item.description.title}`}
+          >
+            <img src={playerArtwork} alt="" width="44" height="44" decoding="async" />
+            <span>
+              <strong>{item.description.title}</strong>
+              <small>
+                {isPlaying ? "Playing" : "Paused"} · {item.creator.name}
+              </small>
+            </span>
           </button>
           <button
             type="button"
             className="dock-play"
             onClick={togglePlayback}
-            disabled={!item?.media}
+            disabled={!item.media}
             aria-label={isPlaying ? "Pause" : "Play"}
           >
-            <span aria-hidden="true">{isPlaying ? "Ⅱ" : "▶"}</span>
+            <span aria-hidden="true">{isPlaying ? "Ⅱ" : "▸"}</span>
           </button>
-          <button type="button" onClick={onNext} disabled={!canNext}>
-            <span aria-hidden="true">▶|</span>
-            <span className="visually-hidden">Next</span>
+          <button type="button" onClick={onNext} disabled={!canNext} aria-label="Next">
+            <span aria-hidden="true">▸|</span>
+          </button>
+          <button type="button" className="dock-desktop-queue" onClick={() => changeView("queue")}>
+            Queue ({queue.length})
           </button>
         </div>
-        <div className="dock-progress">
-          <span>{formatTime(currentTime)}</span>
-          <input
-            type="range"
-            min="0"
-            max={duration || 0}
-            step="0.1"
-            value={Math.min(currentTime, duration || 0)}
-            disabled={!duration}
-            aria-label="Playback position"
-            onChange={(event) => {
-              if (mediaRef.current) {
-                mediaRef.current.currentTime = Number(event.currentTarget.value);
-              }
-            }}
+      ) : null}
+      {panel === null ? (
+        <div className="listener-feedback">
+          {notice}
+          {playbackStatus}
+        </div>
+      ) : null}
+      <ListenerSheet
+        open={panel !== null}
+        title={panel === "queue" ? "Your queue" : "Now playing"}
+        onClose={() => changeView(null)}
+      >
+        {notice}
+        {playbackStatus}
+        <div className="listener-full-player" hidden={panel !== "player"}>
+          {item ? (
+            <>
+              {item.mediaKind === "audio" ? (
+                <img
+                  className="listener-player-art"
+                  src={playerArtwork}
+                  alt={item.artwork.alt}
+                  width="180"
+                  height="180"
+                  decoding="async"
+                />
+              ) : null}
+              <div className="now-playing">
+                <h3>{item.description.title}</h3>
+                <p className="subtitle">{item.creator.name}</p>
+              </div>
+            </>
+          ) : (
+            <p>Choose a track to start listening.</p>
+          )}
+          <div className="protected-player" aria-busy={isLoading}>
+            {!item?.media ? (
+              <p className="player-placeholder">Media unavailable.</p>
+            ) : item.mediaKind === "audio" ? (
+              <audio
+                key={item.id}
+                ref={mediaRef as React.RefObject<HTMLAudioElement>}
+                aria-label={`${item.description.title} audio player`}
+                {...mediaProps}
+              >
+                <source src={activeMediaSrc ?? item.media.src} type={item.media.mimeType} />
+              </audio>
+            ) : (
+              <video
+                key={item.id}
+                ref={mediaRef as React.RefObject<HTMLVideoElement>}
+                aria-label={`${item.description.title} video player`}
+                poster={item.media.poster}
+                controls
+                controlsList="nodownload noplaybackrate"
+                disablePictureInPicture
+                playsInline
+                {...mediaProps}
+              >
+                <source src={activeMediaSrc ?? item.media.src} type={item.media.mimeType} />
+              </video>
+            )}
+          </div>
+          <div className="dock-progress">
+            <span>{formatTime(currentTime)}</span>
+            <input
+              type="range"
+              min="0"
+              max={duration || 0}
+              step="0.1"
+              value={Math.min(currentTime, duration || 0)}
+              disabled={!duration}
+              aria-label="Playback position"
+              onChange={(event) => {
+                if (mediaRef.current)
+                  mediaRef.current.currentTime = Number(event.currentTarget.value);
+              }}
+            />
+            <span>{formatTime(duration)}</span>
+          </div>
+          {transport}
+          <div className="dock-volume">
+            <button
+              type="button"
+              onClick={toggleMute}
+              disabled={!item?.media}
+              aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
+            >
+              {isMuted ? "Unmute" : "Mute"}
+            </button>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={isMuted ? 0 : volume}
+              disabled={!item?.media}
+              aria-label="Volume"
+              onChange={(event) => changeVolume(Number(event.currentTarget.value))}
+            />
+          </div>
+          {item ? (
+            <div className="listener-player-actions">
+              <button type="button" onClick={() => changeView("queue")}>
+                Up next · {queue.length}
+              </button>
+              <ShareButton
+                title={item.description.title}
+                url={new URL(item.href, SITE_URL).href}
+                trackId={item.id}
+              />
+              <Link to={item.href} onClick={() => changeView(null)}>
+                Track details & credits
+              </Link>
+            </div>
+          ) : null}
+        </div>
+        <div hidden={panel !== "queue"}>
+          {item ? (
+            <div className="listener-queue-current">
+              <p className="eyebrow">{isPlaying ? "Now playing" : "Paused"}</p>
+              <strong>{item.description.title}</strong>
+              <p>{item.creator.name}</p>
+              <button type="button" onClick={() => changeView("player")}>
+                Open player
+              </button>
+            </div>
+          ) : null}
+          <Queue
+            entries={queue}
+            onClear={onClearQueue}
+            onSelect={onSelectQueueEntry}
+            onRemove={onRemoveQueueEntry}
+            onMove={onMoveQueueEntry}
           />
-          <span>{formatTime(duration)}</span>
         </div>
-        <div className="dock-volume">
-          <button
-            type="button"
-            onClick={toggleMute}
-            disabled={!item?.media}
-            aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
-          >
-            <span aria-hidden="true">{isMuted || volume === 0 ? "🔇" : "🔊"}</span>
-          </button>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={isMuted ? 0 : volume}
-            disabled={!item?.media}
-            aria-label="Volume"
-            onChange={(event) => changeVolume(Number(event.currentTarget.value))}
-          />
-        </div>
-        <a className="dock-queue-link" href="#queue">
-          Queue <span aria-hidden="true">☷</span>
-        </a>
-      </div>
-
-      <div id="queue" className="queue-wrap">
-        <Queue
-          entries={queue}
-          onClear={onClearQueue}
-          onSelect={onSelectQueueEntry}
-          onRemove={onRemoveQueueEntry}
-        />
-      </div>
+      </ListenerSheet>
     </aside>
   );
 });

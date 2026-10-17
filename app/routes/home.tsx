@@ -1,10 +1,11 @@
 import { Link, useOutletContext } from "react-router";
 
-import { CatalogueSection } from "~/components/CatalogueSection";
-import { Intro } from "~/components/Intro";
+import { EntityTrackList } from "~/components/EntityTrackList";
+import { RadioStart } from "~/components/RadioStart";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
-import { buildCatalogueSections, catalogueStateCopy } from "~/services/catalogue";
+import { catalogueStateCopy } from "~/services/catalogue";
+import { listeningSelection } from "~/services/listening";
 import type { CatalogueLoadResult } from "~/types/catalogue";
 import type { PlayerOutletContext } from "~/types/catalogue";
 
@@ -14,7 +15,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const { catalogueRepository } = context.get(cloudflareContext);
   try {
     const items = await catalogueRepository.listPublishedTracks();
-    const slugs = [...new Set(items.map((item) => item.release.slug))];
+    const slugs = [...new Set(items.map((item) => item.release.slug))].slice(0, 4);
     const releases = await Promise.all(
       slugs.map((slug) => catalogueRepository.findPublishedRelease(slug, items)),
     );
@@ -36,20 +37,46 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export default function Home({ loaderData }: Pick<Route.ComponentProps, "loaderData">) {
-  const { selectedItemId, catalogue, selectItem, queueItem, playItem } =
-    useOutletContext<PlayerOutletContext>();
-  const catalogueSections = buildCatalogueSections(catalogue.items, catalogue.collections);
-
+  const player = useOutletContext<PlayerOutletContext>();
+  const { catalogue } = player;
+  const { collection, tracks } = listeningSelection(catalogue.items, catalogue.collections);
+  const previewTracks = [
+    ...new Map([...tracks, ...catalogue.items].map((track) => [track.id, track])).values(),
+  ].slice(0, 6);
   return (
-    <>
-      <Intro />
+    <div className="radio-home">
+      <RadioStart
+        tracks={tracks}
+        collection={collection}
+        onPlay={
+          player.playSelection ? () => player.playSelection?.(tracks, collection?.id) : undefined
+        }
+      />
+      <section id="catalogue" className="radio-tracks" aria-labelledby="radio-tracks-title">
+        <div className="listener-section-heading">
+          <h2 id="radio-tracks-title">In the collection</h2>
+          <Link to="/search">Explore all</Link>
+        </div>
+        {catalogue.status === "ready" ? (
+          <EntityTrackList tracks={previewTracks} player={player} />
+        ) : (
+          <CatalogueState state={catalogue} />
+        )}
+      </section>
       {catalogue.status === "ready" && loaderData.albums.length > 0 ? (
         <section className="album-shelf" aria-label="Published albums">
-          <h2>Albums & releases</h2>
+          <h2>Releases</h2>
           <div>
-            {loaderData.albums.map((album) => (
+            {loaderData.albums.slice(0, 4).map((album) => (
               <Link key={album.id} to={album.href}>
-                <img src={album.artwork.src} alt={album.artwork.alt} />
+                <img
+                  src={album.artwork.src}
+                  alt={album.artwork.alt}
+                  width="160"
+                  height="160"
+                  loading="lazy"
+                  decoding="async"
+                />
                 <strong>{album.title}</strong>
                 <span>{album.artists.map((artist) => artist.name).join(", ")}</span>
               </Link>
@@ -57,23 +84,18 @@ export default function Home({ loaderData }: Pick<Route.ComponentProps, "loaderD
           </div>
         </section>
       ) : null}
-      <div id="catalogue" className="catalogue-anchor">
-        {catalogue.status === "ready" ? (
-          catalogueSections.map((section) => (
-            <CatalogueSection
-              section={section}
-              selectedItemId={selectedItemId}
-              onSelect={selectItem}
-              onQueue={queueItem}
-              onPlay={playItem}
-              key={section.id}
-            />
-          ))
-        ) : (
-          <CatalogueState state={catalogue} />
-        )}
-      </div>
-    </>
+      {catalogue.collections.length ? (
+        <section className="radio-collections" aria-label="Editorial collections">
+          <h2>Listening paths</h2>
+          {catalogue.collections.slice(0, 4).map((entry) => (
+            <Link key={entry.id} to={`/collections/${entry.slug}`}>
+              {entry.name}
+              <span>{entry.items.length} tracks</span>
+            </Link>
+          ))}
+        </section>
+      ) : null}
+    </div>
   );
 }
 

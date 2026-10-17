@@ -82,7 +82,7 @@ test("keeps signed playback active through loader refresh and refreshes only on 
     element.dataset.loaderRefreshProbe = "kept";
   });
 
-  await card.getByRole("link", { name: "View track" }).click();
+  await card.getByRole("link", { name: revolutionTitle, exact: true }).click();
   await expect(page).toHaveURL(/\/tracks\/phase-zero-transmissions\/revolution-will-be-televised$/);
   await expect(audio).toHaveAttribute("data-loader-refresh-probe", "kept");
   await expect(audio).toHaveAttribute("data-load-start-count", beforeRefresh.loadStartCount!);
@@ -107,7 +107,7 @@ test("keeps signed playback active through loader refresh and refreshes only on 
   await page
     .getByRole("navigation", { name: "Primary", exact: true })
     .getByRole("link", {
-      name: "Search",
+      name: "Explore",
       exact: true,
     })
     .click();
@@ -137,7 +137,7 @@ test("keeps signed playback active through loader refresh and refreshes only on 
 
   await audio.evaluate((element: HTMLMediaElement) => element.pause());
   await expect.poll(() => audio.evaluate((element: HTMLMediaElement) => element.paused)).toBe(true);
-  await page.getByRole("button", { name: "Play featured transmission" }).click();
+  await page.getByRole("button", { name: "Play", exact: true }).click();
   await expect
     .poll(() => audio.evaluate((element: HTMLMediaElement) => element.paused))
     .toBe(false);
@@ -145,7 +145,7 @@ test("keeps signed playback active through loader refresh and refreshes only on 
 
   failNextMediaRequest = true;
   await audio.evaluate((element: HTMLMediaElement) => element.pause());
-  await page.getByRole("button", { name: "Play featured transmission" }).click();
+  await page.getByRole("button", { name: "Play", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText(/could not be loaded|unavailable/);
   await page.getByRole("alert").getByRole("button", { name: "Retry" }).click();
   await expect.poll(() => mintCount).toBe(4);

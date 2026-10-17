@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
+import { queueTrack, viewTrack, openQueue, closePanel } from "./listener-helpers";
 
 const revolutionTitle = "Sunstruck Synapse (Revolution will be televised)";
 const revolutionSource = "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3";
@@ -35,17 +36,15 @@ test("loads the database catalogue and controls the correct media", async ({ pag
   await page.goto("/");
 
   await expect(page).toHaveTitle(/SunSyn Radio/);
-  await expect(
-    page.getByRole("heading", { name: "A radio for music made with intent." }),
-  ).toBeVisible();
-  await expect(page.locator(".media-card")).toHaveCount(10);
+  await expect(page.getByRole("heading", { name: "Start listening." })).toBeVisible();
+  await expect(page.locator(".media-card")).toHaveCount(6);
   await cardFor(page, revolutionTitle)
     .getByRole("button", { name: `Play ${revolutionTitle}` })
     .click();
 
   const audio = page.getByLabel(`${revolutionTitle} audio player`);
   await expect(audio.locator("source")).toHaveAttribute("src", revolutionSource);
-  await expect(audio).toHaveAttribute("controls", "");
+  await expect(page.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
   await expect
     .poll(() => audio.evaluate((element: HTMLMediaElement) => element.readyState))
     .toBeGreaterThan(0);
@@ -61,7 +60,11 @@ test("loads the database catalogue and controls the correct media", async ({ pag
   expect(seekAccepted).toBe(true);
   expect(await audio.evaluate((element: HTMLMediaElement) => element.volume)).toBeCloseTo(0.4);
 
-  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("button", { name: `Open player: ${revolutionTitle}`, exact: true }).click();
+  await page
+    .getByRole("dialog", { name: "Now playing" })
+    .getByRole("button", { name: "Next", exact: true })
+    .click();
   const video = page.getByLabel("Final Movie 00007 video player");
   await expect(video).toBeVisible();
   await expect(video.locator("source")).toHaveAttribute(
@@ -69,7 +72,7 @@ test("loads the database catalogue and controls the correct media", async ({ pag
     "/assets/video/final-movie_00007_.mp4",
   );
   await page.getByRole("button", { name: "Previous", exact: true }).click();
-  await expect(page.getByLabel(`${revolutionTitle} audio player`)).toBeVisible();
+  await expect(page.getByLabel(`${revolutionTitle} audio player`)).toBeAttached();
 
   const mediaSessionTitle = await page.evaluate(
     () => navigator.mediaSession?.metadata?.title ?? null,
@@ -84,25 +87,28 @@ test("supports queue removal, next priority and automatic advancement", async ({
   await cardFor(page, revolutionTitle)
     .getByRole("button", { name: `Play ${revolutionTitle}` })
     .click();
+  await cardFor(page, mushroomTitle).locator(".track-menu > summary").click();
   await cardFor(page, mushroomTitle)
     .getByRole("button", { name: `Queue ${mushroomTitle}` })
     .click();
 
+  await openQueue(page);
   const queue = page.getByRole("heading", { name: "Next in queue" }).locator("..").locator("..");
   await expect(queue.getByRole("listitem")).toHaveCount(1);
   await queue.getByRole("button", { name: `Remove ${mushroomTitle} from queue` }).click();
   await expect(queue.getByText("Queue is clear.")).toBeVisible();
 
-  await cardFor(page, mushroomTitle)
-    .getByRole("button", { name: `Queue ${mushroomTitle}` })
-    .click();
+  await closePanel(page);
+  await queueTrack(page, mushroomTitle);
   await page.getByRole("button", { name: "Next", exact: true }).click();
-  await expect(page.getByLabel(`${mushroomTitle} audio player`)).toBeVisible();
+  await expect(page.getByLabel(`${mushroomTitle} audio player`)).toBeAttached();
+  await openQueue(page);
   await expect(queue.getByText("Queue is clear.")).toBeVisible();
-
-  await cardFor(page, "Gone Fishing").getByRole("button", { name: "Queue Gone Fishing" }).click();
+  await closePanel(page);
+  await queueTrack(page, "Gone Fishing");
   await page.getByLabel(`${mushroomTitle} audio player`).dispatchEvent("ended");
-  await expect(page.getByLabel("Gone Fishing video player")).toBeVisible();
+  await expect(page.getByLabel("Gone Fishing video player")).toBeAttached();
+  await openQueue(page);
   await expect(queue.getByText("Queue is clear.")).toBeVisible();
 });
 
@@ -130,7 +136,7 @@ test("keeps active playback through internal navigation", async ({ page }) => {
     currentTime: element.currentTime,
     loadStartCount: element.dataset.loadStartCount,
   }));
-  await revolutionCard.getByRole("link", { name: "View track" }).click();
+  await viewTrack(page, revolutionTitle);
 
   await expect(page).toHaveURL(/\/tracks\/phase-zero-transmissions\/revolution-will-be-televised$/);
   const navigatedAudio = page.getByLabel(`${revolutionTitle} audio player`);
@@ -159,6 +165,7 @@ test("restores the selected track without autoplay after reload", async ({ page 
   await page.goto("/");
   const revolutionCard = cardFor(page, revolutionTitle);
   await revolutionCard.getByRole("button", { name: `Play ${revolutionTitle}` }).click();
+  await cardFor(page, mushroomTitle).locator(".track-menu > summary").click();
   await cardFor(page, mushroomTitle)
     .getByRole("button", { name: `Queue ${mushroomTitle}` })
     .click();
@@ -168,7 +175,7 @@ test("restores the selected track without autoplay after reload", async ({ page 
     element.dataset.persistenceProbe = "kept";
     element.pause();
   });
-  await revolutionCard.getByRole("link", { name: "View track" }).click();
+  await viewTrack(page, revolutionTitle);
   await expect(page).toHaveURL(/\/tracks\/phase-zero-transmissions\/revolution-will-be-televised$/);
   await expect(page.getByLabel(`${revolutionTitle} audio player`)).toHaveAttribute(
     "data-persistence-probe",
@@ -182,6 +189,7 @@ test("restores the selected track without autoplay after reload", async ({ page 
   const restoredAudio = page.getByLabel(`${revolutionTitle} audio player`);
   await expect(restoredAudio.locator("source")).toHaveAttribute("src", revolutionSource);
   expect(await restoredAudio.evaluate((element: HTMLMediaElement) => element.paused)).toBe(true);
+  await openQueue(page);
   await expect(
     page.getByRole("button", { name: `Play ${mushroomTitle} from queue` }),
   ).toBeVisible();
@@ -224,7 +232,7 @@ test("serves canonical artist, release and track pages with global-player action
     .poll(() => page.evaluate(() => Reflect.get(globalThis, "__sharedUrl")))
     .toMatch(/\/tracks\/phase-zero-transmissions\/revolution-will-be-televised$/);
 
-  await page.getByRole("button", { name: "Play in global player" }).click();
+  await page.getByRole("button", { name: "Play track" }).click();
   await expect(
     page.getByLabel(`${revolutionTitle} audio player`).locator("source"),
   ).toHaveAttribute("src", revolutionSource);
@@ -266,13 +274,14 @@ test("presents published tracks with missing media without requesting a source",
       name: "Quiet Machines preview coming soon",
     }),
   ).toBeDisabled();
+  await missingMediaCard.locator(".track-menu > summary").click();
   await expect(
     missingMediaCard.getByRole("button", {
       name: "Queue unavailable for Quiet Machines; preview coming soon",
     }),
   ).toBeDisabled();
-  await missingMediaCard.getByRole("button", { name: "Select Quiet Machines" }).click();
-  await expect(page.getByText("Preview coming soon.").first()).toBeVisible();
+  await viewTrack(page, "Quiet Machines");
+  await expect(page.getByRole("button", { name: "Media unavailable", exact: true })).toBeDisabled();
   await page.waitForTimeout(100);
   expect(mediaRequests).toEqual([]);
 });
@@ -291,7 +300,10 @@ test("supports keyboard activation and reduced-motion focus movement", async ({ 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
 
-  const viewTrack = cardFor(page, revolutionTitle).getByRole("link", { name: "View track" });
+  const viewTrack = cardFor(page, revolutionTitle).getByRole("link", {
+    name: revolutionTitle,
+    exact: true,
+  });
   await viewTrack.focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL(/revolution-will-be-televised$/);
@@ -300,7 +312,13 @@ test("supports keyboard activation and reduced-motion focus movement", async ({ 
   await cardFor(page, revolutionTitle)
     .getByRole("button", { name: `Play ${revolutionTitle}` })
     .click();
-  expect(await page.evaluate(() => Reflect.get(globalThis, "__scrollBehavior"))).toBe("auto");
+  expect(await page.evaluate(() => Reflect.get(globalThis, "__scrollBehavior"))).toBeNull();
+  await expect(
+    cardFor(page, revolutionTitle).getByRole("button", {
+      name: `Pause ${revolutionTitle}`,
+      exact: true,
+    }),
+  ).toBeFocused();
 });
 
 test("retains hash-scroll coverage and preserves the player through the About route transition", async ({
@@ -324,18 +342,15 @@ test("retains hash-scroll coverage and preserves the player through the About ro
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
 
-  await page
-    .getByRole("navigation", { name: "Primary" })
-    .getByRole("link", { name: "Latest" })
-    .click();
-  await expectHashTarget(page, "latest");
+  await page.goto("/#catalogue");
+  await expectHashTarget(page, "catalogue");
   expect(
     await page.evaluate(() =>
       (
         Reflect.get(globalThis, "__hashScrollCalls") as
           | { id: string; behavior: ScrollBehavior | null }[]
           | undefined
-      )?.some((call) => call.id === "latest" && call.behavior === "auto"),
+      )?.some((call) => call.id === "catalogue" && call.behavior === "auto"),
     ),
   ).toBe(true);
 
@@ -378,7 +393,7 @@ test("keeps the intermediate header visible without horizontal overflow", async 
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeHidden();
   await expect(page.getByRole("button", { name: "Light mode" })).toBeVisible();
-  await expect(page.locator(".site-logo span:last-child")).toBeHidden();
+  await expect(page.locator(".site-logo span:last-child")).toBeVisible();
   await expect(page.locator(".theme-toggle__label")).toBeHidden();
   await expect(page.locator(".subscribe")).toHaveCount(0);
   await expect(

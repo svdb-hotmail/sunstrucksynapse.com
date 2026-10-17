@@ -1,65 +1,37 @@
 import type { Ref } from "react";
-
+import { Link } from "react-router";
 import { Header } from "~/components/Header";
 import { MobileNav } from "~/components/MobileNav";
-import { PlayerPanel } from "~/components/PlayerPanel";
+import { PlayerPanel, type PlayerPanelProps } from "~/components/PlayerPanel";
 import { defaultCatalogueNavigation, type CatalogueNavigationEntry } from "~/services/catalogue";
-import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
-
-interface ApplicationShellProps {
+interface ApplicationShellProps extends PlayerPanelProps {
   children: React.ReactNode;
   navigation?: CatalogueNavigationEntry[];
-  item: CatalogueItem | null;
-  queue: QueueEntry[];
   playerPanelRef: Ref<HTMLElement>;
-  playbackRequest: { itemId: string; sequence: number } | null;
-  onClearQueue: () => void;
-  onSelectQueueEntry: (entry: QueueEntry) => void;
-  onRemoveQueueEntry: (itemId: string) => void;
-  onPrevious: () => void;
-  onNext: () => void;
-  canPrevious: boolean;
-  canNext: boolean;
-  onMediaEnded: () => void;
 }
-
 export function ApplicationShell({
   children,
   navigation = defaultCatalogueNavigation,
-  item,
-  queue,
   playerPanelRef,
-  playbackRequest,
-  onClearQueue,
-  onSelectQueueEntry,
-  onRemoveQueueEntry,
-  onPrevious,
-  onNext,
-  canPrevious,
-  canNext,
-  onMediaEnded,
+  ...player
 }: ApplicationShellProps) {
+  const openQueue = () => player.onViewChange?.("queue");
   return (
-    <>
-      <div className="app-shell">
-        <Header navigation={navigation} />
-        <PlayerPanel
-          ref={playerPanelRef}
-          item={item}
-          queue={queue}
-          playbackRequest={playbackRequest}
-          onClearQueue={onClearQueue}
-          onSelectQueueEntry={onSelectQueueEntry}
-          onRemoveQueueEntry={onRemoveQueueEntry}
-          onPrevious={onPrevious}
-          onNext={onNext}
-          canPrevious={canPrevious}
-          canNext={canNext}
-          onMediaEnded={onMediaEnded}
-        />
-        <main className="content-panel">{children}</main>
-      </div>
-      <MobileNav navigation={navigation} />
-    </>
+    <div className="app-shell listener-shell" data-has-player={Boolean(player.item)}>
+      <a className="listener-skip" href="#listener-content">
+        Skip to music
+      </a>
+      <Header navigation={navigation} queueCount={player.queue.length} onOpenQueue={openQueue} />
+      <main id="listener-content" className="content-panel">
+        {children}
+      </main>
+      <footer className="listener-footer">
+        <p>Human-curated. AI-assisted. Music made with intent.</p>
+        <Link to="/about">About SunSyn</Link>
+        <Link to="/privacy">Privacy</Link>
+      </footer>
+      <PlayerPanel ref={playerPanelRef} {...player} />
+      <MobileNav navigation={navigation} queueCount={player.queue.length} onOpenQueue={openQueue} />
+    </div>
   );
 }

@@ -92,6 +92,9 @@ export interface Offering {
 
 export interface PlayerOutletContext {
   selectedItemId: CatalogueItem["id"] | null;
+  playingItemId?: string | null;
+  playNext?: (item: CatalogueItem, collectionId?: string) => void;
+  playSelection?: (tracks: CatalogueItem[], collectionId?: string) => void;
   catalogue: CatalogueLoadResult;
   selectItem: (item: CatalogueItem) => void;
   queueItem: (item: CatalogueItem, collectionId?: string) => void;

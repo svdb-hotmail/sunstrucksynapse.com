@@ -81,8 +81,8 @@ export function queuedPlaybackScope(
   selected: QueueEntry,
   currentScope: string[] | null,
 ): string[] | null {
-  if (!selected.albumId) return null;
   if (currentScope?.includes(selected.itemId)) return currentScope;
+  if (!selected.albumId) return null;
   return [
     selected.itemId,
     ...entries

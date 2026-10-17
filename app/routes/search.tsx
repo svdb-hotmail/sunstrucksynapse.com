@@ -50,51 +50,73 @@ export default function SearchRoute({ loaderData }: Route.ComponentProps) {
       recordPlaybackEvent("catalogue_impression", { trackId: item.id });
     }
   }, [results]);
+  const activeCount = [filters.genre, filters.mood, filters.year, filters.process].filter(
+    Boolean,
+  ).length;
   return (
-    <section className="entity-page">
-      <p className="eyebrow">Catalogue discovery</p>
-      <h1>Search the collection</h1>
+    <section className="entity-page listener-explore">
+      <p className="eyebrow">Choose your next listen</p>
+      <h1>Explore</h1>
       <Form
         key={`${filters.query}|${filters.genre}|${filters.mood}|${filters.year ?? ""}|${filters.process}`}
         method="get"
-        className="curator-form"
+        preventScrollReset
+        className="listener-search"
       >
-        <label>
-          Search artists, releases and tracks
-          <input name="q" defaultValue={filters.query} type="search" />
-        </label>
-        <DiscoveryFacet
-          name="genre"
-          label="Genre"
-          allLabel="All genres"
-          options={options.genres}
-          selectedValue={filters.genre}
-        />
-        <DiscoveryFacet
-          name="mood"
-          label="Mood"
-          allLabel="All moods"
-          options={options.moods}
-          selectedValue={filters.mood}
-        />
-        <DiscoveryFacet
-          name="year"
-          label="Year"
-          allLabel="All years"
-          options={options.years}
-          selectedValue={filters.year}
-        />
-        <DiscoveryFacet
-          name="process"
-          label="Creative process"
-          allLabel="All processes"
-          options={options.processes}
-          selectedValue={filters.process}
-        />
-        <button type="submit">Search</button>
-        {active ? <Link to="/search">Clear filters</Link> : null}
+        <label htmlFor="listener-query">Search artists, releases and tracks</label>
+        <div className="listener-search__query">
+          <input id="listener-query" name="q" defaultValue={filters.query} type="search" />
+          <button type="submit">Search</button>
+        </div>
+        <details className="listener-filters">
+          <summary role="button">Filters{activeCount ? ` (${activeCount} applied)` : ""}</summary>
+          <div className="listener-filters__fields">
+            {options.genres.length || filters.genre ? (
+              <DiscoveryFacet
+                name="genre"
+                label="Genre"
+                allLabel="All genres"
+                options={options.genres}
+                selectedValue={filters.genre}
+              />
+            ) : null}
+            {options.moods.length || filters.mood ? (
+              <DiscoveryFacet
+                name="mood"
+                label="Mood"
+                allLabel="All moods"
+                options={options.moods}
+                selectedValue={filters.mood}
+              />
+            ) : null}
+            {options.years.length || filters.year ? (
+              <DiscoveryFacet
+                name="year"
+                label="Year"
+                allLabel="All years"
+                options={options.years}
+                selectedValue={filters.year}
+              />
+            ) : null}
+            {options.processes.length || filters.process ? (
+              <DiscoveryFacet
+                name="process"
+                label="Creative process"
+                allLabel="All processes"
+                options={options.processes}
+                selectedValue={filters.process}
+              />
+            ) : null}
+            <button type="submit">Apply filters</button>
+          </div>
+        </details>
+        {active ? (
+          <Link to="/search" preventScrollReset>
+            Clear search & filters
+          </Link>
+        ) : null}
       </Form>
-      <p aria-live="polite">
+      <p role="status">
         {results.length
           ? `${results.length} matching ${results.length === 1 ? "track" : "tracks"}.`
           : "No matching tracks. Clear a filter or try an artist, release, or track title."}

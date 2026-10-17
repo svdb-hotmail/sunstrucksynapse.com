@@ -89,6 +89,13 @@ const meta: Meta<PlayerPanelStoryArgs> = {
   title: "Production/PlayerPanel",
   component: PlayerPanelStory,
   tags: ["autodocs"],
+  decorators: [
+    (Story) => (
+      <div className="listener-shell">
+        <Story />
+      </div>
+    ),
+  ],
   args: {
     ...callbacks,
     queue: [],
