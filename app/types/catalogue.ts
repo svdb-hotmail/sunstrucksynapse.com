@@ -73,14 +73,19 @@ export interface PublicEditorialCollection {
 
 export interface PlayerState {
   selectedItemId: CatalogueItem["id"] | null;
+  origin?: PlaybackOrigin;
 }
 
-export interface QueueEntry {
+export interface PlaybackOrigin {
   albumId?: string;
+  selectionId?: string;
+  collectionId?: string;
+}
+
+export interface QueueEntry extends PlaybackOrigin {
   itemId: CatalogueItem["id"];
   title: string;
   subtitle: string;
-  collectionId?: string;
 }
 
 export interface Offering {
@@ -92,6 +97,9 @@ export interface Offering {
 
 export interface PlayerOutletContext {
   selectedItemId: CatalogueItem["id"] | null;
+  playingItemId?: string | null;
+  playNext?: (item: CatalogueItem, collectionId?: string) => void;
+  playSelection?: (tracks: CatalogueItem[], collectionId?: string) => void;
   catalogue: CatalogueLoadResult;
   selectItem: (item: CatalogueItem) => void;
   queueItem: (item: CatalogueItem, collectionId?: string) => void;

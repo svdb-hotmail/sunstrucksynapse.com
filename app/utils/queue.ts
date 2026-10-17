@@ -1,4 +1,4 @@
-import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
+import type { CatalogueItem, PlaybackOrigin, QueueEntry } from "~/types/catalogue";
 
 export function addQueueItem(
   entries: QueueEntry[],
@@ -75,18 +75,66 @@ export function appendAlbumQueue(current: QueueEntry[], tracks: CatalogueItem[])
   return [...current.filter((entry) => !ids.has(entry.itemId)), ...album];
 }
 
+/** Keep played history and the listener's actual upcoming order in one finite scope. */
+export function reconcilePlaybackScope(
+  scope: string[] | null,
+  currentItemId: string | null,
+  entries: QueueEntry[],
+): string[] | null {
+  if (!scope || !currentItemId) return scope;
+  const currentIndex = scope.indexOf(currentItemId);
+  if (currentIndex < 0) return scope;
+  const pending = new Set(entries.map((entry) => entry.itemId));
+  return [
+    ...scope.slice(0, currentIndex).filter((id) => !pending.has(id)),
+    currentItemId,
+    ...entries.filter((entry) => entry.itemId !== currentItemId).map((entry) => entry.itemId),
+  ];
+}
+
+/** Rebuilding Previous must retain the source of consumed as well as queued tracks. */
+export function scopedQueue(tracks: CatalogueItem[], origin?: PlaybackOrigin): QueueEntry[] {
+  return tracks.reduce<QueueEntry[]>((entries, track) => {
+    const next = addQueueItem(entries, track, origin?.collectionId);
+    return next.map((entry) =>
+      entry.itemId === track.id
+        ? {
+            ...entry,
+            ...(origin?.selectionId ? { selectionId: origin.selectionId } : {}),
+            ...(origin?.albumId === track.release.id ? { albumId: origin.albumId } : {}),
+          }
+        : entry,
+    );
+  }, []);
+}
+
 /** Enter an album using the listener's surviving queue, preserving edits to an active scope. */
 export function queuedPlaybackScope(
   entries: QueueEntry[],
   selected: QueueEntry,
   currentScope: string[] | null,
+  currentItemId?: string | null,
 ): string[] | null {
-  if (!selected.albumId) return null;
-  if (currentScope?.includes(selected.itemId)) return currentScope;
+  if (currentScope && currentItemId)
+    return reconcilePlaybackScope(currentScope, currentItemId, [
+      selected,
+      ...entries.filter((entry) => entry.itemId !== selected.itemId),
+    ]);
+  if (currentScope)
+    return currentScope.includes(selected.itemId)
+      ? currentScope
+      : [...currentScope, selected.itemId];
+  if (!selected.albumId && !selected.selectionId) return null;
   return [
     selected.itemId,
     ...entries
-      .filter((entry) => entry.albumId === selected.albumId && entry.itemId !== selected.itemId)
+      .filter(
+        (entry) =>
+          entry.itemId !== selected.itemId &&
+          (selected.selectionId
+            ? entry.selectionId === selected.selectionId
+            : entry.albumId === selected.albumId),
+      )
       .map((entry) => entry.itemId),
   ];
 }

@@ -27,6 +27,13 @@ const meta = {
   title: "Production/Queue",
   component: Queue,
   tags: ["autodocs"],
+  decorators: [
+    (Story) => (
+      <div className="listener-shell">
+        <Story />
+      </div>
+    ),
+  ],
   args: callbacks,
   parameters: {
     docs: {

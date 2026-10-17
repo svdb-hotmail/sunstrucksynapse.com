@@ -65,6 +65,17 @@ export default function CollectionRoute({ loaderData }: Route.ComponentProps) {
         </div>
         <ShareButton title={collection.name} url={canonicalUrl} collectionId={collection.id} />
       </div>
+      <div className="listener-collection-actions">
+        <button
+          type="button"
+          className="listener-primary"
+          disabled={!collection.items.some((item) => item.media) || !player.playSelection}
+          onClick={() => player.playSelection?.(collection.items, collection.id)}
+        >
+          Play collection
+        </button>
+        <small>Plays in collection order. Replaces your queue.</small>
+      </div>
       <EntityTrackList tracks={collection.items} player={player} collectionId={collection.id} />
       <Link to="/">Back to catalogue</Link>
     </article>

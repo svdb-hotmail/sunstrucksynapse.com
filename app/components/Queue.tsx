@@ -5,9 +5,10 @@ interface QueueProps {
   onClear: () => void;
   onSelect: (entry: QueueEntry) => void;
   onRemove: (itemId: string) => void;
+  onMove?: (itemId: string, direction: -1 | 1) => void;
 }
 
-export function Queue({ entries, onClear, onSelect, onRemove }: QueueProps) {
+export function Queue({ entries, onClear, onSelect, onRemove, onMove }: QueueProps) {
   return (
     <section className="queue">
       <div className="queue-head">
@@ -30,6 +31,26 @@ export function Queue({ entries, onClear, onSelect, onRemove }: QueueProps) {
                   <strong>{entry.title}</strong>
                   <em>{entry.subtitle}</em>
                 </button>
+                {onMove ? (
+                  <div className="queue-move">
+                    <button
+                      type="button"
+                      onClick={() => onMove(entry.itemId, -1)}
+                      disabled={index === 0}
+                      aria-label={`Move ${entry.title} up`}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onMove(entry.itemId, 1)}
+                      disabled={index === entries.length - 1}
+                      aria-label={`Move ${entry.title} down`}
+                    >
+                      ↓
+                    </button>
+                  </div>
+                ) : null}
                 <button
                   type="button"
                   className="queue-remove"
@@ -43,7 +64,7 @@ export function Queue({ entries, onClear, onSelect, onRemove }: QueueProps) {
           ))}
         </ol>
       ) : (
-        <p className="queue-empty">Queue is clear.</p>
+        <p className="queue-empty">Queue is clear. Add tracks from their menu while you explore.</p>
       )}
     </section>
   );

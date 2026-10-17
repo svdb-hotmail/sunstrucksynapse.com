@@ -1,7 +1,7 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
 async function expectSingleRow(nav: Locator) {
-  const links = nav.getByRole("link");
+  const links = nav.locator("a,button");
   const bounds = await links.evaluateAll((elements) =>
     elements.map((element) => {
       const rect = element.getBoundingClientRect();
@@ -14,49 +14,30 @@ async function expectSingleRow(nav: Locator) {
   for (const link of await links.all()) await expect(link).toBeInViewport();
 }
 
-async function expectHashTarget(page: Page, id: string) {
-  await expect(page).toHaveURL(new RegExp(`/#${id}$`));
-  const target = page.locator(`#${id}`);
-  await expect(target).toBeVisible();
-  await expect
-    .poll(() =>
-      target.evaluate((element) => {
-        const bounds = element.getBoundingClientRect();
-        return bounds.top >= 0 && bounds.top < window.innerHeight && bounds.bottom > 0;
-      }),
-    )
-    .toBe(true);
-}
-
-test("sparse mobile navigation keeps Listen, Search and About accessible in one row", async ({
+test("sparse mobile navigation keeps Listen, Explore and Queue accessible in one row", async ({
   page,
 }) => {
   await page.setExtraHTTPHeaders({ "x-test-catalogue-scenario": "sparse-r2" });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/submission-terms");
   const nav = page.getByRole("navigation", { name: "Mobile navigation", exact: true });
-  await expect(nav.getByRole("link")).toHaveText(["Listen", "Search", "About"]);
+  await expect(nav.getByRole("link")).toHaveText(["Listen", "Explore"]);
   await expectSingleRow(nav);
   await nav.getByRole("link", { name: "Listen", exact: true }).click();
-  await expectHashTarget(page, "catalogue");
-  await expect(page.locator("#catalogue .media-card")).toHaveCount(1);
-  await expect(page.locator("#collection-stillith")).toBeVisible();
-  await expect(page.locator("#latest, #audio, #video")).toHaveCount(0);
-  await nav.getByRole("link", { name: "Search", exact: true }).click();
-  await expect(page).toHaveURL(/\/search$/);
+  await expect(page).toHaveURL(/\/$/);
   await expect(
-    page.getByRole("heading", { name: "Search the collection", exact: true }),
-  ).toBeVisible();
-  await expect(nav.getByRole("link", { name: "About", exact: true })).toHaveAttribute(
-    "href",
-    "/about",
-  );
-  await nav.getByRole("link", { name: "About", exact: true }).click();
+    page.getByRole("heading", { name: "Start listening.", exact: true }),
+  ).toBeInViewport();
+  await expect(page.locator("#catalogue .media-card")).toHaveCount(1);
+  await expect(page.getByRole("link", { name: /stillith.*tracks/i })).toBeVisible();
+  await expect(page.locator("#latest, #audio, #video")).toHaveCount(0);
+  await nav.getByRole("link", { name: "Explore", exact: true }).click();
+  await expect(page).toHaveURL(/\/search$/);
+  await expect(page.getByRole("heading", { name: "Explore", exact: true })).toBeVisible();
+  const about = page.getByRole("link", { name: "About SunSyn", exact: true });
+  await expect(about).toHaveAttribute("href", "/about");
+  await about.click();
   await expect(page).toHaveURL(/\/about$/);
-  await expect(nav.getByRole("link", { name: "About", exact: true })).toHaveAttribute(
-    "aria-current",
-    "page",
-  );
   await expect(
     page.getByRole("heading", { level: 1, name: "Music chosen by people, made with intent." }),
   ).toBeVisible();
@@ -97,44 +78,22 @@ test("sparse mobile navigation keeps Listen, Search and About accessible in one 
   await expectSingleRow(nav);
 });
 
-test("all five standard mobile links remain in one row and reach their destinations", async ({
+test("three phone destinations fit and remain usable with standard collections", async ({
   page,
 }) => {
-  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/search");
   const nav = page.getByRole("navigation", { name: "Mobile navigation", exact: true });
-  await expect(nav.getByRole("link")).toHaveText(["Latest", "Listen", "Watch", "Search", "About"]);
+  await expect(nav.getByRole("link")).toHaveText(["Listen", "Explore"]);
   await expectSingleRow(nav);
-  for (const [label, id] of [
-    ["Latest", "latest"],
-    ["Listen", "audio"],
-    ["Watch", "video"],
-  ]) {
-    await nav.getByRole("link", { name: label!, exact: true }).click();
-    await expectHashTarget(page, id!);
-  }
-  await expect(nav.getByRole("link", { name: "About", exact: true })).toHaveAttribute(
-    "href",
-    "/about",
-  );
-  await nav.getByRole("link", { name: "About", exact: true }).click();
-  await expect(page).toHaveURL(/\/about$/);
-  await expect(nav.getByRole("link", { name: "About", exact: true })).toHaveAttribute(
-    "aria-current",
-    "page",
-  );
+  await nav.getByRole("link", { name: "Listen", exact: true }).click();
   await expect(
-    page.getByRole("heading", { level: 1, name: "Music chosen by people, made with intent." }),
-  ).toBeVisible();
-  await expect(page.locator(".offerings")).toBeVisible();
-  await expect(page.locator(".offer-grid article")).toHaveCount(3);
-  await expect(page.locator(".contact-launch")).toBeVisible();
-  await expect(page.getByRole("region", { name: "Policy questions" })).toBeVisible();
-  await expect(page.locator(".panel-footer")).toHaveCount(0);
-  await nav.getByRole("link", { name: "Search", exact: true }).click();
-  await expect(page).toHaveURL(/\/search$/);
-  await expect(
-    page.getByRole("heading", { name: "Search the collection", exact: true }),
-  ).toBeVisible();
+    page.getByRole("heading", { name: "Start listening.", exact: true }),
+  ).toBeInViewport();
+  await nav.getByRole("button", { name: "Queue, 0 tracks", exact: true }).click();
+  await expect(page.getByRole("dialog", { name: "Your queue" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(nav.getByRole("button", { name: "Queue, 0 tracks", exact: true })).toBeFocused();
+  await nav.getByRole("link", { name: "Explore", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Explore", exact: true })).toBeInViewport();
   await expectSingleRow(nav);
 });

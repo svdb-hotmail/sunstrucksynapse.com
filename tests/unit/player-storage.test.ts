@@ -78,5 +78,42 @@ it("retains the album scope and queue attribution across a reload", () => {
     selectedItemId: first.id,
     queue,
     playbackScope: [first.id, second.id],
+    origin: { albumId: first.release.id },
+  });
+});
+
+it("retains selection context and attribution even after its last queued track was consumed", () => {
+  const first = makeCatalogueItem("first"),
+    second = makeCatalogueItem("second");
+  const origin = { selectionId: "selection-1", collectionId: "collection-1" };
+  const queue = addQueueItem([], second).map((entry) => ({ ...entry, ...origin }));
+  expect(
+    restorePlayerState(
+      serializePlayerState(first.id, queue, [first.id, second.id], origin),
+      [first, second],
+      null,
+    ),
+  ).toEqual({ selectedItemId: first.id, queue, playbackScope: [first.id, second.id], origin });
+  expect(
+    restorePlayerState(
+      serializePlayerState(second.id, [], [first.id, second.id], origin),
+      [first, second],
+      null,
+    ).origin,
+  ).toEqual(origin);
+});
+
+it("rejects invalid stored origin fields without losing valid queued tracks", () => {
+  const first = makeCatalogueItem("first");
+  const stored = JSON.stringify({
+    version: 1,
+    selectedItemId: first.id,
+    queueItemIds: [first.id],
+    queueOrigins: { [first.id]: { albumId: "wrong-release", selectionId: [], collectionId: {} } },
+    origin: { albumId: "wrong-release", selectionId: 4 },
+  });
+  expect(restorePlayerState(stored, [first], null)).toEqual({
+    selectedItemId: first.id,
+    queue: addQueueItem([], first),
   });
 });

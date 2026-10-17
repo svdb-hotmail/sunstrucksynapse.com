@@ -61,6 +61,13 @@ const meta = {
   title: "Production/CatalogueCard",
   component: CatalogueCard,
   tags: ["autodocs"],
+  decorators: [
+    (Story) => (
+      <div className="listener-shell">
+        <Story />
+      </div>
+    ),
+  ],
   args: {
     ...callbacks,
     isSelected: false,

@@ -24,6 +24,17 @@ The production visual language combines an independent music journal with analog
 
 The light theme maps those roles onto warm archival paper and near-black ink. The dark theme maps them onto a near-black broadcast room with parchment-colored type. Components must consume the shared semantic roles so switching theme changes the material and contrast without changing hierarchy or behavior.
 
+## Listener layout
+
+The listener shell uses the Radio first hierarchy described in
+[listener-radio-first.md](listener-radio-first.md). A compact SunSyn wordmark and
+Listen/Explore/Queue navigation frame the requested route. The phone player starts
+as a 68px transport after a track is chosen, with a full player and queue available
+in an accessible dialog. Titles and controls use the UI face for phone readability;
+the broadcast palette, condensed editorial display face and shared themes remain.
+Listener styles live in `app/styles/listener.css` and are loaded by both production
+and Storybook. Stories wrap listener components in the same scoped shell.
+
 ## Architecture
 
 The design-system surface has three layers in `app/design-system/tokens.css`:

@@ -54,7 +54,13 @@ export default function TrackRoute({ loaderData }: Route.ComponentProps) {
       />
       <p className="eyebrow">Track</p>
       <div className="entity-hero">
-        <img src={item.artwork.src} alt={item.artwork.alt} />
+        <img
+          src={item.artwork.src}
+          alt={item.artwork.alt}
+          width="96"
+          height="96"
+          decoding="async"
+        />
         <div>
           <h1>{item.description.title}</h1>
           <p>
@@ -64,7 +70,11 @@ export default function TrackRoute({ loaderData }: Route.ComponentProps) {
           </p>
           <div className="entity-actions">
             <button type="button" onClick={() => player.playItem(item)} disabled={!item.media}>
-              {item.media ? "Play in global player" : "Media unavailable"}
+              {item.media
+                ? player.playingItemId === item.id
+                  ? "Pause track"
+                  : "Play track"
+                : "Media unavailable"}
             </button>
             <button type="button" onClick={() => player.queueItem(item)} disabled={!item.media}>
               Add to queue

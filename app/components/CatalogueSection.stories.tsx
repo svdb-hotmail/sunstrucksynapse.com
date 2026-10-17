@@ -99,6 +99,13 @@ const meta = {
   title: "Production/CatalogueSection",
   component: CatalogueSection,
   tags: ["autodocs"],
+  decorators: [
+    (Story) => (
+      <div className="listener-shell">
+        <Story />
+      </div>
+    ),
+  ],
   args: {
     section,
     selectedItemId: null,

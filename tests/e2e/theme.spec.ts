@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { queueTrack, openQueue } from "./listener-helpers";
 
 const themeStorageKey = "sunsyn-radio-theme-v1";
 
@@ -74,7 +75,7 @@ test.describe("SunSyn Radio theme", () => {
 
     await page
       .getByRole("navigation", { name: "Primary" })
-      .getByRole("link", { name: "Search" })
+      .getByRole("link", { name: "Explore" })
       .click();
     await expect(page).toHaveURL(/\/search$/);
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
@@ -120,8 +121,7 @@ test.describe("SunSyn Radio theme", () => {
 
     const revolutionCard = page.locator(".media-card").filter({ hasText: revolutionTitle }).first();
     await revolutionCard.getByRole("button", { name: `Play ${revolutionTitle}` }).click();
-    const mushroomCard = page.locator(".media-card").filter({ hasText: mushroomTitle }).first();
-    await mushroomCard.getByRole("button", { name: `Queue ${mushroomTitle}` }).click();
+    await queueTrack(page, mushroomTitle);
 
     const audio = page.getByLabel(`${revolutionTitle} audio player`);
     await expect(audio.locator("source")).toHaveAttribute("src", revolutionSource);
@@ -140,8 +140,9 @@ test.describe("SunSyn Radio theme", () => {
     await expect(themedAudio).toHaveAttribute("data-theme-toggle-persistence-probe", "kept");
     await expect(themedAudio.locator("source")).toHaveAttribute("src", revolutionSource);
     await expect(
-      page.getByRole("heading", { name: "Sunstruck Synapse featured transmission" }),
+      page.getByRole("button", { name: `Open player: ${revolutionTitle}`, exact: true }),
     ).toBeVisible();
+    await openQueue(page);
     await expect(
       page.getByRole("button", { name: `Play ${mushroomTitle} from queue` }),
     ).toBeVisible();

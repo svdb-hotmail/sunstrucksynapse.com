@@ -1,5 +1,4 @@
 import { Link, useLocation } from "react-router";
-
 import {
   defaultCatalogueNavigation,
   isCatalogueNavigationEntryActive,
@@ -8,32 +7,35 @@ import {
 
 export function MobileNav({
   navigation = defaultCatalogueNavigation,
+  queueCount = 0,
+  onOpenQueue,
 }: {
   navigation?: CatalogueNavigationEntry[];
+  queueCount?: number;
+  onOpenQueue?: () => void;
 }) {
-  const { pathname, hash } = useLocation();
-
+  const { pathname } = useLocation();
   return (
-    <nav
-      className="mobile-tabs"
-      aria-label="Mobile navigation"
-      style={{ gridTemplateColumns: `repeat(${navigation.length}, minmax(0, 1fr))` }}
-    >
-      {navigation.map((entry, index) => (
+    <nav className="mobile-tabs" aria-label="Mobile navigation">
+      {navigation.map((entry) => (
         <Link
           key={entry.to}
           to={entry.to}
-          aria-current={
-            isCatalogueNavigationEntryActive(entry, pathname, hash, index === 0)
-              ? entry.to.startsWith("/#")
-                ? "location"
-                : "page"
-              : undefined
-          }
+          aria-current={isCatalogueNavigationEntryActive(entry, pathname) ? "page" : undefined}
         >
           {entry.label}
         </Link>
       ))}
+      <button
+        type="button"
+        onClick={onOpenQueue}
+        aria-label={`Queue, ${queueCount} ${queueCount === 1 ? "track" : "tracks"}`}
+      >
+        Queue{" "}
+        <span className="listener-count" aria-hidden="true">
+          {queueCount}
+        </span>
+      </button>
     </nav>
   );
 }

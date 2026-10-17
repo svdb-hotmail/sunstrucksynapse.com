@@ -239,6 +239,49 @@ export function createE2eCatalogueRepository(scenario?: string | null) {
     );
   }
 
+  if (scenario === "listener-boundaries") {
+    const third: CatalogueItem = {
+      ...items[1],
+      id: "30000000-0000-4000-8000-000000000107",
+      slug: "third-transmission",
+      href: `/tracks/${release.slug}/third-transmission`,
+      description: { title: "Third transmission", subtitle: release.title },
+    };
+    const outside: CatalogueItem = {
+      ...items[1],
+      id: "30000000-0000-4000-8000-000000000108",
+      slug: "outside-transmission",
+      release: {
+        ...release,
+        id: "20000000-0000-4000-8000-000000000102",
+        slug: "outside-release",
+        title: "Outside release",
+        href: "/releases/outside-release",
+      },
+      href: "/tracks/outside-release/outside-transmission",
+      description: { title: "Outside transmission", subtitle: "Outside release" },
+    };
+    return createStaticCatalogueRepository(
+      [items[1], items[3], third, outside],
+      [
+        {
+          id: "60000000-0000-4000-8000-000000000102",
+          slug: "listen",
+          name: "Listen",
+          description: null,
+          items: [items[1], items[3], third],
+        },
+        {
+          id: "60000000-0000-4000-8000-000000000104",
+          slug: "cross-release",
+          name: "Cross release",
+          description: null,
+          items: [items[1], outside, third],
+        },
+      ],
+    );
+  }
+
   return createStaticCatalogueRepository(
     items,
     [

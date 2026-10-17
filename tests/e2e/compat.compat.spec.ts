@@ -1,6 +1,8 @@
 import { expect, test } from "@playwright/test";
+import { serveSeekableMedia } from "./listener-helpers";
 
 test("supports the critical listener journey across browser engines", async ({ page }) => {
+  await serveSeekableMedia(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
 
@@ -13,9 +15,13 @@ test("supports the critical listener journey across browser engines", async ({ p
   await play.focus();
   await expect(play).toBeFocused();
   await play.press("Enter");
-  await expect(
-    page.getByLabel("Sunstruck Synapse (Revolution will be televised) audio player"),
-  ).toBeVisible();
+  const audio = page.getByLabel("Sunstruck Synapse (Revolution will be televised) audio player");
+  await expect(audio).toBeAttached();
+  await expect
+    .poll(() =>
+      audio.evaluate((element: HTMLMediaElement) => !element.paused && element.currentTime > 0),
+    )
+    .toBe(true);
 
   await page.keyboard.press("Tab");
   const focusedRole = await page.evaluate(() => document.activeElement?.getAttribute("role"));
