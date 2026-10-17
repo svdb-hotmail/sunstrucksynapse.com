@@ -19,10 +19,14 @@ const data={id:'synthetic',reference:'SUB-SYNTHETIC',status:'accepted',artistNam
  fields:{title:'Synthetic track',releaseTitle:'Synthetic release',summary:'',genres:['Ambient'],moods:['Calm'],processTags:[]}};
 function Harness(){
  const [pending,setPending]=useState(false);
+ const [restricted,setRestricted]=useState(false);
+ const [savedCover,setSavedCover]=useState(null);
  const [saved,setSaved]=useState(null);
  return <MemoryRouter>
  <button onClick={()=>setPending(p=>!p)}>{pending?'Finish saving':'Start saving'}</button>
- <SubmissionEditor data={data} pending={pending} onSave={form=>setSaved(form.getAll('processTags'))}/>
+ <button onClick={()=>setRestricted(true)}>Publish elsewhere</button>
+ <SubmissionEditor data={restricted?{...data,editable:false,discoveryEditable:true}:data} pending={pending} onSave={form=>{setSaved(form.getAll('processTags'));setSavedCover(form.has('cover'));}}/>
+ <output aria-label="Saved artwork payload">{JSON.stringify(savedCover)}</output>
  <output aria-label="Saved process tags">{JSON.stringify(saved)}</output>
  </MemoryRouter>;
 }
@@ -159,4 +163,31 @@ test("edits published discovery fields while titles and artwork remain read-only
     .fill("Correct published process tags");
   await page.getByRole("button", { name: "Save changes", exact: true }).click();
   await expect(page.getByLabel("Saved process tags")).toHaveText('["AI-assisted composition"]');
+});
+
+test("saves only discovery tags after a selected artwork file becomes read-only", async ({
+  page,
+}) => {
+  await page.goto(origin);
+  await page.getByLabel("Choose or replace cover").setInputFiles({
+    name: "cover.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("synthetic invalid PNG"),
+  });
+  await page.getByRole("button", { name: "Publish elsewhere", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Edit discovery details", exact: true }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Choose or replace cover")).toBeDisabled();
+  const tags = page.getByRole("group", { name: "Process tags", exact: true });
+  await tags.locator("summary").click();
+  await tags.getByRole("checkbox", { name: "Human composition", exact: true }).check();
+  await page.keyboard.press("Escape");
+  await page
+    .getByRole("textbox", { name: "Reason for these changes" })
+    .fill("Correct tags after publication");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(page.getByLabel("Saved process tags")).toHaveText('["Human composition"]');
+  await expect(page.getByLabel("Saved artwork payload")).toHaveText("false");
+  await expect(page.getByRole("alert")).toHaveCount(0);
 });

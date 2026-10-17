@@ -258,3 +258,93 @@ it("exposes discovery permission in the loader and preserves the closed-record a
   expect(await response.json()).toEqual({ error: "This submission is read-only." });
   expect(mocks.save).not.toHaveBeenCalled();
 });
+
+it.each([
+  { name: "multiline description", fields: { ...liveFields, summary: "First line\nSecond line" } },
+  {
+    name: "protected whitespace",
+    fields: {
+      ...liveFields,
+      title: " Track ",
+      releaseTitle: " Release ",
+      summary: "\n  Description  \n",
+    },
+  },
+  {
+    name: "maximum-length multiline description",
+    fields: { ...liveFields, summary: "First\n" + "x".repeat(4994) },
+  },
+  {
+    name: "native single-line title values",
+    fields: { ...liveFields, title: "First\nTitle", releaseTitle: "Release\r\nTitle" },
+  },
+])(
+  "preserves exact protected text for a multipart discovery edit with $name",
+  async ({ fields }) => {
+    const { args, bucket } = context();
+    authorizeLive();
+    mocks.find.mockResolvedValue({
+      editable: false,
+      discoveryEditable: true,
+      revision: {},
+      fields,
+    });
+    mocks.save.mockResolvedValue({
+      id: args.params.submissionId,
+      coverId: null,
+      revision: { track: "updated" },
+    });
+    const form = liveForm();
+    form.set("title", fields.title.replace(/[\r\n]/g, ""));
+    form.set("releaseTitle", fields.releaseTitle.replace(/[\r\n]/g, ""));
+    form.set("summary", fields.summary);
+    form.set("processTags", "Human composition");
+    const encoded = new Request(url, { method: "POST", body: form });
+    const decoded = await encoded.formData();
+    expect(decoded.get("summary")).toBe(fields.summary.replace(/\r\n?|\n/g, "\r\n"));
+    expect((await submitLive(form, args)).status).toBe(200);
+    expect(mocks.save.mock.calls[0][2]).toEqual({ ...fields, processTags: ["Human composition"] });
+    expect(bucket.put).not.toHaveBeenCalled();
+  },
+);
+
+it("preserves shared read-only release text during a pre-acceptance track correction", async () => {
+  const { args } = context();
+  authorizeLive();
+  const fields = {
+    ...liveFields,
+    releaseTitle: " Shared album ",
+    summary: "\nFirst line\nSecond line\n",
+  };
+  mocks.find.mockResolvedValue({
+    editable: true,
+    discoveryEditable: true,
+    releaseFieldsEditable: false,
+    revision: {},
+    fields,
+  });
+  mocks.save.mockResolvedValue({
+    id: args.params.submissionId,
+    coverId: null,
+    revision: { track: "updated" },
+  });
+  const form = liveForm();
+  form.set("title", "Corrected track title");
+  form.set("releaseTitle", fields.releaseTitle);
+  form.set("summary", fields.summary);
+  expect((await submitLive(form, args)).status).toBe(200);
+  expect(mocks.save.mock.calls[0][2]).toEqual({ ...fields, title: "Corrected track title" });
+});
+
+it.each(["title", "releaseTitle", "summary"])(
+  "still rejects actual protected %s whitespace changes",
+  async (field) => {
+    const { args, bucket } = context();
+    authorizeLive();
+    const form = liveForm();
+    form.set(field, " " + liveFields[field as "title" | "releaseTitle" | "summary"]);
+    expect((await submitLive(form, args)).status).toBe(409);
+    expect(mocks.save).not.toHaveBeenCalled();
+    expect(bucket.put).not.toHaveBeenCalled();
+  },
+);

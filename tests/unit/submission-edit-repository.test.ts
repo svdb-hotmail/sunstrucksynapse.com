@@ -12,7 +12,8 @@ import { createAlbumPublishingRepository } from "../../app/repositories/album-pu
 import { releaseSubmissionFixture } from "../helpers/release-submission";
 import { loader as deliverMedia } from "../../app/routes/media";
 import { createMediaDeliveryUrl } from "../../app/services/media-signing";
-import type { LoaderFunctionArgs } from "react-router";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "react-router";
+import { action as saveEditor } from "../../app/routes/curator-submission-edit";
 import { STREAMING_PROFILE } from "../../app/config/music-metadata";
 
 it("edits a legacy submission, preserves accepted evidence, and publishes with curator artwork", async () => {
@@ -271,6 +272,10 @@ it("edits a legacy submission, preserves accepted evidence, and publishes with c
     ).toEqual(pins);
     expect((await delivery(`/media/artwork/${artwork.id}`)).status).toBe(307);
     expect((await delivery(signed)).status).toBe(200);
+    // Legacy multiline text must survive the browser's multipart newline conversion.
+    await raw.execute(
+      sql`update releases set description=${"\n  First line\nSecond line  \n"} where id=${accepted.releaseId}::uuid`,
+    );
     const live = (await edits.find(id))!;
     expect(live).toMatchObject({ editable: false, discoveryEditable: true });
     const protectedTables = [
@@ -310,13 +315,34 @@ it("edits a legacy submission, preserves accepted evidence, and publishes with c
       moods: ["Dreamy"],
       processTags: ["Human composition", "Mixing"],
     };
-    const corrected = (await edits.save(
-      id,
-      JSON.stringify(live.revision),
-      corrections,
-      "Correct discovery details after publication",
-      actor,
-    ))!;
+    const form = new FormData();
+    for (const [name, value] of Object.entries(corrections)) {
+      if (Array.isArray(value)) for (const item of value) form.append(name, item);
+      else form.set(name, value);
+    }
+    form.set("revision", JSON.stringify(live.revision));
+    form.set("reason", "Correct discovery details after publication");
+    const url = `https://example.test/curator/submissions/${id}/edit`;
+    const encoded = new Request(url, { method: "POST", body: form });
+    const body = await encoded.arrayBuffer();
+    const response = await saveEditor({
+      request: new Request(url, {
+        method: "POST",
+        body,
+        headers: {
+          "content-type": encoded.headers.get("content-type")!,
+          "content-length": String(body.byteLength),
+          "x-test-curator-identity": `${actor.id}|${actor.email}`,
+        },
+      }),
+      params: { submissionId: id },
+      context: { get: () => ({ db, env: {} }) },
+    } as unknown as ActionFunctionArgs);
+    expect(response.status).toBe(200);
+    const corrected = (await edits.find(id))!;
+    expect(await response.json()).toMatchObject({
+      savedRevision: JSON.stringify(corrected.revision),
+    });
     expect(corrected.fields).toEqual(corrections);
     expect(corrected.revision).not.toEqual(live.revision);
     expect(

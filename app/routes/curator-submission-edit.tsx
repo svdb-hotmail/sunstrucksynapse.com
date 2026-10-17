@@ -11,7 +11,7 @@ import { createSubmissionEditRepository } from "~/repositories/submission-edit.s
 import { storeCuratorArtwork } from "~/services/curator-artwork.server";
 import { requireCuratorIdentity } from "~/services/access-auth.server";
 import { validateUuid } from "~/services/curator-validation";
-import { validateEditorialFields } from "~/types/submission-edit";
+import { validateEditorialFields, type SubmissionEditorialFields } from "~/types/submission-edit";
 import { CuratorShell } from "~/features/curator-workspace/CuratorShell";
 import { SubmissionEditor } from "~/features/curator-workspace/SubmissionEditor";
 
@@ -75,14 +75,6 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     );
   try {
     const form = await request.formData();
-    const fields = validateEditorialFields({
-      title: form.get("title"),
-      releaseTitle: form.get("releaseTitle"),
-      summary: form.get("summary"),
-      genres: form.getAll("genres"),
-      moods: form.getAll("moods"),
-      processTags: form.getAll("processTags"),
-    });
     const reason = String(form.get("reason") ?? "").trim();
     if (reason.length < 3 || reason.length > 1000)
       throw new Error("Give a reason for this correction (3–1000 characters).");
@@ -95,17 +87,52 @@ export async function action({ request, context, params }: ActionFunctionArgs) {
     if (JSON.stringify(current.revision) !== revision)
       throw new Error("This submission changed. Reload the editor before saving.");
     const cover = form.get("cover");
-    if (!current.editable) {
+    if (!current.editable && cover instanceof File && cover.size)
+      throw new Error("Only genres, moods and process tags can be corrected for this track.");
+    const protectedNames: ("title" | "releaseTitle" | "summary")[] = !current.editable
+      ? ["title", "releaseTitle", "summary"]
+      : current.releaseFieldsEditable === false
+        ? ["releaseTitle", "summary"]
+        : [];
+    const protectedFields: Partial<
+      Pick<SubmissionEditorialFields, "title" | "releaseTitle" | "summary">
+    > = {};
+    for (const name of protectedNames) {
+      const submitted = form.get(name);
+      // Native text inputs strip line breaks; textareas and multipart bodies
+      // use different newline representations. Preserve every stored byte after
+      // comparing the browser's representation, before trimming/length validation.
+      const browserText = (value: string) =>
+        name === "summary" ? value.replace(/\r\n?/g, "\n") : value.replace(/[\r\n]/g, "");
       if (
-        (cover instanceof File && cover.size) ||
-        fields.title !== current.fields.title ||
-        fields.releaseTitle !== current.fields.releaseTitle ||
-        fields.summary !== current.fields.summary
+        typeof submitted !== "string" ||
+        browserText(submitted) !== browserText(current.fields[name])
       )
-        throw new Error("Only genres, moods and process tags can be corrected for this track.");
-      if (!fields.genres.length || !fields.moods.length || !fields.processTags.length)
-        throw new Error("Choose at least one genre, mood and process tag for this track.");
+        throw new Error(
+          !current.editable
+            ? "Only genres, moods and process tags can be corrected for this track."
+            : "Release title and description are read-only until this track is accepted.",
+        );
+      protectedFields[name] = current.fields[name];
     }
+    const summary = form.get("summary");
+    const fields = {
+      ...validateEditorialFields({
+        title: form.get("title"),
+        releaseTitle: form.get("releaseTitle"),
+        summary: typeof summary === "string" ? summary.replace(/\r\n?/g, "\n") : summary,
+        genres: form.getAll("genres"),
+        moods: form.getAll("moods"),
+        processTags: form.getAll("processTags"),
+        ...protectedFields,
+      }),
+      ...protectedFields,
+    };
+    if (
+      !current.editable &&
+      (!fields.genres.length || !fields.moods.length || !fields.processTags.length)
+    )
+      throw new Error("Choose at least one genre, mood and process tag for this track.");
     if (cover instanceof File && cover.size && form.get("artworkPermission") !== "yes")
       throw new Error("Confirm permission to publish the artwork.");
     const artwork =

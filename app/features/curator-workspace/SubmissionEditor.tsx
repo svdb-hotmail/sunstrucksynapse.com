@@ -75,6 +75,13 @@ export function SubmissionEditor({
     }
   }, [savedRevision]);
   useEffect(() => {
+    if (!data.editable) {
+      setFile(null);
+      setPermission(false);
+      if (coverInput.current) coverInput.current.value = "";
+    }
+  }, [data.editable]);
+  useEffect(() => {
     if (!file) {
       setPreview(null);
       return;
@@ -83,7 +90,7 @@ export function SubmissionEditor({
     setPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [file]);
-  const coverUrl = preview ?? savedCoverUrl ?? data.coverUrl;
+  const coverUrl = (data.editable ? preview : null) ?? savedCoverUrl ?? data.coverUrl;
   const busy = pending || preparing;
   const discoveryEditable = data.editable || data.discoveryEditable === true;
   const canSave = data.editable || discoveryEditable;
@@ -138,7 +145,7 @@ export function SubmissionEditor({
           setPreparing(true);
           try {
             form.set("revision", revision);
-            if (file) form.set("cover", await prepareCuratorCover(file));
+            if (data.editable && file) form.set("cover", await prepareCuratorCover(file));
             else form.delete("cover");
             onSave(form);
           } catch (e) {
@@ -185,7 +192,7 @@ export function SubmissionEditor({
                 checked={permission}
                 onChange={(e) => setPermission(e.currentTarget.checked)}
                 value="yes"
-                required={Boolean(file)}
+                required={data.editable && Boolean(file)}
               />{" "}
               I have permission to publish this artwork.
             </label>
