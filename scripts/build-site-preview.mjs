@@ -49,6 +49,10 @@ try {
 export default { fetch(request, env, ctx) {
   const path = new URL(request.url).pathname;
   if (path === '/storybook') return Response.redirect(new URL('/storybook/', request.url), 302);
+  if (/^\\/curator\\/prepared-audio\\/sample-[0-2]$/.test(path)) {
+    const sample = new URL('/assets/audio/Sunstruck%20Synapse%20(Revolution%20will%20be%20televised).mp3', request.url);
+    return env.ASSETS.fetch(new Request(sample, request));
+  }
   if (path.startsWith('/storybook/') || path.startsWith('/assets/')) return env.ASSETS.fetch(request);
   return site.fetch(request, env, ctx);
 }};

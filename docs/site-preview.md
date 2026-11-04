@@ -27,8 +27,9 @@ after packaging, so it does not change the production deployment target.
 `site-preview` mode. This entry creates a static catalogue context and renders
 the real public routes. It has no database, bucket, signing secret, scheduler,
 identity or mutation repositories. Test identity/scenario headers do not activate
-the production test harness. Private curator, invitation and signed-media routes
-return 404; mutations return 405. Analytics posts are discarded with 204 so sample
+the production test harness. Invitation, private API and signed-media routes
+return 404; mutations return 405. Curator design screens are a separate preview-only
+route composition, described below. Analytics posts are discarded with 204 so sample
 listening never records production analytics. The preview is excluded from search
 indexing through robots.txt and X-Robots-Tag.
 
@@ -45,5 +46,22 @@ noindex headers, mutation/private-route rejection (including spoofed test
 identity), and the retained Storybook index. The Pages test server starts outside
 the repository configuration tree to avoid inheriting production Wrangler settings.
 
-The public preview covers the listener site. Curator UI states remain inspectable
-in `/storybook/`; live curator workflows require an authenticated staging setup.
+## Curator preview
+
+Open `/curator` for the sample catalogue and `/curator/submissions` for the sample
+submission queue. Review/scoring, submission editing and release preparation reuse
+the production UI components. Buttons change browser-local demo state or show an
+explicit “Preview only” notice; they do not submit decisions, send messages, upload
+files or publish releases. Refresh resets local demo state.
+
+Only the `SUNSYN_SITE_PREVIEW_BUILD=1` route manifest replaces the authenticated
+curator routes with `curator-site-preview.tsx`. The normal production route manifest,
+Access checks and backend handlers are unchanged. No synthetic identity is passed to
+production authorization. Sample prepared-audio URLs are mapped only for the three
+known `sample-0`/`sample-1`/`sample-2` IDs to an existing public fixture recording;
+other private audio URLs remain unavailable.
+
+The catalogue, queue, review, metadata editor and preparation screens can be inspected
+here without signing in. Insights and catalogue administration explain that a live
+backend requires authenticated staging; they do not invent analytics or expose tools.
+The component catalogue remains available at `/storybook/`.

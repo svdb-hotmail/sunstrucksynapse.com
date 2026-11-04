@@ -25,7 +25,7 @@ export default {
         headers: { Allow: "GET, HEAD" },
       });
     }
-    if (/^\/(curator|submit|media|api)(?:\/|\.|$)/.test(path)) {
+    if (/^\/(submit|media|api)(?:\/|\.|$)/.test(path)) {
       return new Response("This private workflow is unavailable in the public design preview.", {
         status: 404,
       });

@@ -47,7 +47,12 @@ test("full site preview navigates, searches and keeps real playback across pages
 test("preview isolates private routes and mutations, and retains the component catalogue", async ({
   request,
 }) => {
-  for (const path of ["/curator", "/curator.data", "/submit/example", "/media/example"]) {
+  for (const path of [
+    "/curator/api/uploads",
+    "/curator/review-audio/private-id",
+    "/submit/example",
+    "/media/example",
+  ]) {
     expect(
       (
         await request.get(path, {
@@ -62,4 +67,50 @@ test("preview isolates private routes and mutations, and retains the component c
   expect((await request.get("/robots.txt")).status()).toBe(200);
   expect(await (await request.get("/robots.txt")).text()).toContain("Disallow: /");
   expect((await request.get("/storybook/index.json")).status()).toBe(200);
+});
+
+test("curator preview exposes real workspace components with browser-only sample interactions", async ({
+  page,
+  request,
+}) => {
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto("/curator");
+  await expect(page.getByRole("heading", { name: "Catalogue", exact: true })).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "Curator", exact: true })
+    .getByRole("link", { name: "Review submissions", exact: true })
+    .click();
+  await expect(page.getByRole("heading", { name: "Submission queue", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Review next ready submission →", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Review & scoring", exact: true })).toBeVisible();
+  for (let index = 0; index < 4; index++)
+    await page
+      .locator(".curator-score-list fieldset")
+      .nth(index)
+      .locator('input[value="4"]')
+      .check();
+  await page.locator('input[name="grade"][value="B"]').check();
+  await page.getByLabel("Decision rationale").fill("A sample review for checking the design.");
+  await page.getByRole("button", { name: /^Finish & next/ }).click();
+  await expect(page.getByText("Preview only: no review decision was recorded.")).toBeVisible();
+  await page.getByRole("link", { name: "Edit sample metadata", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Edit sample submission", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("navigation", { name: "Curator", exact: true })
+    .getByRole("link", { name: "Release preparation", exact: true })
+    .click();
+  await page.getByRole("button", { name: "Show ready state", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Night Signals", exact: true, level: 1 }),
+  ).toBeVisible();
+  await page.getByRole("checkbox").check();
+  await page.getByRole("button", { name: "Publish album", exact: true }).click();
+  await expect(page.getByText("Preview only: no release was published.")).toBeVisible();
+  expect((await request.post("/curator/submissions", { form: { intent: "grade" } })).status()).toBe(
+    405,
+  );
+  expect(errors).toEqual([]);
 });

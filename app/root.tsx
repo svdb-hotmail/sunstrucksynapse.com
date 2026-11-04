@@ -83,6 +83,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {import.meta.env.MODE === "site-preview" ? (
           <aside className="site-preview-banner">
             Design preview · sample catalogue · production unchanged
+            {" · "}
+            <a href="/">Listener site</a>
+            {" · "}
+            <a href="/curator">Curator preview</a>
           </aside>
         ) : null}
         {children}

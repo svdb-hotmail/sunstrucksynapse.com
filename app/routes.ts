@@ -1,6 +1,6 @@
 import { index, route, type RouteConfig } from "@react-router/dev/routes";
 
-export default [
+const routes = [
   index("routes/home.tsx"),
   route("robots.txt", "routes/robots.ts"),
   route("sitemap.xml", "routes/sitemap.ts"),
@@ -35,3 +35,12 @@ export default [
   route("curator/api/uploads/:sessionId?", "routes/curator-uploads.ts"),
   route("curator/api/entities/:entityType/:entityId?", "routes/curator-entities.ts"),
 ] satisfies RouteConfig;
+
+// The public design preview has its own sample-data curator composition.
+// Production keeps exactly the authenticated routes above.
+export default process.env.SUNSYN_SITE_PREVIEW_BUILD === "1"
+  ? [
+      ...routes.filter((entry) => !("path" in entry && entry.path?.startsWith("curator"))),
+      route("curator/*", "routes/curator-site-preview.tsx"),
+    ]
+  : routes;
