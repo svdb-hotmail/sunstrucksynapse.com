@@ -1,0 +1,38 @@
+/* Shared static source-brand tokens; works under the application CSP. */
+.kb-preview {
+  /* Existing source utility hues used by the selected media families. */
+  --source-sky-200: 186 230 253;
+  --source-sky-300: 125 211 252;
+  --source-fuchsia-300: 240 171 252;
+  --source-amber-800: 146 64 14;
+  --source-sky-800: 7 89 133;
+  --source-fuchsia-800: 134 25 143;
+  --brand-zinc-950: 10 11 18;
+  --brand-zinc-900: 13 16 28;
+  --brand-zinc-800: 18 23 37;
+  --brand-zinc-700: 43 52 79;
+  --brand-zinc-600: 79 92 128;
+  --brand-zinc-500: 126 138 165;
+  --brand-zinc-400: 166 176 198;
+  --brand-zinc-300: 208 214 229;
+  --brand-zinc-200: 228 233 243;
+  --brand-zinc-100: 243 244 248;
+  --brand-slate-900: 15 18 30;
+  --brand-slate-800: 22 28 44;
+  --brand-slate-700: 43 52 79;
+  --brand-slate-600: 73 86 122;
+  --brand-slate-500: 126 138 165;
+  --brand-slate-400: 166 176 198;
+  --brand-slate-300: 216 221 234;
+  --brand-electric-blue-500: 0 200 255;
+  --brand-electric-blue-400: 70 216 255;
+  --brand-violet-500: 123 97 255;
+  --brand-violet-400: 159 137 255;
+  --brand-magenta-500: 255 59 207;
+  --brand-magenta-400: 255 112 224;
+  --brand-amber-100: 254 243 199;
+  --brand-amber-200: 253 230 138;
+  --brand-amber-300: 252 211 77;
+  --brand-amber-400: 251 191 36;
+  --brand-amber-500: 245 158 11;
+}

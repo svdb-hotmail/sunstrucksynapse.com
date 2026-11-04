@@ -1,0 +1,444 @@
+/* Scoped adaptation of Kobold globals.css. Remote font import removed. */
+
+/* Tailwind base directive omitted: the mockup supplies an isolated reset. */
+
+.kb-preview {
+  font-family: var(--font-family-interface);
+  background: var(--brand-surface-canvas);
+  color: var(--text-primary);
+  min-height: 100vh;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+}
+
+.kb-preview {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--brand-violet-500) / 0.85) var(--scrollbar-track);
+}
+
+.kb-preview::-webkit-scrollbar,
+.kb-preview::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.kb-preview::-webkit-scrollbar-track,
+.kb-preview::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+.kb-preview::-webkit-scrollbar-thumb,
+.kb-preview::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid var(--scrollbar-track);
+}
+
+.kb-preview::-webkit-scrollbar-thumb:hover,
+.kb-preview::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgb(var(--brand-violet-500) / 0.5), rgb(var(--brand-electric-blue-500) / 0.54));
+}
+
+.kb-preview .brand-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(var(--brand-violet-500) / 0.34) var(--scrollbar-track);
+}
+
+.kb-preview .brand-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.kb-preview .brand-scrollbar::-webkit-scrollbar-track {
+  background: var(--scrollbar-track);
+}
+
+.kb-preview .brand-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgb(var(--brand-violet-500) / 0.34), rgb(var(--brand-electric-blue-500) / 0.36));
+  border-radius: 999px;
+  border: 2px solid var(--scrollbar-track);
+}
+
+.kb-preview .brand-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, rgb(var(--brand-violet-500) / 0.46), rgb(var(--brand-electric-blue-500) / 0.5));
+}
+
+.kb-preview ::selection {
+  background: rgb(var(--brand-violet-500) / 0.35);
+  color: rgb(var(--brand-zinc-100));
+}
+
+.kb-preview .fantasy-font,
+.kb-preview .brand-display {
+  font-family: var(--font-family-display);
+}
+
+.kb-preview .brand-display {
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.kb-preview .brand-shell {
+  background:
+    linear-gradient(115deg, rgb(var(--brand-electric-blue-500) / 0.07), transparent 34%),
+    linear-gradient(245deg, rgb(var(--brand-violet-500) / 0.08), transparent 38%),
+    var(--brand-surface-canvas);
+}
+
+.kb-preview .brand-topbar {
+  border-bottom: 1px solid var(--brand-border-subtle);
+  background: var(--brand-surface-topbar);
+  box-shadow: 0 14px 44px rgb(0 0 0 / 0.22);
+  backdrop-filter: blur(20px);
+}
+
+.kb-preview .brand-left-rail {
+  border-right: 1px solid var(--brand-border-subtle);
+  background:
+    linear-gradient(180deg, rgb(var(--brand-zinc-950) / 0.92), rgb(var(--brand-slate-900) / 0.86)),
+    var(--brand-surface-topbar);
+  box-shadow: 18px 0 56px rgb(0 0 0 / 0.22);
+  backdrop-filter: blur(20px);
+}
+
+.kb-preview .brand-logo-mark {
+  border: 1px solid rgb(var(--brand-zinc-100) / 0.08);
+  background: rgb(var(--brand-zinc-950) / 0.58);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--brand-zinc-100) / 0.06),
+    0 18px 42px rgb(0 0 0 / 0.28);
+  padding: 0.16rem;
+}
+
+.kb-preview .brand-logo-mark img {
+  border-radius: inherit;
+}
+
+.kb-preview .brand-tooltip {
+  outline: none;
+}
+
+.kb-preview .brand-tooltip:focus-visible {
+  border-radius: 1rem;
+  box-shadow: 0 0 0 3px rgb(var(--brand-electric-blue-500) / 0.34);
+}
+
+.kb-preview .brand-tooltip-content {
+  border: 1px solid rgb(163 230 53 / 0.58);
+  background:
+    linear-gradient(135deg, rgb(163 230 53 / 0.22), rgb(22 101 52 / 0.18) 48%, transparent 82%),
+    rgb(9 24 18 / 0.97);
+  box-shadow:
+    inset 0 1px 0 rgb(236 252 203 / 0.12),
+    0 22px 56px rgb(0 0 0 / 0.34),
+    0 0 32px rgb(163 230 53 / 0.14);
+  color: rgb(var(--brand-zinc-200));
+  opacity: 0;
+  transition:
+    opacity 140ms ease,
+    visibility 0ms linear 140ms;
+  transition-delay: 0ms;
+  visibility: hidden;
+}
+
+.kb-preview .brand-tooltip-content[data-open="true"] {
+  opacity: 1;
+  transition-delay: 0ms;
+  visibility: visible;
+}
+
+.kb-preview .brand-panel {
+  border: 1px solid var(--brand-border-strong);
+  background: var(--brand-surface-panel);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--brand-zinc-100) / 0.035),
+    0 30px 90px rgb(0 0 0 / 0.28);
+}
+
+.kb-preview .brand-panel-soft {
+  border: 1px solid var(--brand-border-subtle);
+  background: var(--brand-surface-panel-soft);
+  box-shadow: inset 0 1px 0 rgb(var(--brand-zinc-100) / 0.025);
+}
+
+.kb-preview .brand-card {
+  border: 1px solid var(--brand-border-subtle);
+  background: var(--brand-surface-card);
+}
+
+.kb-preview .brand-project-surface {
+  border: 1px solid var(--brand-project-border);
+  background: var(--brand-project-surface);
+  box-shadow:
+    inset 0 1px 0 rgb(var(--brand-zinc-100) / 0.04),
+    0 18px 48px rgb(var(--brand-magenta-500) / 0.08);
+}
+
+.kb-preview .brand-project-text {
+  color: var(--brand-project-text);
+}
+
+.kb-preview .brand-icon-badge {
+  color: rgb(var(--brand-zinc-950));
+  background-image: linear-gradient(135deg, rgb(var(--brand-electric-blue-500) / 0.92), rgb(var(--brand-violet-500) / 0.92));
+  box-shadow: 0 10px 26px rgb(var(--brand-electric-blue-500) / 0.14);
+}
+
+.kb-preview .brand-chip {
+  border: 1px solid rgb(var(--brand-violet-500) / 0.22);
+  background: linear-gradient(90deg, rgb(var(--brand-electric-blue-500) / 0.075), rgb(var(--brand-violet-500) / 0.08));
+  color: rgb(var(--brand-zinc-100));
+}
+
+.kb-preview .brand-button-primary {
+  color: var(--button-primary-text);
+  background-image: var(--button-primary-background);
+  box-shadow: var(--button-primary-shadow);
+  transition:
+    filter 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.kb-preview .brand-button-primary:hover {
+  filter: brightness(1.04);
+  transform: translateY(-1px);
+}
+
+.kb-preview .brand-button-secondary {
+  border: 1px solid var(--button-secondary-border);
+  background: var(--button-secondary-background);
+  color: var(--button-secondary-text);
+  transition:
+    border-color 160ms ease,
+    background-color 160ms ease,
+    color 160ms ease;
+}
+
+.kb-preview .brand-button-secondary:hover {
+  border-color: var(--button-secondary-hover-border);
+  background: var(--button-secondary-hover-background);
+  color: var(--button-secondary-hover-text);
+}
+
+.kb-preview .brand-input {
+  border: 1px solid var(--field-border);
+  background: var(--field-background);
+  color: var(--field-text);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease;
+}
+
+.kb-preview .brand-input::placeholder {
+  color: var(--field-placeholder);
+}
+
+.kb-preview .brand-input:focus {
+  border-color: var(--field-focus-border);
+  box-shadow: var(--field-focus-shadow);
+  outline: none;
+}
+
+.kb-preview .brand-gradient-text {
+  background-image: linear-gradient(90deg, rgb(var(--brand-electric-blue-400)), rgb(var(--brand-violet-400)), rgb(var(--brand-magenta-400)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.kb-preview .brand-rule {
+  background: var(--brand-divider);
+}
+
+.kb-preview .brand-halo {
+  box-shadow:
+    0 0 0 1px rgb(var(--brand-violet-500) / 0.08),
+    0 30px 92px rgb(var(--brand-violet-500) / 0.08);
+}
+
+.kb-preview .brand-grid-backdrop {
+  background-image:
+    linear-gradient(rgb(var(--brand-zinc-100) / 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(var(--brand-zinc-100) / 0.04) 1px, transparent 1px);
+  background-size: 28px 28px;
+  -webkit-mask-image: linear-gradient(180deg, rgb(0 0 0 / 0.9), transparent 92%);
+  mask-image: linear-gradient(180deg, rgb(0 0 0 / 0.9), transparent 92%);
+}
+
+.kb-preview .cinematic-grain {
+  position: relative;
+}
+
+.kb-preview .cinematic-grain::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.045;
+  background-image:
+    radial-gradient(rgb(255 255 255 / 0.62) 0.45px, transparent 0.45px),
+    radial-gradient(rgb(var(--brand-violet-400) / 0.42) 0.4px, transparent 0.4px);
+  background-position: 0 0, 1.5px 1.5px;
+  background-size: 3px 3px, 5px 5px;
+  mix-blend-mode: overlay;
+}
+
+.kb-preview .cinematic-label {
+  font-family: var(--font-family-interface);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.kb-preview .cinematic-workflow-glow {
+  background:
+    radial-gradient(circle at 18% 4%, rgb(var(--brand-electric-blue-500) / 0.09), transparent 34%),
+    linear-gradient(160deg, transparent 26%, rgb(var(--brand-violet-500) / 0.055) 100%);
+}
+
+@keyframes kb-brandFloat {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+.kb-preview .brand-float-slow {
+  animation: kb-brandFloat 12s ease-in-out infinite;
+}
+
+.kb-preview .brand-float-delay {
+  animation: kb-brandFloat 14s ease-in-out infinite;
+  animation-delay: -4s;
+}
+
+@keyframes kb-brandHeroWordCycle {
+  0%,
+  13% {
+    transform: translateY(0);
+  }
+
+  16%,
+  29% {
+    transform: translateY(-16.6667%);
+  }
+
+  32%,
+  45% {
+    transform: translateY(-33.3333%);
+  }
+
+  48%,
+  61% {
+    transform: translateY(-50%);
+  }
+
+  64%,
+  77% {
+    transform: translateY(-66.6667%);
+  }
+
+  80%,
+  93% {
+    transform: translateY(-83.3333%);
+  }
+
+  96%,
+  100% {
+    transform: translateY(-83.3333%);
+  }
+}
+
+.kb-preview .brand-hero-word-cycle-track {
+  animation: kb-brandHeroWordCycle 24s cubic-bezier(0.76, 0, 0.24, 1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kb-preview .brand-hero-word-cycle-track {
+    animation: none;
+  }
+
+  .kb-preview .brand-hero-word-cycle-track > span:not(:first-child) {
+    display: none;
+  }
+}
+
+.kb-preview .custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.kb-preview .custom-scrollbar::-webkit-scrollbar-track {
+  background: rgb(34 18 64 / 0.34);
+}
+
+.kb-preview .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, rgb(132 116 255 / 0.38), rgb(40 28 77 / 0.42));
+  border-radius: 999px;
+  border: 1px solid rgb(18 12 34 / 0.72);
+}
+
+.kb-preview .custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(132 116 255 / 0.38) rgb(34 18 64 / 0.34);
+}
+
+@keyframes kb-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.kb-preview .modal-overlay {
+  background: rgb(0 0 0 / 0.82);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.kb-preview .glow-gold {
+  box-shadow:
+    0 0 0 1px rgb(var(--brand-violet-500) / 0.16),
+    0 24px 70px rgb(var(--brand-magenta-500) / 0.12);
+}
+
+.kb-preview .animatic-scrubber::-webkit-slider-thumb {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  background: rgb(var(--brand-magenta-500));
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.kb-preview .animatic-scrubber::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: rgb(var(--brand-magenta-500));
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+}
+
+/* Card flip animation */
+@keyframes kb-fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.kb-preview .fade-in {
+  animation: kb-fadeIn 0.3s ease-in;
+}

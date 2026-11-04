@@ -52,17 +52,40 @@ export default function Home({ loaderData }: Pick<Route.ComponentProps, "loaderD
           player.playSelection ? () => player.playSelection?.(tracks, collection?.id) : undefined
         }
       />
-      <section id="catalogue" className="radio-tracks" aria-labelledby="radio-tracks-title">
-        <div className="listener-section-heading">
-          <h2 id="radio-tracks-title">In the collection</h2>
-          <Link to="/search">Explore all</Link>
-        </div>
-        {catalogue.status === "ready" ? (
-          <EntityTrackList tracks={previewTracks} player={player} />
-        ) : (
-          <CatalogueState state={catalogue} />
-        )}
-      </section>
+      <div className="radio-editorial-layout">
+        <section id="catalogue" className="radio-tracks" aria-labelledby="radio-tracks-title">
+          <div className="listener-section-heading">
+            <div>
+              <p className="eyebrow">The listening room</p>
+              <h2 id="radio-tracks-title">In the collection</h2>
+            </div>
+            <Link to="/search">Explore all</Link>
+          </div>
+          {catalogue.status === "ready" ? (
+            <EntityTrackList tracks={previewTracks} player={player} />
+          ) : (
+            <CatalogueState state={catalogue} />
+          )}
+        </section>
+        <aside className="radio-editorial-note" aria-labelledby="radio-idea-title">
+          <span className="radio-editorial-note__symbol" aria-hidden="true">
+            ✦
+          </span>
+          <p className="eyebrow">The SunSyn idea</p>
+          <h2 id="radio-idea-title">
+            Tools make possibilities.
+            <br />
+            People make choices.
+          </h2>
+          <p>
+            AI is part of the process. Human intention is the point. Every selection starts with
+            listening.
+          </p>
+          <Link to="/about">
+            Discover SunSyn <span aria-hidden="true">→</span>
+          </Link>
+        </aside>
+      </div>
       {catalogue.status === "ready" && loaderData.albums.length > 0 ? (
         <section className="album-shelf" aria-label="Published albums">
           <h2>Releases</h2>

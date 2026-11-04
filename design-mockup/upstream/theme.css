@@ -1,0 +1,343 @@
+/* Existing source theme roles, extracted without changing their values. */
+.kb-preview {
+  --bg-primary: rgb(var(--brand-zinc-950));
+  --bg-secondary: rgb(var(--brand-slate-900));
+  --text-primary: rgb(var(--brand-zinc-100));
+  --scrollbar-track: rgb(var(--brand-zinc-950));
+  --scrollbar-thumb: linear-gradient(180deg, rgb(var(--brand-violet-500) / 0.38), rgb(var(--brand-magenta-500) / 0.42));
+  --accent-primary: rgb(var(--brand-magenta-500));
+  --accent-secondary: rgb(var(--brand-violet-500));
+  --accent-blue: rgb(var(--brand-electric-blue-500));
+  --brand-divider: linear-gradient(90deg, rgb(var(--brand-electric-blue-500) / 0.9), rgb(var(--brand-violet-500) / 0.9), rgb(var(--brand-magenta-500) / 0.9));
+  --brand-surface-canvas: linear-gradient(180deg, rgb(var(--brand-zinc-900)) 0%, rgb(var(--brand-zinc-950)) 62%);
+  --brand-surface-topbar: rgb(var(--brand-zinc-950) / 0.86);
+  --brand-surface-panel: linear-gradient(180deg, rgb(var(--brand-slate-900) / 0.94), rgb(var(--brand-zinc-900) / 0.92));
+  --brand-surface-panel-soft: rgb(var(--brand-zinc-950) / 0.56);
+  --brand-surface-card: linear-gradient(180deg, rgb(var(--brand-slate-800) / 0.66), rgb(var(--brand-zinc-900) / 0.9));
+  /* Source-family resting backgrounds, reviewed in the visual A/B.
+     Preserve these dark source recipes until other themes are reviewed. */
+  --brand-surface-intent: radial-gradient(circle at 18% 0%, rgb(167 139 250 / 0.13), transparent 58%), radial-gradient(circle at 86% 16%, rgb(124 58 237 / 0.09), transparent 56%), linear-gradient(180deg, rgb(76 29 149 / 0.28), rgb(46 16 101 / 0.56));
+  --brand-surface-source: rgb(8 47 73 / 0.25);
+  --brand-surface-concept: linear-gradient(145deg, rgb(11 41 60 / 0.95), rgb(10 33 48 / 0.95));
+  --brand-border-subtle: rgb(var(--brand-zinc-700) / 0.28);
+  --brand-border-strong: rgb(var(--brand-zinc-700) / 0.44);
+  --brand-project-surface: linear-gradient(135deg, rgb(var(--brand-magenta-500) / 0.08), rgb(var(--brand-violet-500) / 0.05) 48%, rgb(var(--brand-zinc-950) / 0.58));
+  --brand-project-border: rgb(var(--brand-magenta-400) / 0.2);
+  --brand-project-text: rgb(232 197 238);
+}
+
+.kb-preview[data-theme="dark"],
+.kb-preview {
+  color-scheme: dark;
+}
+
+.kb-preview[data-theme="light"] {
+  color-scheme: light;
+  --bg-primary: rgb(var(--brand-zinc-100));
+  --bg-secondary: rgb(var(--brand-zinc-200));
+  --text-primary: rgb(var(--brand-zinc-950));
+  --scrollbar-track: rgb(var(--brand-zinc-100));
+  --scrollbar-thumb: linear-gradient(180deg, rgb(var(--brand-violet-500) / 0.38), rgb(var(--brand-electric-blue-500) / 0.42));
+  --brand-surface-canvas: linear-gradient(180deg, rgb(var(--brand-zinc-100)) 0%, rgb(var(--brand-zinc-200)) 100%);
+  --brand-surface-topbar: rgb(var(--brand-zinc-100) / 0.9);
+  --brand-surface-panel: linear-gradient(180deg, rgb(255 255 255 / 0.92), rgb(var(--brand-zinc-100) / 0.96));
+  --brand-surface-panel-soft: rgb(255 255 255 / 0.68);
+  --brand-surface-card: linear-gradient(180deg, rgb(255 255 255 / 0.86), rgb(var(--brand-zinc-100) / 0.94));
+  --brand-border-subtle: rgb(var(--brand-zinc-400) / 0.34);
+  --brand-border-strong: rgb(var(--brand-zinc-500) / 0.44);
+  --brand-project-surface: linear-gradient(135deg, rgb(var(--brand-magenta-400) / 0.12), rgb(var(--brand-violet-400) / 0.07), rgb(255 255 255 / 0.72));
+  --brand-project-border: rgb(var(--brand-magenta-500) / 0.2);
+  --brand-project-text: rgb(112 26 117);
+}
+
+.kb-preview[data-theme="high-contrast"] {
+  color-scheme: dark;
+  --brand-surface-canvas: rgb(0 0 0);
+  --brand-surface-topbar: rgb(0 0 0 / 0.94);
+  --brand-surface-panel: rgb(8 8 10 / 0.98);
+  --brand-surface-panel-soft: rgb(0 0 0 / 0.76);
+  --brand-surface-card: rgb(10 10 12 / 0.96);
+  --scrollbar-track: rgb(0 0 0);
+  --scrollbar-thumb: linear-gradient(180deg, rgb(var(--brand-violet-500) / 0.38), rgb(var(--brand-electric-blue-500) / 0.42));
+  --brand-border-subtle: rgb(var(--brand-zinc-100) / 0.32);
+  --brand-border-strong: rgb(var(--brand-zinc-100) / 0.54);
+  --brand-project-surface: rgb(26 12 32 / 0.98);
+  --brand-project-border: rgb(var(--brand-magenta-400) / 0.48);
+  --brand-project-text: rgb(250 232 255);
+}
+
+/* Component roles preserve the existing brand recipes; themes can override them. */
+.kb-preview {
+  --button-primary-text: rgb(var(--brand-zinc-950));
+  --media-image-accent: var(--brand-amber-400);
+  --media-audio-accent: var(--source-sky-300);
+  --media-video-accent: var(--source-fuchsia-300);
+  --media-action-on-accent: rgb(var(--brand-zinc-950));
+  --media-action-quiet-text: var(--text-primary);
+  --media-action-tint: 0.08;
+  --media-action-hover-tint: 0.16;
+  --button-primary-background: linear-gradient(90deg, rgb(var(--brand-electric-blue-500)), rgb(var(--brand-violet-500) / 0.96));
+  --button-primary-shadow: inset 0 1px 0 rgb(var(--brand-zinc-100) / 0.2), 0 16px 34px rgb(var(--brand-electric-blue-500) / 0.16);
+  --button-secondary-border: rgb(var(--brand-zinc-700) / 0.48);
+  --button-secondary-background: rgb(var(--brand-zinc-950) / 0.46);
+  --button-secondary-text: rgb(var(--brand-zinc-200));
+  --button-secondary-hover-border: rgb(var(--brand-violet-500) / 0.44);
+  --button-secondary-hover-background: rgb(var(--brand-slate-800) / 0.7);
+  --button-secondary-hover-text: rgb(var(--brand-zinc-100));
+  /* Exact source field recipe: input/textarea/select opt in via brand-input. */
+  --field-background: rgb(var(--brand-zinc-950) / 0.62);
+  --field-text: rgb(var(--brand-zinc-100));
+  --field-border: rgb(var(--brand-zinc-700) / 0.5);
+  --field-placeholder: rgb(var(--brand-zinc-500));
+  --field-focus-border: rgb(var(--brand-electric-blue-500) / 0.72);
+  --field-focus-shadow: 0 0 0 3px rgb(var(--brand-electric-blue-500) / 0.14);
+  --font-family-interface: 'Inter', sans-serif;
+  --font-family-display: 'Orbitron', sans-serif;
+  /* Regular general/media actions only; compact source controls keep their sizes. */
+  --control-action-size: 44px;
+  --control-action-padding-block: 10px;
+  --control-action-padding-inline: 16px;
+  --control-action-radius: 12px;
+  --control-action-font-size: 14px;
+  --control-action-gap: 8px;
+  --control-focus-ring: rgb(var(--brand-electric-blue-400));
+}
+/* Candidate light recipes for the supported brand-button family only.
+   This does not establish light-theme support for whole source screens. */
+.kb-preview[data-theme="light"] {
+  --control-focus-ring: rgb(var(--brand-violet-500));
+  --media-image-accent: var(--source-amber-800);
+  --media-audio-accent: var(--source-sky-800);
+  --media-video-accent: var(--source-fuchsia-800);
+  --media-action-on-accent: rgb(var(--brand-zinc-100));
+  --button-secondary-border: rgb(var(--brand-zinc-600));
+  --button-secondary-background: rgb(var(--brand-zinc-100));
+  --button-secondary-text: rgb(var(--brand-zinc-900));
+  --button-secondary-hover-background: rgb(var(--brand-zinc-200));
+  --button-secondary-hover-text: rgb(var(--brand-zinc-950));
+}
+.kb-preview[data-theme="high-contrast"] {
+  --button-secondary-border: rgb(var(--brand-zinc-100));
+  --button-secondary-text: rgb(var(--brand-zinc-100));
+  --button-secondary-background: black;
+  --button-secondary-hover-background: rgb(var(--brand-zinc-800));
+}
+
+/* Semantic roles shared with the source palette. */
+.kb-preview {
+  --workspace-text: rgb(var(--brand-zinc-100));
+  --workspace-muted: rgb(var(--brand-slate-300));
+  --workspace-accent: rgb(var(--brand-electric-blue-400));
+  --workspace-border: var(--brand-border-strong);
+  --workspace-canvas: rgb(var(--brand-zinc-950));
+  --workspace-panel: rgb(var(--brand-slate-800) / .65);
+  --workspace-danger: rgb(255 200 214);
+  --workspace-danger-border: rgb(190 110 145 / .7);
+  --workspace-danger-bg: rgb(70 30 48 / .65);
+  --workspace-warning: rgb(var(--brand-amber-100));
+  --workspace-warning-border: rgb(var(--brand-amber-300) / .5);
+  --workspace-warning-bg: rgb(var(--brand-amber-500) / .1);
+  --workspace-success: rgb(195 240 220);
+  --workspace-success-border: rgb(100 165 145 / .6);
+  --workspace-success-bg: rgb(40 90 70 / .25);
+  --workspace-violet: rgb(var(--brand-violet-400));
+  --workspace-ink: rgb(var(--brand-zinc-950));
+}
+
+/* Inline source notice roles. Keep the original information treatment until a visible redesign is reviewed. */
+.kb-preview {
+  --notice-info-text: var(--workspace-success);
+  --notice-info-border: var(--workspace-success-border);
+  --notice-info-background: var(--workspace-success-bg);
+  --notice-warning-text: var(--workspace-warning);
+  --notice-warning-border: var(--workspace-warning-border);
+  --notice-warning-background: var(--workspace-warning-bg);
+  --notice-error-text: var(--workspace-danger);
+  --notice-error-border: var(--workspace-danger-border);
+  --notice-error-background: var(--workspace-danger-bg);
+}
+
+/* Source comparison/safety dialog shell, with exact original values. */
+.kb-preview {
+  --dialog-backdrop: rgb(0 0 0 / 0.7);
+  --dialog-panel-background: rgb(var(--brand-slate-900));
+  --dialog-panel-border: rgb(255 255 255 / 0.1);
+  --dialog-panel-radius: 1.5rem;
+}
+
+/* Source dialog opacity roles avoid unsupported backdrop and border fallbacks. */
+.kb-preview {
+  --dialog-image-backdrop: rgb(0 0 0 / 0.72);
+  --dialog-image-panel-border: rgb(var(--source-sky-200) / 0.14);
+  --dialog-scene-browser-backdrop: rgb(0 0 0 / .62);
+  --dialog-scene-browser-panel-border: rgb(207 250 254 / .12);
+}
+
+/* Disabled source audio actions: subtle blue outline, never a native white fallback. */
+.kb-preview {
+  --control-audio-disabled-border: rgb(var(--source-sky-200) / 0.14);
+}
+
+/* Accepted audio working feedback; independent of the quiet disabled role. */
+.kb-preview {
+  --control-audio-working-text: rgb(var(--source-sky-300));
+  --control-audio-working-background: rgb(14 165 233 / 0.12);
+  --control-audio-working-duration: 1.2s;
+}
+
+/* Source ToneButton opacity roles: pinned source hues, all interaction states. */
+.kb-preview {
+  --control-tone-audio-rest-border: rgb(14 165 233 / 0.42);
+  --control-tone-audio-hover-border: rgb(56 189 248 / 0.56);
+  --control-tone-audio-hover-background: rgb(14 165 233 / 0.16);
+  --control-tone-create-hover-border: rgb(190 242 100 / 0.72);
+  --control-tone-create-hover-background: rgb(163 230 53 / 0.16);
+  --control-tone-delete-rest-border: rgb(248 113 113 / 0.38);
+  --control-tone-delete-hover-border: rgb(252 165 165 / 0.52);
+  --control-tone-delete-hover-background: rgb(248 113 113 / 0.16);
+  --control-tone-edit-rest-border: rgb(167 139 250 / 0.42);
+  --control-tone-edit-hover-border: rgb(196 181 253 / 0.56);
+  --control-tone-generate-rest-border: rgb(56 189 248 / 0.42);
+  --control-tone-generate-hover-border: rgb(125 211 252 / 0.56);
+  --control-tone-jump-rest-border: rgb(var(--brand-amber-500) / 0.48);
+  --control-tone-jump-hover-border: rgb(var(--brand-amber-400) / 0.62);
+  --control-tone-jump-hover-background: rgb(var(--brand-amber-500) / 0.16);
+  --control-tone-view-hover-border: rgb(163 230 53 / 0.54);
+  --control-tone-audio-focus-visible-background: rgb(14 165 233 / 0.18);
+  --control-tone-create-focus-visible-border: rgb(190 242 100 / 0.78);
+  --control-tone-create-focus-visible-background: rgb(163 230 53 / 0.18);
+  --control-tone-delete-focus-visible-border: rgb(252 165 165 / 0.68);
+  --control-tone-delete-focus-visible-background: rgb(248 113 113 / 0.18);
+  --control-tone-edit-focus-visible-border: rgb(196 181 253 / 0.68);
+  --control-tone-generate-focus-visible-border: rgb(125 211 252 / 0.68);
+  --control-tone-jump-focus-visible-border: rgb(var(--brand-amber-300) / 0.72);
+  --control-tone-jump-focus-visible-background: rgb(var(--brand-amber-500) / 0.18);
+  --control-tone-view-focus-visible-border: rgb(190 242 100 / 0.68);
+  --control-tone-disabled-rest-background: rgb(var(--brand-slate-900) / 0.28);
+}
+
+/* Accepted B: bespoke creative-editor interaction roles, not neutral field styling. */
+.kb-preview {
+  --editor-intent-hover-border: rgb(196 181 253 / .16);
+  --editor-intent-focus-border: rgb(221 214 254 / .34);
+  --editor-intent-focus-ring: rgb(196 181 253 / .14);
+  --editor-source-focus-border: rgb(var(--source-sky-200) / .34);
+  --editor-source-focus-ring: rgb(var(--source-sky-300) / .14);
+}
+
+/* Accepted image-delete confirmation appearance. */
+.kb-preview {
+  --dialog-danger-border: rgb(252 165 165 / .18);
+  --dialog-danger-badge-background: rgb(248 113 113 / .12);
+  --dialog-danger-description: rgb(var(--brand-slate-300) / .82);
+}
+
+/* Accepted source image-error description; slate-200 is the pinned default hue. */
+.kb-preview { --dialog-image-error-description: rgb(226 232 240 / .86); }
+
+/* Source image feedback: accepted local error and drop-cue treatments. */
+.kb-preview {
+  --image-inline-error-border: rgb(248 113 113 / .18);
+  --image-inline-error-text: rgb(254 226 226 / .78);
+  --image-drop-cue-border: rgb(153 246 228 / .18);
+  /* Scene-summary source opacity repairs; preserve its independent media wells. */
+  --scene-summary-well-background: rgb(var(--brand-zinc-950) / .34);
+  --scene-summary-clear-background: rgb(16 185 129 / .18);
+  --scene-summary-clear-hover-background: rgb(16 185 129 / .28);
+  --scene-summary-lyrics-hover-border: rgb(var(--source-sky-200) / .18);
+  --scene-summary-keyframe-hover-border: rgb(var(--brand-amber-100) / .24);
+  --scene-summary-video-hover-border: rgb(250 232 255 / .24);
+  --scene-summary-fallback-border: rgb(255 255 255 / .08);
+  --scene-summary-fallback-text: rgb(var(--brand-zinc-200) / .82);
+}
+
+/* Source scene-browser surface/state recipes. */
+.kb-preview {
+  --scene-browser-selected-image-background: rgb(var(--brand-amber-400) / 0.14);
+  --scene-browser-selected-video-background: rgb(232 121 249 / 0.14);
+  --scene-browser-item-background: rgb(2 6 23 / 0.42);
+  --scene-browser-item-hover-background: rgb(var(--brand-slate-900) / 0.72);
+  --scene-browser-item-hover-ring: rgb(207 250 254 / 0.16);
+  --scene-browser-search-background: rgb(2 6 23 / 0.62);
+  --scene-browser-search-focus-ring: rgb(165 243 252 / 0.24);
+  --scene-browser-video-mode-border: rgb(240 171 252 / 0.18);
+  --scene-browser-video-mode-well-background: rgb(0 0 0 / 0.24);
+  --scene-browser-flow-step-background: rgb(0 0 0 / 0.34);
+  --scene-browser-flow-result-background: rgb(240 171 252 / 0.22);
+  --scene-browser-video-mode-hover-background: rgb(217 70 239 / 0.24);
+  --scene-browser-empty-background: rgb(0 0 0 / 0.18);
+  --scene-browser-preview-background: rgb(2 44 34 / 0.26);
+  --scene-browser-preview-ring: rgb(209 250 229 / 0.12);
+  --scene-browser-preview-badge-background: rgb(0 0 0 / 0.68);
+  /* Creator-approved softer secondary text hierarchy; distinct from active actions. */
+  --scene-browser-act-text: rgb(207 250 254 / .44);
+  --scene-browser-inactive-image-tab-text: rgb(var(--brand-amber-100) / .46);
+  --scene-browser-inactive-video-tab-text: rgb(250 232 255 / .46);
+  --scene-browser-inactive-video-mode-text: rgb(250 232 255 / .58);
+  --scene-browser-search-input-text: rgb(236 254 255 / .82);
+  --scene-browser-video-description-text: rgb(253 244 255 / .72);
+  --scene-browser-flow-step-text: rgb(250 232 255 / .68);
+  --scene-browser-flow-arrow-text: rgb(245 208 254 / .42);
+  --scene-browser-video-reason-text: rgb(var(--brand-amber-200) / .82);
+  --scene-browser-item-meta-text: rgb(207 250 254 / .38);
+  --scene-browser-preview-badge-text: rgb(207 250 254 / .78);
+}
+
+/* Minor scene-workflow surface repairs, independent of text/focus hierarchy. */
+.kb-preview {
+  --scene-workflow-compact-control-background: rgb(0 0 0 / 0.24);
+  --scene-workflow-rebuild-background: rgb(26 46 5 / 0.12);
+  --scene-workflow-reference-background: rgb(2 6 23 / 0.32);
+  --scene-workflow-rebuild-border: rgb(190 242 100 / 0.18);
+  --scene-workflow-video-mode-hover-background: rgb(217 70 239 / 0.24);
+}
+
+/* Minor source audio hover fills and Concept description well. */
+.kb-preview {
+  --control-audio-danger-hover-background: rgb(248 113 113 / .16);
+  --control-audio-action-hover-background: rgb(14 165 233 / .18);
+  --concept-description-background: rgb(0 0 0 / .36);
+}
+
+/* Creator-selected A: fine two-stop fade, no glow. Preserve rendered quality over unused source stops. */
+.kb-preview {
+  --section-heading-intent-glow: none;
+  --section-heading-intent-line: linear-gradient(to right, rgb(196 181 253 / .3), transparent);
+  --section-heading-source-glow: none;
+  --section-heading-source-line: linear-gradient(to right, rgb(var(--source-sky-300) / .3), transparent);
+  --section-heading-audio-glow: none;
+  --section-heading-audio-line: linear-gradient(to right, rgb(var(--source-sky-300) / .35), transparent);
+}
+
+/* Source workspace artifact-status borders; labels and state logic remain separate. */
+.kb-preview {
+  --artifact-status-affected-border: rgb(var(--brand-amber-300) / .28);
+  --artifact-status-accepted-border: rgb(110 231 183 / .22);
+  --artifact-status-draft-border: rgb(var(--source-sky-300) / .18);
+}
+
+/* Original creative-workspace seams and distinct guarded-state borders. */
+.kb-preview {
+  --workspace-seam-6: rgb(255 255 255 / .06);
+  --workspace-seam-7: rgb(255 255 255 / .07);
+  --workspace-seam-8: rgb(255 255 255 / .08);
+  --workspace-count-accepted-border: rgb(110 231 183 / .18);
+  --workspace-create-strip-background: rgb(0 0 0 / .14);
+  --workspace-create-hover-border: rgb(var(--source-sky-300) / .28);
+  --workspace-reject-border: rgb(252 165 165 / .18);
+  --workspace-review-current-border: rgb(var(--brand-amber-300) / .24);
+  --workspace-affected-note-border: rgb(var(--brand-amber-300) / .22);
+}
+
+/* Distinct source expand hover and selected reference fills. */
+.kb-preview {
+  --source-expand-hover-background: rgb(14 165 233 / .18);
+  --canon-reference-selected-background: rgb(196 181 253 / .18);
+}
+
+/* Source image-dialog eyebrow, reference selection, and scene delete states. */
+.kb-preview {
+  --dialog-image-eyebrow-text: rgb(var(--source-sky-200) / .72);
+  --reference-selection-label-text: rgb(236 253 245 / .82);
+  --scene-delete-hover-background: rgb(244 63 94 / .12);
+}

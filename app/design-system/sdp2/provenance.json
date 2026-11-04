@@ -1,0 +1,23 @@
+{
+  "repository": "https://github.com/Kobold-Technologies/sdp-2",
+  "commit": "005de64c5502c13d8c1e3298156127656cc5ad25",
+  "files": [
+    {
+      "source_path": "web/src/design-system/palette.css",
+      "source_sha256": "9d18c58e237cfd9fb52f46684a15e7424b9990c17c75cc6fba3cb3e3fa3c0f30",
+      "production_path": "app/design-system/sdp2/palette.css",
+      "adaptation": "Scope .kb-preview to :where(:root, [data-theme]); Prettier formatting. Token names and values preserved."
+    },
+    {
+      "source_path": "web/src/design-system/theme.css",
+      "source_sha256": "367e7fdc2b07796f19b9080a9622def44c89e1b87b7e9261ea3326d3fc29cf88",
+      "production_path": "app/design-system/sdp2/theme.css",
+      "adaptation": "Scope .kb-preview to :where(:root, [data-theme]); Prettier formatting. Token names and values preserved."
+    }
+  ],
+  "fonts": {
+    "packages": ["@fontsource/inter@5.3.0", "@fontsource/orbitron@5.3.0"],
+    "license_notices": "../fonts/*-OFL.txt"
+  },
+  "extensions": "../tokens.css and ../../styles/sdp2.css"
+}

@@ -80,7 +80,8 @@ describe("radio listener navigation", () => {
         { id: "stillith", slug: "stillith", name: "Stillith", description: null, items: [item] },
       ],
     });
-    expect(markup).toContain("Start listening.");
+    expect(markup).toContain("Human ears.");
+    expect(markup).toContain("New frequencies.");
     expect(markup).toContain('href="/collections/stillith"');
     expect(markup).not.toContain('id="audio"');
     expect(markup).not.toContain('id="video"');

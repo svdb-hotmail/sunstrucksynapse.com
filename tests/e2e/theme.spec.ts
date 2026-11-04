@@ -19,7 +19,7 @@ test.describe("SunSyn Radio theme", () => {
     await page.goto("/");
 
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#f1e7d4");
+    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#f3f4f8");
     await expect(page.getByRole("link", { name: "SunSyn Radio home" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Light mode" })).toHaveAttribute(
       "aria-pressed",

@@ -5,6 +5,7 @@ import type { Decorator, Preview } from "@storybook/react-vite";
 import "~/styles/global.css";
 import "~/styles/curator-catalogue.css";
 import "~/styles/listener.css";
+import "~/styles/sdp2.css";
 
 type Theme = "light" | "dark";
 

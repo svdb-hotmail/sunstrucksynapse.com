@@ -9,7 +9,9 @@ test("sparse catalogue navigation resolves real content from non-home routes", a
   await expect(nav.getByRole("link", { name: "Listen", exact: true })).toHaveAttribute("href", "/");
   await nav.getByRole("link", { name: "Listen", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("heading", { name: "Start listening.", exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Human ears. New frequencies.", exact: true }),
+  ).toBeVisible();
   await expect(page.locator("#catalogue .media-card")).toHaveCount(1);
   await expect(page.getByRole("link", { name: /stillith.*tracks/i })).toBeVisible();
   await expect(page.locator("#latest, #audio, #video")).toHaveCount(0);

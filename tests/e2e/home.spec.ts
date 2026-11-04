@@ -36,7 +36,7 @@ test("loads the database catalogue and controls the correct media", async ({ pag
   await page.goto("/");
 
   await expect(page).toHaveTitle(/SunSyn Radio/);
-  await expect(page.getByRole("heading", { name: "Start listening." })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Human ears. New frequencies." })).toBeVisible();
   await expect(page.locator(".media-card")).toHaveCount(6);
   await cardFor(page, revolutionTitle)
     .getByRole("button", { name: `Play ${revolutionTitle}` })

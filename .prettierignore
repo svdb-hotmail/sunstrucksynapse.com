@@ -7,3 +7,6 @@ test-results/
 worker-configuration.d.ts
 drizzle/meta/
 package-lock.json
+
+# Preserve the source design reference verbatim.
+design-mockup/upstream/

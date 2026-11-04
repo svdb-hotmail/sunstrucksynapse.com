@@ -26,7 +26,7 @@ test("sparse mobile navigation keeps Listen, Explore and Queue accessible in one
   await nav.getByRole("link", { name: "Listen", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
   await expect(
-    page.getByRole("heading", { name: "Start listening.", exact: true }),
+    page.getByRole("heading", { name: "Human ears. New frequencies.", exact: true }),
   ).toBeInViewport();
   await expect(page.locator("#catalogue .media-card")).toHaveCount(1);
   await expect(page.getByRole("link", { name: /stillith.*tracks/i })).toBeVisible();
@@ -87,7 +87,7 @@ test("three phone destinations fit and remain usable with standard collections",
   await expectSingleRow(nav);
   await nav.getByRole("link", { name: "Listen", exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Start listening.", exact: true }),
+    page.getByRole("heading", { name: "Human ears. New frequencies.", exact: true }),
   ).toBeInViewport();
   await nav.getByRole("button", { name: "Queue, 0 tracks", exact: true }).click();
   await expect(page.getByRole("dialog", { name: "Your queue" })).toBeVisible();

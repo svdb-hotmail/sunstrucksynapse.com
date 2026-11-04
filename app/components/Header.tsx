@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router";
 import { SITE_NAME } from "~/config/brand";
 import { ThemeToggle } from "~/design-system/ThemeToggle";
+import { StationMark } from "~/design-system/StationMark";
 import {
   defaultCatalogueNavigation,
   isCatalogueNavigationEntryActive,
@@ -22,7 +23,7 @@ export function Header({
       <div className="brand-lockup">
         <Link className="site-logo" to="/" aria-label={`${SITE_NAME} home`}>
           <span className="mini-orb" aria-hidden="true">
-            ☼
+            <StationMark />
           </span>
           <span className="site-wordmark">{SITE_NAME}</span>
         </Link>

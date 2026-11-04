@@ -1,0 +1,15 @@
+/* Existing inline workspace notice recipe, available through the source stylesheet. */
+.kb-preview .kb-system-notice {
+  display: flex; align-items: flex-start; gap: 10px; padding: 14px;
+  border: 1px solid var(--notice-info-border); border-radius: 10px;
+  background: var(--notice-info-background); color: var(--notice-info-text);
+  font-size: 13px; margin-bottom: 14px;
+}
+.kb-preview .kb-system-notice svg { flex-shrink: 0; margin-top: 2px; }
+.kb-preview .kb-system-notice[data-notice-tone="error"] {
+  color: var(--notice-error-text); border-color: var(--notice-error-border); background: var(--notice-error-background);
+}
+.kb-preview .kb-system-notice[data-notice-tone="warning"] {
+  color: var(--notice-warning-text); border-color: var(--notice-warning-border); background: var(--notice-warning-background);
+  margin-top: 20px; line-height: 1.7;
+}
