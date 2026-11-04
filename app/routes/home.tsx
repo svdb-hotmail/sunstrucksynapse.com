@@ -6,28 +6,12 @@ import { trackLabel } from "~/design-system/track-label";
 import { Artwork } from "~/design-system/Artwork";
 import { RadioStart } from "~/components/RadioStart";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "~/config/brand";
-import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { catalogueStateCopy } from "~/services/catalogue";
 import { listeningSelection } from "~/services/listening";
 import type { CatalogueLoadResult } from "~/types/catalogue";
 import type { PlayerOutletContext } from "~/types/catalogue";
 
 import type { Route } from "./+types/home";
-
-export async function loader({ context }: Route.LoaderArgs) {
-  const { catalogueRepository } = context.get(cloudflareContext);
-  try {
-    const items = await catalogueRepository.listPublishedTracks();
-    const slugs = [...new Set(items.map((item) => item.release.slug))].slice(0, 4);
-    const releases = await Promise.all(
-      slugs.map((slug) => catalogueRepository.findPublishedRelease(slug, items)),
-    );
-    return { albums: releases.filter((release) => release !== null) };
-  } catch {
-    // Keep the root catalogue's existing unavailable/empty-state behavior.
-    return { albums: [] };
-  }
-}
 
 export const meta: Route.MetaFunction = () => [
   { title: SITE_NAME },
@@ -39,7 +23,7 @@ export const meta: Route.MetaFunction = () => [
   { property: "og:url", content: SITE_URL },
 ];
 
-export default function Home(_props: Pick<Route.ComponentProps, "loaderData">) {
+export default function Home() {
   const player = useOutletContext<PlayerOutletContext>();
   const { catalogue } = player;
   const { collection, tracks } = listeningSelection(catalogue.items, catalogue.collections);

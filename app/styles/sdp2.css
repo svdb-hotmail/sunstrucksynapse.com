@@ -423,7 +423,7 @@ input[type="radio"] {
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow);
 }
-.listener-shell .player-dock > button:not(.dock-track):hover:not(:disabled) {
+.listener-shell .player-dock > button:not(.dock-track):not(.dock-play):hover:not(:disabled) {
   background: var(--button-secondary-hover-background);
 }
 .listener-sheet {

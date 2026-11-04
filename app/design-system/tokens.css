@@ -19,6 +19,7 @@
   --color-content-inverse: rgb(var(--brand-zinc-100));
   --color-border-subtle: var(--brand-border-subtle);
   --color-border-control: rgb(var(--brand-zinc-600));
+  --field-border: rgb(var(--brand-zinc-500));
   --color-border-accent: var(--field-focus-border);
   --color-accent-primary: rgb(var(--media-audio-accent));
   --color-accent-sun: rgb(var(--media-image-accent));

@@ -80,6 +80,8 @@ test("preview isolates private routes and mutations, and retains the component c
     "/curator/api/uploads",
     "/curator/review-audio/private-id",
     "/submit/example",
+    "/submission-evidence/example",
+    "/submission-evidence/example.data",
     "/media/example",
   ]) {
     expect(
