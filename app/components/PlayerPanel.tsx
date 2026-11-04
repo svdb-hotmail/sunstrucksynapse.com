@@ -372,7 +372,11 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
         setIsMuted(media.muted);
       }
     },
-    onLoadStart: () => setIsLoading(true),
+    onLoadStart: (event: React.SyntheticEvent<HTMLMediaElement>) => {
+      // Restoring a paused source fires loadstart even with preload="none".
+      // Show progress only for an explicit playback request or native playback.
+      setIsLoading(coordinator.isLoading() || !event.currentTarget.paused);
+    },
     onLoadedMetadata: () => {
       setIsLoading(false);
       setDuration(mediaRef.current?.duration ?? 0);
