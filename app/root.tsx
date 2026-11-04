@@ -80,6 +80,11 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
+        {import.meta.env.MODE === "site-preview" ? (
+          <aside className="site-preview-banner">
+            Design preview · sample catalogue · production unchanged
+          </aside>
+        ) : null}
         {children}
         <ScrollRestoration />
         <Scripts />

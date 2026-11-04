@@ -8,6 +8,14 @@ body {
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }
+.site-preview-banner {
+  padding: var(--space-2) var(--space-4);
+  text-align: center;
+  font-size: 0.75rem;
+  color: var(--color-content-secondary);
+  background: var(--color-surface-panel);
+  border-bottom: var(--border-subtle);
+}
 
 button,
 input,

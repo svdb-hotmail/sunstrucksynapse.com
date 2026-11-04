@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "react-router dev",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build --output-dir storybook-static",
+    "build-storybook": "storybook build --output-dir storybook-static && npm run build:site-preview",
     "build": "react-router build",
     "preview": "npm run build && vite preview",
     "preview:e2e": "react-router build --mode test && vite preview --host 127.0.0.1 --port 4173 --strictPort",
@@ -26,9 +26,11 @@
     "db:validate:local": "node --import tsx scripts/validate-database.ts",
     "catalogue:export": "node --env-file-if-exists=.env --import tsx scripts/export-catalogue.ts",
     "catalogue:audit": "node --env-file-if-exists=.env --import tsx scripts/audit-beta-readiness.ts",
-    "ci": "npm run format:check && npm run lint && npm run typecheck && npm run test:unit && npm run test:encoder && npm run db:validate:local && npm run build && npm run build-storybook && npm run test:e2e",
+    "ci": "npm run format:check && npm run lint && npm run typecheck && npm run test:unit && npm run test:encoder && npm run db:validate:local && npm run build && npm run build-storybook && npm run test:e2e && npm run test:site-preview",
     "mockup": "vite --config design-mockup/vite.config.ts",
-    "build:mockup": "tsc -p design-mockup/tsconfig.json && vite build --config design-mockup/vite.config.ts"
+    "build:mockup": "tsc -p design-mockup/tsconfig.json && vite build --config design-mockup/vite.config.ts",
+    "build:site-preview": "node scripts/build-site-preview.mjs",
+    "test:site-preview": "playwright test --config playwright.site-preview.config.ts"
   },
   "dependencies": {
     "@cloudflare/containers": "0.3.7",
