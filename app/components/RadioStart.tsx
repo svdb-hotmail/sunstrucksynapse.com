@@ -1,5 +1,7 @@
 import { Link } from "react-router";
-import { trackDuration } from "~/services/listening";
+import { SignalIllustration } from "~/design-system/SignalIllustration";
+import { MediaButton } from "~/design-system/MediaButton";
+import { ListenerIcon } from "~/design-system/ListenerIcon";
 import type { CatalogueItem, PublicEditorialCollection } from "~/types/catalogue";
 
 export function RadioStart({
@@ -11,37 +13,51 @@ export function RadioStart({
   collection?: PublicEditorialCollection;
   onPlay?: () => void;
 }) {
-  const duration =
-    tracks.length && tracks.every((track) => track.durationMs)
-      ? trackDuration(tracks.reduce((sum, track) => sum + (track.durationMs ?? 0), 0))
-      : null;
   return (
-    <section className="radio-start" aria-labelledby="radio-start-title">
-      <p className="eyebrow">Human-curated · AI-assisted music</p>
-      <h1 id="radio-start-title">Start listening.</h1>
-      <p className="radio-start__description">
-        {collection ? (
-          <Link to={`/collections/${collection.slug}`}>{collection.name}</Link>
-        ) : (
-          "A radio for music made with intent."
-        )}
-      </p>
-      {collection?.description ? (
-        <p className="radio-start__note">{collection.description}</p>
-      ) : null}
-      <p className="radio-start__meta">
-        {tracks.length} {tracks.length === 1 ? "track" : "tracks"}
-        {duration ? ` · ${duration}` : ""}
-      </p>
-      <button
-        type="button"
-        className="listener-primary"
-        disabled={!tracks.length || !onPlay}
-        onClick={onPlay}
-      >
-        <span aria-hidden="true">▸</span> Play the selection
-      </button>
-      {tracks.length ? <small>Plays in selection order. Replaces your queue.</small> : null}
+    <section className="radio-start listening-hero brand-panel" aria-labelledby="radio-start-title">
+      <div className="hero-copy">
+        <span className="section-label">A space for intentional sound</span>
+        <h1 id="radio-start-title" className="brand-display">
+          Human ears.
+          <br />
+          <span className="brand-gradient-text">New frequencies.</span>
+        </h1>
+        <p>
+          Music made with imagination.
+          <br />
+          Selected by people. Here to be heard.
+        </p>
+        <div className="hero-actions">
+          <MediaButton
+            media="audio"
+            emphasis="primary"
+            className="listener-primary"
+            disabled={!tracks.length || !onPlay}
+            onClick={onPlay}
+          >
+            <ListenerIcon name="play" /> Start listening
+          </MediaButton>
+          <Link className="brand-button-secondary kb-system-button" to="/search">
+            Explore the music <ListenerIcon name="arrow" size={17} />
+          </Link>
+        </div>
+        {tracks.length ? (
+          <small className="hero-footnote">
+            {collection ? (
+              <Link
+                to={`/collections/${collection.slug}`}
+                aria-label={`View ${collection.name} collection`}
+              >
+                Plays in selection order
+              </Link>
+            ) : (
+              "Plays in selection order"
+            )}{" "}
+            · replaces your queue
+          </small>
+        ) : null}
+      </div>
+      <SignalIllustration />
     </section>
   );
 }

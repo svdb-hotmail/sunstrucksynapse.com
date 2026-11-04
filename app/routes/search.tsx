@@ -122,6 +122,31 @@ export default function SearchRoute({ loaderData }: Route.ComponentProps) {
           : "No matching tracks. Clear a filter or try an artist, release, or track title."}
       </p>
       {results.length ? <EntityTrackList tracks={results} player={player} /> : null}
+      {player.catalogue.collections.length ? (
+        <section className="radio-collections">
+          <h2>Listening paths</h2>
+          {player.catalogue.collections.map((collection) => (
+            <Link key={collection.id} to={`/collections/${collection.slug}`}>
+              {collection.name}
+              <span>{collection.items.length} tracks</span>
+            </Link>
+          ))}
+        </section>
+      ) : null}
+      {player.catalogue.items.length ? (
+        <section className="radio-collections album-shelf">
+          <h2>Releases</h2>
+          {[
+            ...new Map(
+              player.catalogue.items.map((item) => [item.release.id, item.release]),
+            ).values(),
+          ].map((release) => (
+            <Link key={release.id} to={release.href}>
+              {release.title}
+            </Link>
+          ))}
+        </section>
+      ) : null}
     </section>
   );
 }

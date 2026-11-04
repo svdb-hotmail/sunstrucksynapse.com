@@ -24,7 +24,7 @@ function renderHome(catalogue: CatalogueLoadResult) {
     <MemoryRouter>
       <Routes>
         <Route element={<Outlet context={context} />}>
-          <Route path="/" element={<Home loaderData={{ albums: [] }} />} />
+          <Route path="/" element={<Home />} />
         </Route>
       </Routes>
     </MemoryRouter>,
@@ -68,7 +68,7 @@ describe("radio listener navigation", () => {
       </MemoryRouter>,
     );
     expect(header).toContain("SunSyn Radio");
-    expect(header).toContain('href="/about"');
+    expect(header).not.toContain('href="/about"');
     expect(mobile).not.toContain('href="/about"');
     expect(mobile).toContain('aria-label="Queue, 0 tracks"');
   });
@@ -80,7 +80,8 @@ describe("radio listener navigation", () => {
         { id: "stillith", slug: "stillith", name: "Stillith", description: null, items: [item] },
       ],
     });
-    expect(markup).toContain("Start listening.");
+    expect(markup).toContain("Human ears.");
+    expect(markup).toContain("New frequencies.");
     expect(markup).toContain('href="/collections/stillith"');
     expect(markup).not.toContain('id="audio"');
     expect(markup).not.toContain('id="video"');
@@ -89,7 +90,7 @@ describe("radio listener navigation", () => {
   it("still offers the published catalogue without collections", () => {
     const markup = renderHome({ status: "ready", items: [item], collections: [] });
     expect(markup).toContain(item.description.title);
-    expect(markup).toContain("Play the selection");
+    expect(markup).toContain("Start listening");
   });
   it("bounds homepage tracks while retaining an Explore destination", () => {
     const markup = renderHome({
@@ -97,7 +98,7 @@ describe("radio listener navigation", () => {
       items: Array.from({ length: 12 }, (_, i) => makeCatalogueItem(`track-${i}`)),
       collections: [],
     });
-    expect(markup.match(/class="media-card listener-track"/g)).toHaveLength(6);
+    expect(markup.match(/class="media-card listener-track track-row"/g)).toHaveLength(6);
     expect(markup).toContain('href="/search"');
   });
   for (const state of [
@@ -107,7 +108,7 @@ describe("radio listener navigation", () => {
     it(`keeps ${state.status} state actionable and cannot start missing media`, () => {
       const markup = renderHome(state);
       expect(markup).toContain('disabled=""');
-      expect(markup).not.toContain('class="media-card listener-track"');
+      expect(markup).not.toContain('class="media-card listener-track track-row"');
       expect(markup).toContain(
         state.status === "empty" ? "No transmissions are published yet." : "Try again later.",
       );

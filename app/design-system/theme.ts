@@ -8,8 +8,8 @@ export const THEME_MEDIA_QUERY = "(prefers-color-scheme: light)";
 
 /** Keep these values in sync with the design-system surface tokens. */
 export const THEME_COLORS: Record<Theme, string> = {
-  light: "#f1e7d4",
-  dark: "#080b0b",
+  light: "#f3f4f8",
+  dark: "#0a0b12",
 };
 
 export type ThemeStorage = Pick<Storage, "getItem" | "setItem">;

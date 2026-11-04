@@ -19,7 +19,7 @@ test.describe("SunSyn Radio theme", () => {
     await page.goto("/");
 
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#f1e7d4");
+    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#f3f4f8");
     await expect(page.getByRole("link", { name: "SunSyn Radio home" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Light mode" })).toHaveAttribute(
       "aria-pressed",
@@ -27,10 +27,18 @@ test.describe("SunSyn Radio theme", () => {
     );
     const artistCard = page
       .locator(".media-card")
-      .filter({ hasText: "Sunstruck Synapse (Revolution will be televised)" })
+      .filter({
+        has: page.getByRole("link", {
+          name: "Sunstruck Synapse (Revolution will be televised)",
+          exact: true,
+        }),
+      })
       .first();
     await expect(
-      artistCard.getByText("Sunstruck Synapse (Revolution will be televised)", { exact: true }),
+      artistCard.getByRole("link", {
+        name: "Sunstruck Synapse (Revolution will be televised)",
+        exact: true,
+      }),
     ).toBeVisible();
     expect(browserErrors).toEqual([]);
   });
@@ -119,7 +127,10 @@ test.describe("SunSyn Radio theme", () => {
     await page.emulateMedia({ colorScheme: "dark" });
     await page.goto("/");
 
-    const revolutionCard = page.locator(".media-card").filter({ hasText: revolutionTitle }).first();
+    const revolutionCard = page
+      .locator(".media-card")
+      .filter({ has: page.getByRole("link", { name: revolutionTitle, exact: true }) })
+      .first();
     await revolutionCard.getByRole("button", { name: `Play ${revolutionTitle}` }).click();
     await queueTrack(page, mushroomTitle);
 

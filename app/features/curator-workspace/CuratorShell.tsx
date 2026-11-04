@@ -3,6 +3,7 @@ import type { ChangeEvent, FormEvent, ReactNode } from "react";
 import { Link } from "react-router";
 
 import { ThemeToggle } from "~/design-system/ThemeToggle";
+import { StationMark } from "~/design-system/StationMark";
 
 import type { CuratorIdentityView, CuratorNavigationItem, CuratorSection } from "./types";
 
@@ -43,7 +44,7 @@ export function CuratorShell({
           aria-label={`${SITE_NAME} curator workspace`}
         >
           <span className="curator-brand__mark" aria-hidden="true">
-            ☼
+            <StationMark />
           </span>
           <span>
             <strong>{SITE_NAME}</strong>

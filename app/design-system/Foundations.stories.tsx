@@ -9,8 +9,8 @@ const colorTokens = [
   ["--color-content-secondary", "Muted text"],
   ["--color-border-subtle", "Subtle border"],
   ["--color-border-control", "Control border"],
-  ["--color-accent-sun", "Sun accent"],
-  ["--color-accent-pink", "Pink accent"],
+  ["--color-accent-sun", "Image / warning accent"],
+  ["--color-accent-pink", "Audio / primary accent"],
   ["--color-accent-violet", "Violet accent"],
   ["--color-accent-cyan", "Cyan accent"],
   ["--color-accent-green", "Green accent"],
@@ -23,16 +23,16 @@ const layoutTokens = [
   ["--space-2", "8px"],
   ["--space-3", "12px"],
   ["--space-4", "16px"],
-  ["--space-5", "18px"],
-  ["--space-6", "22px"],
-  ["--space-7", "28px"],
-  ["--space-8", "42px"],
+  ["--space-5", "24px"],
+  ["--space-6", "32px"],
+  ["--space-7", "40px"],
+  ["--space-8", "48px"],
 ] as const;
 
 const typographyTokens = [
   ["--type-font-family-display", "Display", "ARTIST VOICE / 01"],
-  ["--type-font-family-mono", "Transmission", "Selected by human ears."],
-  ["--type-font-family-script", "Curator hand", "Made with intent."],
+  ["--type-font-family-ui", "Interface", "Selected by human ears."],
+  ["--type-font-family-body", "Editorial body", "Made with intent."],
 ] as const;
 
 function TokenValue({ name }: { name: string }) {

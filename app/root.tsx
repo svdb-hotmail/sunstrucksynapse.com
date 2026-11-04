@@ -13,6 +13,7 @@ import {
 import { ApplicationShell } from "~/components/ApplicationShell";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { SITE_NAME } from "~/config/brand";
+import { listeningSelection } from "~/services/listening";
 import {
   DEFAULT_THEME,
   getDocumentTheme,
@@ -47,6 +48,10 @@ import type { Route } from "./+types/root";
 import "./styles/global.css";
 import "./styles/curator-catalogue.css";
 import "./styles/listener.css";
+import "./styles/sdp2.css";
+import "./styles/listener-brand.css";
+import "./styles/listener-controls.css";
+import "./styles/listener-reference.css";
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", href: "/assets/favicon.svg", type: "image/svg+xml" },
@@ -67,6 +72,7 @@ function getThemeColorForDocument(): string {
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const themeColor = getThemeColorForDocument();
+  const { pathname } = useLocation();
 
   return (
     <html lang="en" data-theme={DEFAULT_THEME} suppressHydrationWarning>
@@ -79,6 +85,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <Links />
       </head>
       <body>
+        {import.meta.env.MODE === "site-preview" && pathname.startsWith("/curator") ? (
+          <aside className="site-preview-banner">
+            Design preview · sample catalogue · production unchanged
+            {" · "}
+            <a href="/">Listener site</a>
+            {" · "}
+            <a href="/curator">Curator preview</a>
+          </aside>
+        ) : null}
         {children}
         <ScrollRestoration />
         <Scripts />
@@ -118,6 +133,10 @@ export default function App() {
   const privateWorkspace = /^\/(curator|submit)(\/|$)/.test(location.pathname);
   const catalogue = useLoaderData<typeof loader>();
   const catalogueItems = catalogue.items;
+  const stationSelection = useMemo(
+    () => listeningSelection(catalogueItems, catalogue.collections),
+    [catalogueItems, catalogue.collections],
+  );
   const navigation = defaultCatalogueNavigation;
   const itemsById = useMemo(
     () => new Map(catalogueItems.map((item) => [item.id, item])),
@@ -434,6 +453,15 @@ export default function App() {
           canPrevious={hasPrevious}
           canNext={hasNext}
           onMediaEnded={advancePlayback}
+          onStartListening={
+            stationSelection.tracks.length
+              ? () =>
+                  outletContext.playSelection?.(
+                    stationSelection.tracks,
+                    stationSelection.collection?.id,
+                  )
+              : undefined
+          }
         >
           <Outlet context={outletContext} />
         </ApplicationShell>

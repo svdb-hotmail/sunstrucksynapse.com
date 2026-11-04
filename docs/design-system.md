@@ -11,18 +11,30 @@ artist records, track titles, media filenames, fixtures and seeds, rights and
 disclosure notes, and historical architecture or repository identifiers. A visual
 or copy change must not rename those data values.
 
-## Editorial broadcast direction
+## SDP-2 design authority
 
-The production visual language combines an independent music journal with analogue broadcast equipment. Both themes use the same layout and component recipes:
+The production design follows [SDP-2](https://github.com/Kobold-Technologies/sdp-2)
+at `005de64c5502c13d8c1e3298156127656cc5ad25`. The former archival-paper / analogue-broadcast
+visual direction is retired. The approved reference is the SDP-2-led SunSyn mockup,
+not a blend with the former design.
 
-- condensed display type for artist-scale headlines;
-- monospaced transmission labels, navigation, metadata, and controls;
-- a restrained handwritten face only for the station line and curator notes;
-- signal red for primary playback and editorial emphasis, broadcast amber for meters, and blue for AI-process disclosure;
-- thin etched borders, compact radii, physical-paper notes, and low-contrast surface texture; and
-- list-style catalogue rows and a persistent transport dock rather than generic card grids.
+- Inter supplies interface, editorial body and metadata text; Orbitron supplies display headings and brand text.
+- Cool ink/navy canvas and layered source surfaces establish depth.
+- Cyan identifies audio actions; violet/magenta distinguish brand and editorial emphasis.
+- Image amber, success green, warning and destructive red remain separate semantic roles.
+- Source media controls use filled, outlined and quiet emphasis with 44px targets and 12px corners.
+- Production catalogue artwork and artist identities remain real catalogue data. The static frequency illustration is decorative, not a live waveform or telemetry.
 
-The light theme maps those roles onto warm archival paper and near-black ink. The dark theme maps them onto a near-black broadcast room with parchment-colored type. Components must consume the shared semantic roles so switching theme changes the material and contrast without changing hierarchy or behavior.
+`app/design-system/sdp2/palette.css` and `theme.css` are the source design vocabulary,
+scoped to document and Storybook theme roots. `tokens.css` maps SunSyn's existing component
+contracts onto those roles and completes light theme coverage. `fonts.css` serves the
+source Inter/Orbitron packages locally with their OFL notices. `app/styles/sdp2.css`
+composes listener, submission, curator and policy surfaces; production and Storybook
+both load it after structural styles.
+
+See [migration evidence and additions](sdp2-design-migration.md) for origins, component
+additions, theme completion and validation. The standalone `design-mockup/` remains a
+review artifact, not a production dependency.
 
 ## Listener layout
 
@@ -31,7 +43,7 @@ The listener shell uses the Radio first hierarchy described in
 Listen/Explore/Queue navigation frame the requested route. The phone player starts
 as a 68px transport after a track is chosen, with a full player and queue available
 in an accessible dialog. Titles and controls use the UI face for phone readability;
-the broadcast palette, condensed editorial display face and shared themes remain.
+the SDP-2 palette, Orbitron display headings and shared themes apply.
 Listener styles live in `app/styles/listener.css` and are loaded by both production
 and Storybook. Stories wrap listener components in the same scoped shell.
 
@@ -39,7 +51,7 @@ and Storybook. Stories wrap listener components in the same scoped shell.
 
 The design-system surface has three layers in `app/design-system/tokens.css`:
 
-1. **Primitives** are the raw palette, typography, spacing, radius, border, shadow,
+1. **Primitives** are the SDP-2 source palette and the shared typography, spacing, radius, border, shadow,
    and motion values. They are the smallest reusable choices, such as a color step
    or spacing unit, and do not describe a component or page.
 2. **Semantic tokens** describe intent and meaning: page background, surface,
@@ -52,7 +64,7 @@ The design-system surface has three layers in `app/design-system/tokens.css`:
    makes a component's contract clearer or keeps repeated values coordinated.
 
 Token names should describe role, not appearance. The layer prefixes make the
-ownership clear: use `--primitive-*` for raw values, `--color-*` for semantic
+ownership clear: use source `--brand-*` for raw palette values, `--color-*` for SunSyn semantic
 colour roles, and `--component-*` for component aliases. For example,
 `--color-surface-panel`, `--color-content-secondary`, and
 `--component-control-background` describe intent; names such as `--purple` or

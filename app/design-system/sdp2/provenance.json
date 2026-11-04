@@ -1,0 +1,53 @@
+{
+  "repository": "https://github.com/Kobold-Technologies/sdp-2",
+  "commit": "005de64c5502c13d8c1e3298156127656cc5ad25",
+  "files": [
+    {
+      "source_path": "web/src/design-system/palette.css",
+      "source_sha256": "9d18c58e237cfd9fb52f46684a15e7424b9990c17c75cc6fba3cb3e3fa3c0f30",
+      "production_path": "app/design-system/sdp2/palette.css",
+      "adaptation": "Scope .kb-preview to :where(:root, [data-theme]); Prettier formatting. Token names and values preserved."
+    },
+    {
+      "source_path": "web/src/design-system/theme.css",
+      "source_sha256": "367e7fdc2b07796f19b9080a9622def44c89e1b87b7e9261ea3326d3fc29cf88",
+      "production_path": "app/design-system/sdp2/theme.css",
+      "adaptation": "Scope .kb-preview to :where(:root, [data-theme]); Prettier formatting. Token names and values preserved."
+    },
+    {
+      "source_path": "web/src/design-system/Button.tsx",
+      "source_sha256": "dbfad95f88c77eb63c484d9cc59ba5d096cc08378e818b28b278f90511b3634b",
+      "production_path": "app/design-system/Button.tsx",
+      "adaptation": "Prettier formatting; source component behavior preserved."
+    },
+    {
+      "source_path": "web/src/design-system/ButtonBase.tsx",
+      "source_sha256": "227b851c8d8f63229feeba9f2fedf72072ceae01e99e442b584ec876eb062f12",
+      "production_path": "app/design-system/ButtonBase.tsx",
+      "adaptation": "Prettier formatting; source component behavior preserved."
+    },
+    {
+      "source_path": "web/src/design-system/MediaButton.tsx",
+      "source_sha256": "c28185ebbda50e444f514a6b14a14eb8f05dd3e04e496eb3f99a22966ec065e1",
+      "production_path": "app/design-system/MediaButton.tsx",
+      "adaptation": "Prettier formatting; source component behavior preserved."
+    },
+    {
+      "source_path": "web/src/kobold-preview/brand.css",
+      "source_sha256": "6b6f868c302fb980b13d5acdc89a5b188732e6e814d2d73d61a533fd62dc23c7",
+      "production_path": "app/styles/listener-brand.css",
+      "adaptation": "Scope .kb-preview to .listener-shell; omit unused Tailwind directive; Prettier formatting."
+    },
+    {
+      "source_path": "web/src/design-system/components.css",
+      "source_sha256": "bcea0ad531f92fd3fdd204068ddb7e767e22d3d44015d4585e8d306b46d4ea6d",
+      "production_path": "app/styles/listener-controls.css",
+      "adaptation": "Scope .kb-preview to .listener-shell; omit unused Tailwind directive; Prettier formatting."
+    }
+  ],
+  "fonts": {
+    "packages": ["@fontsource/inter@5.3.0", "@fontsource/orbitron@5.3.0"],
+    "license_notices": "../fonts/*-OFL.txt"
+  },
+  "extensions": "../tokens.css and ../../styles/sdp2.css"
+}

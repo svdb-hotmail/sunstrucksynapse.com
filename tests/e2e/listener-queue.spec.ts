@@ -13,6 +13,11 @@ test.beforeEach(async ({ page }) => {
 });
 
 async function playNext(page: Page, title: string) {
+  if (new URL(page.url()).pathname !== "/search")
+    await page
+      .getByRole("navigation", { name: "Primary", exact: true })
+      .getByRole("link", { name: "Explore", exact: true })
+      .click();
   const card = trackCard(page, title);
   await card.locator(".track-menu > summary").click();
   await card.getByRole("button", { name: "Play next", exact: true }).click();
@@ -50,7 +55,7 @@ test("Play next changes finite selection order, Undo restores it, and endings ne
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Play the selection", exact: true }).click();
+  await page.getByRole("button", { name: "Start listening", exact: true }).click();
   await playNext(page, c);
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await page.getByRole("button", { name: "Queue, 2 tracks", exact: true }).click();
@@ -65,7 +70,7 @@ test("Play next handles already-played and outside tracks without losing the sel
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Play the selection", exact: true }).click();
+  await page.getByRole("button", { name: "Start listening", exact: true }).click();
   await page.getByRole("button", { name: "Next", exact: true }).click();
   await expect(page.locator(".dock-track strong")).toHaveText(b);
   await playNext(page, a);
@@ -78,7 +83,7 @@ test("choosing a later queue item plays the remaining entries once in their surv
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Play the selection", exact: true }).click();
+  await page.getByRole("button", { name: "Start listening", exact: true }).click();
   await page.getByRole("button", { name: "Queue, 2 tracks", exact: true }).click();
   await page.getByRole("button", { name: `Play ${c} from queue`, exact: true }).click();
   for (const title of [c, b]) await finish(page, title);
@@ -98,6 +103,7 @@ test("Previous retains album provenance after reload and interruption by an unre
   await expect(page.locator(".dock-track strong")).toHaveText(b);
   await closePanel(page);
   await page.getByRole("link", { name: "Back to catalogue", exact: true }).click();
+  await page.getByRole("link", { name: "Explore all", exact: true }).click();
   await trackCard(page, outside)
     .getByRole("button", { name: `Play ${outside}`, exact: true })
     .click();

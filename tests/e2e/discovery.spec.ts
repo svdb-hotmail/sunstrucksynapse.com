@@ -14,7 +14,9 @@ test("searches and filters the published catalogue with URL-backed controls", as
   await page.getByRole("button", { name: "Search" }).click();
   await expect(page).toHaveURL(/genre=folk/);
   await expect(page.locator(".entity-track-list > li")).toHaveCount(1);
-  await expect(page.getByText("The Mushroom Circle (Gnome Revolution)")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "The Mushroom Circle (Gnome Revolution)", exact: true }),
+  ).toBeVisible();
 
   await page.getByRole("link", { name: "Clear search & filters" }).click();
   await expect(page).toHaveURL(/\/search$/);

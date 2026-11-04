@@ -57,7 +57,10 @@ test("keeps signed playback active through loader refresh and refreshes only on 
   );
 
   await page.goto("/");
-  const card = page.locator(".media-card").filter({ hasText: revolutionTitle }).first();
+  const card = page
+    .locator(".media-card")
+    .filter({ has: page.getByRole("link", { name: revolutionTitle, exact: true }) })
+    .first();
   await card.getByRole("button", { name: `Play ${revolutionTitle}` }).click();
 
   const audio = page.getByLabel(`${revolutionTitle} audio player`);

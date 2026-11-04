@@ -7,7 +7,10 @@ const revolutionSource = "/assets/audio/Sunstruck Synapse (Revolution will be te
 const mushroomTitle = "The Mushroom Circle (Gnome Revolution)";
 
 function cardFor(page: Page, title: string) {
-  return page.locator(".media-card").filter({ hasText: title }).first();
+  return page
+    .locator(".media-card")
+    .filter({ has: page.getByRole("link", { name: title, exact: true }) })
+    .first();
 }
 
 async function expectHashTarget(page: Page, id: string) {
@@ -36,8 +39,8 @@ test("loads the database catalogue and controls the correct media", async ({ pag
   await page.goto("/");
 
   await expect(page).toHaveTitle(/SunSyn Radio/);
-  await expect(page.getByRole("heading", { name: "Start listening." })).toBeVisible();
-  await expect(page.locator(".media-card")).toHaveCount(6);
+  await expect(page.getByRole("heading", { name: "Human ears. New frequencies." })).toBeVisible();
+  await expect(page.locator(".media-card")).toHaveCount(2);
   await cardFor(page, revolutionTitle)
     .getByRole("button", { name: `Play ${revolutionTitle}` })
     .click();
@@ -87,7 +90,6 @@ test("supports queue removal, next priority and automatic advancement", async ({
   await cardFor(page, revolutionTitle)
     .getByRole("button", { name: `Play ${revolutionTitle}` })
     .click();
-  await cardFor(page, mushroomTitle).locator(".track-menu > summary").click();
   await cardFor(page, mushroomTitle)
     .getByRole("button", { name: `Queue ${mushroomTitle}` })
     .click();
@@ -165,7 +167,6 @@ test("restores the selected track without autoplay after reload", async ({ page 
   await page.goto("/");
   const revolutionCard = cardFor(page, revolutionTitle);
   await revolutionCard.getByRole("button", { name: `Play ${revolutionTitle}` }).click();
-  await cardFor(page, mushroomTitle).locator(".track-menu > summary").click();
   await cardFor(page, mushroomTitle)
     .getByRole("button", { name: `Queue ${mushroomTitle}` })
     .click();
@@ -266,7 +267,7 @@ test("presents published tracks with missing media without requesting a source",
       mediaRequests.push(request.url());
     }
   });
-  await page.goto("/");
+  await page.goto("/search");
 
   const missingMediaCard = cardFor(page, "Quiet Machines");
   await expect(
@@ -366,8 +367,8 @@ test("retains hash-scroll coverage and preserves the player through the About ro
     .poll(() => audio.evaluate((element: HTMLMediaElement) => element.paused))
     .toBe(false);
   await page
-    .getByRole("navigation", { name: "Primary" })
-    .getByRole("link", { name: "About", exact: true })
+    .locator(".listener-footer")
+    .getByRole("link", { name: "About SunSyn", exact: true })
     .click();
 
   await expect(page).toHaveURL(/\/about$/);
@@ -393,11 +394,11 @@ test("keeps the intermediate header visible without horizontal overflow", async 
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeHidden();
   await expect(page.getByRole("button", { name: "Light mode" })).toBeVisible();
-  await expect(page.locator(".site-logo span:last-child")).toBeVisible();
-  await expect(page.locator(".theme-toggle__label")).toBeHidden();
+  await expect(page.locator(".site-wordmark")).toBeVisible();
+  await expect(page.locator("header .theme-toggle__label")).toBeHidden();
   await expect(page.locator(".subscribe")).toHaveCount(0);
   await expect(
-    page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "About" }),
+    page.locator(".listener-footer").getByRole("link", { name: "About SunSyn" }),
   ).toBeVisible();
   expect(
     await page.evaluate(() => document.body.scrollWidth <= document.documentElement.clientWidth),

@@ -1,0 +1,77 @@
+{
+  "source": "https://github.com/Kobold-Technologies/sdp-2",
+  "archive_root": "Kobold-Technologies-sdp-2-005de64c5502c13d8c1e3298156127656cc5ad25",
+  "reviewed_tree": "005de64c5502c13d8c1e3298156127656cc5ad25",
+  "files": [
+    {
+      "source_path": "web/src/design-system/Button.tsx",
+      "local_path": "design-mockup/upstream/Button.tsx",
+      "source_sha256": "dbfad95f88c77eb63c484d9cc59ba5d096cc08378e818b28b278f90511b3634b",
+      "local_sha256": "dbfad95f88c77eb63c484d9cc59ba5d096cc08378e818b28b278f90511b3634b",
+      "adaptation": "Unmodified"
+    },
+    {
+      "source_path": "web/src/design-system/ButtonBase.tsx",
+      "local_path": "design-mockup/upstream/ButtonBase.tsx",
+      "source_sha256": "227b851c8d8f63229feeba9f2fedf72072ceae01e99e442b584ec876eb062f12",
+      "local_sha256": "227b851c8d8f63229feeba9f2fedf72072ceae01e99e442b584ec876eb062f12",
+      "adaptation": "Unmodified"
+    },
+    {
+      "source_path": "web/src/design-system/MediaButton.tsx",
+      "local_path": "design-mockup/upstream/MediaButton.tsx",
+      "source_sha256": "c28185ebbda50e444f514a6b14a14eb8f05dd3e04e496eb3f99a22966ec065e1",
+      "local_sha256": "c28185ebbda50e444f514a6b14a14eb8f05dd3e04e496eb3f99a22966ec065e1",
+      "adaptation": "Unmodified"
+    },
+    {
+      "source_path": "web/src/design-system/Notice.tsx",
+      "local_path": "design-mockup/upstream/Notice.tsx",
+      "source_sha256": "3c4abbdd6233524156212d85190dd30f57b6f6b567fbca1db9a5a630381ef408",
+      "local_sha256": "3c4abbdd6233524156212d85190dd30f57b6f6b567fbca1db9a5a630381ef408",
+      "adaptation": "Unmodified"
+    },
+    {
+      "source_path": "web/src/design-system/NoticeBase.tsx",
+      "local_path": "design-mockup/upstream/NoticeBase.tsx",
+      "source_sha256": "1fc9cf5ef8cb4268b9f200e2787a4a96e527cb53ef8eb5b49c36c16f3275cf13",
+      "local_sha256": "1fc9cf5ef8cb4268b9f200e2787a4a96e527cb53ef8eb5b49c36c16f3275cf13",
+      "adaptation": "Unmodified"
+    },
+    {
+      "source_path": "web/src/kobold-preview/brand.css",
+      "local_path": "design-mockup/upstream/brand.css",
+      "source_sha256": "6b6f868c302fb980b13d5acdc89a5b188732e6e814d2d73d61a533fd62dc23c7",
+      "local_sha256": "07b79883c98e3f3060927372bd7925777ea658b6d93797bb69ed5aa6d4620864",
+      "adaptation": "Only unused @tailwind base directive replaced with a comment; isolated reset in mockup.css."
+    },
+    {
+      "source_path": "web/src/design-system/components.css",
+      "local_path": "design-mockup/upstream/components.css",
+      "source_sha256": "bcea0ad531f92fd3fdd204068ddb7e767e22d3d44015d4585e8d306b46d4ea6d",
+      "local_sha256": "bcea0ad531f92fd3fdd204068ddb7e767e22d3d44015d4585e8d306b46d4ea6d",
+      "adaptation": "Unmodified"
+    },
+    {
+      "source_path": "web/src/design-system/notices.css",
+      "local_path": "design-mockup/upstream/notices.css",
+      "source_sha256": "a0778d13143e628174d62126a1e12b70d166deb4d45143f14c33dd4f3b65abe4",
+      "local_sha256": "a0778d13143e628174d62126a1e12b70d166deb4d45143f14c33dd4f3b65abe4",
+      "adaptation": "Unmodified"
+    },
+    {
+      "source_path": "web/src/design-system/palette.css",
+      "local_path": "design-mockup/upstream/palette.css",
+      "source_sha256": "9d18c58e237cfd9fb52f46684a15e7424b9990c17c75cc6fba3cb3e3fa3c0f30",
+      "local_sha256": "9d18c58e237cfd9fb52f46684a15e7424b9990c17c75cc6fba3cb3e3fa3c0f30",
+      "adaptation": "Unmodified"
+    },
+    {
+      "source_path": "web/src/design-system/theme.css",
+      "local_path": "design-mockup/upstream/theme.css",
+      "source_sha256": "367e7fdc2b07796f19b9080a9622def44c89e1b87b7e9261ea3326d3fc29cf88",
+      "local_sha256": "367e7fdc2b07796f19b9080a9622def44c89e1b87b7e9261ea3326d3fc29cf88",
+      "adaptation": "Unmodified"
+    }
+  ]
+}

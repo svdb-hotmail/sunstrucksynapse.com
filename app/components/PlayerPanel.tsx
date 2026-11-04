@@ -4,6 +4,10 @@ import { Link } from "react-router";
 import { ListenerSheet } from "~/components/ListenerSheet";
 import { ShareButton } from "~/components/ShareButton";
 import { Queue } from "~/components/Queue";
+import { StationMark } from "~/design-system/StationMark";
+import { ListenerIcon } from "~/design-system/ListenerIcon";
+import { MediaButton } from "~/design-system/MediaButton";
+import { Button } from "~/design-system/Button";
 import { SITE_URL } from "~/config/brand";
 import { PlaybackCoordinator } from "~/services/playback-coordinator";
 import { recordPlaybackEvent } from "~/services/analytics.client";
@@ -33,6 +37,7 @@ export interface PlayerPanelProps {
   canPrevious: boolean;
   canNext: boolean;
   onMediaEnded: () => void;
+  onStartListening?: () => void;
 }
 
 function formatTime(seconds: number): string {
@@ -62,6 +67,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     canPrevious,
     canNext,
     onMediaEnded,
+    onStartListening,
     view,
     onViewChange,
     onPlaybackStateChange,
@@ -445,39 +451,117 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       aria-label="Listening player"
       data-active={Boolean(item)}
     >
-      {item ? (
-        <div className="player-dock" aria-label="Playback controls">
-          <button
-            type="button"
-            className="dock-track"
-            onClick={() => changeView("player")}
-            aria-label={`Open player: ${item.description.title}`}
-          >
-            <img src={playerArtwork} alt="" width="44" height="44" decoding="async" />
-            <span>
-              <strong>{item.description.title}</strong>
-              <small>
-                {isPlaying ? "Playing" : "Paused"} · {item.creator.name}
-              </small>
-            </span>
-          </button>
-          <button
-            type="button"
-            className="dock-play"
-            onClick={togglePlayback}
-            disabled={!item.media}
-            aria-label={isPlaying ? "Pause" : "Play"}
-          >
-            <span aria-hidden="true">{isPlaying ? "Ⅱ" : "▸"}</span>
-          </button>
-          <button type="button" onClick={onNext} disabled={!canNext} aria-label="Next">
-            <span aria-hidden="true">▸|</span>
-          </button>
-          <button type="button" className="dock-desktop-queue" onClick={() => changeView("queue")}>
-            Queue ({queue.length})
-          </button>
+      <div className="player-dock transport brand-topbar" aria-label="Playback controls">
+        <div className="transport-track">
+          {item ? (
+            <button
+              type="button"
+              className="dock-track"
+              onClick={() => changeView("player")}
+              aria-label={`Open player: ${item.description.title}`}
+            >
+              <img
+                className="artwork"
+                src={playerArtwork}
+                alt=""
+                width="52"
+                height="52"
+                decoding="async"
+              />
+              <span>
+                <strong>{item.description.title}</strong>
+                <small>
+                  {isPlaying ? "Playing" : "Paused"} · {item.creator.name}
+                </small>
+              </span>
+            </button>
+          ) : (
+            <>
+              <span className="idle-art">
+                <StationMark />
+              </span>
+              <div>
+                <strong>Find your next frequency</strong>
+                <span>Select a track to start listening</span>
+              </div>
+            </>
+          )}
         </div>
-      ) : null}
+        <div className="transport-center">
+          <div className="transport-controls">
+            <MediaButton
+              media="audio"
+              emphasis="quiet"
+              iconOnly
+              onClick={onPrevious}
+              disabled={!canPrevious}
+              aria-label="Previous in dock"
+            >
+              <ListenerIcon name="back" size={17} />
+            </MediaButton>
+            <MediaButton
+              media="audio"
+              emphasis="primary"
+              iconOnly
+              className="dock-play"
+              onClick={item ? togglePlayback : onStartListening}
+              disabled={item ? !item.media : !onStartListening}
+              aria-label={isPlaying ? "Pause" : "Play"}
+            >
+              <ListenerIcon name={isPlaying ? "pause" : "play"} />
+            </MediaButton>
+            <MediaButton
+              media="audio"
+              emphasis="quiet"
+              iconOnly
+              onClick={onNext}
+              disabled={!canNext}
+              aria-label="Next"
+            >
+              <ListenerIcon name="next" size={17} />
+            </MediaButton>
+          </div>
+          <div className="timeline">
+            <span>{formatTime(currentTime).replace(/^0(?=\d:)/, "")}</span>
+            <input
+              type="range"
+              min="0"
+              max={duration || 1}
+              step="0.1"
+              value={Math.min(currentTime, duration || 0)}
+              disabled={!duration}
+              aria-label="Playback position in dock"
+              onChange={(event) => {
+                if (mediaRef.current) mediaRef.current.currentTime = Number(event.target.value);
+              }}
+            />
+            <span>{formatTime(duration).replace(/^0(?=\d:)/, "")}</span>
+          </div>
+        </div>
+        <div className="transport-tools">
+          <label className="volume-control">
+            <ListenerIcon name="volume" size={18} />
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={isMuted ? 0 : volume}
+              aria-label="Volume in dock"
+              disabled={!item?.media}
+              onChange={(event) => changeVolume(Number(event.target.value))}
+            />
+          </label>
+          <Button
+            className="dock-desktop-queue"
+            onClick={() => changeView("queue")}
+            aria-label={`Open queue in dock, ${queue.length} tracks`}
+          >
+            <ListenerIcon name="queue" />
+            <span>{queue.length}</span>
+          </Button>
+        </div>
+      </div>
       {panel === null ? (
         <div className="listener-feedback">
           {notice}
