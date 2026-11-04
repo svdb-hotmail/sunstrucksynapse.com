@@ -27,10 +27,18 @@ test.describe("SunSyn Radio theme", () => {
     );
     const artistCard = page
       .locator(".media-card")
-      .filter({ hasText: "Sunstruck Synapse (Revolution will be televised)" })
+      .filter({
+        has: page.getByRole("link", {
+          name: "Sunstruck Synapse (Revolution will be televised)",
+          exact: true,
+        }),
+      })
       .first();
     await expect(
-      artistCard.getByText("Sunstruck Synapse (Revolution will be televised)", { exact: true }),
+      artistCard.getByRole("link", {
+        name: "Sunstruck Synapse (Revolution will be televised)",
+        exact: true,
+      }),
     ).toBeVisible();
     expect(browserErrors).toEqual([]);
   });
@@ -119,7 +127,10 @@ test.describe("SunSyn Radio theme", () => {
     await page.emulateMedia({ colorScheme: "dark" });
     await page.goto("/");
 
-    const revolutionCard = page.locator(".media-card").filter({ hasText: revolutionTitle }).first();
+    const revolutionCard = page
+      .locator(".media-card")
+      .filter({ has: page.getByRole("link", { name: revolutionTitle, exact: true }) })
+      .first();
     await revolutionCard.getByRole("button", { name: `Play ${revolutionTitle}` }).click();
     await queueTrack(page, mushroomTitle);
 

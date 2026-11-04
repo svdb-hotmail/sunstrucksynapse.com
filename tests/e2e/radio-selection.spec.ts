@@ -5,7 +5,7 @@ test("radio selection plays only its published audio order, retains the queue on
 }) => {
   await serveSeekableMedia(page);
   await page.goto("/");
-  await page.getByRole("button", { name: "Play the selection", exact: true }).click();
+  await page.getByRole("button", { name: "Start listening", exact: true }).click();
   const nowPlaying = page.locator(".dock-track strong"),
     audio = page.locator("audio");
   const first = "Sunstruck Synapse (Revolution will be televised)",

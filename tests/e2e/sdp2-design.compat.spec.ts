@@ -13,7 +13,7 @@ for (const theme of ["dark", "light"] as const) {
       await page.goto("/");
       await page.evaluate(() => document.fonts.ready);
       await expect(
-        page.getByRole("button", { name: "Play the selection", exact: true }),
+        page.getByRole("button", { name: "Start listening", exact: true }),
       ).toBeInViewport();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
@@ -39,7 +39,7 @@ for (const theme of ["dark", "light"] as const) {
           return (Math.max(text, background) + 0.05) / (Math.min(text, background) + 0.05);
         });
       expect(contrast).toBeGreaterThanOrEqual(4.5);
-      await page.getByRole("button", { name: "Play the selection", exact: true }).focus();
+      await page.getByRole("button", { name: "Start listening", exact: true }).focus();
       const focus = await page.locator(".listener-primary").evaluate((element) => {
         const style = getComputedStyle(element);
         return { width: parseFloat(style.outlineWidth), style: style.outlineStyle };

@@ -13,10 +13,11 @@ large featured artwork. It uses the existing published catalogue and media coord
   order. Other collections remain explicit listening paths. It never invents an editorial collection or includes unavailable
   media in the selection. Track counts and known durations come from catalogue data.
 - The short homepage list starts with that selection and includes at most six unique
-  tracks. At most four releases and four collection links follow; release presentation
-  retains its own cover and artist credits. Further browsing goes through Explore.
+  playable tracks. Up to four track discovery cards follow. Full catalogue, releases,
+  collections and advanced queue actions remain reachable through Explore.
 - A fresh visit has no unrelated selected track or player above the page. A restored
-  session shows a paused mini player. Starting or changing music preserves browsing
+  session shows a paused player. The approved reference adds an idle transport before
+  selection (104px desktop, 100px phone); it does not select or load audio until asked. Starting or changing music preserves browsing
   scroll and focus; artwork and title links only navigate.
 - The mini player expands to a full player with seeking, previous/next, sharing and a
   link to the actual track's details/credits. The same native media element stays

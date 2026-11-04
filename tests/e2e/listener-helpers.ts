@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import type { Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 export function trackCard(page: Page, title: string) {
   return page
     .locator(".media-card")
@@ -8,8 +8,15 @@ export function trackCard(page: Page, title: string) {
     .first();
 }
 export async function queueTrack(page: Page, title: string) {
+  if (new URL(page.url()).pathname === "/" && !(await trackCard(page, title).count()))
+    await page
+      .getByRole("navigation", { name: "Primary", exact: true })
+      .getByRole("link", { name: "Explore", exact: true })
+      .click();
   const card = trackCard(page, title);
-  await card.locator(".track-menu > summary").click();
+  await expect(card).toBeVisible();
+  if (await card.locator(".track-menu").count())
+    await card.locator(".track-menu > summary").click();
   await card.getByRole("button", { name: `Queue ${title}`, exact: true }).click();
 }
 export async function viewTrack(page: Page, title: string) {

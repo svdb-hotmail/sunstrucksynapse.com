@@ -1,5 +1,34 @@
 import { expect, test } from "@playwright/test";
 
+test("listener matches the approved 1440px reference composition", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1180 });
+  await page.emulateMedia({ colorScheme: "dark" });
+  await page.goto("/");
+  await page.evaluate(() => document.fonts.ready);
+  const hero = await page.locator(".listening-hero").boundingBox();
+  expect(hero).not.toBeNull();
+  for (const [name, expected] of Object.entries({
+    x: 100,
+    y: 154,
+    width: 1240,
+    height: 414.765625,
+  })) {
+    expect(Math.abs(hero![name as keyof typeof hero] - expected)).toBeLessThanOrEqual(2);
+  }
+  expect(
+    await page.locator(".hero-copy h1").evaluate((element) => getComputedStyle(element).fontSize),
+  ).toBe("48px");
+  await expect(page.locator(".track-section .track-row")).toHaveCount(2);
+  await expect(page.locator(".release-card")).toHaveCount(2);
+  await expect(page.locator(".idle-art")).toBeVisible();
+  await expect(page.locator("audio")).toHaveCount(0);
+  const dock = await page.locator(".transport").boundingBox();
+  expect(dock?.height).toBe(104);
+  expect(dock?.y).toBe(1076);
+  await expect(page.getByRole("button", { name: "Start listening", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Explore the music", exact: true })).toBeVisible();
+});
+
 test("full site preview navigates, searches and keeps real playback across pages", async ({
   page,
 }) => {
@@ -10,7 +39,7 @@ test("full site preview navigates, searches and keeps real playback across pages
     page.getByText("Design preview · sample catalogue · production unchanged"),
   ).toBeVisible();
   await expect(page.getByRole("heading", { name: "Human ears. New frequencies." })).toBeVisible();
-  await page.getByRole("button", { name: "Play the selection", exact: true }).click();
+  await page.getByRole("button", { name: "Start listening", exact: true }).click();
   await expect
     .poll(() =>
       page

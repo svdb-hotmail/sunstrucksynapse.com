@@ -6,6 +6,9 @@ import "~/styles/global.css";
 import "~/styles/curator-catalogue.css";
 import "~/styles/listener.css";
 import "~/styles/sdp2.css";
+import "~/styles/listener-brand.css";
+import "~/styles/listener-controls.css";
+import "~/styles/listener-reference.css";
 
 type Theme = "light" | "dark";
 

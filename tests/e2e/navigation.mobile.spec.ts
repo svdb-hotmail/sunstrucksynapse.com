@@ -20,7 +20,7 @@ test("sparse mobile navigation keeps Listen, Explore and Queue accessible in one
   await page.setExtraHTTPHeaders({ "x-test-catalogue-scenario": "sparse-r2" });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/submission-terms");
-  const nav = page.getByRole("navigation", { name: "Mobile navigation", exact: true });
+  const nav = page.getByRole("navigation", { name: "Primary", exact: true });
   await expect(nav.getByRole("link")).toHaveText(["Listen", "Explore"]);
   await expectSingleRow(nav);
   await nav.getByRole("link", { name: "Listen", exact: true }).click();
@@ -29,7 +29,7 @@ test("sparse mobile navigation keeps Listen, Explore and Queue accessible in one
     page.getByRole("heading", { name: "Human ears. New frequencies.", exact: true }),
   ).toBeInViewport();
   await expect(page.locator("#catalogue .media-card")).toHaveCount(1);
-  await expect(page.getByRole("link", { name: /stillith.*tracks/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: "View Stillith collection" })).toBeVisible();
   await expect(page.locator("#latest, #audio, #video")).toHaveCount(0);
   await nav.getByRole("link", { name: "Explore", exact: true }).click();
   await expect(page).toHaveURL(/\/search$/);
@@ -82,7 +82,7 @@ test("three phone destinations fit and remain usable with standard collections",
   page,
 }) => {
   await page.goto("/search");
-  const nav = page.getByRole("navigation", { name: "Mobile navigation", exact: true });
+  const nav = page.getByRole("navigation", { name: "Primary", exact: true });
   await expect(nav.getByRole("link")).toHaveText(["Listen", "Explore"]);
   await expectSingleRow(nav);
   await nav.getByRole("link", { name: "Listen", exact: true }).click();

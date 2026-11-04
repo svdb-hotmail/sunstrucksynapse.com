@@ -2,7 +2,7 @@
 
 ## Scope and authority
 
-Maintainer instruction: create a branch and implement the new design in full; SDP-2 is the new design leader and the old design may be dropped. Work is direct/solo under the maintainer's explicit instruction not to run the Village. Branch: `agent/sdp2-production-design`. No merge, deployment or publishing is included.
+Maintainer instruction: create a branch and implement the new design in full; SDP-2 is the new design leader and the old design may be dropped. Work is direct/solo under the maintainer's explicit instruction not to run the Village. Branch: `agent/sdp2-production-design`. The maintainer subsequently authorized commits, pushes, a PR and isolated preview deployments. Production merge/deployment is excluded.
 
 Design source: [Kobold-Technologies/sdp-2](https://github.com/Kobold-Technologies/sdp-2) at `005de64c5502c13d8c1e3298156127656cc5ad25`. Source design reference and inventory are authoritative for palette, interface/display fonts, surfaces, media emphasis and shared control geometry. The prior SunSyn broadcast/paper appearance is retired.
 
@@ -58,3 +58,50 @@ SDP-2 only partially defines light mode. The bridge completes field, placeholder
 WebKit initially could not launch from a newly downloaded browser cache. The managed environment already has a configured installation with verified library links. The successful WebKit run used `PLAYWRIGHT_BROWSERS_PATH=/workspace/.onboarding/browsers`, `LD_LIBRARY_PATH=/workspace/.onboarding/sysroot/usr/lib/x86_64-linux-gnu`, `XDG_CACHE_HOME=/var/tmp` and `PLAYWRIGHT_SKIP_VALIDATE_HOST_REQUIREMENTS=1`. The last setting bypasses only the ldconfig-cache heuristic after directly verifying the shared libraries; no browser assertions were skipped or weakened.
 
 Browser evidence uses the repository's isolated test-mode Worker and synthetic catalogue/curator fixtures. It does not establish production catalogue availability or deployed authorization/media behavior. Native phone background audio and a complete assistive-technology audit remain device/human acceptance checks. These checks are solo-review evidence, not independent Village acceptance. No schema, service, provider or publication-policy changes were made.
+
+## Approved reference correction
+
+The first production adaptation drifted from the approved mockup. The correction uses
+`design-mockup/main.tsx` and `mockup.css` as the composition authority, including source
+Button/ButtonBase/MediaButton, scoped brand/control recipes, original signal geometry,
+2-line wordmark, hero copy/actions, numbered rows, quiet curator note, horizontal
+discovery cards and idle full-width transport. `listener-reference.css` scopes the
+reference to the listener shell; curator screens retain their real workspace controls.
+
+This includes visible UX changes, not only token replacement: About moves to the footer,
+Listen shows the real finite audio selection (up to six rows), full browsing and advanced
+track menus live in Explore, home rows expose direct queue additions, and the transport
+is visible before selection. Starting playback, queue order/Undo, native media continuity,
+entity URLs, curator authorization and publication rules use the existing coordinator.
+Parenthetical title text is presented as a subtitle; canonical labels/data remain intact.
+
+Additional components are `Artwork`, `ListenerIcon`, and `trackLabel`. Artwork recreates
+the original reference covers only for the isolated preview's sample tracks. Production
+continues to display actual catalogue artwork. No new palette primitives were introduced;
+reference brand/surface/spacing roles and existing light-mode completion are reused.
+The preview-only sample artwork lives in `public/assets/design-preview`.
+
+The screenshot fidelity check uses a 1440×1180 dark viewport with local fonts loaded.
+It checks the header, hero at (100,154) with width1240, 48px headline, 2 sample rows,
+2 discovery cards and 104px transport. The immutable approved screenshot remains
+`design-mockup/review/desktop.png`; corrected evidence is saved separately.
+
+Final comparison: all seven measured rectangles (header, hero, headline, listening
+section, discovery section, transport and footer) match the approved source exactly
+at that viewport. `design-mockup/review/reference-matched-production.png` records the
+result. Footer policy/about links and preview sample disclosure remain purposeful additions.
+
+Reference-specific completed tokens (in `listener-reference.css`):
+`--radio-header-height`, `--radio-transport-height`, `--radio-gutter`,
+`--radio-section-gap`, `--radio-panel-radius`, `--radio-row-height`,
+`--radio-text-secondary`, `--radio-text-body`, `--radio-playback-accent`,
+`--radio-track-divider`, `--radio-scrubber-track`, `--radio-scrubber-thumb`,
+`--radio-dialog-backdrop`, `--radio-hero-surface`, `--radio-art-signal`,
+`--radio-art-bloom`, `--radio-space-1` through `--radio-space-6`, and
+`--radio-type-caption/small/body/section/hero`. These fill the music layout and
+transport gaps in SDP-2 using the original approved mockup's values.
+
+Correction validation: all 82 browser journeys pass across the same five projects
+(71 on the first run, remaining journeys after correcting layout-specific selectors
+and awaiting route transitions). All four packaged Pages-preview journeys pass,
+including reference geometry, native audio continuity and curator sample interactions.

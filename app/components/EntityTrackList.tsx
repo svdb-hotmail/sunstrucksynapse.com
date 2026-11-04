@@ -4,14 +4,22 @@ interface EntityTrackListProps {
   tracks: CatalogueItem[];
   player: PlayerOutletContext;
   collectionId?: string;
+  simpleActions?: boolean;
 }
-export function EntityTrackList({ tracks, player, collectionId }: EntityTrackListProps) {
+export function EntityTrackList({
+  tracks,
+  player,
+  collectionId,
+  simpleActions,
+}: EntityTrackListProps) {
   return (
     <ol className="entity-track-list">
-      {tracks.map((track) => (
+      {tracks.map((track, index) => (
         <li key={track.id}>
           <CatalogueCard
             item={track}
+            position={index + 1}
+            simpleActions={simpleActions}
             isSelected={player.selectedItemId === track.id}
             isPlaying={player.playingItemId === track.id}
             onPlay={() => player.playItem(track, collectionId)}

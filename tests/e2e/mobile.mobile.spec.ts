@@ -4,12 +4,10 @@ test("completes the listener flow without horizontal overflow on mobile", async 
   await serveSeekableMedia(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  const nav = page.getByRole("navigation", { name: "Mobile navigation" });
+  const nav = page.getByRole("navigation", { name: "Primary" });
   await expect(nav).toBeVisible();
   await nav.getByRole("link", { name: "Listen", exact: true }).click();
-  await expect(
-    page.getByRole("button", { name: "Play the selection", exact: true }),
-  ).toBeInViewport();
+  await expect(page.getByRole("button", { name: "Start listening", exact: true })).toBeInViewport();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await nav.getByRole("link", { name: "Explore", exact: true }).click();
   await queueTrack(page, "Gone Fishing");

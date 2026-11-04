@@ -52,7 +52,7 @@ const card = (page: import("@playwright/test").Page, name: string) =>
     .first();
 async function queueTrack(page: import("@playwright/test").Page, name: string) {
   const row = card(page, name);
-  await row.locator(".track-menu > summary").click();
+  if (await row.locator(".track-menu").count()) await row.locator(".track-menu > summary").click();
   await row.getByRole("button", { name: `Queue ${name}`, exact: true }).click();
 }
 for (const width of [320, 360, 390]) {
@@ -62,9 +62,10 @@ for (const width of [320, 360, 390]) {
     await expect(page.getByRole("link", { name: "SunSyn Radio home" })).toBeVisible();
     await expect(page.locator(".site-wordmark")).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Play the selection", exact: true }),
+      page.getByRole("button", { name: "Start listening", exact: true }),
     ).toBeInViewport();
-    await expect(page.locator(".player-dock")).toHaveCount(0);
+    await expect(page.locator(".player-dock")).toBeVisible();
+    await expect(page.locator("audio")).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
       true,
     );
@@ -81,28 +82,28 @@ for (const width of [320, 360, 390]) {
     ).toBeVisible();
     expect(
       await page.locator(".player-dock").evaluate((e) => e.getBoundingClientRect().height),
-    ).toBeLessThanOrEqual(70);
+    ).toBeLessThanOrEqual(104);
   });
 }
 test("one-tap selection queues real editorial order and browsing retains audio, focus and position", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Play the selection", exact: true }).click();
+  await page.getByRole("button", { name: "Start listening", exact: true }).click();
   const audio = page.locator("audio");
   await expect
     .poll(() => audio.evaluate((e: HTMLMediaElement) => !e.paused && e.currentTime > 0))
     .toBe(true);
   await audio.evaluate((e) => Reflect.set(globalThis, "__radioAudio", e));
   await page
-    .getByRole("navigation", { name: "Mobile navigation" })
+    .getByRole("navigation", { name: "Primary" })
     .getByRole("button", { name: /Queue,/ })
     .click();
   await expect(page.getByRole("dialog", { name: "Your queue" })).toBeVisible();
   await expect(page.locator(".queue ol>li")).toHaveCount(1);
   await page.getByRole("button", { name: "Close listening panel" }).click();
   await page
-    .getByRole("navigation", { name: "Mobile navigation" })
+    .getByRole("navigation", { name: "Primary" })
     .getByRole("link", { name: "Explore", exact: true })
     .click();
   await expect(page.getByRole("heading", { name: "Explore", exact: true })).toBeInViewport();
@@ -133,7 +134,7 @@ test("queue count, duplicate feedback, reorder, undo and play next work from tra
   await queueTrack(page, mushroom);
   await expect(page.getByRole("status").filter({ hasText: /Already/ })).toBeVisible();
   await page
-    .getByRole("navigation", { name: "Mobile navigation" })
+    .getByRole("navigation", { name: "Primary" })
     .getByRole("button", { name: "Queue, 2 tracks", exact: true })
     .click();
   const dialog = page.getByRole("dialog", { name: "Your queue" });
@@ -151,7 +152,7 @@ test("queue count, duplicate feedback, reorder, undo and play next work from tra
   await card(page, title).locator(".track-menu > summary").click();
   await card(page, title).getByRole("button", { name: "Play next", exact: true }).click();
   await page
-    .getByRole("navigation", { name: "Mobile navigation" })
+    .getByRole("navigation", { name: "Primary" })
     .getByRole("button", { name: "Queue, 2 tracks", exact: true })
     .click();
   await expect(dialog.locator(".queue ol>li").first()).toContainText(title);

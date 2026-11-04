@@ -13,7 +13,7 @@ test("mobile album controls and both themes fit the viewport", async ({ page }) 
   }
   await page.getByRole("button", { name: "Queue album", exact: true }).click();
   await page
-    .getByRole("navigation", { name: "Mobile navigation" })
+    .getByRole("navigation", { name: "Primary" })
     .getByRole("button", { name: /^Queue,/ })
     .click();
   await expect(page.locator(".queue")).toContainText("Phase Zero");

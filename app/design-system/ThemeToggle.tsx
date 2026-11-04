@@ -23,7 +23,7 @@ function readThemeTarget(button: HTMLButtonElement | null, document: Document): 
   return parseTheme(target.getAttribute(THEME_ATTRIBUTE)) ?? getDocumentTheme(document);
 }
 
-export function ThemeToggle() {
+export function ThemeToggle({ badge }: { badge?: string } = {}) {
   const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
   const explicitSessionTheme = useRef<Theme | null>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -114,7 +114,7 @@ export function ThemeToggle() {
   return (
     <button
       ref={button}
-      className="theme-toggle"
+      className={`theme-toggle${badge ? " theme-toggle--badge" : ""}`}
       type="button"
       aria-label="Light mode"
       aria-pressed={theme === "light"}
@@ -124,7 +124,7 @@ export function ThemeToggle() {
       <span className="theme-toggle__icon" aria-hidden="true">
         ☼
       </span>
-      <span className="theme-toggle__label">Light mode</span>
+      <span className="theme-toggle__label">{badge ?? "Light mode"}</span>
     </button>
   );
 }

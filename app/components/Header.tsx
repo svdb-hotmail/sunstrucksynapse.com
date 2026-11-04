@@ -19,13 +19,15 @@ export function Header({
 }) {
   const { pathname } = useLocation();
   return (
-    <header className="topbar">
+    <header className="topbar masthead brand-topbar">
       <div className="brand-lockup">
-        <Link className="site-logo" to="/" aria-label={`${SITE_NAME} home`}>
-          <span className="mini-orb" aria-hidden="true">
+        <Link className="site-logo wordmark" to="/" aria-label={`${SITE_NAME} home`}>
+          <span className="mini-orb station-mark brand-icon-badge" aria-hidden="true">
             <StationMark />
           </span>
-          <span className="site-wordmark">{SITE_NAME}</span>
+          <span className="site-wordmark brand-display brand-gradient-text">
+            SUNSYN<span className="wordmark-radio">RADIO</span>
+          </span>
         </Link>
       </div>
       <nav className="desktop-nav" aria-label="Primary">
@@ -43,14 +45,17 @@ export function Header({
           onClick={onOpenQueue}
           aria-label={`Queue, ${queueCount} ${queueCount === 1 ? "track" : "tracks"}`}
         >
-          Queue ({queueCount})
+          Queue{queueCount > 0 ? <span className="nav-count">{queueCount}</span> : null}
         </button>
-        <Link to="/about" aria-current={pathname === "/about" ? "page" : undefined}>
-          About
-        </Link>
       </nav>
-      <div className="topbar-actions">
-        <ThemeToggle />
+      <div className="topbar-actions preview-label">
+        {import.meta.env.MODE === "site-preview" ? (
+          <>
+            Design preview <ThemeToggle badge="SDP–2" />
+          </>
+        ) : (
+          <ThemeToggle />
+        )}
       </div>
     </header>
   );

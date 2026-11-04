@@ -1,6 +1,7 @@
 import { createRequestHandler, RouterContextProvider } from "react-router";
 import { cloudflareContext } from "../app/config/cloudflare-context.server";
 import { createE2eCatalogueRepository } from "../app/repositories/catalogue-fixture.server";
+import { createStaticCatalogueRepository } from "../app/repositories/catalogue.server";
 
 const handler = createRequestHandler(
   () => import("virtual:react-router/server-build"),
@@ -31,8 +32,25 @@ export default {
       });
     }
     const context = new RouterContextProvider();
+    const samples = createE2eCatalogueRepository();
+    const items = (await samples.listPublishedTracks()).map((item) => ({
+      ...item,
+      artwork:
+        item.slug === "revolution-will-be-televised"
+          ? { src: "/assets/design-preview/signal.svg", alt: "Illustrative sample artwork" }
+          : item.slug === "the-mushroom-circle-gnome-revolution"
+            ? { src: "/assets/design-preview/bloom.svg", alt: "Illustrative sample artwork" }
+            : item.artwork,
+    }));
+    const byId = new Map(items.map((item) => [item.id, item]));
+    const collections = (await samples.listPublishedCollections()).map((collection) => ({
+      ...collection,
+      items: collection.items.map((item) => byId.get(item.id) ?? item),
+    }));
+    const catalogue = createStaticCatalogueRepository(items, collections);
+    catalogue.findPublicTrackDisclosure = samples.findPublicTrackDisclosure;
     context.set(cloudflareContext, {
-      catalogueRepository: createE2eCatalogueRepository(),
+      catalogueRepository: catalogue,
       ctx,
     });
     const response = await handler(request, context);

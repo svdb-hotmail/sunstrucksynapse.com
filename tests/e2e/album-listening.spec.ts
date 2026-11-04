@@ -13,7 +13,7 @@ test("plays an album in order, retains playback through navigation and stops at 
         .filter(
           (element) => !element.querySelector<HTMLButtonElement>(".listener-track__play")?.disabled,
         )
-        .map((element) => element.querySelector(".media-card-title")!.textContent!),
+        .map((element) => element.querySelector(".media-card-title")!.getAttribute("aria-label")!),
     );
   expect(playable.length).toBeGreaterThan(1);
   await page.getByRole("button", { name: "Play album", exact: true }).click();
@@ -30,6 +30,10 @@ test("plays an album in order, retains playback through navigation and stops at 
   await expect
     .poll(() => media.evaluate((a: HTMLMediaElement) => a.currentTime))
     .toBeGreaterThan(beforeNavigation);
+  await page
+    .getByRole("navigation", { name: "Primary", exact: true })
+    .getByRole("link", { name: "Explore", exact: true })
+    .click();
   await page
     .locator(".album-shelf")
     .getByRole("link", { name: /Phase Zero Transmissions/ })
