@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useRef, useState } from "react";
 
 import { Link } from "react-router";
+import { QueuePanel } from "~/components/QueuePanel";
 import { ListenerSheet } from "~/components/ListenerSheet";
 import { ShareButton } from "~/components/ShareButton";
 import { Queue } from "~/components/Queue";
@@ -573,7 +574,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
         </div>
       ) : null}
       <ListenerSheet
-        open={panel !== null}
+        open={panel === "player"}
         title={panel === "queue" ? "Your queue" : "Now playing"}
         onClose={() => changeView(null)}
       >
@@ -682,7 +683,9 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
             </div>
           ) : null}
         </div>
-        <div hidden={panel !== "queue"}>
+      </ListenerSheet>
+      <QueuePanel open={panel === "queue"} onClose={() => changeView(null)} queue={queue}>
+        <div>
           {item ? (
             <div className="listener-queue-current">
               <p className="eyebrow">{isPlaying ? "Now playing" : "Paused"}</p>
@@ -701,7 +704,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
             onMove={onMoveQueueEntry}
           />
         </div>
-      </ListenerSheet>
+      </QueuePanel>
     </aside>
   );
 });

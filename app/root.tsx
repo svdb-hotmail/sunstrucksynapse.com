@@ -52,6 +52,7 @@ import "./styles/sdp2.css";
 import "./styles/listener-brand.css";
 import "./styles/listener-controls.css";
 import "./styles/listener-reference.css";
+import "./styles/queue-panel.css";
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", href: "/assets/favicon.svg", type: "image/svg+xml" },
@@ -337,6 +338,7 @@ export default function App() {
     }
     const next = [...queue, ...scopedQueue([item], { ...player.origin, collectionId })];
     changeQueue(next, `Added to queue · position ${next.length}.`);
+    setView("queue");
   };
   const scopedItems = playbackScope
     ? playbackScope
@@ -400,8 +402,10 @@ export default function App() {
       setPlaybackScope(playable.map((track) => track.id));
       setQueue(scopedQueue(playable.slice(1), origin));
     },
-    queueAlbum: (tracks) =>
-      changeQueue(appendAlbumQueue(queue, tracks), "Album added in track order."),
+    queueAlbum: (tracks) => {
+      changeQueue(appendAlbumQueue(queue, tracks), "Album added in track order.");
+      setView("queue");
+    },
   };
 
   return (
