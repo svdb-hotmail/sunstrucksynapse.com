@@ -79,17 +79,16 @@ test("Play next handles already-played and outside tracks without losing the sel
   await expectEnded(page, c);
 });
 
-test("choosing a later queue item plays the remaining entries once in their surviving order", async ({
-  page,
-}) => {
+test("queue rows do not interrupt playback or consume upcoming tracks", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Start listening", exact: true }).click();
   await page.getByRole("button", { name: "Queue, 2 tracks", exact: true }).click();
-  await page.getByRole("button", { name: `Play ${c} from queue`, exact: true }).click();
+  const laterRow = page.locator(".queue-pullout .queue li").filter({ hasText: c });
+  await laterRow.getByText(c, { exact: true }).click();
   await expect(page.locator(".queue-pullout")).toBeVisible();
-  await expect(page.locator(".queue-pullout .queue li").first()).toContainText(c);
-  for (const title of [c, b]) await finish(page, title);
-  await expectEnded(page, b);
+  await expect(page.locator(".dock-track strong")).toHaveText(a);
+  await expect(page.locator(".queue-pullout .queue li")).toHaveCount(3);
+  await expect(laterRow.locator(".queue-track-info").getByRole("button")).toHaveCount(0);
 });
 
 test("Previous retains album provenance after reload and interruption by an unrelated track", async ({

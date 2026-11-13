@@ -264,7 +264,7 @@ body[data-queue-sidebar="true"] .listener-shell {
 .queue-pullout .queue-entry {
   grid-template-columns: 26px minmax(0, 1fr) auto;
 }
-.queue-pullout .queue-entry > .queue-track-button {
+.queue-pullout .queue-entry > .queue-track-info {
   display: grid;
   min-width: 0;
   padding: 0;
@@ -272,7 +272,6 @@ body[data-queue-sidebar="true"] .listener-shell {
   background: transparent;
   color: inherit;
   text-align: left;
-  cursor: pointer;
 }
 .queue-pullout .queue-remove {
   display: grid;

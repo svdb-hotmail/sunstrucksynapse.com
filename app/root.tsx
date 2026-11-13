@@ -253,17 +253,6 @@ export default function App() {
     setQueueNotice(message);
   };
 
-  const selectQueueEntry = useCallback(
-    (entry: QueueEntry) => {
-      const item = itemsById.get(entry.itemId);
-      if (!item?.media) return;
-      setPlaybackScope(queuedPlaybackScope(queue, entry, playbackScope, player.selectedItemId));
-      setQueue((current) => removeQueueItem(current, entry.itemId));
-      requestPlayback(item, entry.collectionId, undefined, playbackScope ? player.origin : entry);
-    },
-    [itemsById, playbackScope, player.origin, player.selectedItemId, queue, requestPlayback],
-  );
-
   const advancePlayback = useCallback(
     (finished = false) => {
       if (finished && selectedItem?.media) {
@@ -459,7 +448,6 @@ export default function App() {
           }
           onClearQueue={() => changeQueue([], "Queue cleared.")}
           onClearHistory={() => setSessionHistory([])}
-          onSelectQueueEntry={selectQueueEntry}
           onRemoveQueueEntry={(itemId) =>
             changeQueue(removeQueueItem(queue, itemId), "Removed from queue.")
           }

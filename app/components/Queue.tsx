@@ -5,7 +5,6 @@ import { ListenerIcon } from "~/design-system/ListenerIcon";
 interface QueueProps {
   entries: QueueEntry[];
   onClear: () => void;
-  onSelect: (entry: QueueEntry) => void;
   onRemove: (itemId: string) => void;
   onMove?: (itemId: string, direction: -1 | 1) => void;
   onReorder?: (itemId: string, targetItemId: string) => void;
@@ -17,7 +16,6 @@ interface QueueProps {
 export function Queue({
   entries,
   onClear,
-  onSelect,
   onRemove,
   onMove,
   onReorder,
@@ -134,12 +132,7 @@ export function Queue({
                   ) : (
                     <span className="queue-drag-spacer" aria-hidden="true" />
                   )}
-                  <button
-                    className="queue-track-button"
-                    type="button"
-                    aria-label={`Play ${entry.title} from queue`}
-                    onClick={() => onSelect(entry)}
-                  >
+                  <div className="queue-track-info">
                     {isCurrent ? (
                       <span className="queue-playing-label">
                         {isPlaying ? "Now playing" : "Paused"}
@@ -147,7 +140,7 @@ export function Queue({
                     ) : null}
                     <strong>{entry.title}</strong>
                     <em>{entry.subtitle}</em>
-                  </button>
+                  </div>
                   {!isCurrent ? (
                     <button
                       type="button"

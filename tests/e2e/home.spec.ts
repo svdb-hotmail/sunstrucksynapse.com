@@ -192,7 +192,7 @@ test("restores the selected track without autoplay after reload", async ({ page 
   expect(await restoredAudio.evaluate((element: HTMLMediaElement) => element.paused)).toBe(true);
   await openQueue(page);
   await expect(
-    page.getByRole("button", { name: `Play ${mushroomTitle} from queue` }),
+    page.locator(".queue-pullout .queue li").filter({ hasText: mushroomTitle }),
   ).toBeVisible();
 });
 

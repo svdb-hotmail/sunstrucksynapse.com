@@ -19,7 +19,6 @@ const entries: QueueEntry[] = [
 
 const callbacks = {
   onClear: () => undefined,
-  onSelect: () => undefined,
   onRemove: () => undefined,
 };
 

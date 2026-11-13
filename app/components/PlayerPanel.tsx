@@ -34,7 +34,6 @@ export interface PlayerPanelProps {
   onDismissNotice?: () => void;
   onClearQueue: () => void;
   onClearHistory?: () => void;
-  onSelectQueueEntry: (entry: QueueEntry) => void;
   onRemoveQueueEntry: (itemId: string) => void;
   onPrevious: () => void;
   onNext: () => void;
@@ -66,7 +65,6 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     playbackRequest,
     onClearQueue,
     onClearHistory,
-    onSelectQueueEntry,
     onRemoveQueueEntry,
     onPrevious,
     onNext,
@@ -701,7 +699,6 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
           <Queue
             entries={queue}
             onClear={onClearQueue}
-            onSelect={onSelectQueueEntry}
             onRemove={onRemoveQueueEntry}
             onMove={onMoveQueueEntry}
             onReorder={onReorderQueueEntry}
