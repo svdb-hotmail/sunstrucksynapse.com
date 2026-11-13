@@ -59,7 +59,7 @@ test("Play next changes finite selection order, Undo restores it, and endings ne
   await playNext(page, c);
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await page.getByRole("button", { name: "Queue, 2 tracks", exact: true }).click();
-  await expect(page.locator(".queue ol>li").first()).toContainText(b);
+  await expect(page.locator(".queue ol>li").nth(1)).toContainText(b);
   await closePanel(page);
   await playNext(page, c);
   for (const title of [a, c, b]) await finish(page, title);

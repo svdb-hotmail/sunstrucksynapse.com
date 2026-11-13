@@ -146,10 +146,22 @@ const items = [
     "video/mp4",
     "/assets/thumbs/thumb-09.svg",
   ),
-  item(6, "quiet-machines", "Quiet Machines", "audio", null, null, "/assets/thumbs/thumb-06.svg"),
+  item(
+    6,
+    "quiet-machines",
+    "Quiet Machines",
+    "audio",
+    "/assets/audio/The Mushroom Circle (Gnome Revolution).mp3",
+    "audio/mpeg",
+    "/assets/thumbs/thumb-06.svg",
+  ),
 ].map((catalogueItem, index) => ({ ...catalogueItem, discovery: discovery[index] }));
 
 export function createE2eCatalogueRepository(scenario?: string | null) {
+  if (scenario === "missing-media") {
+    const unavailable = { ...items[5], media: undefined };
+    return createStaticCatalogueRepository([unavailable], []);
+  }
   const disclosures: Record<string, PublicTrackDisclosure> = {
     [items[1].id]: {
       trackTitle: items[1].description.title,

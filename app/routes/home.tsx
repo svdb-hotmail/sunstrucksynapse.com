@@ -30,10 +30,6 @@ export default function Home() {
   const previewTracks = tracks.slice(0, 6);
   return (
     <div className="radio-home">
-      <div className="page-kicker">
-        <span className="signal-dot" /> HUMAN-CURATED. AI-ASSISTED.
-        <span className="edition">MUSIC MADE WITH INTENT</span>
-      </div>
       <RadioStart
         tracks={tracks}
         collection={collection}

@@ -16,7 +16,7 @@ export function ApplicationShell({
   playerPanelRef,
   ...player
 }: ApplicationShellProps) {
-  const openQueue = () => player.onViewChange?.("queue");
+  const openQueue = () => player.onViewChange?.(player.view === "queue" ? null : "queue");
   const { pathname } = useLocation();
   return (
     <div className="app-shell listener-shell" data-has-player={Boolean(player.item)}>
@@ -40,7 +40,7 @@ export function ApplicationShell({
         <small>
           {import.meta.env.MODE === "site-preview"
             ? "Design preview · sample catalogue · production unchanged"
-            : "Human-curated. AI-assisted. Music made with intent."}
+            : "Music made with intent."}
         </small>
       </footer>
       <PlayerPanel ref={playerPanelRef} {...player} />

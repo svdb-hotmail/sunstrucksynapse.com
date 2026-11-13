@@ -17,6 +17,7 @@ import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
 export interface PlayerPanelProps {
   item: CatalogueItem | null;
   queue: QueueEntry[];
+  history?: QueueEntry[];
   playbackRequest: {
     itemId: string;
     sequence: number;
@@ -27,10 +28,12 @@ export interface PlayerPanelProps {
   onViewChange?: (view: "player" | "queue" | null) => void;
   onPlaybackStateChange?: (itemId: string | null) => void;
   onMoveQueueEntry?: (itemId: string, direction: -1 | 1) => void;
+  onReorderQueueEntry?: (itemId: string, targetItemId: string) => void;
   queueNotice?: string | null;
   onUndoQueue?: () => void;
   onDismissNotice?: () => void;
   onClearQueue: () => void;
+  onClearHistory?: () => void;
   onSelectQueueEntry: (entry: QueueEntry) => void;
   onRemoveQueueEntry: (itemId: string) => void;
   onPrevious: () => void;
@@ -59,8 +62,10 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   {
     item,
     queue,
+    history,
     playbackRequest,
     onClearQueue,
+    onClearHistory,
     onSelectQueueEntry,
     onRemoveQueueEntry,
     onPrevious,
@@ -73,6 +78,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     onViewChange,
     onPlaybackStateChange,
     onMoveQueueEntry,
+    onReorderQueueEntry,
     queueNotice,
     onUndoQueue,
     onDismissNotice,
@@ -684,24 +690,32 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
           ) : null}
         </div>
       </ListenerSheet>
-      <QueuePanel open={panel === "queue"} onClose={() => changeView(null)} queue={queue}>
+      <QueuePanel
+        open={panel === "queue"}
+        onClose={() => changeView(null)}
+        queue={queue}
+        history={history ?? []}
+        onClearHistory={onClearHistory ?? (() => undefined)}
+      >
         <div>
-          {item ? (
-            <div className="listener-queue-current">
-              <p className="eyebrow">{isPlaying ? "Now playing" : "Paused"}</p>
-              <strong>{item.description.title}</strong>
-              <p>{item.creator.name}</p>
-              <button type="button" onClick={() => changeView("player")}>
-                Open player
-              </button>
-            </div>
-          ) : null}
           <Queue
             entries={queue}
             onClear={onClearQueue}
             onSelect={onSelectQueueEntry}
             onRemove={onRemoveQueueEntry}
             onMove={onMoveQueueEntry}
+            onReorder={onReorderQueueEntry}
+            currentEntry={
+              item
+                ? {
+                    itemId: item.id,
+                    title: item.description.title,
+                    subtitle: item.description.subtitle,
+                  }
+                : null
+            }
+            currentItemId={item?.id}
+            isPlaying={isPlaying}
           />
         </div>
       </QueuePanel>

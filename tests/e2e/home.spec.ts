@@ -258,32 +258,35 @@ test("reports unavailable media accessibly and allows retry", async ({ page }) =
   await expect(alert).toContainText(/unavailable|could not be loaded/);
 });
 
-test("presents published tracks with missing media without requesting a source", async ({
-  page,
-}) => {
+test("queues the playable Quiet Machines fixture", async ({ page }) => {
+  await page.goto("/search");
+  const card = cardFor(page, "Quiet Machines");
+  await expect(card.getByRole("button", { name: "Play Quiet Machines" })).toBeEnabled();
+  await queueTrack(page, "Quiet Machines");
+  await expect(page.locator(".queue-pullout .queue li")).toContainText(["Quiet Machines"]);
+  const addAgain = card.getByRole("button", { name: "Quiet Machines is already in the queue" });
+  await expect(addAgain).toBeDisabled();
+  await expect(addAgain).toHaveCSS("opacity", "0.28");
+});
+
+test("keeps a published track with missing media unavailable", async ({ page }) => {
+  await page.setExtraHTTPHeaders({ "x-test-catalogue-scenario": "missing-media" });
   const mediaRequests: string[] = [];
   page.on("request", (request) => {
-    if (request.resourceType() === "media" && request.url().includes("quiet-machines")) {
-      mediaRequests.push(request.url());
-    }
+    if (request.resourceType() === "media") mediaRequests.push(request.url());
   });
   await page.goto("/search");
-
-  const missingMediaCard = cardFor(page, "Quiet Machines");
+  const card = cardFor(page, "Quiet Machines");
   await expect(
-    missingMediaCard.getByRole("button", {
-      name: "Quiet Machines preview coming soon",
-    }),
+    card.getByRole("button", { name: "Quiet Machines preview coming soon" }),
   ).toBeDisabled();
-  await missingMediaCard.locator(".track-menu > summary").click();
   await expect(
-    missingMediaCard.getByRole("button", {
+    card.getByRole("button", {
       name: "Queue unavailable for Quiet Machines; preview coming soon",
     }),
   ).toBeDisabled();
   await viewTrack(page, "Quiet Machines");
   await expect(page.getByRole("button", { name: "Media unavailable", exact: true })).toBeDisabled();
-  await page.waitForTimeout(100);
   expect(mediaRequests).toEqual([]);
 });
 

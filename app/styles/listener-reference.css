@@ -1125,6 +1125,9 @@
   border: 1px solid var(--button-secondary-border);
   border-radius: 12px;
 }
+.listener-shell .track-row .track-queue[data-queued="true"] {
+  opacity: 0.28;
+}
 .listener-shell .release-card img.artwork {
   object-fit: cover;
 }
@@ -1270,6 +1273,18 @@
   }
 }
 @media (max-width: 760px) {
+  .listener-shell[data-has-player="true"] {
+    --listener-nav-height: calc(max(56px, 3.5rem) + env(safe-area-inset-bottom));
+  }
+  .listener-shell .mobile-tabs {
+    display: grid;
+  }
+  .listener-shell .transport.player-dock {
+    left: 0;
+    right: 0;
+    bottom: var(--listener-nav-height);
+    width: auto;
+  }
   .listener-shell .masthead {
     height: 76px;
     min-height: 76px;
@@ -1281,8 +1296,7 @@
     gap: 8px;
   }
   .listener-shell .masthead .desktop-nav {
-    gap: 12px;
-    font-size: 12px;
+    display: none;
   }
   .listener-shell .masthead .desktop-nav a,
   .listener-shell .masthead .desktop-nav button {

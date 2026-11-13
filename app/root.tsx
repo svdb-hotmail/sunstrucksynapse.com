@@ -201,6 +201,7 @@ export default function App() {
   }, [hasRestoredPlayer, player.selectedItemId, player.origin, queue, playbackScope]);
 
   const [playingItemId, setPlayingItemId] = useState<string | null>(null);
+  const [sessionHistory, setSessionHistory] = useState<QueueEntry[]>([]);
   const [view, setView] = useState<"player" | "queue" | null>(null);
   const [queueNotice, setQueueNotice] = useState<string | null>(null);
   const [undoQueue, setUndoQueue] = useState<{
@@ -264,39 +265,55 @@ export default function App() {
     [itemsById, playbackScope, player.origin, player.selectedItemId, queue, requestPlayback],
   );
 
-  const advancePlayback = useCallback(() => {
-    const nextQueued = findNextPlayableQueueEntry(queue, (itemId) => itemsById.get(itemId));
-    if (nextQueued) {
-      const queuedItem = itemsById.get(nextQueued.itemId);
-      if (queuedItem) {
-        setPlaybackScope(
-          queuedPlaybackScope(queue, nextQueued, playbackScope, player.selectedItemId),
-        );
-        setQueue((current) => removeQueueItem(current, nextQueued.itemId));
-        requestPlayback(
-          queuedItem,
-          nextQueued.collectionId,
-          undefined,
-          playbackScope ? player.origin : nextQueued,
-        );
+  const advancePlayback = useCallback(
+    (finished = false) => {
+      if (finished && selectedItem?.media) {
+        setSessionHistory((history) => [
+          ...history,
+          {
+            itemId: selectedItem.id,
+            title: selectedItem.description.title,
+            subtitle: selectedItem.description.subtitle,
+            ...(playbackRequest?.collectionId
+              ? { collectionId: playbackRequest.collectionId }
+              : {}),
+          },
+        ]);
       }
-      return;
-    }
-    // The queue is authoritative for a finite selection, including edits and repeats.
-    if (!selectedItem || playbackScope) return;
-    const nextItem = findAdjacentPlayableItem(catalogueItems, selectedItem.id, 1);
-    if (nextItem) requestPlayback(nextItem, playbackRequest?.collectionId);
-  }, [
-    catalogueItems,
-    itemsById,
-    playbackScope,
-    player.origin,
-    player.selectedItemId,
-    playbackRequest?.collectionId,
-    queue,
-    requestPlayback,
-    selectedItem,
-  ]);
+      const nextQueued = findNextPlayableQueueEntry(queue, (itemId) => itemsById.get(itemId));
+      if (nextQueued) {
+        const queuedItem = itemsById.get(nextQueued.itemId);
+        if (queuedItem) {
+          setPlaybackScope(
+            queuedPlaybackScope(queue, nextQueued, playbackScope, player.selectedItemId),
+          );
+          setQueue((current) => removeQueueItem(current, nextQueued.itemId));
+          requestPlayback(
+            queuedItem,
+            nextQueued.collectionId,
+            undefined,
+            playbackScope ? player.origin : nextQueued,
+          );
+        }
+        return;
+      }
+      // The queue is authoritative for a finite selection, including edits and repeats.
+      if (!selectedItem || playbackScope) return;
+      const nextItem = findAdjacentPlayableItem(catalogueItems, selectedItem.id, 1);
+      if (nextItem) requestPlayback(nextItem, playbackRequest?.collectionId);
+    },
+    [
+      catalogueItems,
+      itemsById,
+      playbackScope,
+      player.origin,
+      player.selectedItemId,
+      playbackRequest?.collectionId,
+      queue,
+      requestPlayback,
+      selectedItem,
+    ],
+  );
 
   const playPrevious = useCallback(() => {
     if (!selectedItem) return;
@@ -356,6 +373,7 @@ export default function App() {
   const outletContext: PlayerOutletContext = {
     selectedItemId: selectedItem?.id ?? null,
     playingItemId,
+    queuedItemIds: queue.map((entry) => entry.itemId),
     catalogue,
     selectItem,
     queueItem,
@@ -418,6 +436,7 @@ export default function App() {
           navigation={navigation}
           item={selectedItem ?? null}
           queue={queue}
+          history={sessionHistory}
           playerPanelRef={playerPanelRef}
           playbackRequest={playbackRequest}
           view={view}
@@ -440,6 +459,7 @@ export default function App() {
               : undefined
           }
           onClearQueue={() => changeQueue([], "Queue cleared.")}
+          onClearHistory={() => setSessionHistory([])}
           onSelectQueueEntry={selectQueueEntry}
           onRemoveQueueEntry={(itemId) =>
             changeQueue(removeQueueItem(queue, itemId), "Removed from queue.")
@@ -452,11 +472,20 @@ export default function App() {
             [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
             changeQueue(next, direction === -1 ? "Moved up in queue." : "Moved down in queue.");
           }}
+          onReorderQueueEntry={(itemId, targetItemId) => {
+            const from = queue.findIndex((entry) => entry.itemId === itemId);
+            const to = queue.findIndex((entry) => entry.itemId === targetItemId);
+            if (from < 0 || to < 0 || from === to) return;
+            const next = [...queue];
+            const [moved] = next.splice(from, 1);
+            next.splice(to, 0, moved);
+            changeQueue(next, "Queue order updated.");
+          }}
           onPrevious={playPrevious}
           onNext={advancePlayback}
           canPrevious={hasPrevious}
           canNext={hasNext}
-          onMediaEnded={advancePlayback}
+          onMediaEnded={() => advancePlayback(true)}
           onStartListening={
             stationSelection.tracks.length
               ? () =>
