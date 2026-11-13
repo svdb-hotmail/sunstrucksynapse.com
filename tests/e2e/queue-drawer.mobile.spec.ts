@@ -20,6 +20,12 @@ test("mobile queue stays above the player, resizes, and exposes history", async 
     })
     .toBeLessThan(3);
 
+  const remove = drawer.getByRole("button", { name: "Remove Quiet Machines from queue" });
+  await expect(remove.locator("svg")).toBeVisible();
+  await expect(remove).not.toHaveText("Remove");
+  await remove.click();
+  await expect(drawer.getByText("Queue is clear.", { exact: false })).toBeVisible();
+
   await drawer.getByRole("tab", { name: /History/ }).click();
   await expect(drawer.getByText("Tracks you finish listening to will appear here.")).toBeVisible();
   await expect(drawer.getByRole("button", { name: "Clear all" })).toBeDisabled();

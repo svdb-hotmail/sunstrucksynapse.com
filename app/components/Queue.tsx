@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import type { QueueEntry } from "~/types/catalogue";
+import { ListenerIcon } from "~/design-system/ListenerIcon";
 
 interface QueueProps {
   entries: QueueEntry[];
@@ -154,7 +155,7 @@ export function Queue({
                       aria-label={`Remove ${entry.title} from queue`}
                       onClick={() => onRemove(entry.itemId)}
                     >
-                      Remove
+                      <ListenerIcon name="minus-circle" size={22} />
                     </button>
                   ) : null}
                 </div>

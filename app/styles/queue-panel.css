@@ -274,6 +274,27 @@ body[data-queue-sidebar="true"] .listener-shell {
   text-align: left;
   cursor: pointer;
 }
+.queue-pullout .queue-remove {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-content-secondary);
+  cursor: pointer;
+}
+.queue-pullout .queue-remove:hover {
+  background: var(--color-surface-topbar);
+  color: var(--color-content-primary);
+}
+.queue-pullout .queue-remove:focus-visible {
+  outline: 3px solid var(--color-focus-ring);
+  outline-offset: 2px;
+}
 .queue-pullout .queue-drag {
   display: grid;
   place-items: center;
