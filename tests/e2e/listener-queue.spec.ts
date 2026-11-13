@@ -86,6 +86,8 @@ test("choosing a later queue item plays the remaining entries once in their surv
   await page.getByRole("button", { name: "Start listening", exact: true }).click();
   await page.getByRole("button", { name: "Queue, 2 tracks", exact: true }).click();
   await page.getByRole("button", { name: `Play ${c} from queue`, exact: true }).click();
+  await expect(page.locator(".queue-pullout")).toBeVisible();
+  await expect(page.locator(".queue-pullout .queue li").first()).toContainText(c);
   for (const title of [c, b]) await finish(page, title);
   await expectEnded(page, b);
 });

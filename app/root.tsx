@@ -260,7 +260,6 @@ export default function App() {
       setPlaybackScope(queuedPlaybackScope(queue, entry, playbackScope, player.selectedItemId));
       setQueue((current) => removeQueueItem(current, entry.itemId));
       requestPlayback(item, entry.collectionId, undefined, playbackScope ? player.origin : entry);
-      setView(null);
     },
     [itemsById, playbackScope, player.origin, player.selectedItemId, queue, requestPlayback],
   );
