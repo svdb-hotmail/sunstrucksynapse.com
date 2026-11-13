@@ -135,6 +135,7 @@ export default function App() {
     collectionId?: string;
   } | null>(null);
   const [queue, setQueue] = useState<QueueEntry[]>([]);
+  const [queueRevision, setQueueRevision] = useState(0);
   const selectedItem = player.selectedItemId
     ? findCatalogueItem(catalogueItems, player.selectedItemId)
     : undefined;
@@ -255,6 +256,7 @@ export default function App() {
   const queueItem = useCallback((item: CatalogueItem, collectionId?: string) => {
     userInteractedBeforeRestore.current = true;
     setQueue((current) => addQueueItem(current, item, collectionId));
+    setQueueRevision((revision) => revision + 1);
   }, []);
 
   const hasPrevious = selectedItem
@@ -279,6 +281,7 @@ export default function App() {
         navigation={navigation}
         item={selectedItem ?? null}
         queue={queue}
+        queueRevision={queueRevision}
         playerPanelRef={playerPanelRef}
         playbackRequest={playbackRequest}
         onClearQueue={() => {

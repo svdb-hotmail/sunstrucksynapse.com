@@ -129,6 +129,21 @@ through the Cloudflare Vite plugin, so it exercises the production Worker previe
 rather than a Node-only development server. It uses a fake, syntactically valid
 `DATABASE_URL` and does not contact an external database.
 
+The `preview:e2e` script builds into `.preview/e2e/`, outside the normal
+production build directory. Keep these outputs isolated: React Router cleans the
+normal `build/` directory during production builds, so nesting a preview build
+under it removes assets that an already running preview server needs. Restart the
+preview server after changing its build, and verify both the page and its linked
+stylesheet load successfully.
+
+The listener queue is a desktop side panel and a mobile bottom drawer at the
+1023px layout breakpoint. On mobile, the drawer sits above the player and bottom
+navigation; its visible height adds the same amount of scroll clearance to the
+page. Queue additions open the drawer and scroll to the newest entry. The local
+E2E catalogue fixture includes repeated playable tracks with alternate artwork
+for exercising longer queues; these are test entries, not production catalogue
+content.
+
 Individual gates are available as:
 
 ```bash

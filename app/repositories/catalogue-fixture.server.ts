@@ -17,6 +17,18 @@ const release = {
   href: "/releases/phase-zero-transmissions",
 };
 
+const previewArtwork = [
+  "/assets/albums/Rocklord_ Guardians of the Sunset Peaks.png",
+  "/assets/albums/Candle X_ Haunted Moonlit Ghostscape.png",
+  "/assets/albums/Beavers by the Waterfall.png",
+  "/assets/albums/Storboog Wym_ Cosmic Dragon.png",
+  "/assets/albums/Chocolate Mania_ Coco Oco Candyland.png",
+  "/assets/albums/Dragon Buster G_ Stormlit Castle Quest.png",
+  "/assets/albums/Pixel Heart Gem in Green Hill Paradise.png",
+  "/assets/albums/Retro Glam Rock Concert.png",
+  "/assets/albums/The Hairy Dynamics_ Rockin’ Forever.png",
+];
+
 function item(
   index: number,
   slug: string,
@@ -108,7 +120,7 @@ const items = [
     "video",
     "/assets/video/AI_pop-slop_202607190035.mp4",
     "video/mp4",
-    "/assets/thumbs/thumb-01.svg",
+    previewArtwork[0],
   ),
   item(
     2,
@@ -117,7 +129,7 @@ const items = [
     "audio",
     "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3",
     "audio/mpeg",
-    "/assets/thumbs/thumb-02.svg",
+    previewArtwork[1],
   ),
   item(
     3,
@@ -126,7 +138,7 @@ const items = [
     "video",
     "/assets/video/final-movie_00007_.mp4",
     "video/mp4",
-    "/assets/thumbs/thumb-03.svg",
+    previewArtwork[2],
   ),
   item(
     4,
@@ -135,7 +147,7 @@ const items = [
     "audio",
     "/assets/audio/The Mushroom Circle (Gnome Revolution).mp3",
     "audio/mpeg",
-    "/assets/thumbs/thumb-05.svg",
+    previewArtwork[3],
   ),
   item(
     5,
@@ -144,10 +156,85 @@ const items = [
     "video",
     "/assets/video/gone_fishing.mp4",
     "video/mp4",
-    "/assets/thumbs/thumb-09.svg",
+    previewArtwork[4],
   ),
-  item(6, "quiet-machines", "Quiet Machines", "audio", null, null, "/assets/thumbs/thumb-06.svg"),
-].map((catalogueItem, index) => ({ ...catalogueItem, discovery: discovery[index] }));
+  item(6, "quiet-machines", "Quiet Machines", "audio", null, null, previewArtwork[5]),
+  item(
+    7,
+    "revolution-will-be-televised-test-2",
+    "Revolution Will Be Televised (Test Pressing 2)",
+    "audio",
+    "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3",
+    "audio/mpeg",
+    previewArtwork[7],
+  ),
+  item(
+    8,
+    "mushroom-circle-test-2",
+    "The Mushroom Circle (Queue Test 2)",
+    "audio",
+    "/assets/audio/The Mushroom Circle (Gnome Revolution).mp3",
+    "audio/mpeg",
+    previewArtwork[8],
+  ),
+  item(
+    9,
+    "revolution-will-be-televised-test-3",
+    "Revolution Will Be Televised (Test Pressing 3)",
+    "audio",
+    "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3",
+    "audio/mpeg",
+    previewArtwork[7],
+  ),
+  item(
+    10,
+    "mushroom-circle-test-3",
+    "The Mushroom Circle (Queue Test 3)",
+    "audio",
+    "/assets/audio/The Mushroom Circle (Gnome Revolution).mp3",
+    "audio/mpeg",
+    previewArtwork[8],
+  ),
+  item(
+    11,
+    "revolution-will-be-televised-test-4",
+    "Revolution Will Be Televised (Test Pressing 4)",
+    "audio",
+    "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3",
+    "audio/mpeg",
+    previewArtwork[7],
+  ),
+  item(
+    12,
+    "mushroom-circle-test-4",
+    "The Mushroom Circle (Queue Test 4)",
+    "audio",
+    "/assets/audio/The Mushroom Circle (Gnome Revolution).mp3",
+    "audio/mpeg",
+    previewArtwork[8],
+  ),
+  item(
+    13,
+    "revolution-will-be-televised-test-5",
+    "Revolution Will Be Televised (Test Pressing 5)",
+    "audio",
+    "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3",
+    "audio/mpeg",
+    previewArtwork[7],
+  ),
+  item(
+    14,
+    "mushroom-circle-test-5",
+    "The Mushroom Circle (Queue Test 5)",
+    "audio",
+    "/assets/audio/The Mushroom Circle (Gnome Revolution).mp3",
+    "audio/mpeg",
+    previewArtwork[8],
+  ),
+].map((catalogueItem, index) => ({
+  ...catalogueItem,
+  discovery: discovery[index] ?? discovery[index % discovery.length],
+}));
 
 export function createE2eCatalogueRepository(scenario?: string | null) {
   const disclosures: Record<string, PublicTrackDisclosure> = {

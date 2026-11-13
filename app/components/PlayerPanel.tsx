@@ -11,6 +11,7 @@ import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
 interface PlayerPanelProps {
   item: CatalogueItem | null;
   queue: QueueEntry[];
+  queueRevision: number;
   playbackRequest: { itemId: string; sequence: number; collectionId?: string } | null;
   onClearQueue: () => void;
   onSelectQueueEntry: (entry: QueueEntry) => void;
@@ -45,6 +46,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   {
     item,
     queue,
+  queueRevision,
     playbackRequest,
     onClearQueue,
     onSelectQueueEntry,
@@ -75,8 +77,10 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
-  const [volume, setVolume] = useState(1);
-  const [isMuted, setIsMuted] = useState(false);
+  const [queueOpen, setQueueOpen] = useState(false);
+  const [queueExpanded, setQueueExpanded] = useState(false);
+  const queueDragStart = useRef<{ y: number; height: number; moved: boolean } | null>(null);
+  const queuePanelRef = useRef<HTMLDivElement>(null);
   const consumedPlaybackRequest = useRef<{ itemId: string; sequence: number } | null>(null);
   const [activeMedia, setActiveMedia] = useState<{
     itemId: string;
@@ -112,9 +116,34 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
-    setVolume(1);
-    setIsMuted(false);
   }, [item?.id]);
+
+  useEffect(() => {
+    if (!queueRevision) return;
+    setQueueOpen(true);
+    requestAnimationFrame(() => {
+      const panel = queuePanelRef.current;
+      if (panel) panel.scrollTo({ top: panel.scrollHeight, behavior: "smooth" });
+    });
+  }, [queueRevision]);
+
+  useEffect(() => {
+    const panel = queuePanelRef.current;
+    if (!queueOpen || !panel) {
+      document.documentElement.style.setProperty("--queue-scroll-clearance", "0px");
+      return;
+    }
+    const syncClearance = () => {
+      document.documentElement.style.setProperty(
+        "--queue-scroll-clearance",
+        `${panel.getBoundingClientRect().height}px`,
+      );
+    };
+    const observer = new ResizeObserver(syncClearance);
+    observer.observe(panel);
+    syncClearance();
+    return () => observer.disconnect();
+  }, [queueOpen]);
 
   useEffect(() => {
     const tracked = trackedPlayback.current;
@@ -256,26 +285,6 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     }
   };
 
-  const toggleMute = () => {
-    const media = mediaRef.current;
-    if (!media) {
-      return;
-    }
-    media.muted = !media.muted;
-    setIsMuted(media.muted);
-  };
-
-  const changeVolume = (nextVolume: number) => {
-    const media = mediaRef.current;
-    if (!media) {
-      return;
-    }
-    media.volume = nextVolume;
-    media.muted = nextVolume === 0;
-    setVolume(nextVolume);
-    setIsMuted(media.muted);
-  };
-
   useEffect(() => {
     if (!item?.media || !("mediaSession" in navigator)) {
       return;
@@ -364,13 +373,6 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       setDuration(0);
     },
     onTimeUpdate: handleTimeUpdate,
-    onVolumeChange: () => {
-      const media = mediaRef.current;
-      if (media) {
-        setVolume(media.volume);
-        setIsMuted(media.muted);
-      }
-    },
     onLoadStart: () => setIsLoading(true),
     onLoadedMetadata: () => {
       setIsLoading(false);
@@ -492,16 +494,10 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
               ) : null}
             </div>
           </div>
-          <blockquote className="curator-note">
-            <strong>Curator’s note</strong>
-            <p>
-              Selected for musical character, clear intent, and a human hand you can still hear.
-            </p>
-            <cite>— SunSyn</cite>
-          </blockquote>
         </div>
       </div>
 
+      <div className="player-controls">
       <div className="player-dock" aria-label="Playback controls">
         <div className="dock-track">
           <img src={playerArtwork} alt="" aria-hidden="true" />
@@ -547,38 +543,79 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
           />
           <span>{formatTime(duration)}</span>
         </div>
-        <div className="dock-volume">
-          <button
-            type="button"
-            onClick={toggleMute}
-            disabled={!item?.media}
-            aria-label={isMuted || volume === 0 ? "Unmute" : "Mute"}
-          >
-            <span aria-hidden="true">{isMuted || volume === 0 ? "🔇" : "🔊"}</span>
-          </button>
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.05"
-            value={isMuted ? 0 : volume}
-            disabled={!item?.media}
-            aria-label="Volume"
-            onChange={(event) => changeVolume(Number(event.currentTarget.value))}
-          />
-        </div>
-        <a className="dock-queue-link" href="#queue">
+        <button
+          type="button"
+          className="dock-queue-button"
+          aria-expanded={queueOpen}
+          aria-controls="queue-panel"
+          onClick={() => setQueueOpen((open) => !open)}
+        >
           Queue <span aria-hidden="true">☷</span>
-        </a>
+          <span className="queue-count" aria-label={`${queue.length} queued songs`}>{queue.length}</span>
+        </button>
       </div>
 
-      <div id="queue" className="queue-wrap">
+      <div ref={queuePanelRef} id="queue-panel" className="queue-panel" data-open={queueOpen} data-expanded={queueExpanded} aria-hidden={!queueOpen}>
+        <button
+          className="queue-panel-close"
+          type="button"
+          aria-label="Close queue"
+          onClick={() => setQueueOpen(false)}
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <path d="M15 5 8 12l7 7" />
+          </svg>
+        </button>
+        <button
+          className="queue-drag-handle"
+          type="button"
+          aria-label="Drag to resize queue"
+          onPointerDown={(event) => {
+            const panel = event.currentTarget.parentElement;
+            queueDragStart.current = {
+              y: event.clientY,
+              height: panel?.getBoundingClientRect().height ?? 260,
+              moved: false,
+            };
+            event.currentTarget.setPointerCapture(event.pointerId);
+          }}
+          onPointerMove={(event) => {
+            const drag = queueDragStart.current;
+            const panel = event.currentTarget.parentElement;
+            if (!drag || !panel) return;
+            const delta = drag.y - event.clientY;
+            if (Math.abs(delta) > 6) drag.moved = true;
+            if (drag.moved) {
+              if (delta < 0 && drag.height + delta <= 180) {
+                setQueueOpen(false);
+                queueDragStart.current = null;
+                return;
+              }
+              const maxHeight = Math.max(150, window.innerHeight - 240);
+              const height = Math.min(maxHeight, Math.max(150, drag.height + delta));
+              panel.style.height = `${height}px`;
+              setQueueExpanded(height > 300);
+            }
+          }}
+          onPointerUp={(event) => {
+            const drag = queueDragStart.current;
+            if (drag && !drag.moved) {
+              setQueueOpen(false);
+            } else if (drag && drag.y < event.clientY && drag.height <= 180) {
+              setQueueOpen(false);
+            }
+            queueDragStart.current = null;
+          }}
+        >
+          <span />
+        </button>
         <Queue
           entries={queue}
           onClear={onClearQueue}
           onSelect={onSelectQueueEntry}
           onRemove={onRemoveQueueEntry}
         />
+      </div>
       </div>
     </aside>
   );

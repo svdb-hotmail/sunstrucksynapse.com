@@ -20,10 +20,9 @@ test.describe("SunSyn Radio theme", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute("content", "#f1e7d4");
     await expect(page.getByRole("link", { name: "SunSyn Radio home" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Light mode" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    await expect(
+      page.getByRole("button", { name: "Light mode selected; switch to dark mode" }),
+    ).toBeVisible();
     const artistCard = page
       .locator(".media-card")
       .filter({ hasText: "Sunstruck Synapse (Revolution will be televised)" })
@@ -40,10 +39,9 @@ test.describe("SunSyn Radio theme", () => {
     await page.goto("/");
 
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-    await expect(page.getByRole("button", { name: "Light mode" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    await expect(
+      page.getByRole("button", { name: "Dark mode selected; switch to light mode" }),
+    ).toBeVisible();
   });
 
   test("uses dark when the OS prefers dark and no preference is saved", async ({ page }) => {
@@ -52,22 +50,20 @@ test.describe("SunSyn Radio theme", () => {
 
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await expect(page.getByRole("link", { name: "SunSyn Radio home" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Light mode" })).toHaveAttribute(
-      "aria-pressed",
-      "false",
-    );
+    await expect(
+      page.getByRole("button", { name: "Dark mode selected; switch to light mode" }),
+    ).toBeVisible();
   });
 
   test("persists a toggle across reload and internal navigation", async ({ page }) => {
     await page.emulateMedia({ colorScheme: "dark" });
     await page.goto("/");
 
-    await page.getByRole("button", { name: "Light mode" }).click();
+    await page.getByRole("button", { name: "Dark mode selected; switch to light mode" }).click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-    await expect(page.getByRole("button", { name: "Light mode" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    await expect(
+      page.getByRole("button", { name: "Light mode selected; switch to dark mode" }),
+    ).toBeVisible();
     await expect
       .poll(() => page.evaluate((key) => window.localStorage.getItem(key), themeStorageKey))
       .toBe("light");
@@ -81,10 +77,9 @@ test.describe("SunSyn Radio theme", () => {
 
     await page.reload();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-    await expect(page.getByRole("button", { name: "Light mode" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    await expect(
+      page.getByRole("button", { name: "Light mode selected; switch to dark mode" }),
+    ).toBeVisible();
   });
 
   test("keeps an explicit in-session choice when storage is blocked", async ({ page }) => {
@@ -96,7 +91,9 @@ test.describe("SunSyn Radio theme", () => {
     });
     await page.goto("/");
 
-    const themeToggle = page.getByRole("button", { name: "Light mode" });
+    const themeToggle = page.getByRole("button", {
+      name: "Dark mode selected; switch to light mode",
+    });
     await themeToggle.click();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect
@@ -107,7 +104,9 @@ test.describe("SunSyn Radio theme", () => {
     await page.emulateMedia({ colorScheme: "dark" });
 
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-    await expect(themeToggle).toHaveAttribute("aria-pressed", "true");
+    await expect(
+      page.getByRole("button", { name: "Light mode selected; switch to dark mode" }),
+    ).toBeVisible();
   });
 
   test("keeps the persistent player and queue through a theme toggle", async ({ page }) => {
@@ -130,12 +129,15 @@ test.describe("SunSyn Radio theme", () => {
       element.pause();
     });
 
-    const themeToggle = page.getByRole("button", { name: "Light mode" });
-    await expect(themeToggle).toHaveAttribute("aria-pressed", "false");
+    const themeToggle = page.getByRole("button", {
+      name: "Dark mode selected; switch to light mode",
+    });
     await themeToggle.click();
 
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-    await expect(themeToggle).toHaveAttribute("aria-pressed", "true");
+    await expect(
+      page.getByRole("button", { name: "Light mode selected; switch to dark mode" }),
+    ).toBeVisible();
     const themedAudio = page.getByLabel(`${revolutionTitle} audio player`);
     await expect(themedAudio).toHaveAttribute("data-theme-toggle-persistence-probe", "kept");
     await expect(themedAudio.locator("source")).toHaveAttribute("src", revolutionSource);

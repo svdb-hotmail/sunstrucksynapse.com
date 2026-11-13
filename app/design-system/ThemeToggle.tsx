@@ -86,7 +86,8 @@ export function ThemeToggle() {
     };
   }, []);
 
-  const title = theme === "dark" ? "Enable light mode" : "Disable light mode";
+  const label = theme === "dark" ? "Dark mode" : "Light mode";
+  const nextLabel = theme === "dark" ? "light" : "dark";
 
   function toggleTheme() {
     const next = theme === "dark" ? "light" : "dark";
@@ -116,15 +117,16 @@ export function ThemeToggle() {
       ref={button}
       className="theme-toggle"
       type="button"
-      aria-label="Light mode"
-      aria-pressed={theme === "light"}
-      title={title}
+      aria-label={`${label} selected; switch to ${nextLabel} mode`}
+      data-current-theme={theme}
+      title={`Switch to ${nextLabel} mode`}
       onClick={toggleTheme}
     >
-      <span className="theme-toggle__icon" aria-hidden="true">
-        ☼
-      </span>
-      <span className="theme-toggle__label">Light mode</span>
+      <svg className="theme-toggle__icon" viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M3 21h18M8 20h5l-4-6-3 2 2 4Zm1-6 5-6m-6 7-2-2m2 2-2 2m8-9 2 2m-2-2 2-2m-4 4 3 3 6-6-3-3-6 6Zm7-7 3 3" />
+        <circle cx="7" cy="15" r="1.6" />
+        <circle cx="14" cy="8" r="1.2" />
+      </svg>
     </button>
   );
 }

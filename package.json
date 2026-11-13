@@ -11,7 +11,7 @@
     "build-storybook": "storybook build --output-dir storybook-static",
     "build": "react-router build",
     "preview": "npm run build && vite preview",
-    "preview:e2e": "react-router build --mode test && vite preview --host 127.0.0.1 --port 4173 --strictPort",
+    "preview:e2e": "SUNSYN_BUILD_DIR=.preview/e2e react-router build --mode test && vite preview --host 127.0.0.1 --port 4173 --strictPort --outDir .preview/e2e/client",
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "test:unit": "vitest run",

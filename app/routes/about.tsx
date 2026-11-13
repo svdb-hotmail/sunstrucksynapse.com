@@ -23,12 +23,25 @@ export default function AboutRoute() {
   return (
     <article className="about-page">
       <header className="about-hero">
-        <p className="eyebrow">About</p>
-        <h1>Music chosen by people, made with intent.</h1>
-        <p className="about-summary">
-          SunSyn Radio is a human-curated place for music and visual work made with clear creative
-          direction—including work made with AI-assisted tools.
-        </p>
+        <div className="about-hero-copy">
+          <p className="eyebrow">About</p>
+          <h1>
+            Music Chosen By People
+            <br />
+            Made With Intent
+          </h1>
+          <p className="about-summary">
+            SunSyn Radio is a human-curated place for music and visual work made with clear creative
+            direction—including work made with AI-assisted tools.
+          </p>
+        </div>
+        <blockquote className="curator-note">
+          <strong>Curator’s note</strong>
+          <p>
+            Selected for musical character, clear intent, and a human hand you can still hear.
+          </p>
+          <cite>— SunSyn</cite>
+        </blockquote>
       </header>
 
       <Offerings offerings={offerings} />

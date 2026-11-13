@@ -5,12 +5,11 @@ export function Intro() {
     <section id="top" className="intro-strip">
       <div>
         <p className="eyebrow">Human-curated {"\u2022"} AI-assisted music</p>
-        <h2>A radio for music made with intent.</h2>
+        <h2>Music Made With Intent</h2>
       </div>
       <p>
-        {SITE_NAME} is a human-curated radio for intentional AI-assisted music and its visual
-        counterparts. AI is part of the instrument. Human taste, direction and authorship remain at
-        the centre.
+        {SITE_NAME} is a human-curated listening space for thoughtful music made with AI in the
+        process. Discover work shaped by human taste, direction, and authorship.
       </p>
     </section>
   );

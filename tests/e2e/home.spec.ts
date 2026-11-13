@@ -38,6 +38,7 @@ test("loads the database catalogue and controls the correct media", async ({ pag
   await expect(
     page.getByRole("heading", { name: "A radio for music made with intent." }),
   ).toBeVisible();
+  await expect(page.locator(".transmission-provenance")).toHaveCount(0);
   await expect(page.locator(".media-card")).toHaveCount(10);
   await cardFor(page, revolutionTitle)
     .getByRole("button", { name: `Play ${revolutionTitle}` })
@@ -377,7 +378,7 @@ test("keeps the intermediate header visible without horizontal overflow", async 
   await expect(page.locator("header.topbar")).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
   await expect(page.getByRole("navigation", { name: "Mobile navigation" })).toBeHidden();
-  await expect(page.getByRole("button", { name: "Light mode" })).toBeVisible();
+  await expect(page.locator(".theme-toggle")).toBeVisible();
   await expect(page.locator(".site-logo span:last-child")).toBeHidden();
   await expect(page.locator(".theme-toggle__label")).toBeHidden();
   await expect(page.locator(".subscribe")).toHaveCount(0);

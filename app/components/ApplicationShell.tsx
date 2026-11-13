@@ -11,6 +11,7 @@ interface ApplicationShellProps {
   navigation?: CatalogueNavigationEntry[];
   item: CatalogueItem | null;
   queue: QueueEntry[];
+  queueRevision: number;
   playerPanelRef: Ref<HTMLElement>;
   playbackRequest: { itemId: string; sequence: number } | null;
   onClearQueue: () => void;
@@ -28,6 +29,7 @@ export function ApplicationShell({
   navigation = defaultCatalogueNavigation,
   item,
   queue,
+  queueRevision,
   playerPanelRef,
   playbackRequest,
   onClearQueue,
@@ -47,6 +49,7 @@ export function ApplicationShell({
           ref={playerPanelRef}
           item={item}
           queue={queue}
+          queueRevision={queueRevision}
           playbackRequest={playbackRequest}
           onClearQueue={onClearQueue}
           onSelectQueueEntry={onSelectQueueEntry}
