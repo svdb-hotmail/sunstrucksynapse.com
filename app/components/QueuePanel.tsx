@@ -8,6 +8,7 @@ export function QueuePanel({
   queue,
   history,
   onClearHistory,
+  feedback,
   children,
 }: {
   open: boolean;
@@ -15,6 +16,7 @@ export function QueuePanel({
   queue: QueueEntry[];
   history: QueueEntry[];
   onClearHistory: () => void;
+  feedback?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [mounted, setMounted] = useState(false);
@@ -22,12 +24,42 @@ export function QueuePanel({
   const [bottom, setBottom] = useState(0);
   const [list, setList] = useState<"queue" | "history">("queue");
   const content = useRef<HTMLDivElement>(null);
+  const panel = useRef<HTMLElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
   const drag = useRef<{ y: number; height: number; moved: boolean } | null>(null);
   const previous = useRef(new Set(queue.map((entry) => entry.itemId)));
   const suppressClick = useRef(false);
   useEffect(() => {
     setMounted(true);
   }, []);
+  useEffect(() => {
+    if (!open || !mounted) return;
+    opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !event.defaultPrevented) {
+        event.preventDefault();
+        closeRef.current();
+      }
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("keydown", closeOnEscape);
+      if (
+        !panel.current?.contains(document.activeElement) &&
+        document.activeElement !== document.body
+      )
+        return;
+      const fallback = Array.from(
+        document.querySelectorAll<HTMLElement>(
+          ".mobile-tabs button[aria-label^='Queue,'], .desktop-nav button[aria-label^='Queue,'], .dock-desktop-queue",
+        ),
+      ).find((element) => element.getClientRects().length > 0);
+      const target = opener.current?.isConnected ? opener.current : fallback;
+      requestAnimationFrame(() => target?.focus({ preventScroll: true }));
+    };
+  }, [open, mounted]);
   useEffect(() => {
     const update = () => {
       const dock = document.querySelector(".player-dock");
@@ -77,7 +109,7 @@ export function QueuePanel({
   if (!mounted) return null;
   const max = Math.max(56, window.innerHeight - bottom - 16);
   return createPortal(
-    <section className="queue-pullout" hidden={!open} aria-label="Listening queue">
+    <section ref={panel} className="queue-pullout" hidden={!open} aria-label="Listening queue">
       <header className="queue-pullout-header">
         <div className="queue-pullout-tabs" role="tablist" aria-label="Listening lists">
           <button role="tab" aria-selected={list === "queue"} onClick={() => setList("queue")}>
@@ -142,6 +174,7 @@ export function QueuePanel({
           →
         </button>
       </header>
+      <div className="queue-pullout-feedback">{feedback}</div>
       <div ref={content} className="queue-pullout-content">
         {list === "queue" ? (
           <>{children}</>

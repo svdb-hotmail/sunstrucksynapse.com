@@ -694,6 +694,12 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
         queue={queue}
         history={history ?? []}
         onClearHistory={onClearHistory ?? (() => undefined)}
+        feedback={
+          <>
+            {notice}
+            {playbackStatus}
+          </>
+        }
       >
         <div>
           <Queue
@@ -711,7 +717,6 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
                   }
                 : null
             }
-            currentItemId={item?.id}
             isPlaying={isPlaying}
           />
         </div>

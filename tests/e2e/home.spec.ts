@@ -256,6 +256,11 @@ test("reports unavailable media accessibly and allows retry", async ({ page }) =
   await expect(alert.getByRole("button", { name: "Retry" })).toBeVisible();
   await alert.getByRole("button", { name: "Retry" }).click();
   await expect(alert).toContainText(/unavailable|could not be loaded/);
+  await openQueue(page);
+  const queuePanel = page.locator(".queue-pullout");
+  await expect(queuePanel.getByRole("alert").getByRole("button", { name: "Retry" })).toBeVisible();
+  await queuePanel.getByRole("tab", { name: /History/ }).click();
+  await expect(queuePanel.getByRole("alert").getByRole("button", { name: "Retry" })).toBeVisible();
 });
 
 test("queues the playable Quiet Machines fixture", async ({ page }) => {

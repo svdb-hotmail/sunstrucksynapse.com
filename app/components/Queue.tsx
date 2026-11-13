@@ -8,7 +8,6 @@ interface QueueProps {
   onRemove: (itemId: string) => void;
   onMove?: (itemId: string, direction: -1 | 1) => void;
   onReorder?: (itemId: string, targetItemId: string) => void;
-  currentItemId?: string | null;
   currentEntry?: QueueEntry | null;
   isPlaying?: boolean;
 }
@@ -19,7 +18,6 @@ export function Queue({
   onRemove,
   onMove,
   onReorder,
-  currentItemId,
   currentEntry,
   isPlaying,
 }: QueueProps) {
@@ -35,9 +33,7 @@ export function Queue({
     deltaY: number;
     targetId: string | null;
   } | null>(null);
-  const rows = currentEntry
-    ? [currentEntry, ...entries.filter((entry) => entry.itemId !== currentEntry.itemId)]
-    : entries;
+  const rows = currentEntry ? [currentEntry, ...entries] : entries;
   return (
     <section className="queue">
       <div className="queue-head">
@@ -49,13 +45,12 @@ export function Queue({
       {rows.length > 0 ? (
         <ol ref={listRef}>
           {rows.map((entry, index) => {
-            const isCurrent =
-              entry.itemId === currentItemId || entry.itemId === currentEntry?.itemId;
+            const isCurrent = Boolean(currentEntry && index === 0);
             return (
               <li
-                key={entry.itemId}
+                key={isCurrent ? `current-${entry.itemId}` : entry.itemId}
                 data-current={isCurrent || undefined}
-                data-queue-id={entry.itemId}
+                data-queue-id={isCurrent ? undefined : entry.itemId}
                 data-dragging={dragVisual?.id === entry.itemId || undefined}
                 data-drop-target={dragVisual?.targetId === entry.itemId || undefined}
                 style={

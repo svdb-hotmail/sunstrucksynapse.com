@@ -469,7 +469,7 @@ export default function App() {
             changeQueue(next, "Queue order updated.");
           }}
           onPrevious={playPrevious}
-          onNext={advancePlayback}
+          onNext={() => advancePlayback()}
           canPrevious={hasPrevious}
           canNext={hasNext}
           onMediaEnded={() => advancePlayback(true)}
