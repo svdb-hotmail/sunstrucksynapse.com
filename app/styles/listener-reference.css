@@ -1136,10 +1136,13 @@
 }
 .listener-shell .masthead {
   display: flex;
-  height: 88px;
-  min-height: 88px;
+  height: 72px;
+  min-height: 72px;
   padding: 0 var(--radio-gutter);
   gap: 24px;
+}
+.listener-shell .main-content {
+  margin-top: 24px;
 }
 .listener-shell .masthead .site-logo {
   font-size: 24px;
@@ -1165,26 +1168,6 @@
 .listener-shell .masthead .preview-label {
   display: flex;
   gap: 12px;
-}
-.listener-shell .masthead .theme-toggle--badge {
-  padding: 0;
-  border: 0;
-  background: none;
-  font-size: 11px;
-  min-height: 44px;
-}
-.listener-shell .theme-toggle--badge .theme-toggle__icon {
-  display: none;
-}
-.listener-shell .theme-toggle--badge .theme-toggle__label {
-  display: block;
-  color: var(--brand-project-text);
-  background: var(--brand-project-surface);
-  border: 1px solid var(--brand-project-border);
-  padding: 5px 9px;
-  border-radius: 6px;
-  text-transform: none;
-  letter-spacing: 0;
 }
 .listener-shell .site-footer {
   width: 100%;
@@ -1275,21 +1258,26 @@
 @media (max-width: 760px) {
   .listener-shell[data-has-player="true"] {
     --listener-nav-height: calc(max(56px, 3.5rem) + env(safe-area-inset-bottom));
+    --listener-dock-height: max(96px, 6rem);
+    padding-bottom: calc(var(--listener-nav-height) + var(--listener-dock-height) + 24px);
   }
   .listener-shell .mobile-tabs {
     display: grid;
-  }
-  .listener-shell .transport.player-dock {
-    left: 0;
-    right: 0;
-    bottom: var(--listener-nav-height);
-    width: auto;
+    z-index: 40;
   }
   .listener-shell .masthead {
+    width: 100%;
+    max-width: none;
     height: 76px;
     min-height: 76px;
     padding-inline: 20px;
     gap: 12px;
+  }
+  .listener-shell .main-content {
+    margin-top: 16px;
+  }
+  .listener-shell .masthead .desktop-nav {
+    display: none;
   }
   .listener-shell .masthead .site-logo {
     font-size: 19px;
@@ -1340,9 +1328,40 @@
     font-size: 10px;
   }
   .listener-shell .transport.player-dock {
-    grid-template-columns: minmax(0, 1fr) auto;
-    padding: 12px 20px 24px;
-    gap: 8px;
+    bottom: var(--listener-nav-height);
+    left: 0;
+    right: 0;
+    width: auto;
+    max-width: none;
+    height: var(--listener-dock-height);
+    min-height: var(--listener-dock-height);
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-rows: minmax(0, 1fr) 18px;
+    padding: 8px 20px;
+    gap: 4px 8px;
+  }
+  .listener-shell .transport.player-dock .transport-track {
+    grid-column: 1;
+    grid-row: 1;
+    min-width: 0;
+  }
+  .listener-shell .transport.player-dock .transport-center {
+    display: contents;
+  }
+  .listener-shell .transport.player-dock .transport-controls {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .listener-shell .transport.player-dock .transport-tools {
+    grid-column: 3;
+    grid-row: 1;
+  }
+  .listener-shell .transport.player-dock .timeline {
+    position: static;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    margin: 0;
   }
   .listener-shell .transport .dock-track strong {
     font-size: 11px;
@@ -1355,7 +1374,16 @@
     height: 44px;
   }
   .listener-shell .transport .transport-tools {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .listener-shell .transport .volume-control {
     display: none;
+  }
+  .listener-shell .transport .dock-desktop-queue {
+    display: inline-flex;
+    min-width: 44px;
+    padding: 0 8px;
   }
 }
 @media (max-width: 380px) {

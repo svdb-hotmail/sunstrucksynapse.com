@@ -203,12 +203,6 @@ export default function App() {
   const [playingItemId, setPlayingItemId] = useState<string | null>(null);
   const [sessionHistory, setSessionHistory] = useState<QueueEntry[]>([]);
   const [view, setView] = useState<"player" | "queue" | null>(null);
-  const [queueNotice, setQueueNotice] = useState<string | null>(null);
-  const [undoQueue, setUndoQueue] = useState<{
-    queue: QueueEntry[];
-    scope: string[] | null;
-  } | null>(null);
-
   const selectItem = useCallback((item: CatalogueItem) => {
     userInteractedBeforeRestore.current = true;
     setPlayer({ selectedItemId: item.id });
@@ -238,19 +232,25 @@ export default function App() {
         collectionId,
         intent,
       });
-      // A queue undo belongs to the current track, never to an already consumed queue.
-      setUndoQueue(null);
-      setQueueNotice(null);
     },
     [],
   );
 
-  const changeQueue = (next: QueueEntry[], message: string) => {
+  const changeQueue = (next: QueueEntry[]) => {
     userInteractedBeforeRestore.current = true;
-    setUndoQueue({ queue, scope: playbackScope });
     setQueue(next);
     setPlaybackScope(reconcilePlaybackScope(playbackScope, player.selectedItemId, next));
-    setQueueNotice(message);
+  };
+
+  const clearQueueAndPlayback = () => {
+    userInteractedBeforeRestore.current = true;
+    setQueue([]);
+    setPlaybackScope(null);
+    playerPanelRef.current?.querySelector<HTMLMediaElement>("audio, video")?.pause();
+    setPlayer({ selectedItemId: null });
+    setPlaybackRequest(null);
+    setPlayingItemId(null);
+    setView(null);
   };
 
   const advancePlayback = useCallback(
@@ -336,13 +336,9 @@ export default function App() {
 
   const queueItem = (item: CatalogueItem, collectionId?: string) => {
     if (!item.media) return;
-    if (queue.some((entry) => entry.itemId === item.id)) {
-      setUndoQueue(null);
-      setQueueNotice("Already in your queue.");
-      return;
-    }
+    if (queue.some((entry) => entry.itemId === item.id)) return;
     const next = [...queue, ...scopedQueue([item], { ...player.origin, collectionId })];
-    changeQueue(next, `Added to queue · position ${next.length}.`);
+    changeQueue(next);
     setView("queue");
   };
   const scopedItems = playbackScope
@@ -377,17 +373,6 @@ export default function App() {
       setQueue((current) => removeQueueItem(current, item.id));
       requestPlayback(item, collectionId);
     },
-    playNext: (item, collectionId) => {
-      if (!item.media) return;
-      changeQueue(
-        [
-          queue.find((entry) => entry.itemId === item.id) ??
-            scopedQueue([item], { ...player.origin, collectionId })[0],
-          ...removeQueueItem(queue, item.id),
-        ],
-        "Added to play next.",
-      );
-    },
     playSelection: (tracks, collectionId) => {
       const playable = [
         ...new Map(
@@ -409,7 +394,7 @@ export default function App() {
       setQueue(scopedQueue(playable.slice(1), origin));
     },
     queueAlbum: (tracks) => {
-      changeQueue(appendAlbumQueue(queue, tracks), "Album added in track order.");
+      changeQueue(appendAlbumQueue(queue, tracks));
       setView("queue");
     },
   };
@@ -430,26 +415,10 @@ export default function App() {
           view={view}
           onViewChange={setView}
           onPlaybackStateChange={setPlayingItemId}
-          queueNotice={queueNotice}
-          onDismissNotice={() => {
-            setQueueNotice(null);
-            setUndoQueue(null);
-          }}
-          onUndoQueue={
-            undoQueue
-              ? () => {
-                  userInteractedBeforeRestore.current = true;
-                  setQueue(undoQueue.queue);
-                  setPlaybackScope(undoQueue.scope);
-                  setUndoQueue(null);
-                  setQueueNotice("Queue change undone.");
-                }
-              : undefined
-          }
-          onClearQueue={() => changeQueue([], "Queue cleared.")}
+          onClearQueue={clearQueueAndPlayback}
           onClearHistory={() => setSessionHistory([])}
           onRemoveQueueEntry={(itemId) =>
-            changeQueue(removeQueueItem(queue, itemId), "Removed from queue.")
+            changeQueue(removeQueueItem(queue, itemId))
           }
           onMoveQueueEntry={(itemId, direction) => {
             const index = queue.findIndex((entry) => entry.itemId === itemId);
@@ -457,7 +426,7 @@ export default function App() {
             if (index < 0 || nextIndex < 0 || nextIndex >= queue.length) return;
             const next = [...queue];
             [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
-            changeQueue(next, direction === -1 ? "Moved up in queue." : "Moved down in queue.");
+            changeQueue(next);
           }}
           onReorderQueueEntry={(itemId, targetItemId) => {
             const from = queue.findIndex((entry) => entry.itemId === itemId);
@@ -466,7 +435,7 @@ export default function App() {
             const next = [...queue];
             const [moved] = next.splice(from, 1);
             next.splice(to, 0, moved);
-            changeQueue(next, "Queue order updated.");
+            changeQueue(next);
           }}
           onPrevious={playPrevious}
           onNext={() => advancePlayback()}

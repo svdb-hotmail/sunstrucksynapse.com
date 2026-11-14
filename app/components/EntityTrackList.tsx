@@ -27,7 +27,6 @@ export function EntityTrackList({
             }
             onPlay={() => player.playItem(track, collectionId)}
             onQueue={() => player.queueItem(track, collectionId)}
-            onPlayNext={player.playNext ? () => player.playNext?.(track, collectionId) : undefined}
           />
         </li>
       ))}

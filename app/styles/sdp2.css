@@ -452,7 +452,6 @@ input[type="radio"] {
   border: var(--border-subtle);
   background: var(--brand-surface-panel-soft);
 }
-.listener-notice,
 .listener-shell .player-loading {
   background: var(--notice-info-background);
   color: var(--notice-info-text);

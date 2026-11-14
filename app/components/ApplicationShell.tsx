@@ -19,11 +19,14 @@ export function ApplicationShell({
   const openQueue = () => player.onViewChange?.(player.view === "queue" ? null : "queue");
   const { pathname } = useLocation();
   return (
-    <div className="app-shell listener-shell" data-has-player={Boolean(player.item)}>
+    <div
+      className="app-shell listener-shell"
+      data-has-player={Boolean(player.item || player.queue.length)}
+    >
       <a className="listener-skip" href="#listener-content">
         Skip to music
       </a>
-      <Header navigation={navigation} queueCount={player.queue.length} onOpenQueue={openQueue} />
+      <Header navigation={navigation} />
       <main id="listener-content" className="content-panel main-content">
         {children}
       </main>

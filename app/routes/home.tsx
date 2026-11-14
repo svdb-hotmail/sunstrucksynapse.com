@@ -41,9 +41,8 @@ export default function Home() {
         <section id="catalogue" className="track-section" aria-labelledby="radio-tracks-title">
           <div className="section-heading">
             <div>
-              <span className="section-label">The listening room</span>
               <h2 id="radio-tracks-title" className="brand-display">
-                In rotation
+                Featured
               </h2>
             </div>
             <Link className="text-action" to="/search">
@@ -62,13 +61,6 @@ export default function Home() {
           ) : (
             <CatalogueState state={catalogue} />
           )}
-          {previewTracks.length ? (
-            <p className="muted collection-note">
-              {previewTracks.length === 2
-                ? "Two tracks. Two worlds. One curious mind."
-                : `${previewTracks.length} ${previewTracks.length === 1 ? "track" : "tracks"}. One curious mind.`}
-            </p>
-          ) : null}
           {!collection && catalogue.collections.length ? (
             <div className="radio-collections">
               {catalogue.collections.map((entry) => (

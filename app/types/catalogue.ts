@@ -99,7 +99,6 @@ export interface PlayerOutletContext {
   selectedItemId: CatalogueItem["id"] | null;
   playingItemId?: string | null;
   queuedItemIds?: string[];
-  playNext?: (item: CatalogueItem, collectionId?: string) => void;
   playSelection?: (tracks: CatalogueItem[], collectionId?: string) => void;
   catalogue: CatalogueLoadResult;
   selectItem: (item: CatalogueItem) => void;

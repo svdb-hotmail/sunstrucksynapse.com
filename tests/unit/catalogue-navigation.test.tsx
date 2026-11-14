@@ -31,9 +31,9 @@ function renderHome(catalogue: CatalogueLoadResult) {
   );
 }
 describe("radio listener navigation", () => {
-  it("has stable Listen and Explore destinations for any catalogue size", () => {
+  it("has stable Home and Explore destinations for any catalogue size", () => {
     expect(defaultCatalogueNavigation).toEqual([
-      { label: "Listen", to: "/" },
+      { label: "Home", to: "/" },
       { label: "Explore", to: "/search" },
     ]);
     expect(isCatalogueNavigationEntryActive(defaultCatalogueNavigation[0], "/")).toBe(true);
@@ -56,7 +56,7 @@ describe("radio listener navigation", () => {
       expect(markup).not.toContain("/#video");
     }
   });
-  it("keeps platform identity visible on the header and About outside primary mobile tabs", () => {
+  it("keeps About in the header and out of primary mobile tabs", () => {
     const header = renderToStaticMarkup(
       <MemoryRouter>
         <Header />
@@ -68,7 +68,7 @@ describe("radio listener navigation", () => {
       </MemoryRouter>,
     );
     expect(header).toContain("SunSyn Radio");
-    expect(header).not.toContain('href="/about"');
+    expect(header).toContain('href="/about"');
     expect(mobile).not.toContain('href="/about"');
     expect(mobile).toContain('aria-label="Queue, 0 tracks"');
   });

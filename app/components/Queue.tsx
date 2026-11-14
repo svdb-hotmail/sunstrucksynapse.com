@@ -38,7 +38,12 @@ export function Queue({
     <section className="queue">
       <div className="queue-head">
         <h2>Queue</h2>
-        <button type="button" onClick={onClear} disabled={entries.length === 0}>
+        <button
+          type="button"
+          onClick={onClear}
+          disabled={entries.length === 0 && !currentEntry}
+          aria-label={currentEntry ? "Clear queue and stop playback" : "Clear all queued tracks"}
+        >
           Clear all
         </button>
       </div>
@@ -151,9 +156,7 @@ export function Queue({
             );
           })}
         </ol>
-      ) : (
-        <p className="queue-empty">Queue is clear. Use the plus button on a track to add it.</p>
-      )}
+      ) : null}
     </section>
   );
 }

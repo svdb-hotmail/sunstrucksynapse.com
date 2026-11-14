@@ -15,7 +15,6 @@ interface CatalogueCardProps {
   onSelect?: (item: CatalogueItem) => void;
   onQueue: (item: CatalogueItem) => void;
   onPlay: (item: CatalogueItem) => void;
-  onPlayNext?: (item: CatalogueItem) => void;
   position?: number;
   simpleActions?: boolean;
 }
@@ -26,7 +25,6 @@ export function CatalogueCard({
   isQueued = false,
   onQueue,
   onPlay,
-  onPlayNext,
   position,
   simpleActions = false,
 }: CatalogueCardProps) {
@@ -93,20 +91,6 @@ export function CatalogueCard({
                 <span aria-hidden="true">⋯</span>
               </summary>
               <div className="track-menu__content">
-                {onPlayNext ? (
-                  <button
-                    type="button"
-                    disabled={!item.media}
-                    onClick={(event) => {
-                      onPlayNext(item);
-                      const menu = event.currentTarget.closest("details");
-                      menu?.removeAttribute("open");
-                      menu?.querySelector("summary")?.focus({ preventScroll: true });
-                    }}
-                  >
-                    Play next
-                  </button>
-                ) : null}
                 <ShareButton
                   title={item.description.title}
                   url={new URL(item.href, SITE_URL).href}

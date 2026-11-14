@@ -29,9 +29,6 @@ export interface PlayerPanelProps {
   onPlaybackStateChange?: (itemId: string | null) => void;
   onMoveQueueEntry?: (itemId: string, direction: -1 | 1) => void;
   onReorderQueueEntry?: (itemId: string, targetItemId: string) => void;
-  queueNotice?: string | null;
-  onUndoQueue?: () => void;
-  onDismissNotice?: () => void;
   onClearQueue: () => void;
   onClearHistory?: () => void;
   onRemoveQueueEntry: (itemId: string) => void;
@@ -77,9 +74,6 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     onPlaybackStateChange,
     onMoveQueueEntry,
     onReorderQueueEntry,
-    queueNotice,
-    onUndoQueue,
-    onDismissNotice,
   },
   ref,
 ) {
@@ -404,19 +398,6 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   const activeMediaSrc =
     activeMedia && activeMedia.itemId === item?.id ? activeMedia.src : (item?.media?.src ?? null);
 
-  const notice = queueNotice ? (
-    <div className="listener-notice">
-      <span role="status">{queueNotice}</span>
-      {onUndoQueue ? (
-        <button type="button" onClick={onUndoQueue}>
-          Undo
-        </button>
-      ) : null}
-      <button type="button" onClick={onDismissNotice} aria-label="Dismiss queue message">
-        ×
-      </button>
-    </div>
-  ) : null;
   const playbackStatus = (
     <>
       {isLoading ? (
@@ -459,6 +440,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       className="player-panel"
       aria-label="Listening player"
       data-active={Boolean(item)}
+      data-dock-visible={Boolean(item || queue.length)}
     >
       <div className="player-dock transport brand-topbar" aria-label="Playback controls">
         <div className="transport-track">
@@ -563,8 +545,9 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
           </label>
           <Button
             className="dock-desktop-queue"
-            onClick={() => changeView("queue")}
+            onClick={() => changeView(panel === "queue" ? null : "queue")}
             aria-label={`Open queue in dock, ${queue.length} tracks`}
+            aria-expanded={panel === "queue"}
           >
             <ListenerIcon name="queue" />
             <span>{queue.length}</span>
@@ -573,7 +556,6 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       </div>
       {panel === null ? (
         <div className="listener-feedback">
-          {notice}
           {playbackStatus}
         </div>
       ) : null}
@@ -582,7 +564,6 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
         title={panel === "queue" ? "Your queue" : "Now playing"}
         onClose={() => changeView(null)}
       >
-        {notice}
         {playbackStatus}
         <div className="listener-full-player" hidden={panel !== "player"}>
           {item ? (
@@ -696,7 +677,6 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
         onClearHistory={onClearHistory ?? (() => undefined)}
         feedback={
           <>
-            {notice}
             {playbackStatus}
           </>
         }

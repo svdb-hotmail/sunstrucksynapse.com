@@ -729,18 +729,17 @@ video.protected-media {
 .theme-toggle {
   display: inline-flex;
   align-items: center;
-  gap: var(--space-2);
-  min-height: 40px;
-  padding: 8px 12px;
+  justify-content: center;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
   border: var(--component-control-border);
-  border-radius: var(--radius-pill);
+  border-radius: 50%;
   color: var(--color-content-primary);
   background: var(--component-transmission-control-background);
   cursor: pointer;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  font-size: 0.68rem;
-  font-weight: 900;
 }
 
 .theme-toggle:hover {
@@ -759,12 +758,7 @@ video.protected-media {
 
 .theme-toggle__icon {
   color: var(--color-accent-sun);
-  font-size: 1rem;
-  line-height: 1;
-}
-
-.theme-toggle__label {
-  white-space: nowrap;
+  display: block;
 }
 
 .site-logo {
@@ -2308,8 +2302,7 @@ form button[type="submit"] {
 }
 
 @media (min-width: 761px) and (max-width: 1040px) {
-  .site-logo span:last-child,
-  .theme-toggle__label {
+  .site-logo span:last-child {
     display: none;
   }
 }
@@ -2362,10 +2355,6 @@ form button[type="submit"] {
   .theme-toggle {
     min-height: 38px;
     padding: 8px 10px;
-  }
-
-  .theme-toggle__label {
-    display: none;
   }
 
   .intro-strip,
@@ -2570,15 +2559,18 @@ body {
 }
 
 .theme-toggle {
-  min-height: 46px;
+  width: 44px;
+  min-width: 44px;
+  height: 44px;
+  min-height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   color: var(--color-content-primary);
   background: transparent;
   border: 1px solid var(--color-border-control);
   border-radius: var(--radius-md);
-  font-family: var(--type-font-family-mono);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
 }
 
 .theme-toggle[aria-pressed="true"] {
@@ -3255,13 +3247,11 @@ body {
     font-size: 0.65rem;
   }
 
-  .theme-toggle__label {
-    display: none;
-  }
-
   .theme-toggle {
-    width: 42px;
-    min-height: 42px;
+    width: 44px;
+    min-width: 44px;
+    height: 44px;
+    min-height: 44px;
     padding: 0;
     justify-content: center;
   }
