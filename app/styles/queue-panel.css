@@ -53,6 +53,10 @@
   height: 44px;
   margin: 12px;
   cursor: pointer;
+  border: 1px solid var(--color-border-control);
+  border-radius: 50%;
+  background: var(--color-surface-topbar);
+  color: var(--color-content-primary);
 }
 .queue-pullout-handle {
   display: none;
@@ -264,18 +268,29 @@ body[data-queue-sidebar="true"] .listener-shell {
   padding-inline: 12px;
   border-bottom-color: transparent;
   border-radius: 12px;
-  background: color-mix(in srgb, #edc9f5 34%, var(--color-surface-panel));
-  box-shadow: inset 3px 0 #b77ad2;
+  background: var(--queue-current-surface, #f3e8f5);
+  box-shadow: inset 4px 0 var(--queue-current-accent, #9654af);
 }
 .queue-pullout .queue li[data-current="true"] strong {
-  color: #57286f;
+  color: var(--queue-current-title, #432451);
 }
 .queue-pullout .queue-playing-label {
-  color: #74418c;
+  color: var(--queue-current-label, #633574);
   font-size: 0.68rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
+}
+.queue-pullout .queue li[data-current="true"] > span,
+.queue-pullout .queue li[data-current="true"] em {
+  color: var(--queue-current-secondary, #65566c);
+}
+[data-theme="dark"] .queue-pullout {
+  --queue-current-surface: #272334;
+  --queue-current-accent: #c59bdd;
+  --queue-current-title: #f5effa;
+  --queue-current-label: #dcb7ee;
+  --queue-current-secondary: #c5bdd1;
 }
 .queue-pullout .queue-entry {
   grid-template-columns: 26px minmax(0, 1fr) auto;
