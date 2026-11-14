@@ -1,0 +1,300 @@
+/* Constrained, manually reviewed visual identities. Platform chrome and player stay shared. */
+.listener-shell .identity-page,
+.listener-shell .radio-home .label-feature[data-identity] {
+  --identity-paper: var(--color-surface-panel);
+  --identity-surface: var(--color-surface-panel);
+  --identity-ink: var(--color-content-primary);
+  --identity-accent-active: var(--color-accent-violet);
+  color: var(--identity-ink);
+  background: var(--identity-paper);
+}
+[data-theme="light"] .listener-shell .identity-page[data-treatment="palette"],
+[data-theme="light"] .listener-shell .identity-page[data-treatment="expressive"],
+[data-theme="light"] .listener-shell .radio-home .label-feature[data-treatment="palette"] {
+  --identity-paper: var(--identity-paper-light, var(--color-surface-panel));
+  --identity-surface: var(--identity-surface-light, var(--color-surface-panel));
+  --identity-ink: var(--identity-ink-light, var(--color-content-primary));
+  --identity-accent-active: var(--identity-accent, var(--color-accent-violet));
+}
+[data-theme="dark"] .listener-shell .identity-page[data-treatment="palette"],
+[data-theme="dark"] .listener-shell .identity-page[data-treatment="expressive"],
+[data-theme="dark"] .listener-shell .radio-home .label-feature[data-treatment="palette"] {
+  --identity-paper: var(--identity-paper-dark, var(--color-surface-panel));
+  --identity-surface: var(--identity-surface-dark, var(--color-surface-panel));
+  --identity-ink: var(--identity-ink-dark, var(--color-content-primary));
+  --identity-accent-active: var(--identity-accent, var(--color-accent-violet));
+}
+.listener-shell .radio-home .label-feature[data-identity] {
+  background:
+    radial-gradient(circle at 18% 35%, var(--identity-surface) 0, transparent 60%),
+    var(--identity-paper);
+  color: var(--identity-ink);
+}
+.listener-shell .radio-home .label-feature[data-identity] h1,
+.listener-shell .radio-home .label-feature[data-identity] a {
+  color: var(--identity-ink);
+}
+.listener-shell .radio-home .label-feature[data-identity] .label-feature__eyebrow {
+  color: var(--identity-accent-active);
+}
+.listener-shell
+  .radio-home
+  .label-feature[data-identity]
+  .label-feature__actions
+  button:first-child {
+  background: var(--identity-accent-active);
+  border-color: var(--identity-accent-active);
+  color: white;
+}
+.listener-shell .radio-home .label-feature[data-identity] .label-feature__another {
+  background: transparent;
+  border: 1px solid var(--identity-ink);
+  color: var(--identity-ink);
+}
+.listener-shell .radio-home .skin-selector > a {
+  padding: 0.5rem 0.7rem;
+  color: inherit;
+  white-space: nowrap;
+}
+.listener-shell .identity-page {
+  width: 100%;
+  margin: 0;
+  padding: 0 0 4rem;
+  border: 0;
+  overflow: hidden;
+}
+.listener-shell .identity-page a {
+  color: inherit;
+}
+.listener-shell .identity-preview-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem clamp(1.25rem, 4vw, 3rem);
+  border-bottom: 1px solid color-mix(in srgb, var(--identity-ink) 25%, transparent);
+  color: var(--identity-ink);
+  font:
+    600 0.7rem/1.2 system-ui,
+    sans-serif;
+}
+.listener-shell .identity-preview-controls > span {
+  text-transform: uppercase;
+  letter-spacing: 0.15em;
+}
+.listener-shell .identity-preview-controls > div,
+.listener-shell .identity-preview-controls nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.listener-shell .identity-preview-controls nav {
+  margin-left: auto;
+}
+.listener-shell .identity-preview-controls button,
+.listener-shell .identity-preview-controls a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 36px;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid currentColor;
+  border-radius: 99px;
+  background: transparent;
+  color: var(--identity-ink);
+  font: inherit;
+  text-decoration: none;
+  text-transform: capitalize;
+}
+.listener-shell .identity-preview-controls button[aria-pressed="true"] {
+  background: var(--identity-ink);
+  color: var(--identity-paper);
+}
+.listener-shell .identity-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(2rem, 5vw, 5rem);
+  padding: clamp(2rem, 5vw, 4rem);
+  min-height: 560px;
+  background: var(--identity-paper);
+}
+.listener-shell .identity-hero__art {
+  min-width: 0;
+}
+.listener-shell .identity-hero__art img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+  box-shadow: 18px 18px 0 var(--identity-surface);
+}
+.listener-shell .identity-hero__copy {
+  min-width: 0;
+}
+.listener-shell .identity-kicker {
+  color: var(--identity-accent-active);
+  font:
+    700 0.72rem/1.3 system-ui,
+    sans-serif;
+  letter-spacing: 0.19em;
+  text-transform: uppercase;
+}
+.listener-shell .identity-hero h1 {
+  margin: 1rem 0 1.2rem;
+  color: var(--identity-ink);
+  font:
+    500 clamp(2.9rem, 5vw, 5rem) / 1.04 Georgia,
+    serif;
+  letter-spacing: -0.055em;
+  overflow-wrap: anywhere;
+}
+.listener-shell .identity-description {
+  max-width: 48ch;
+  color: var(--identity-ink);
+  font-size: clamp(0.95rem, 1.4vw, 1.12rem);
+  line-height: 1.55;
+}
+.listener-shell .identity-byline {
+  font-size: clamp(1rem, 2vw, 1.5rem);
+}
+.listener-shell .identity-byline a {
+  text-decoration-color: var(--identity-accent-active);
+  text-underline-offset: 0.2em;
+}
+.listener-shell .identity-count {
+  margin-top: 1.5rem;
+  opacity: 0.72;
+  font-size: 0.82rem;
+}
+.listener-shell .identity-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.7rem;
+  margin-top: 2rem;
+}
+.listener-shell .identity-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 48px;
+  padding: 0.8rem 1.2rem;
+  border: 1px solid var(--identity-accent-active);
+  border-radius: 0;
+  background: transparent;
+  color: var(--identity-ink);
+  font:
+    700 0.85rem system-ui,
+    sans-serif;
+}
+.listener-shell .identity-actions button:first-child {
+  background: var(--identity-accent-active);
+  color: white;
+}
+.listener-shell .identity-actions button:disabled {
+  opacity: 0.5;
+}
+.listener-shell .identity-releases,
+.listener-shell .identity-tracks {
+  padding: clamp(2rem, 5vw, 4rem);
+  border-top: 1px solid color-mix(in srgb, var(--identity-ink) 25%, transparent);
+}
+.listener-shell .identity-section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.listener-shell .identity-section-heading h2 {
+  margin: 0;
+  color: var(--identity-ink);
+  font:
+    500 clamp(2rem, 3.5vw, 3rem) / 1.1 Georgia,
+    serif;
+}
+.listener-shell .identity-section-heading a {
+  font-size: 0.85rem;
+}
+.listener-shell .identity-release-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(1rem, 3vw, 2rem);
+}
+.listener-shell .identity-release-card {
+  display: block;
+  min-width: 0;
+  text-decoration: none;
+}
+.listener-shell .identity-release-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+.listener-shell .identity-release-card span {
+  display: block;
+  margin-top: 0.7rem;
+  font:
+    500 clamp(1.1rem, 2vw, 1.6rem) / 1.2 Georgia,
+    serif;
+}
+.listener-shell .identity-tracks .entity-track-list {
+  width: 100%;
+}
+.listener-shell .identity-tracks .track-row {
+  background: var(--identity-surface);
+}
+.listener-shell .identity-page[data-treatment="neutral"] .identity-hero__art img {
+  box-shadow: none;
+}
+.listener-shell .identity-page[data-treatment="expressive"] .identity-hero {
+  background:
+    radial-gradient(circle at 82% 30%, var(--identity-surface), transparent 62%),
+    var(--identity-paper);
+}
+.listener-shell .identity-page[data-treatment="expressive"] .identity-hero__art {
+  transform: rotate(-3deg);
+  border: 9px solid var(--identity-accent-active);
+}
+.listener-shell .identity-page[data-treatment="expressive"] .identity-hero__art img {
+  box-shadow: none;
+}
+.listener-shell .identity-page[data-treatment="expressive"] .identity-hero h1 {
+  font-family: Impact, "Arial Narrow", sans-serif;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.035em;
+}
+.listener-shell .identity-page[data-treatment="expressive"] .identity-section-heading h2 {
+  font-family: Impact, "Arial Narrow", sans-serif;
+  text-transform: uppercase;
+}
+@media (max-width: 760px) {
+  .listener-shell .identity-hero {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    padding: 1.5rem 1.25rem 2.5rem;
+    gap: 2rem;
+  }
+  .listener-shell .identity-hero__art img {
+    max-height: 55vh;
+    object-fit: contain;
+  }
+  .listener-shell .identity-releases,
+  .listener-shell .identity-tracks {
+    padding: 2rem 1.25rem;
+  }
+  .listener-shell .identity-release-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .listener-shell .identity-preview-controls nav {
+    margin-left: 0;
+  }
+}
+@media (max-width: 480px) {
+  .listener-shell .identity-release-grid {
+    grid-template-columns: 1fr;
+  }
+}

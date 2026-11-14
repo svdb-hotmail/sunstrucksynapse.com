@@ -7,6 +7,7 @@ import { Artwork } from "~/design-system/Artwork";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "~/config/brand";
 import { catalogueStateCopy } from "~/services/catalogue";
 import { listeningSelection } from "~/services/listening";
+import { identityStyle } from "~/design-system/visual-identity";
 import type { CatalogueLoadResult } from "~/types/catalogue";
 import type { PlayerOutletContext } from "~/types/catalogue";
 
@@ -27,8 +28,21 @@ export default function Home() {
     import.meta.env.DEV || ["site-preview", "test"].includes(import.meta.env.MODE);
   const player = useOutletContext<PlayerOutletContext>();
   const { catalogue } = player;
-  const { collection, tracks } = listeningSelection(catalogue.items, catalogue.collections);
-  const featured = tracks[0] ?? catalogue.items.find((item) => item.media);
+  const { collection } = listeningSelection(catalogue.items, catalogue.collections);
+  const playableReleases = catalogue.items.filter(
+    (item) => item.mediaKind === "audio" && item.media,
+  );
+  const featuredReleases = [
+    ...new Map(playableReleases.map((item) => [item.release.id, item])).values(),
+  ].sort((a, b) =>
+    a.release.slug === "phase-zero-transmissions"
+      ? -1
+      : b.release.slug === "phase-zero-transmissions"
+        ? 1
+        : a.release.title.localeCompare(b.release.title),
+  );
+  const [featuredIndex, setFeaturedIndex] = useState(0);
+  const featured = featuredReleases[featuredIndex % featuredReleases.length];
   const playable = catalogue.items.filter((item) => item.media && item.id !== featured?.id);
   const distinctReleases = playable.filter(
     (item, index) =>
@@ -39,6 +53,9 @@ export default function Home() {
     ...playable.filter((item) => !distinctReleases.some((release) => release.id === item.id)),
   ].slice(0, 3);
   const [skin, setSkin] = useState<"editorial" | "underground" | "synth">("editorial");
+  const identityPreviewActive = catalogue.items.some((item) =>
+    item.creator.slug.startsWith("preview-"),
+  );
   useEffect(() => {
     if (showSkinSelector) {
       document.documentElement.dataset.skin = skin;
@@ -62,10 +79,21 @@ export default function Home() {
               {option}
             </button>
           ))}
+          {import.meta.env.MODE === "test" ? (
+            <a href={identityPreviewActive ? "/?identity-preview=0" : "/?identity-preview=1"}>
+              {identityPreviewActive ? "Standard catalogue" : "Three-artist study"}
+            </a>
+          ) : null}
         </div>
       )}
       {featured ? (
-        <section className="label-feature" aria-labelledby="feature-title">
+        <section
+          className="label-feature"
+          aria-labelledby="feature-title"
+          data-identity
+          data-treatment="palette"
+          style={identityStyle(featured.release.slug)}
+        >
           <Link
             className="label-feature__art"
             to={featured.release.href}
@@ -93,6 +121,15 @@ export default function Home() {
               <Link to={featured.release.href}>
                 Explore release <ListenerIcon name="arrow" size={16} />
               </Link>
+              {featuredReleases.length > 1 ? (
+                <button
+                  className="label-feature__another"
+                  type="button"
+                  onClick={() => setFeaturedIndex((index) => (index + 1) % featuredReleases.length)}
+                >
+                  Discover another
+                </button>
+              ) : null}
             </div>
           </div>
         </section>

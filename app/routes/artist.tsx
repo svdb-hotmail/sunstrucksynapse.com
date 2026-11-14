@@ -1,12 +1,16 @@
 import { Link, useOutletContext } from "react-router";
+import { useState } from "react";
 
 import { EntityTrackList } from "~/components/EntityTrackList";
+import { IdentityPreviewControls } from "~/components/IdentityPreviewControls";
 import { ShareButton } from "~/components/ShareButton";
+import { ListenerIcon } from "~/design-system/ListenerIcon";
+import { defaultIdentityTreatment, identityStyle } from "~/design-system/visual-identity";
 import { SITE_NAME, SITE_URL } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { artistSeo } from "~/services/seo.server";
 import { serializeJsonLd } from "~/utils/json-ld";
-import type { PlayerOutletContext } from "~/types/catalogue";
+import type { PlayerOutletContext, PublicRelease } from "~/types/catalogue";
 
 import type { Route } from "./+types/artist";
 
@@ -18,7 +22,11 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   }
   const seo = artistSeo(artist);
   const canonicalUrl = new URL(seo.canonicalPath, SITE_URL).href;
-  return { artist, canonicalUrl, seo };
+  const releaseSlugs = [...new Set(artist.tracks.map((track) => track.release.slug))];
+  const releases = (
+    await Promise.all(releaseSlugs.map((slug) => catalogueRepository.findPublishedRelease(slug)))
+  ).filter((release): release is PublicRelease => release !== null);
+  return { artist, releases, canonicalUrl, seo };
 }
 
 export const meta: Route.MetaFunction = ({ loaderData }) => {
@@ -44,28 +52,76 @@ export const meta: Route.MetaFunction = ({ loaderData }) => {
 
 export default function ArtistRoute({ loaderData }: Route.ComponentProps) {
   const player = useOutletContext<PlayerOutletContext>();
-  const { artist, canonicalUrl } = loaderData;
+  const { artist, releases, canonicalUrl } = loaderData;
+  const [treatment, setTreatment] = useState(defaultIdentityTreatment(artist.slug));
+  const previewArtists = [
+    ...new Map(player.catalogue.items.map((track) => [track.creator.id, track.creator])).values(),
+  ];
 
   return (
-    <article className="entity-page">
+    <article
+      className="entity-page identity-page artist-showcase"
+      data-treatment={treatment}
+      style={identityStyle(artist.slug)}
+    >
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(loaderData.seo.jsonLd) }}
       />
-      <p className="eyebrow">Artist</p>
-      <div className="entity-hero">
-        <img src={artist.artwork.src} alt={artist.artwork.alt} />
-        <div>
-          <h1>{artist.name}</h1>
-          <p>{artist.biography ?? "Listen to the published transmissions from this artist."}</p>
-          <ShareButton title={artist.name} url={canonicalUrl} />
+      <IdentityPreviewControls
+        treatment={treatment}
+        onChange={setTreatment}
+        artists={previewArtists}
+      />
+      <section className="identity-hero" aria-labelledby="artist-name">
+        <div className="identity-hero__art">
+          <img src={artist.artwork.src} alt={artist.artwork.alt} />
         </div>
-      </div>
-      <div className="entity-heading">
-        <h2>Published tracks</h2>
-        <Link to="/">Back to catalogue</Link>
-      </div>
-      <EntityTrackList tracks={artist.tracks} player={player} />
+        <div className="identity-hero__copy">
+          <span className="identity-kicker">SUNSYN artist</span>
+          <h1 id="artist-name">{artist.name}</h1>
+          {artist.biography ? <p className="identity-description">{artist.biography}</p> : null}
+          <p className="identity-count">
+            {releases.length} {releases.length === 1 ? "release" : "releases"} ·{" "}
+            {artist.tracks.length} {artist.tracks.length === 1 ? "track" : "tracks"}
+          </p>
+          <div className="identity-actions">
+            <button
+              type="button"
+              disabled={!artist.tracks.some((track) => track.media) || !player.playSelection}
+              onClick={() => player.playSelection?.(artist.tracks)}
+            >
+              <ListenerIcon name="play" /> Play artist
+            </button>
+            <ShareButton title={artist.name} url={canonicalUrl} />
+          </div>
+        </div>
+      </section>
+      {releases.length ? (
+        <section className="identity-releases" aria-labelledby="artist-releases-title">
+          <div className="identity-section-heading">
+            <h2 id="artist-releases-title">Releases</h2>
+            <Link to="/search">Explore SUNSYN</Link>
+          </div>
+          <div className="identity-release-grid">
+            {releases.map((release) => (
+              <Link className="identity-release-card" key={release.id} to={release.href}>
+                <img src={release.artwork.src} alt="" loading="lazy" />
+                <span>{release.title}</span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
+      {artist.tracks.length ? (
+        <section className="identity-tracks" aria-labelledby="artist-tracks-title">
+          <div className="identity-section-heading">
+            <h2 id="artist-tracks-title">Listen</h2>
+            <Link to="/">Back to SUNSYN</Link>
+          </div>
+          <EntityTrackList tracks={artist.tracks} player={player} />
+        </section>
+      ) : null}
     </article>
   );
 }

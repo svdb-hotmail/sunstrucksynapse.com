@@ -1,7 +1,11 @@
 import { Link, useOutletContext } from "react-router";
+import { useState } from "react";
 
 import { EntityTrackList } from "~/components/EntityTrackList";
+import { IdentityPreviewControls } from "~/components/IdentityPreviewControls";
 import { ShareButton } from "~/components/ShareButton";
+import { ListenerIcon } from "~/design-system/ListenerIcon";
+import { defaultIdentityTreatment, identityStyle } from "~/design-system/visual-identity";
 import { SITE_NAME, SITE_URL } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { releaseSeo } from "~/services/seo.server";
@@ -46,20 +50,34 @@ export const meta: Route.MetaFunction = ({ loaderData }) => {
 export default function ReleaseRoute({ loaderData }: Route.ComponentProps) {
   const player = useOutletContext<PlayerOutletContext>();
   const { release, canonicalUrl } = loaderData;
+  const [treatment, setTreatment] = useState(defaultIdentityTreatment(release.slug));
+  const previewArtists = [
+    ...new Map(player.catalogue.items.map((track) => [track.creator.id, track.creator])).values(),
+  ];
 
   return (
-    <article className="entity-page">
+    <article
+      className="entity-page identity-page release-showcase"
+      data-treatment={treatment}
+      style={identityStyle(release.slug)}
+    >
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(loaderData.seo.jsonLd) }}
       />
-      <p className="eyebrow">Release</p>
-      <div className="entity-hero">
-        <img src={release.artwork.src} alt={release.artwork.alt} />
-        <div>
-          <h1>{release.title}</h1>
-          {release.description ? <p>{release.description}</p> : null}
-          <p>
+      <IdentityPreviewControls
+        treatment={treatment}
+        onChange={setTreatment}
+        artists={previewArtists}
+      />
+      <section className="identity-hero" aria-labelledby="release-title">
+        <div className="identity-hero__art">
+          <img src={release.artwork.src} alt={release.artwork.alt} />
+        </div>
+        <div className="identity-hero__copy">
+          <span className="identity-kicker">SUNSYN release</span>
+          <h1 id="release-title">{release.title}</h1>
+          <p className="identity-byline">
             By{" "}
             {release.artists.map((artist, index) => (
               <span key={artist.id}>
@@ -68,31 +86,39 @@ export default function ReleaseRoute({ loaderData }: Route.ComponentProps) {
               </span>
             ))}
           </p>
-          <div className="album-actions">
+          {release.description ? (
+            <p className="identity-description">{release.description}</p>
+          ) : null}
+          <div className="identity-actions">
             <button
               type="button"
               disabled={!release.tracks.some((t) => t.media)}
               onClick={() => player.playAlbum?.(release.tracks)}
             >
-              Play album
+              <ListenerIcon name="play" /> Play release
             </button>
             <button
               type="button"
               disabled={!release.tracks.some((t) => t.media)}
               onClick={() => player.queueAlbum?.(release.tracks)}
             >
-              Queue album
+              Add to queue
             </button>
+            <ShareButton title={release.title} url={canonicalUrl} />
           </div>
-          <p>Play album replaces the current queue. Queue album adds tracks in album order.</p>
-          <ShareButton title={release.title} url={canonicalUrl} />
+          <p className="identity-count">
+            {release.tracks.length} {release.tracks.length === 1 ? "track" : "tracks"}
+            {release.releaseDate ? ` · ${new Date(release.releaseDate).getUTCFullYear()}` : ""}
+          </p>
         </div>
-      </div>
-      <div className="entity-heading">
-        <h2>Track list</h2>
-        <Link to="/">Back to catalogue</Link>
-      </div>
-      <EntityTrackList tracks={release.tracks} player={player} />
+      </section>
+      <section className="identity-tracks" aria-labelledby="release-tracks-title">
+        <div className="identity-section-heading">
+          <h2 id="release-tracks-title">Track list</h2>
+          <Link to="/">Back to SUNSYN</Link>
+        </div>
+        <EntityTrackList tracks={release.tracks} player={player} />
+      </section>
     </article>
   );
 }

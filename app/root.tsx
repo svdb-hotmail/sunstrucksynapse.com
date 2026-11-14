@@ -54,6 +54,7 @@ import "./styles/listener-controls.css";
 import "./styles/listener-reference.css";
 import "./styles/queue-panel.css";
 import "./styles/home-skins.css";
+import "./styles/visual-identity.css";
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", href: "/assets/favicon.svg", type: "image/svg+xml" },
