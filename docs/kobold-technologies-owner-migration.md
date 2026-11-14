@@ -24,8 +24,9 @@ HTTP 404 does not exclude a private repository inaccessible to this integration.
    the maintainer separately requests a change.
 2. Review pending settings and verify a protected-branch PR can pass `quality-gate`
    and CodeQL. The maintainer has deferred the private security contact/reporting
-   setup until after migration, under Kobold Technologies. Record the final source commit, open PRs/issues, rulesets, collaborator
-   permissions, teams, releases, tags, and deployment settings without secret values.
+   setup until after migration, under Kobold Technologies. Record the final source
+   commit, open PRs/issues, rulesets, collaborator permissions, teams, releases,
+   tags, and deployment settings without secret values.
 3. Install/authorize the required GitHub Apps for the destination organization:
    Cloudflare deployments/previews, coding integrations, and any repository-specific
    apps. Confirm their access to the transferred repository before relying on them.

@@ -43,7 +43,8 @@ GitHub security products as part of this setup. Public-repository secret scannin
 and push protection should be used where available.
 
 The exact proposed ruleset preserves existing rules and adds PRs, resolved review
-threads, and the existing `quality-gate` check. It does not require a second human
+threads, and the existing `quality-gate` check from GitHub Actions (app ID 15368),
+verified against the successful merged-main check. It does not require a second human
 reviewer, enforce a deployment environment, or add browser journey checks.
 With an appropriately authorized `gh` session, apply the reviewed configuration.
 Keep the private-reporting toggle for the post-migration step and replace the owner
