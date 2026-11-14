@@ -1,9 +1,8 @@
 name: CI
 
-# Comprehensive PR validation is intentionally gated until the human maintainer marks the PR ready for review.
+# Pre-MVP validation also covers stacked PRs. User journeys run manually while the UX evolves.
 on:
   pull_request:
-    branches: [main]
     types: [converted_to_draft, opened, ready_for_review, synchronize, reopened]
   push:
     branches:
@@ -15,24 +14,19 @@ concurrency:
 
 permissions:
   contents: read
-  security-events: write
-  actions: read
 
 jobs:
   quality-gate:
     name: quality-gate
     if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
+    env:
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/unused
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: javascript-typescript
 
       - name: Set up Node.js
         uses: actions/setup-node@v5
@@ -40,13 +34,65 @@ jobs:
           node-version: 22.22.0
           cache: npm
 
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check types
+        run: npm run typecheck
+
+      - name: Run unit and contract tests
+        run: npm run test:unit
+
+      - name: Validate database locally
+        run: npm run db:validate:local
+
+      - name: Build application
+        run: npm run build
+
       - name: Install audio encoder test dependency
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends ffmpeg
 
-      - name: Run Village quality gate
-        run: bash .github/scripts/village-ci.sh
+      - name: Test audio encoder
+        run: npm run test:encoder
+
+  security:
+    name: security
+    if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22.22.0
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
 
       - name: Analyze application security
         uses: github/codeql-action/analyze@v4

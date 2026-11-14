@@ -417,9 +417,7 @@ export default function App() {
           onPlaybackStateChange={setPlayingItemId}
           onClearQueue={clearQueueAndPlayback}
           onClearHistory={() => setSessionHistory([])}
-          onRemoveQueueEntry={(itemId) =>
-            changeQueue(removeQueueItem(queue, itemId))
-          }
+          onRemoveQueueEntry={(itemId) => changeQueue(removeQueueItem(queue, itemId))}
           onMoveQueueEntry={(itemId, direction) => {
             const index = queue.findIndex((entry) => entry.itemId === itemId);
             const nextIndex = index + direction;

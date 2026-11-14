@@ -3,10 +3,6 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const workflow = readFileSync(new URL("../../.github/workflows/ci.yml", import.meta.url), "utf8");
-const qualityGateScript = readFileSync(
-  new URL("../../.github/scripts/village-ci.sh", import.meta.url),
-  "utf8",
-);
 const packageJson = JSON.parse(
   readFileSync(new URL("../../package.json", import.meta.url), "utf8"),
 ) as { scripts: Record<string, string> };
@@ -25,15 +21,35 @@ describe("CI quality-gate lifecycle", () => {
     expect(workflow).toContain("cancel-in-progress: true");
   });
 
-  it("preserves the main quality gate and complete local CI including E2E", () => {
+  it("keeps pre-MVP validation without browser journeys or preview design baselines", () => {
     expect(workflow).toMatch(/push:\s+branches:\s+- main/);
     expect(workflow).toContain("name: quality-gate");
-    expect(qualityGateScript).toContain("npm ci --no-audit --no-fund");
-    expect(qualityGateScript).toContain("npx playwright install --with-deps chromium");
-    expect(qualityGateScript).toContain("npm audit --audit-level=high");
-    expect(workflow).toContain("github/codeql-action/analyze@v4");
-    expect(qualityGateScript).toContain("npm run ci");
-    expect(packageJson.scripts.ci).toContain("npm run test:e2e");
+    const commands = packageJson.scripts.ci.split(" && ");
+    for (const script of [
+      "format:check",
+      "lint",
+      "typecheck",
+      "test:unit",
+      "test:encoder",
+      "db:validate:local",
+      "build",
+    ]) {
+      expect(commands).toContain(`npm run ${script}`);
+      expect(workflow).toContain(`run: npm run ${script}`);
+    }
+    for (const script of [
+      "test:e2e",
+      "test:site-preview",
+      "build-storybook",
+      "build:site-preview",
+    ]) {
+      expect(commands).not.toContain(`npm run ${script}`);
+      expect(workflow).not.toContain(`run: npm run ${script}`);
+      expect(packageJson.scripts[script]).toBeTruthy();
+    }
+    expect(workflow).not.toContain("playwright install");
+    // Stacked PRs must receive the same validation as PRs targeting main.
+    expect(workflow.split("  push:")[0]).not.toContain("branches:");
   });
 
   it("grants minimum CodeQL permissions including actions: read and does not suppress CodeQL failure", () => {
@@ -41,5 +57,8 @@ describe("CI quality-gate lifecycle", () => {
     expect(workflow).toContain("contents: read");
     expect(workflow).toContain("security-events: write");
     expect(workflow).not.toContain("continue-on-error");
+    const [qualityJob, securityJob] = workflow.split("  security:");
+    expect(qualityJob).not.toContain("github/codeql-action");
+    expect(securityJob).toContain("npm audit --audit-level=high");
   });
 });

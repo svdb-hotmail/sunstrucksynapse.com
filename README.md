@@ -116,40 +116,34 @@ No deployment script or Cloudflare account configuration is included in this pha
 
 ## Quality gates
 
-Run the complete local quality gate after installing dependencies:
+Run the pre-MVP quality gate after installing dependencies and FFmpeg:
 
 ```bash
 npm run ci
 ```
 
-The aggregate runs Prettier, ESLint, strict TypeScript, Vitest unit tests, the
-PGlite database validation, the production build, and the Playwright Chromium smoke
-test in that order. The browser test starts the built application with `vite preview`
-through the Cloudflare Vite plugin, so it exercises the production Worker preview
-rather than a Node-only development server. It uses a fake, syntactically valid
-`DATABASE_URL` and does not contact an external database.
+The aggregate runs formatting, lint, strict TypeScript, unit/contract tests,
+audio encoder tests, local PGlite database validation, and the production build.
+Database validation uses local fixtures and does not contact an external database.
 
-Individual gates are available as:
+GitHub Actions exposes these checks as separate steps under the stable required
+check `CI / quality-gate`, with a ten-minute limit. It validates non-draft PRs,
+including stacked PRs, and pushes to `main`. Dependency auditing and CodeQL run
+in a separate parallel security job.
+
+User journeys, browser compatibility, Storybook, and exact preview design
+baselines are outside automatic CI while the pre-MVP design is evolving. Run
+these checks manually when reviewing the relevant experience:
 
 ```bash
-npm run format:check
-npm run lint
-npm run typecheck
-npm run test:unit
-npm run db:validate:local
-npm run build
+npx playwright install --with-deps chromium firefox webkit
 npm run test:e2e
+npm run build-storybook
+npm run test:site-preview
 ```
 
-Build the application before running `npm run test:e2e` by itself. Install the
-Playwright Chromium browser once per environment with
-`npx playwright install chromium`.
-
-The GitHub Actions workflow exposes the stable required-check name
-`CI / quality-gate`. Future branch protection should require that exact check, but
-protection must not be enabled until the workflow has run and stabilized on pull
-requests and `main`. A deliberate failing test is deferred and is not included in
-this change.
+The E2E command builds its own test-mode application before starting the preview
+server. The site-preview tests require the Storybook/site-preview build above.
 
 ## Documentation
 
