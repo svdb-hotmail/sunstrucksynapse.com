@@ -8,6 +8,7 @@ import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "~/config/brand";
 import { catalogueStateCopy } from "~/services/catalogue";
 import { listeningSelection } from "~/services/listening";
 import { identityStyle } from "~/design-system/visual-identity";
+import { DEFAULT_SKIN, setSkin as applySkin, type Skin } from "~/design-system/skin";
 import type { CatalogueLoadResult } from "~/types/catalogue";
 import type { PlayerOutletContext } from "~/types/catalogue";
 
@@ -52,18 +53,16 @@ export default function Home() {
     ...distinctReleases,
     ...playable.filter((item) => !distinctReleases.some((release) => release.id === item.id)),
   ].slice(0, 3);
-  const [skin, setSkin] = useState<"editorial" | "underground" | "synth">("editorial");
+  const [skin, setSkin] = useState<Skin>(DEFAULT_SKIN);
   const identityPreviewActive = catalogue.items.some((item) =>
     item.creator.slug.startsWith("preview-"),
   );
   useEffect(() => {
-    if (showSkinSelector) {
-      document.documentElement.dataset.skin = skin;
-      return () => {
-        delete document.documentElement.dataset.skin;
-      };
+    const current = document.documentElement.dataset.skin;
+    if (current === "editorial" || current === "underground" || current === "synth") {
+      setSkin(current);
     }
-  }, [showSkinSelector, skin]);
+  }, []);
   return (
     <div className="radio-home">
       {showSkinSelector && (
@@ -74,7 +73,10 @@ export default function Home() {
               key={option}
               type="button"
               aria-pressed={skin === option}
-              onClick={() => setSkin(option)}
+              onClick={() => {
+                applySkin(option, document);
+                setSkin(option);
+              }}
             >
               {option}
             </button>

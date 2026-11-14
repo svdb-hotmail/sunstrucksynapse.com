@@ -1,0 +1,174 @@
+/* Visitor skin applies to the public listener shell. Light/dark remains independent. */
+[data-skin="editorial"] .listener-shell {
+  --site-page: #eee7d9;
+  --site-panel: #f7f0e4;
+  --site-card: #fffaf1;
+  --site-ink: #251d19;
+  --site-muted: #685a50;
+  --site-line: #bba999;
+  --site-accent: #a33f31;
+  --site-button-ink: #fffaf1;
+  --site-display: Georgia, "Times New Roman", serif;
+  --site-radius: 4px;
+}
+[data-theme="dark"][data-skin="editorial"] .listener-shell {
+  --site-page: #28231f;
+  --site-panel: #302923;
+  --site-card: #393027;
+  --site-ink: #f2e9dc;
+  --site-muted: #c2b3a5;
+  --site-line: #74665b;
+  --site-accent: #df8671;
+  --site-button-ink: #251d19;
+}
+[data-skin="underground"] .listener-shell {
+  --site-page: #ebe5d8;
+  --site-panel: #f5f0e5;
+  --site-card: #fffaf0;
+  --site-ink: #201b17;
+  --site-muted: #665c52;
+  --site-line: #8b7a68;
+  --site-accent: #aa3823;
+  --site-button-ink: #fffaf0;
+  --site-display: Impact, "Arial Narrow", sans-serif;
+  --site-radius: 0px;
+}
+[data-theme="dark"][data-skin="underground"] .listener-shell {
+  --site-page: #151413;
+  --site-panel: #211d1a;
+  --site-card: #2c251f;
+  --site-ink: #f4eee1;
+  --site-muted: #b8aca0;
+  --site-line: #695c4e;
+  --site-accent: #f1613f;
+  --site-button-ink: #151413;
+}
+[data-skin="synth"] .listener-shell {
+  --site-page: #eae7fa;
+  --site-panel: #f5f2ff;
+  --site-card: #fffaff;
+  --site-ink: #211b40;
+  --site-muted: #595278;
+  --site-line: #988bc3;
+  --site-accent: #683db0;
+  --site-button-ink: #fffaff;
+  --site-display: Orbitron, "Arial Black", sans-serif;
+  --site-radius: 16px;
+}
+[data-theme="dark"][data-skin="synth"] .listener-shell {
+  --site-page: #100e2a;
+  --site-panel: #1d1839;
+  --site-card: #292149;
+  --site-ink: #faf4ff;
+  --site-muted: #beb4df;
+  --site-line: #6655a0;
+  --site-accent: #64e4dd;
+  --site-button-ink: #100e2a;
+}
+
+[data-skin] .listener-shell {
+  --brand-surface-canvas: var(--site-page);
+  --brand-surface-topbar: var(--site-panel);
+  --brand-surface-panel: var(--site-panel);
+  --brand-surface-card: var(--site-card);
+  --brand-border-subtle: var(--site-line);
+  --brand-border-strong: var(--site-line);
+  --brand-divider: linear-gradient(90deg, var(--site-accent), var(--site-ink));
+  --text-primary: var(--site-ink);
+  --color-content-primary: var(--site-ink);
+  --color-content-secondary: var(--site-muted);
+  --color-border-subtle: var(--site-line);
+  --color-border-control: var(--site-line);
+  --color-accent-primary: var(--site-accent);
+  --color-accent-cyan: var(--site-accent);
+  --color-accent-violet: var(--site-accent);
+  --surface-page-background: var(--site-page);
+  --surface-panel-background: var(--site-panel);
+  --surface-card-background: var(--site-card);
+  --surface-header-background: var(--site-panel);
+  --surface-mobile-nav-background: var(--site-panel);
+  --radio-playback-accent: var(--site-accent);
+  --radio-text-secondary: var(--site-muted);
+  --radio-text-body: var(--site-ink);
+  --radio-track-divider: var(--site-line);
+  --radio-transport-background: var(--site-panel);
+  --font-family-display: var(--site-display);
+  --type-font-family-display: var(--site-display);
+  --button-primary-background: var(--site-accent);
+  --button-primary-text: var(--site-button-ink);
+  --button-secondary-background: var(--site-panel);
+  --button-secondary-border: var(--site-line);
+  --button-secondary-text: var(--site-ink);
+  --radius-md: var(--site-radius);
+  --radius-lg: var(--site-radius);
+  background: var(--site-page);
+  color: var(--site-ink);
+}
+[data-skin] .listener-shell .topbar,
+[data-skin] .listener-shell .player-dock,
+[data-skin] .listener-shell .mobile-tabs,
+[data-skin] .listener-shell .listener-footer {
+  background: var(--site-panel);
+  color: var(--site-ink);
+  border-color: var(--site-line);
+}
+[data-skin] .listener-shell .content-panel {
+  background: var(--site-page);
+}
+[data-skin] .listener-shell .entity-page:not(.identity-page),
+[data-skin] .listener-shell .about-page {
+  color: var(--site-ink);
+}
+[data-skin] .listener-shell .entity-page:not(.identity-page) h1,
+[data-skin] .listener-shell .about-page h1,
+[data-skin] .listener-shell .about-page h2 {
+  font-family: var(--site-display);
+}
+[data-skin] .listener-shell .media-card,
+[data-skin] .listener-shell .radio-collections a {
+  border-color: var(--site-line);
+}
+[data-skin] .listener-shell .player-dock .dock-play {
+  background: var(--site-accent);
+  border-color: var(--site-accent);
+  color: var(--site-button-ink);
+}
+[data-skin] .listener-shell .listener-primary,
+[data-skin] .listener-shell .listener-search__query button {
+  background: var(--site-accent);
+  border-color: var(--site-accent);
+  color: var(--site-button-ink);
+}
+[data-skin] .listener-shell .card-actions .listener-track__play,
+[data-skin] .listener-shell .track-row .track-queue {
+  color: var(--site-accent);
+  border-color: var(--site-line);
+  background: var(--site-panel);
+}
+[data-skin] .listener-shell .desktop-nav a[aria-current],
+[data-skin] .listener-shell .mobile-tabs a[aria-current] {
+  color: var(--site-accent);
+}
+[data-skin] .listener-shell .desktop-nav a[aria-current]::after {
+  background: var(--site-accent);
+}
+
+/* The existing homepage compositions retain their distinct artwork treatments in light mode. */
+[data-theme="light"][data-skin="underground"] .listener-shell .radio-home,
+[data-theme="light"][data-skin="synth"] .listener-shell .radio-home {
+  --skin-paper: var(--site-page);
+  --skin-ink: var(--site-ink);
+  --skin-muted: var(--site-muted);
+  --skin-line: var(--site-line);
+  --skin-accent: var(--site-accent);
+  --skin-button-ink: var(--site-card);
+}
+[data-theme="light"][data-skin="underground"] .listener-shell .label-feature__art {
+  border-color: var(--site-line);
+}
+[data-theme="light"][data-skin="synth"] .listener-shell .label-feature {
+  background: radial-gradient(circle at 80% 20%, #d7c7ff, transparent 55%), var(--site-page);
+}
+[data-theme="light"][data-skin="synth"] .listener-shell .label-feature h1 {
+  text-shadow: 3px 3px #b6a3de;
+}
