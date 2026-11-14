@@ -147,6 +147,10 @@ server. The site-preview tests require the Storybook/site-preview build above.
 
 ## Documentation
 
+- [Security policy](SECURITY.md) and [contribution guide](CONTRIBUTING.md)
+- [GitHub settings and outstanding administrator steps](docs/github-repository-settings.md)
+- [Kobold Technologies owner-migration preparation](docs/kobold-technologies-owner-migration.md)
+
 - [Product scope, terminology, and non-goals](docs/product-scope.md)
 - [Design system, tokens, theming, and Storybook](docs/design-system.md)
 - [MVP architecture and accepted decisions](docs/architecture/README.md)
