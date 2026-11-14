@@ -53,6 +53,7 @@ import "./styles/listener-brand.css";
 import "./styles/listener-controls.css";
 import "./styles/listener-reference.css";
 import "./styles/queue-panel.css";
+import "./styles/home-skins.css";
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", href: "/assets/favicon.svg", type: "image/svg+xml" },
@@ -417,9 +418,7 @@ export default function App() {
           onPlaybackStateChange={setPlayingItemId}
           onClearQueue={clearQueueAndPlayback}
           onClearHistory={() => setSessionHistory([])}
-          onRemoveQueueEntry={(itemId) =>
-            changeQueue(removeQueueItem(queue, itemId))
-          }
+          onRemoveQueueEntry={(itemId) => changeQueue(removeQueueItem(queue, itemId))}
           onMoveQueueEntry={(itemId, direction) => {
             const index = queue.findIndex((entry) => entry.itemId === itemId);
             const nextIndex = index + direction;
