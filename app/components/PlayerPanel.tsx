@@ -554,11 +554,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
           </Button>
         </div>
       </div>
-      {panel === null ? (
-        <div className="listener-feedback">
-          {playbackStatus}
-        </div>
-      ) : null}
+      {panel === null ? <div className="listener-feedback">{playbackStatus}</div> : null}
       <ListenerSheet
         open={panel === "player"}
         title={panel === "queue" ? "Your queue" : "Now playing"}
@@ -675,11 +671,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
         queue={queue}
         history={history ?? []}
         onClearHistory={onClearHistory ?? (() => undefined)}
-        feedback={
-          <>
-            {playbackStatus}
-          </>
-        }
+        feedback={<>{playbackStatus}</>}
       >
         <div>
           <Queue

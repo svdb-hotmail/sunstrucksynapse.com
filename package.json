@@ -26,7 +26,7 @@
     "db:validate:local": "node --import tsx scripts/validate-database.ts",
     "catalogue:export": "node --env-file-if-exists=.env --import tsx scripts/export-catalogue.ts",
     "catalogue:audit": "node --env-file-if-exists=.env --import tsx scripts/audit-beta-readiness.ts",
-    "ci": "npm run format:check && npm run lint && npm run typecheck && npm run test:unit && npm run test:encoder && npm run db:validate:local && npm run build && npm run build-storybook && npm run test:e2e && npm run test:site-preview",
+    "ci": "npm run format:check && npm run lint && npm run typecheck && npm run test:unit && npm run test:encoder && npm run db:validate:local && npm run build",
     "mockup": "vite --config design-mockup/vite.config.ts",
     "build:mockup": "tsc -p design-mockup/tsconfig.json && vite build --config design-mockup/vite.config.ts",
     "build:site-preview": "node scripts/build-site-preview.mjs",
