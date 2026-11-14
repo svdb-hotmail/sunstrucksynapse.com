@@ -1,77 +1,145 @@
-# GitHub repository settings
+# Configure this GitHub repository
 
-Audit date: 2026-11-14. Repository: `svdb-hotmail/sunstrucksynapse.com` (public).
-This document records desired settings; committed JSON does not apply them automatically.
+Repository: `svdb-hotmail/sunstrucksynapse.com`. Instructions updated 2026-11-14.
+Open the links below in your own browser while signed in as the repository owner.
+The cloud GitHub connection returns HTTP 403 for administrator settings, so the
+settings below have not been applied by the agent.
 
-## Applied through the repository
+## 1. Merge the repository configuration files
 
-- `CI / quality-gate`: visible formatting, lint, type, unit/contract, database,
-  production-build, and encoder steps, with a ten-minute timeout.
-- Parallel dependency auditing and CodeQL, retaining the existing CodeQL analysis
-  identity expected by the repository's code-scanning rule.
-- Validation on stacked PRs as well as PRs targeting `main`.
-- No automatic browser journeys, compatibility suites, Storybook, or exact visual
-  baselines during pre-MVP design. These remain manually available.
-- Weekly grouped npm and GitHub Actions updates in `.github/dependabot.yml`.
-- A root security policy and contribution instructions.
+Open [PR #103](https://github.com/svdb-hotmail/sunstrucksynapse.com/pull/103).
 
-## Administrator settings still required
+1. Review the changes under **Files changed**.
+2. Return to **Conversation** and click **Ready for review**.
+3. Wait for `quality-gate`, `security`, and CodeQL to pass. Browser journeys are
+   excluded from this pre-MVP CI.
+4. Resolve any reported blocking review conversations.
+5. Click **Merge pull request**, then **Confirm merge**.
 
-The connected GitHub integration returned HTTP 403 for all attempted settings
-writes, despite the repository metadata reporting account administrator access.
-Account permissions and integration permissions are separate. The destination
-organization is `Kobold-Technologies`; the maintainer has deferred the private
-security contact/reporting setup until after migration. Do not interpret
-these failures as settings having been applied.
+After merging, open `.github/dependabot.yml`, `SECURITY.md`, and `CONTRIBUTING.md`
+on the `main` branch to confirm the files are present. The weekly grouped
+Dependabot configuration and policy files are only prepared in the PR until it
+merges. Committed JSON under `.github/repository-settings/` is a settings proposal;
+it does not automatically change GitHub settings.
 
-| Setting                                 | Observed                    | Desired                                                            |
-| --------------------------------------- | --------------------------- | ------------------------------------------------------------------ |
-| Private vulnerability reporting         | Disabled                    | Enabled                                                            |
-| Dependabot alerts                       | Integration cannot inspect  | Enabled                                                            |
-| Dependabot security updates             | Integration cannot inspect  | Enabled                                                            |
-| Secret scanning                         | Integration cannot inspect  | Enabled                                                            |
-| Secret-scanning push protection         | Integration cannot inspect  | Enabled                                                            |
-| Main deletion and force-push prevention | Enabled in ruleset 21111453 | Preserve                                                           |
-| CodeQL and code-quality rules           | Enabled in ruleset 21111453 | Preserve                                                           |
-| Pull requests required                  | Absent from that ruleset    | Required; zero mandatory approvals for solo pre-MVP work           |
-| Required `quality-gate` check           | Absent from that ruleset    | Required; no strict up-to-date requirement                         |
-| Actions defaults and fork approvals     | Integration cannot inspect  | Read-only default token; require approval for outside contributors |
+PRs #101 and #102 are already merged. The simplified CI is already active on `main`.
 
-Use an administrator-authorized GitHub session to review Settings → Security,
-Settings → Rules → Rulesets, and Settings → Actions → General. Do not enable paid
-GitHub security products as part of this setup. Public-repository secret scanning
-and push protection should be used where available.
+## 2. Enable dependency and secret protection
 
-The exact proposed ruleset preserves existing rules and adds PRs, resolved review
-threads, and the existing `quality-gate` check from GitHub Actions (app ID 15368),
-verified against the successful merged-main check. It does not require a second human
-reviewer, enforce a deployment environment, or add browser journey checks.
-With an appropriately authorized `gh` session, apply the reviewed configuration.
-Keep the private-reporting toggle for the post-migration step and replace the owner
-in these commands with `Kobold-Technologies` once transferred. Re-read the ruleset
-ID before applying it in the destination organization:
+Open [repository security settings](https://github.com/svdb-hotmail/sunstrucksynapse.com/settings/security_analysis).
+GitHub may redirect this link to its current **Code security**, **Secret protection**,
+or **Advanced Security** settings page. Use the named feature rows below; GitHub's
+sidebar grouping can change.
 
-```bash
-gh api --method PUT repos/svdb-hotmail/sunstrucksynapse.com/vulnerability-alerts
-gh api --method PUT repos/svdb-hotmail/sunstrucksynapse.com/automated-security-fixes
-gh api --method PATCH repos/svdb-hotmail/sunstrucksynapse.com \
-  --input .github/repository-settings/security-and-analysis.json
-gh api --method PUT repos/svdb-hotmail/sunstrucksynapse.com/rulesets/21111453 \
-  --input .github/repository-settings/main-ruleset.json
-```
+| Feature row                               | Action                        | Verify                               |
+| ----------------------------------------- | ----------------------------- | ------------------------------------ |
+| **Dependency graph**                      | Click **Enable** if disabled. | Enabled; the row offers **Disable**. |
+| **Dependabot alerts**                     | Click **Enable** if disabled. | Enabled; the row offers **Disable**. |
+| **Dependabot security updates**           | Click **Enable** if disabled. | Enabled; the row offers **Disable**. |
+| **Secret scanning**                       | Click **Enable** if disabled. | Enabled; the row offers **Disable**. |
+| **Push protection** under secret scanning | Click **Enable** if disabled. | Enabled; the row offers **Disable**. |
 
-Re-read the current ruleset before applying its snapshot if other settings have
-changed. Verify each feature and the ruleset after applying it. This payload is
-for the current repository; re-audit identifiers and organization policy after
-an ownership transfer. Updating Actions defaults needs owner access in the UI.
+Confirm an enable action if GitHub opens a confirmation dialog. If a feature is
+already enabled, leave it enabled. Use the features available for this public
+repository; stop at any purchase/trial prompt rather than subscribing.
 
-Do not disable branch deletion, force-push, or code-scanning safeguards to work
-around a failing check. Existing wiki, projects, merge methods, and the current
-all-rights-reserved license are left for explicit owner decisions.
+Verify the result in the [Security overview](https://github.com/svdb-hotmail/sunstrucksynapse.com/security):
 
-After migration, configure the monitored reporting contact, update `SECURITY.md`,
-and enable private reporting using the new owner:
+- Open **Dependabot** to see its enabled alert view. Existing alerts may remain;
+  enabling the feature does not fix dependencies automatically.
+- Open **Secret scanning** to see its enabled alert view.
+- Open **Code scanning** to see the existing CodeQL results from CI. CodeQL already
+  uses `.github/workflows/ci.yml`; retain that advanced setup. Its scan identity
+  was corrected and its checks passed on merged `main`.
 
-```bash
-gh api --method PUT repos/Kobold-Technologies/sunstrucksynapse.com/private-vulnerability-reporting
-```
+Private vulnerability reporting and the monitored security contact are deferred
+until after transfer to Kobold Technologies, as requested by the maintainer.
+
+## 3. Require PRs and the existing quality gate on main
+
+Open [Rulesets](https://github.com/svdb-hotmail/sunstrucksynapse.com/settings/rules).
+Click the existing **Copilot review for default branch** ruleset (ID `21111453`),
+then **Edit** if GitHub shows a read-only view. Its direct settings link is
+[edit ruleset 21111453](https://github.com/svdb-hotmail/sunstrucksynapse.com/settings/rules/21111453).
+
+1. Rename it to **Pre-MVP main protections**.
+2. Keep **Enforcement status** set to **Active**.
+3. Under **Target branches**, retain the **default branch** target. This follows
+   `main` without applying the rule to every development branch.
+4. Leave the bypass list empty.
+5. Preserve the existing **Restrict deletions**, **Block force pushes**, Copilot
+   review, CodeQL/code-scanning, and code-quality settings.
+6. Select **Require a pull request before merging**. Set **Required approvals** to
+   **0** for solo pre-MVP development. Enable **Require conversation resolution
+   before merging**. Leave mandatory code-owner reviews, last-push approval, and
+   stale-review dismissal disabled.
+7. Select **Require status checks to pass**. Click **Add checks** and search for
+   **quality-gate**. Select the check produced by **GitHub Actions** (app ID `15368`)
+   by this repository's **CI** workflow. GitHub may display it as
+   **CI / quality-gate**; the API context is `quality-gate`.
+8. Leave **Require branches to be up to date before merging** unchecked.
+9. Click **Save changes** or **Save**, then reopen the ruleset to verify the values.
+
+If `quality-gate` is absent from the check selector, first confirm a recent
+successful run of the **CI** workflow in [Actions](https://github.com/svdb-hotmail/sunstrucksynapse.com/actions/workflows/ci.yml),
+then reopen the editor. Do not substitute a Cloudflare preview check.
+
+This configuration requires a PR and passing code/build validation, with zero
+mandatory human approvals. It does not require browser journeys, deployment
+approvals, or a merge queue. Existing scan protections remain enabled.
+
+The reviewed API equivalent is
+[main-ruleset.json](../.github/repository-settings/main-ruleset.json).
+
+## 4. Set Actions token and outside-contributor defaults
+
+Open [Settings → Actions → General](https://github.com/svdb-hotmail/sunstrucksynapse.com/settings/actions).
+
+1. Find **Workflow permissions** near the bottom.
+2. Select **Read repository contents and packages permissions**.
+3. Leave **Allow GitHub Actions to create and approve pull requests** unchecked.
+4. Click **Save** for this section.
+5. Find **Approval for running fork pull request workflows from contributors**.
+6. Select **Require approval for all outside collaborators** (some UI versions say
+   outside contributors).
+7. Click **Save** for that section.
+8. Reload the page and confirm both selections persisted.
+
+The CI workflow explicitly grants its security job the permissions CodeQL needs;
+the repository-wide default can remain read-only. Keep the current allowed-actions
+policy unchanged unless it blocks a specific action used by this repository.
+If the organization later locks these controls, its owner must configure the
+organization policy instead.
+
+## 5. Configure private reports after the ownership migration
+
+Destination: [Kobold-Technologies](https://github.com/Kobold-Technologies).
+No ownership transfer has been performed. Use the separate
+[owner-migration checklist](kobold-technologies-owner-migration.md) before transferring.
+
+After the transfer:
+
+1. Open `https://github.com/Kobold-Technologies/sunstrucksynapse.com/settings/security_analysis`.
+2. Find **Private vulnerability reporting** and click **Enable**. GitHub may group
+   this row under repository security or Advanced Security.
+3. Configure and confirm a monitored private security contact for Kobold Technologies.
+4. Update `SECURITY.md` with the actual reporting channel/contact and the new owner URL.
+5. Open `https://github.com/Kobold-Technologies/sunstrucksynapse.com/security` and verify
+   **Report a vulnerability** is available. Open the form without submitting a test report.
+6. Recheck dependency/secret protection, Actions settings, rulesets, CodeQL, and
+   GitHub App access under the destination organization's policies.
+
+## Completion checklist
+
+- [ ] PR #103 merged; policy and Dependabot configuration files exist on `main`.
+- [ ] Dependency graph, Dependabot alerts, and security updates enabled.
+- [ ] Secret scanning and push protection enabled.
+- [ ] Existing CodeQL advanced setup reports successful results.
+- [ ] Active default-branch ruleset requires PRs and the GitHub Actions `quality-gate` check.
+- [ ] Required approvals is zero; strict branch freshness is off.
+- [ ] Existing deletion, force-push, scanning, and code-quality protections preserved.
+- [ ] Actions defaults are read-only; outside-contributor fork workflows need approval.
+- [ ] Post-migration private reporting/contact setup remains explicitly pending.
+
+The current license, wiki, projects, merge methods, deployment accounts, domains,
+and ownership are unchanged by these instructions.
