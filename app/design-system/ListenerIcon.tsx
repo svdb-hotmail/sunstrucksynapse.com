@@ -7,6 +7,7 @@ type IconName =
   | "search"
   | "close"
   | "plus"
+  | "minus-circle"
   | "arrow"
   | "headphones"
   | "volume"
@@ -42,6 +43,12 @@ export function ListenerIcon({ name, size = 20 }: { name: IconName; size?: numbe
     ),
     close: <path d="m6 6 12 12M6 18 18 6" />,
     plus: <path d="M12 5v14M5 12h14" />,
+    "minus-circle": (
+      <>
+        <circle cx="12" cy="12" r="9" />
+        <path d="M8 12h8" />
+      </>
+    ),
     arrow: <path d="M5 12h14m-6-6 6 6-6 6" />,
     headphones: (
       <>

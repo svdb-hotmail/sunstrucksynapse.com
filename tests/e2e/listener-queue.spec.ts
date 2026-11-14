@@ -59,7 +59,7 @@ test("Play next changes finite selection order, Undo restores it, and endings ne
   await playNext(page, c);
   await page.getByRole("button", { name: "Undo", exact: true }).click();
   await page.getByRole("button", { name: "Queue, 2 tracks", exact: true }).click();
-  await expect(page.locator(".queue ol>li").first()).toContainText(b);
+  await expect(page.locator(".queue ol>li").nth(1)).toContainText(b);
   await closePanel(page);
   await playNext(page, c);
   for (const title of [a, c, b]) await finish(page, title);
@@ -79,15 +79,50 @@ test("Play next handles already-played and outside tracks without losing the sel
   await expectEnded(page, c);
 });
 
-test("choosing a later queue item plays the remaining entries once in their surviving order", async ({
-  page,
-}) => {
+test("queue rows do not interrupt playback or consume upcoming tracks", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Start listening", exact: true }).click();
   await page.getByRole("button", { name: "Queue, 2 tracks", exact: true }).click();
-  await page.getByRole("button", { name: `Play ${c} from queue`, exact: true }).click();
-  for (const title of [c, b]) await finish(page, title);
-  await expectEnded(page, b);
+  const laterRow = page.locator(".queue-pullout .queue li").filter({ hasText: c });
+  await laterRow.getByText(c, { exact: true }).click();
+  await expect(page.locator(".queue-pullout")).toBeVisible();
+  await expect(page.locator(".dock-track strong")).toHaveText(a);
+  await expect(page.locator(".queue-pullout .queue li")).toHaveCount(3);
+  await expect(laterRow.locator(".queue-track-info").getByRole("button")).toHaveCount(0);
+});
+
+test("queue shows an upcoming repeat and keeps feedback and focus usable", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Start listening", exact: true }).click();
+  await playNext(page, a);
+  const opener = page.getByRole("navigation", { name: "Primary" }).getByRole("button", {
+    name: "Queue, 3 tracks",
+  });
+  await opener.click();
+  const drawer = page.locator(".queue-pullout");
+  const rows = drawer.locator(".queue li");
+  await expect(rows).toHaveCount(4);
+  await expect(rows.nth(0)).toHaveAttribute("data-current", "true");
+  await expect(rows.nth(1)).toContainText(a);
+  await expect(rows.nth(1).getByRole("button", { name: `Remove ${a} from queue` })).toBeVisible();
+  await expect(drawer.getByRole("button", { name: "Undo" })).toBeVisible();
+  await drawer.getByRole("button", { name: "Clear all" }).focus();
+  await page.keyboard.press("Escape");
+  await expect(drawer).toBeHidden();
+  await expect(opener).toBeFocused();
+});
+
+test("manual Next does not enter History but natural completion does", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Start listening", exact: true }).click();
+  await page.getByRole("button", { name: "Next", exact: true }).click();
+  await page.getByRole("button", { name: "Queue, 1 track", exact: true }).click();
+  const drawer = page.locator(".queue-pullout");
+  await drawer.getByRole("tab", { name: /History/ }).click();
+  await expect(drawer.getByRole("tab", { name: /History/ })).toContainText("0");
+  await page.locator("audio").dispatchEvent("ended");
+  await expect(drawer.getByRole("tab", { name: /History/ })).toContainText("1");
+  await expect(drawer.locator(".queue-history li")).toContainText([b]);
 });
 
 test("Previous retains album provenance after reload and interruption by an unrelated track", async ({

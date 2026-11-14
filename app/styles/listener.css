@@ -435,6 +435,9 @@
   border-radius: var(--radius-md);
   pointer-events: auto;
 }
+.listener-shell .player-panel[data-dock-visible="false"] .player-dock {
+  display: none;
+}
 .listener-shell .dock-track {
   display: flex;
   align-items: center;
@@ -723,26 +726,6 @@
 }
 .listener-feedback > * {
   pointer-events: auto;
-}
-.listener-notice {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  border: 1px solid var(--color-border-control);
-  background: var(--color-surface-panel);
-  border-radius: var(--radius-md);
-  font-size: 0.8rem;
-}
-.listener-notice span {
-  flex: 1;
-}
-.listener-notice button {
-  min-width: 44px;
-  border: 0;
-  background: transparent;
-  color: var(--color-content-primary);
 }
 .listener-shell .player-loading,
 .listener-shell .player-error {

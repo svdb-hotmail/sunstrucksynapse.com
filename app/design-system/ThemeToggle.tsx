@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Lamp } from "lucide-react";
 
 import {
   applyTheme,
@@ -23,7 +24,7 @@ function readThemeTarget(button: HTMLButtonElement | null, document: Document): 
   return parseTheme(target.getAttribute(THEME_ATTRIBUTE)) ?? getDocumentTheme(document);
 }
 
-export function ThemeToggle({ badge }: { badge?: string } = {}) {
+export function ThemeToggle() {
   const [theme, setTheme] = useState<Theme>(DEFAULT_THEME);
   const explicitSessionTheme = useRef<Theme | null>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -114,17 +115,14 @@ export function ThemeToggle({ badge }: { badge?: string } = {}) {
   return (
     <button
       ref={button}
-      className={`theme-toggle${badge ? " theme-toggle--badge" : ""}`}
+      className="theme-toggle"
       type="button"
-      aria-label="Light mode"
+      aria-label={title}
       aria-pressed={theme === "light"}
       title={title}
       onClick={toggleTheme}
     >
-      <span className="theme-toggle__icon" aria-hidden="true">
-        ☼
-      </span>
-      <span className="theme-toggle__label">{badge ?? "Light mode"}</span>
+      <Lamp className="theme-toggle__icon" size={21} strokeWidth={1.75} aria-hidden="true" />
     </button>
   );
 }

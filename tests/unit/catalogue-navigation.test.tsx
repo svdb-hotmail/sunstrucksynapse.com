@@ -31,9 +31,9 @@ function renderHome(catalogue: CatalogueLoadResult) {
   );
 }
 describe("radio listener navigation", () => {
-  it("has stable Listen and Explore destinations for any catalogue size", () => {
+  it("has stable Home and Explore destinations for any catalogue size", () => {
     expect(defaultCatalogueNavigation).toEqual([
-      { label: "Listen", to: "/" },
+      { label: "Home", to: "/" },
       { label: "Explore", to: "/search" },
     ]);
     expect(isCatalogueNavigationEntryActive(defaultCatalogueNavigation[0], "/")).toBe(true);
@@ -41,22 +41,27 @@ describe("radio listener navigation", () => {
     expect(isCatalogueNavigationEntryActive(defaultCatalogueNavigation[1], "/search")).toBe(true);
     expect(isCatalogueNavigationEntryActive(defaultCatalogueNavigation[1], "/about")).toBe(false);
   });
-  it("exposes matching destinations and a labelled queue count in both navigation surfaces", () => {
-    for (const Navigation of [Header, MobileNav]) {
+  it("shares destinations while keeping the queue control in mobile navigation", () => {
+    for (const [surface, navigation] of [
+      ["desktop", <Header />],
+      ["mobile", <MobileNav queueCount={2} />],
+    ] as const) {
       const markup = renderToStaticMarkup(
-        <MemoryRouter initialEntries={["/search"]}>
-          <Navigation queueCount={2} />
-        </MemoryRouter>,
+        <MemoryRouter initialEntries={["/search"]}>{navigation}</MemoryRouter>,
       );
       expect(markup).toContain('href="/"');
       expect(markup).toContain('href="/search"');
       expect(markup).toMatch(/<a\b(?=[^>]*href="\/search")(?=[^>]*aria-current="page")[^>]*>/);
-      expect(markup).toContain('aria-label="Queue, 2 tracks"');
+      if (surface === "mobile") {
+        expect(markup).toContain('aria-label="Queue, 2 tracks"');
+      } else {
+        expect(markup).not.toContain('aria-label="Queue,');
+      }
       expect(markup).not.toContain("/#audio");
       expect(markup).not.toContain("/#video");
     }
   });
-  it("keeps platform identity visible on the header and About outside primary mobile tabs", () => {
+  it("keeps About in the header and out of primary mobile tabs", () => {
     const header = renderToStaticMarkup(
       <MemoryRouter>
         <Header />
@@ -68,7 +73,7 @@ describe("radio listener navigation", () => {
       </MemoryRouter>,
     );
     expect(header).toContain("SunSyn Radio");
-    expect(header).not.toContain('href="/about"');
+    expect(header).toContain('href="/about"');
     expect(mobile).not.toContain('href="/about"');
     expect(mobile).toContain('aria-label="Queue, 0 tracks"');
   });

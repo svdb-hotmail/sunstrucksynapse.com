@@ -11,10 +11,10 @@ interface CatalogueCardProps {
   item: CatalogueItem;
   isSelected: boolean;
   isPlaying?: boolean;
+  isQueued?: boolean;
   onSelect?: (item: CatalogueItem) => void;
   onQueue: (item: CatalogueItem) => void;
   onPlay: (item: CatalogueItem) => void;
-  onPlayNext?: (item: CatalogueItem) => void;
   position?: number;
   simpleActions?: boolean;
 }
@@ -22,9 +22,9 @@ export function CatalogueCard({
   item,
   isSelected,
   isPlaying = false,
+  isQueued = false,
   onQueue,
   onPlay,
-  onPlayNext,
   position,
   simpleActions = false,
 }: CatalogueCardProps) {
@@ -69,53 +69,28 @@ export function CatalogueCard({
           >
             <ListenerIcon name={isPlaying ? "pause" : "play"} />
           </button>
-          {simpleActions ? (
-            <button
-              type="button"
-              className="track-queue brand-button-secondary"
-              aria-label={`Queue ${item.description.title}`}
-              disabled={!item.media}
-              onClick={() => onQueue(item)}
-            >
-              <ListenerIcon name="plus" />
-            </button>
-          ) : (
+          <button
+            type="button"
+            className="track-queue brand-button-secondary"
+            data-queued={isQueued || undefined}
+            aria-label={
+              isQueued
+                ? `${item.description.title} is already in the queue`
+                : item.media
+                  ? `Add ${item.description.title} to queue`
+                  : `Queue unavailable for ${item.description.title}; preview coming soon`
+            }
+            disabled={!item.media || isQueued}
+            onClick={() => onQueue(item)}
+          >
+            <ListenerIcon name="plus" />
+          </button>
+          {!simpleActions ? (
             <details className="track-menu">
               <summary role="button" aria-label={`More actions for ${item.description.title}`}>
                 <span aria-hidden="true">⋯</span>
               </summary>
               <div className="track-menu__content">
-                <button
-                  type="button"
-                  aria-label={
-                    item.media
-                      ? `Queue ${item.description.title}`
-                      : `Queue unavailable for ${item.description.title}; preview coming soon`
-                  }
-                  disabled={!item.media}
-                  onClick={(event) => {
-                    onQueue(item);
-                    const menu = event.currentTarget.closest("details");
-                    menu?.removeAttribute("open");
-                    menu?.querySelector("summary")?.focus({ preventScroll: true });
-                  }}
-                >
-                  Add to queue
-                </button>
-                {onPlayNext ? (
-                  <button
-                    type="button"
-                    disabled={!item.media}
-                    onClick={(event) => {
-                      onPlayNext(item);
-                      const menu = event.currentTarget.closest("details");
-                      menu?.removeAttribute("open");
-                      menu?.querySelector("summary")?.focus({ preventScroll: true });
-                    }}
-                  >
-                    Play next
-                  </button>
-                ) : null}
                 <ShareButton
                   title={item.description.title}
                   url={new URL(item.href, SITE_URL).href}
@@ -125,7 +100,7 @@ export function CatalogueCard({
                 <Link to={item.creator.href}>View artist</Link>
               </div>
             </details>
-          )}
+          ) : null}
         </div>
       </div>
     </article>

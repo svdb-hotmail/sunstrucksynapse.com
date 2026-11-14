@@ -22,9 +22,11 @@ export function EntityTrackList({
             simpleActions={simpleActions}
             isSelected={player.selectedItemId === track.id}
             isPlaying={player.playingItemId === track.id}
+            isQueued={
+              player.queuedItemIds?.includes(track.id) || player.selectedItemId === track.id
+            }
             onPlay={() => player.playItem(track, collectionId)}
             onQueue={() => player.queueItem(track, collectionId)}
-            onPlayNext={player.playNext ? () => player.playNext?.(track, collectionId) : undefined}
           />
         </li>
       ))}

@@ -15,9 +15,7 @@ export async function queueTrack(page: Page, title: string) {
       .click();
   const card = trackCard(page, title);
   await expect(card).toBeVisible();
-  if (await card.locator(".track-menu").count())
-    await card.locator(".track-menu > summary").click();
-  await card.getByRole("button", { name: `Queue ${title}`, exact: true }).click();
+  await card.getByRole("button", { name: `Add ${title} to queue`, exact: true }).click();
 }
 export async function viewTrack(page: Page, title: string) {
   await trackCard(page, title).getByRole("link", { name: title, exact: true }).click();
@@ -26,7 +24,9 @@ export async function openQueue(page: Page) {
   await page.getByRole("button", { name: /^Queue, \d+ tracks?$/ }).click();
 }
 export async function closePanel(page: Page) {
-  await page.getByRole("button", { name: "Close listening panel", exact: true }).click();
+  const queueClose = page.getByRole("button", { name: "Close queue", exact: true });
+  if (await queueClose.isVisible()) await queueClose.click();
+  else await page.getByRole("button", { name: "Close listening panel", exact: true }).click();
 }
 
 /** Give real fixture media seekable byte ranges; never simulate playback or ended. */

@@ -59,7 +59,6 @@ const queue: QueueEntry[] = [
 
 const callbacks = {
   onClearQueue: () => undefined,
-  onSelectQueueEntry: () => undefined,
   onRemoveQueueEntry: () => undefined,
   onPrevious: () => undefined,
   onNext: () => undefined,
@@ -71,7 +70,6 @@ interface PlayerPanelStoryArgs {
   queue: QueueEntry[];
   playbackRequest: { itemId: string; sequence: number; collectionId?: string } | null;
   onClearQueue: () => void;
-  onSelectQueueEntry: (entry: QueueEntry) => void;
   onRemoveQueueEntry: (itemId: string) => void;
   onPrevious: () => void;
   onNext: () => void;

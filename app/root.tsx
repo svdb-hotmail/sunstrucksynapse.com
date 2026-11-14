@@ -52,6 +52,7 @@ import "./styles/sdp2.css";
 import "./styles/listener-brand.css";
 import "./styles/listener-controls.css";
 import "./styles/listener-reference.css";
+import "./styles/queue-panel.css";
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", href: "/assets/favicon.svg", type: "image/svg+xml" },
@@ -200,13 +201,8 @@ export default function App() {
   }, [hasRestoredPlayer, player.selectedItemId, player.origin, queue, playbackScope]);
 
   const [playingItemId, setPlayingItemId] = useState<string | null>(null);
+  const [sessionHistory, setSessionHistory] = useState<QueueEntry[]>([]);
   const [view, setView] = useState<"player" | "queue" | null>(null);
-  const [queueNotice, setQueueNotice] = useState<string | null>(null);
-  const [undoQueue, setUndoQueue] = useState<{
-    queue: QueueEntry[];
-    scope: string[] | null;
-  } | null>(null);
-
   const selectItem = useCallback((item: CatalogueItem) => {
     userInteractedBeforeRestore.current = true;
     setPlayer({ selectedItemId: item.id });
@@ -236,66 +232,76 @@ export default function App() {
         collectionId,
         intent,
       });
-      // A queue undo belongs to the current track, never to an already consumed queue.
-      setUndoQueue(null);
-      setQueueNotice(null);
     },
     [],
   );
 
-  const changeQueue = (next: QueueEntry[], message: string) => {
+  const changeQueue = (next: QueueEntry[]) => {
     userInteractedBeforeRestore.current = true;
-    setUndoQueue({ queue, scope: playbackScope });
     setQueue(next);
     setPlaybackScope(reconcilePlaybackScope(playbackScope, player.selectedItemId, next));
-    setQueueNotice(message);
   };
 
-  const selectQueueEntry = useCallback(
-    (entry: QueueEntry) => {
-      const item = itemsById.get(entry.itemId);
-      if (!item?.media) return;
-      setPlaybackScope(queuedPlaybackScope(queue, entry, playbackScope, player.selectedItemId));
-      setQueue((current) => removeQueueItem(current, entry.itemId));
-      requestPlayback(item, entry.collectionId, undefined, playbackScope ? player.origin : entry);
-      setView(null);
-    },
-    [itemsById, playbackScope, player.origin, player.selectedItemId, queue, requestPlayback],
-  );
+  const clearQueueAndPlayback = () => {
+    userInteractedBeforeRestore.current = true;
+    setQueue([]);
+    setPlaybackScope(null);
+    playerPanelRef.current?.querySelector<HTMLMediaElement>("audio, video")?.pause();
+    setPlayer({ selectedItemId: null });
+    setPlaybackRequest(null);
+    setPlayingItemId(null);
+    setView(null);
+  };
 
-  const advancePlayback = useCallback(() => {
-    const nextQueued = findNextPlayableQueueEntry(queue, (itemId) => itemsById.get(itemId));
-    if (nextQueued) {
-      const queuedItem = itemsById.get(nextQueued.itemId);
-      if (queuedItem) {
-        setPlaybackScope(
-          queuedPlaybackScope(queue, nextQueued, playbackScope, player.selectedItemId),
-        );
-        setQueue((current) => removeQueueItem(current, nextQueued.itemId));
-        requestPlayback(
-          queuedItem,
-          nextQueued.collectionId,
-          undefined,
-          playbackScope ? player.origin : nextQueued,
-        );
+  const advancePlayback = useCallback(
+    (finished = false) => {
+      if (finished && selectedItem?.media) {
+        setSessionHistory((history) => [
+          ...history,
+          {
+            itemId: selectedItem.id,
+            title: selectedItem.description.title,
+            subtitle: selectedItem.description.subtitle,
+            ...(playbackRequest?.collectionId
+              ? { collectionId: playbackRequest.collectionId }
+              : {}),
+          },
+        ]);
       }
-      return;
-    }
-    // The queue is authoritative for a finite selection, including edits and repeats.
-    if (!selectedItem || playbackScope) return;
-    const nextItem = findAdjacentPlayableItem(catalogueItems, selectedItem.id, 1);
-    if (nextItem) requestPlayback(nextItem, playbackRequest?.collectionId);
-  }, [
-    catalogueItems,
-    itemsById,
-    playbackScope,
-    player.origin,
-    player.selectedItemId,
-    playbackRequest?.collectionId,
-    queue,
-    requestPlayback,
-    selectedItem,
-  ]);
+      const nextQueued = findNextPlayableQueueEntry(queue, (itemId) => itemsById.get(itemId));
+      if (nextQueued) {
+        const queuedItem = itemsById.get(nextQueued.itemId);
+        if (queuedItem) {
+          setPlaybackScope(
+            queuedPlaybackScope(queue, nextQueued, playbackScope, player.selectedItemId),
+          );
+          setQueue((current) => removeQueueItem(current, nextQueued.itemId));
+          requestPlayback(
+            queuedItem,
+            nextQueued.collectionId,
+            undefined,
+            playbackScope ? player.origin : nextQueued,
+          );
+        }
+        return;
+      }
+      // The queue is authoritative for a finite selection, including edits and repeats.
+      if (!selectedItem || playbackScope) return;
+      const nextItem = findAdjacentPlayableItem(catalogueItems, selectedItem.id, 1);
+      if (nextItem) requestPlayback(nextItem, playbackRequest?.collectionId);
+    },
+    [
+      catalogueItems,
+      itemsById,
+      playbackScope,
+      player.origin,
+      player.selectedItemId,
+      playbackRequest?.collectionId,
+      queue,
+      requestPlayback,
+      selectedItem,
+    ],
+  );
 
   const playPrevious = useCallback(() => {
     if (!selectedItem) return;
@@ -330,13 +336,10 @@ export default function App() {
 
   const queueItem = (item: CatalogueItem, collectionId?: string) => {
     if (!item.media) return;
-    if (queue.some((entry) => entry.itemId === item.id)) {
-      setUndoQueue(null);
-      setQueueNotice("Already in your queue.");
-      return;
-    }
+    if (queue.some((entry) => entry.itemId === item.id)) return;
     const next = [...queue, ...scopedQueue([item], { ...player.origin, collectionId })];
-    changeQueue(next, `Added to queue · position ${next.length}.`);
+    changeQueue(next);
+    setView("queue");
   };
   const scopedItems = playbackScope
     ? playbackScope
@@ -354,6 +357,7 @@ export default function App() {
   const outletContext: PlayerOutletContext = {
     selectedItemId: selectedItem?.id ?? null,
     playingItemId,
+    queuedItemIds: queue.map((entry) => entry.itemId),
     catalogue,
     selectItem,
     queueItem,
@@ -368,17 +372,6 @@ export default function App() {
       setPlaybackScope(null);
       setQueue((current) => removeQueueItem(current, item.id));
       requestPlayback(item, collectionId);
-    },
-    playNext: (item, collectionId) => {
-      if (!item.media) return;
-      changeQueue(
-        [
-          queue.find((entry) => entry.itemId === item.id) ??
-            scopedQueue([item], { ...player.origin, collectionId })[0],
-          ...removeQueueItem(queue, item.id),
-        ],
-        "Added to play next.",
-      );
     },
     playSelection: (tracks, collectionId) => {
       const playable = [
@@ -400,8 +393,10 @@ export default function App() {
       setPlaybackScope(playable.map((track) => track.id));
       setQueue(scopedQueue(playable.slice(1), origin));
     },
-    queueAlbum: (tracks) =>
-      changeQueue(appendAlbumQueue(queue, tracks), "Album added in track order."),
+    queueAlbum: (tracks) => {
+      changeQueue(appendAlbumQueue(queue, tracks));
+      setView("queue");
+    },
   };
 
   return (
@@ -414,45 +409,37 @@ export default function App() {
           navigation={navigation}
           item={selectedItem ?? null}
           queue={queue}
+          history={sessionHistory}
           playerPanelRef={playerPanelRef}
           playbackRequest={playbackRequest}
           view={view}
           onViewChange={setView}
           onPlaybackStateChange={setPlayingItemId}
-          queueNotice={queueNotice}
-          onDismissNotice={() => {
-            setQueueNotice(null);
-            setUndoQueue(null);
-          }}
-          onUndoQueue={
-            undoQueue
-              ? () => {
-                  userInteractedBeforeRestore.current = true;
-                  setQueue(undoQueue.queue);
-                  setPlaybackScope(undoQueue.scope);
-                  setUndoQueue(null);
-                  setQueueNotice("Queue change undone.");
-                }
-              : undefined
-          }
-          onClearQueue={() => changeQueue([], "Queue cleared.")}
-          onSelectQueueEntry={selectQueueEntry}
-          onRemoveQueueEntry={(itemId) =>
-            changeQueue(removeQueueItem(queue, itemId), "Removed from queue.")
-          }
+          onClearQueue={clearQueueAndPlayback}
+          onClearHistory={() => setSessionHistory([])}
+          onRemoveQueueEntry={(itemId) => changeQueue(removeQueueItem(queue, itemId))}
           onMoveQueueEntry={(itemId, direction) => {
             const index = queue.findIndex((entry) => entry.itemId === itemId);
             const nextIndex = index + direction;
             if (index < 0 || nextIndex < 0 || nextIndex >= queue.length) return;
             const next = [...queue];
             [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
-            changeQueue(next, direction === -1 ? "Moved up in queue." : "Moved down in queue.");
+            changeQueue(next);
+          }}
+          onReorderQueueEntry={(itemId, targetItemId) => {
+            const from = queue.findIndex((entry) => entry.itemId === itemId);
+            const to = queue.findIndex((entry) => entry.itemId === targetItemId);
+            if (from < 0 || to < 0 || from === to) return;
+            const next = [...queue];
+            const [moved] = next.splice(from, 1);
+            next.splice(to, 0, moved);
+            changeQueue(next);
           }}
           onPrevious={playPrevious}
-          onNext={advancePlayback}
+          onNext={() => advancePlayback()}
           canPrevious={hasPrevious}
           canNext={hasNext}
-          onMediaEnded={advancePlayback}
+          onMediaEnded={() => advancePlayback(true)}
           onStartListening={
             stationSelection.tracks.length
               ? () =>

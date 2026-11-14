@@ -10,12 +10,8 @@ import {
 
 export function Header({
   navigation = defaultCatalogueNavigation,
-  queueCount = 0,
-  onOpenQueue,
 }: {
   navigation?: CatalogueNavigationEntry[];
-  queueCount?: number;
-  onOpenQueue?: () => void;
 }) {
   const { pathname } = useLocation();
   return (
@@ -40,18 +36,14 @@ export function Header({
             {entry.label}
           </Link>
         ))}
-        <button
-          type="button"
-          onClick={onOpenQueue}
-          aria-label={`Queue, ${queueCount} ${queueCount === 1 ? "track" : "tracks"}`}
-        >
-          Queue{queueCount > 0 ? <span className="nav-count">{queueCount}</span> : null}
-        </button>
+        <Link to="/about" aria-current={pathname === "/about" ? "page" : undefined}>
+          About
+        </Link>
       </nav>
       <div className="topbar-actions preview-label">
         {import.meta.env.MODE === "site-preview" ? (
           <>
-            Design preview <ThemeToggle badge="SDP–2" />
+            Design preview <ThemeToggle />
           </>
         ) : (
           <ThemeToggle />

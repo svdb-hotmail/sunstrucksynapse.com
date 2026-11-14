@@ -16,7 +16,6 @@ export function RadioStart({
   return (
     <section className="radio-start listening-hero brand-panel" aria-labelledby="radio-start-title">
       <div className="hero-copy">
-        <span className="section-label">A space for intentional sound</span>
         <h1 id="radio-start-title" className="brand-display">
           Human ears.
           <br />

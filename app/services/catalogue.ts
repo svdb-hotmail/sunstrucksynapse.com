@@ -8,12 +8,12 @@ import type {
 export const catalogueLoadingMessage = "Loading the catalogue…";
 
 export interface CatalogueNavigationEntry {
-  label: "Listen" | "Explore";
+  label: "Home" | "Explore";
   to: "/" | "/search";
 }
 
 export const defaultCatalogueNavigation: CatalogueNavigationEntry[] = [
-  { label: "Listen", to: "/" },
+  { label: "Home", to: "/" },
   { label: "Explore", to: "/search" },
 ];
 

@@ -1,6 +1,7 @@
 import { forwardRef, useEffect, useRef, useState } from "react";
 
 import { Link } from "react-router";
+import { QueuePanel } from "~/components/QueuePanel";
 import { ListenerSheet } from "~/components/ListenerSheet";
 import { ShareButton } from "~/components/ShareButton";
 import { Queue } from "~/components/Queue";
@@ -16,6 +17,7 @@ import type { CatalogueItem, QueueEntry } from "~/types/catalogue";
 export interface PlayerPanelProps {
   item: CatalogueItem | null;
   queue: QueueEntry[];
+  history?: QueueEntry[];
   playbackRequest: {
     itemId: string;
     sequence: number;
@@ -26,11 +28,9 @@ export interface PlayerPanelProps {
   onViewChange?: (view: "player" | "queue" | null) => void;
   onPlaybackStateChange?: (itemId: string | null) => void;
   onMoveQueueEntry?: (itemId: string, direction: -1 | 1) => void;
-  queueNotice?: string | null;
-  onUndoQueue?: () => void;
-  onDismissNotice?: () => void;
+  onReorderQueueEntry?: (itemId: string, targetItemId: string) => void;
   onClearQueue: () => void;
-  onSelectQueueEntry: (entry: QueueEntry) => void;
+  onClearHistory?: () => void;
   onRemoveQueueEntry: (itemId: string) => void;
   onPrevious: () => void;
   onNext: () => void;
@@ -58,9 +58,10 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   {
     item,
     queue,
+    history,
     playbackRequest,
     onClearQueue,
-    onSelectQueueEntry,
+    onClearHistory,
     onRemoveQueueEntry,
     onPrevious,
     onNext,
@@ -72,9 +73,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     onViewChange,
     onPlaybackStateChange,
     onMoveQueueEntry,
-    queueNotice,
-    onUndoQueue,
-    onDismissNotice,
+    onReorderQueueEntry,
   },
   ref,
 ) {
@@ -399,19 +398,6 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
   const activeMediaSrc =
     activeMedia && activeMedia.itemId === item?.id ? activeMedia.src : (item?.media?.src ?? null);
 
-  const notice = queueNotice ? (
-    <div className="listener-notice">
-      <span role="status">{queueNotice}</span>
-      {onUndoQueue ? (
-        <button type="button" onClick={onUndoQueue}>
-          Undo
-        </button>
-      ) : null}
-      <button type="button" onClick={onDismissNotice} aria-label="Dismiss queue message">
-        ×
-      </button>
-    </div>
-  ) : null;
   const playbackStatus = (
     <>
       {isLoading ? (
@@ -454,6 +440,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       className="player-panel"
       aria-label="Listening player"
       data-active={Boolean(item)}
+      data-dock-visible={Boolean(item || queue.length)}
     >
       <div className="player-dock transport brand-topbar" aria-label="Playback controls">
         <div className="transport-track">
@@ -558,26 +545,21 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
           </label>
           <Button
             className="dock-desktop-queue"
-            onClick={() => changeView("queue")}
+            onClick={() => changeView(panel === "queue" ? null : "queue")}
             aria-label={`Open queue in dock, ${queue.length} tracks`}
+            aria-expanded={panel === "queue"}
           >
             <ListenerIcon name="queue" />
             <span>{queue.length}</span>
           </Button>
         </div>
       </div>
-      {panel === null ? (
-        <div className="listener-feedback">
-          {notice}
-          {playbackStatus}
-        </div>
-      ) : null}
+      {panel === null ? <div className="listener-feedback">{playbackStatus}</div> : null}
       <ListenerSheet
-        open={panel !== null}
+        open={panel === "player"}
         title={panel === "queue" ? "Your queue" : "Now playing"}
         onClose={() => changeView(null)}
       >
-        {notice}
         {playbackStatus}
         <div className="listener-full-player" hidden={panel !== "player"}>
           {item ? (
@@ -682,26 +664,35 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
             </div>
           ) : null}
         </div>
-        <div hidden={panel !== "queue"}>
-          {item ? (
-            <div className="listener-queue-current">
-              <p className="eyebrow">{isPlaying ? "Now playing" : "Paused"}</p>
-              <strong>{item.description.title}</strong>
-              <p>{item.creator.name}</p>
-              <button type="button" onClick={() => changeView("player")}>
-                Open player
-              </button>
-            </div>
-          ) : null}
+      </ListenerSheet>
+      <QueuePanel
+        open={panel === "queue"}
+        onClose={() => changeView(null)}
+        queue={queue}
+        history={history ?? []}
+        onClearHistory={onClearHistory ?? (() => undefined)}
+        feedback={<>{playbackStatus}</>}
+      >
+        <div>
           <Queue
             entries={queue}
             onClear={onClearQueue}
-            onSelect={onSelectQueueEntry}
             onRemove={onRemoveQueueEntry}
             onMove={onMoveQueueEntry}
+            onReorder={onReorderQueueEntry}
+            currentEntry={
+              item
+                ? {
+                    itemId: item.id,
+                    title: item.description.title,
+                    subtitle: item.description.subtitle,
+                  }
+                : null
+            }
+            isPlaying={isPlaying}
           />
         </div>
-      </ListenerSheet>
+      </QueuePanel>
     </aside>
   );
 });
