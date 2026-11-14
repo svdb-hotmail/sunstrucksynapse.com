@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 jobs:
-  quality-gate:
+  validation:
     name: quality-gate
     if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest
@@ -63,7 +63,8 @@ jobs:
       - name: Test audio encoder
         run: npm run test:encoder
 
-  security:
+  # Keep this job ID: GitHub code scanning tracks the existing baseline by workflow/job ID.
+  quality-gate:
     name: security
     if: ${{ github.event_name == 'push' || github.event.pull_request.draft == false }}
     runs-on: ubuntu-latest

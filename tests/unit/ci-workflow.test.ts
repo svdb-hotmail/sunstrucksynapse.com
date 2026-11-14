@@ -57,8 +57,11 @@ describe("CI quality-gate lifecycle", () => {
     expect(workflow).toContain("contents: read");
     expect(workflow).toContain("security-events: write");
     expect(workflow).not.toContain("continue-on-error");
-    const [qualityJob, securityJob] = workflow.split("  security:");
+    const [qualityJob, securityJob] = workflow.split("  quality-gate:");
     expect(qualityJob).not.toContain("github/codeql-action");
     expect(securityJob).toContain("npm audit --audit-level=high");
+    // Preserve the CodeQL analysis key used by the repository's merge rules.
+    expect(securityJob).toContain("github/codeql-action/analyze@v4");
+    expect(securityJob).toContain("name: security");
   });
 });
