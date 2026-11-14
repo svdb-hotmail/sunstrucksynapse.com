@@ -8,12 +8,15 @@ are still evolving and are reviewed manually.
 
 ## Report a vulnerability privately
 
-Use this repository's [private vulnerability reporting form](https://github.com/svdb-hotmail/sunstrucksynapse.com/security/advisories/new).
-This channel requires the owner to enable private vulnerability reporting in
-GitHub Settings → Security. If the form is unavailable, open an issue asking the
-maintainer for a private reporting channel **without including vulnerability
-details**. Do not post exploit code, credentials, private media, signed playback
-URLs, personal information, or database contents in public issues or PRs.
+The maintainer will configure the private reporting channel and security contact
+under **Kobold Technologies** after the repository ownership migration. No
+private reporting channel is currently advertised by this policy.
+
+Until then, open an issue asking the maintainer for a private reporting channel
+**without including vulnerability details**. Do not post exploit code,
+credentials, private media, signed playback URLs, personal information, or
+database contents in public issues or PRs. Once a private channel is available,
+use it to share the report.
 
 Include the affected commit or route, reproducible steps using synthetic data,
 expected and observed behavior, and the potential impact. Redact secrets and

@@ -19,7 +19,9 @@ This document records desired settings; committed JSON does not apply them autom
 
 The connected GitHub integration returned HTTP 403 for all attempted settings
 writes, despite the repository metadata reporting account administrator access.
-Account permissions and integration permissions are separate. Do not interpret
+Account permissions and integration permissions are separate. The destination
+organization is `Kobold-Technologies`; the maintainer has deferred the private
+security contact/reporting setup until after migration. Do not interpret
 these failures as settings having been applied.
 
 | Setting                                 | Observed                    | Desired                                                            |
@@ -43,10 +45,12 @@ and push protection should be used where available.
 The exact proposed ruleset preserves existing rules and adds PRs, resolved review
 threads, and the existing `quality-gate` check. It does not require a second human
 reviewer, enforce a deployment environment, or add browser journey checks.
-With an appropriately authorized `gh` session, apply the reviewed configuration:
+With an appropriately authorized `gh` session, apply the reviewed configuration.
+Keep the private-reporting toggle for the post-migration step and replace the owner
+in these commands with `Kobold-Technologies` once transferred. Re-read the ruleset
+ID before applying it in the destination organization:
 
 ```bash
-gh api --method PUT repos/svdb-hotmail/sunstrucksynapse.com/private-vulnerability-reporting
 gh api --method PUT repos/svdb-hotmail/sunstrucksynapse.com/vulnerability-alerts
 gh api --method PUT repos/svdb-hotmail/sunstrucksynapse.com/automated-security-fixes
 gh api --method PATCH repos/svdb-hotmail/sunstrucksynapse.com \
@@ -63,3 +67,10 @@ an ownership transfer. Updating Actions defaults needs owner access in the UI.
 Do not disable branch deletion, force-push, or code-scanning safeguards to work
 around a failing check. Existing wiki, projects, merge methods, and the current
 all-rights-reserved license are left for explicit owner decisions.
+
+After migration, configure the monitored reporting contact, update `SECURITY.md`,
+and enable private reporting using the new owner:
+
+```bash
+gh api --method PUT repos/Kobold-Technologies/sunstrucksynapse.com/private-vulnerability-reporting
+```

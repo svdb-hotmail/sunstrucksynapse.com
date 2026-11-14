@@ -1,8 +1,10 @@
 # Prepare transfer to Kobold Technologies
 
 Status: preparation only. No ownership transfer has been requested or performed.
-The exact destination organization slug and receiving owner/team must be confirmed
-by the maintainer before transfer.
+Destination organization: [`Kobold-Technologies`](https://github.com/Kobold-Technologies),
+confirmed by the maintainer. The receiving owner/team still needs confirmation.
+GitHub returned no visible repository at the destination name on the audit date;
+HTTP 404 does not exclude a private repository inaccessible to this integration.
 
 ## Current baseline
 
@@ -17,11 +19,12 @@ by the maintainer before transfer.
 
 ## Before transferring
 
-1. Confirm the destination organization slug, owner authority, plan, and 2FA policy.
+1. Confirm destination owner authority, plan, and 2FA policy for `Kobold-Technologies`.
    Check for a conflicting repository name and preserve public visibility unless
    the maintainer separately requests a change.
-2. Finish security settings and verify a protected-branch PR can pass `quality-gate`
-   and CodeQL. Record the final source commit, open PRs/issues, rulesets, collaborator
+2. Review pending settings and verify a protected-branch PR can pass `quality-gate`
+   and CodeQL. The maintainer has deferred the private security contact/reporting
+   setup until after migration, under Kobold Technologies. Record the final source commit, open PRs/issues, rulesets, collaborator
    permissions, teams, releases, tags, and deployment settings without secret values.
 3. Install/authorize the required GitHub Apps for the destination organization:
    Cloudflare deployments/previews, coding integrations, and any repository-specific
@@ -48,6 +51,8 @@ its organization policies. Do not delete and recreate the repository.
 
 After transfer:
 
+- Configure the private security reporting channel/contact for Kobold Technologies,
+  enable GitHub private vulnerability reporting, and update `SECURITY.md`.
 - Verify repository visibility, `main`, branches/tags, history, issues, PRs, releases,
   collaborators/teams, rulesets, and enabled security features.
 - Update local remotes and current source references, including `village.config.yml`,
