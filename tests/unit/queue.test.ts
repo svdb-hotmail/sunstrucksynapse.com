@@ -122,6 +122,24 @@ describe("finite listening edits", () => {
     const queue = scopedQueue([tracks[1], tracks[2]]);
     expect(queuedPlaybackScope(queue, queue[1], ["a", "b", "c"], "a")).toEqual(["a", "c", "b"]);
   });
+  it("keeps a manually edited queue finite after the last upcoming track is removed", () => {
+    const upcoming = scopedQueue(tracks.slice(1, 3));
+    const scope = reconcilePlaybackScope([tracks[0].id], tracks[0].id, upcoming);
+    expect(scope).toEqual(["a", "b", "c"]);
+    expect(reconcilePlaybackScope(scope, "a", [])).toEqual(["a"]);
+    expect(
+      findAdjacentPlayableItem(
+        tracks.filter((track) => scope?.includes(track.id)),
+        "a",
+        1,
+      ),
+    ).toEqual(tracks[1]);
+  });
+  it("treats individually queued tracks as a finite session", () => {
+    const entries = scopedQueue(tracks.slice(1, 3));
+    expect(queuedPlaybackScope(entries, entries[0], null)).toEqual(["b", "c"]);
+    expect(queuedPlaybackScope(entries.slice(0, 1), entries[0], null)).toEqual(["b"]);
+  });
   it("clearing the queue retains played history and a repeat of the current track adds no scope cycle", () => {
     expect(reconcilePlaybackScope(["a", "b", "c"], "b", [])).toEqual(["a", "b"]);
     expect(reconcilePlaybackScope(["a", "b"], "a", scopedQueue([tracks[0], tracks[1]]))).toEqual([

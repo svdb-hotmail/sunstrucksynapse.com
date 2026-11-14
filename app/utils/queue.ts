@@ -124,7 +124,12 @@ export function queuedPlaybackScope(
     return currentScope.includes(selected.itemId)
       ? currentScope
       : [...currentScope, selected.itemId];
-  if (!selected.albumId && !selected.selectionId) return null;
+  if (!selected.albumId && !selected.selectionId) {
+    return [
+      selected.itemId,
+      ...entries.filter((entry) => entry !== selected).map((entry) => entry.itemId),
+    ];
+  }
   return [
     selected.itemId,
     ...entries

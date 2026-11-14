@@ -241,7 +241,13 @@ export default function App() {
   const changeQueue = (next: QueueEntry[]) => {
     userInteractedBeforeRestore.current = true;
     setQueue(next);
-    setPlaybackScope(reconcilePlaybackScope(playbackScope, player.selectedItemId, next));
+    setPlaybackScope(
+      reconcilePlaybackScope(
+        playbackScope ?? (player.selectedItemId ? [player.selectedItemId] : null),
+        player.selectedItemId,
+        next,
+      ),
+    );
   };
 
   const clearQueueAndPlayback = () => {
