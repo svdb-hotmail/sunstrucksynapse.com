@@ -41,17 +41,22 @@ describe("radio listener navigation", () => {
     expect(isCatalogueNavigationEntryActive(defaultCatalogueNavigation[1], "/search")).toBe(true);
     expect(isCatalogueNavigationEntryActive(defaultCatalogueNavigation[1], "/about")).toBe(false);
   });
-  it("exposes matching destinations and a labelled queue count in both navigation surfaces", () => {
-    for (const Navigation of [Header, MobileNav]) {
+  it("shares destinations while keeping the queue control in mobile navigation", () => {
+    for (const [surface, navigation] of [
+      ["desktop", <Header />],
+      ["mobile", <MobileNav queueCount={2} />],
+    ] as const) {
       const markup = renderToStaticMarkup(
-        <MemoryRouter initialEntries={["/search"]}>
-          <Navigation queueCount={2} />
-        </MemoryRouter>,
+        <MemoryRouter initialEntries={["/search"]}>{navigation}</MemoryRouter>,
       );
       expect(markup).toContain('href="/"');
       expect(markup).toContain('href="/search"');
       expect(markup).toMatch(/<a\b(?=[^>]*href="\/search")(?=[^>]*aria-current="page")[^>]*>/);
-      expect(markup).toContain('aria-label="Queue, 2 tracks"');
+      if (surface === "mobile") {
+        expect(markup).toContain('aria-label="Queue, 2 tracks"');
+      } else {
+        expect(markup).not.toContain('aria-label="Queue,');
+      }
       expect(markup).not.toContain("/#audio");
       expect(markup).not.toContain("/#video");
     }
