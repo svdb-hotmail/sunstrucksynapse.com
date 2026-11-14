@@ -6,6 +6,7 @@ import { cloudflareContext } from "../app/config/cloudflare-context.server";
 import { validateWorkerEnv } from "../app/config/env.server";
 import { createDatabase } from "../app/db/client.server";
 import { createE2eCatalogueRepository } from "../app/repositories/catalogue-fixture.server";
+import { createIdentityPreviewCatalogueRepository } from "../app/repositories/catalogue-identity-preview.server";
 import { createCatalogueRepository } from "../app/repositories/catalogue.server";
 import { createE2eCuratorRepository } from "../app/repositories/curator-fixture.server";
 import { createCuratorRepository } from "../app/repositories/curator.server";
@@ -108,13 +109,18 @@ const testEnv = {
 };
 
 export default {
-  fetch(request, env, ctx) {
+  async fetch(request, env, ctx) {
     const context = new RouterContextProvider();
     if (import.meta.env.MODE === "test") {
+      const previewChoice = new URL(request.url).searchParams.get("identity-preview");
+      const previewEnabled =
+        previewChoice === "1" ||
+        (previewChoice !== "0" &&
+          request.headers.get("cookie")?.includes("sunsyn-identity-preview=1"));
       context.set(cloudflareContext, {
-        catalogueRepository: createE2eCatalogueRepository(
-          request.headers.get("x-test-catalogue-scenario"),
-        ),
+        catalogueRepository: previewEnabled
+          ? await createIdentityPreviewCatalogueRepository()
+          : createE2eCatalogueRepository(request.headers.get("x-test-catalogue-scenario")),
         curatorRepository: e2eCuratorRepository,
         curatorCatalogueRepository: { read: async (query) => fixtureCataloguePage(query) },
         curationWorkflowRepository: e2eCurationWorkflowRepository,
@@ -124,7 +130,20 @@ export default {
         env: testEnv,
         ctx,
       });
-      return requestHandler(request, context);
+      const response = await requestHandler(request, context);
+      if (previewChoice === "1" || previewChoice === "0") {
+        const headers = new Headers(response.headers);
+        headers.append(
+          "Set-Cookie",
+          `sunsyn-identity-preview=${previewChoice}; Path=/; SameSite=Lax; Max-Age=${previewChoice === "1" ? 86400 : 0}`,
+        );
+        return new Response(response.body, {
+          status: response.status,
+          statusText: response.statusText,
+          headers,
+        });
+      }
+      return response;
     }
 
     let validatedEnv;

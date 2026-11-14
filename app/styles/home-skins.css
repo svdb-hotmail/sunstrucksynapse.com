@@ -1,0 +1,410 @@
+/* Development directions share the same catalogue, player, and homepage markup. */
+.listener-shell .radio-home {
+  --skin-paper: #eee7d9;
+  --skin-ink: #251d19;
+  --skin-muted: #685a50;
+  --skin-line: #bba999;
+  --skin-accent: #a33f31;
+  --skin-button-ink: #fffaf0;
+  --skin-display: Georgia, "Times New Roman", serif;
+  --skin-radius: 0px;
+  --skin-feature-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  width: 100%;
+  margin: 0;
+  padding: 0 0 5rem;
+  background: var(--skin-paper);
+  color: var(--skin-ink);
+}
+[data-theme="dark"] .listener-shell .radio-home {
+  --skin-paper: #28231f;
+  --skin-ink: #f2e9dc;
+  --skin-muted: #c2b3a5;
+  --skin-line: #74665b;
+  --skin-accent: #df8671;
+  --skin-button-ink: #251d19;
+}
+.listener-shell .radio-home a {
+  color: inherit;
+}
+.listener-shell .radio-home .skin-selector {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.65rem;
+  padding: 0.9rem clamp(1.25rem, 4vw, 3.5rem);
+  border-bottom: 1px solid var(--skin-line);
+  color: var(--skin-muted);
+  font:
+    600 0.68rem/1.2 system-ui,
+    sans-serif;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+.listener-shell .radio-home .skin-selector button {
+  min-height: 36px;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--skin-line);
+  border-radius: var(--skin-radius);
+  background: transparent;
+  color: var(--skin-ink);
+  font:
+    600 0.72rem/1 system-ui,
+    sans-serif;
+  letter-spacing: 0.02em;
+  text-transform: capitalize;
+}
+.listener-shell .radio-home .skin-selector button[aria-pressed="true"] {
+  background: var(--skin-accent);
+  border-color: var(--skin-accent);
+  color: var(--skin-button-ink);
+}
+.listener-shell .radio-home .label-feature {
+  display: grid;
+  grid-template-columns: var(--skin-feature-columns);
+  align-items: center;
+  gap: clamp(2rem, 6vw, 5.5rem);
+  padding: clamp(2rem, 5vw, 4rem);
+  min-height: 570px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--skin-line);
+}
+.listener-shell .radio-home .label-feature__art {
+  display: block;
+  min-width: 0;
+}
+.listener-shell .radio-home .label-feature__art .artwork {
+  display: block;
+  width: 100%;
+  height: min(52vw, 510px);
+  max-height: 510px;
+  object-fit: contain;
+  background: #241e24;
+  border-radius: var(--skin-radius);
+  box-shadow: 20px 20px 0 var(--skin-line);
+}
+.listener-shell .radio-home .label-feature__copy {
+  min-width: 0;
+}
+.listener-shell .radio-home .label-feature__eyebrow,
+.listener-shell .radio-home .label-discovery__kind {
+  display: block;
+  color: var(--skin-accent);
+  font:
+    700 0.72rem/1.3 system-ui,
+    sans-serif;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.listener-shell .radio-home .label-feature h1 {
+  margin: 1.4rem 0 0.9rem;
+  color: var(--skin-ink);
+  font: 400 clamp(2.9rem, 5.1vw, 5rem) / 1 var(--skin-display);
+  letter-spacing: -0.055em;
+  overflow-wrap: anywhere;
+}
+.listener-shell .radio-home .label-feature__artist {
+  display: inline-block;
+  font: 500 clamp(1.25rem, 2vw, 1.85rem) / 1.2 var(--skin-display);
+  text-decoration: none;
+  border-bottom: 1px solid var(--skin-accent);
+}
+.listener-shell .radio-home .label-feature__track {
+  margin-top: 1.5rem;
+  color: var(--skin-muted);
+  font-size: 0.9rem;
+}
+.listener-shell .radio-home .label-feature__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 2.2rem;
+}
+.listener-shell .radio-home .label-feature__actions button,
+.listener-shell .radio-home .label-discovery__details button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 50px;
+  padding: 0.8rem 1.2rem;
+  border: 1px solid var(--skin-accent);
+  border-radius: var(--skin-radius);
+  background: var(--skin-accent);
+  color: var(--skin-button-ink);
+  font:
+    700 0.85rem/1.2 system-ui,
+    sans-serif;
+  cursor: pointer;
+}
+.listener-shell .radio-home .label-feature__actions > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25rem;
+}
+.listener-shell .radio-home .content-layout {
+  display: block;
+  margin: 0;
+  padding: clamp(2rem, 5vw, 4rem);
+}
+.listener-shell .radio-home .track-section {
+  width: 100%;
+}
+.listener-shell .radio-home .section-heading {
+  align-items: end;
+  margin-bottom: 2rem;
+  border: 0;
+}
+.listener-shell .radio-home .section-heading .section-label {
+  color: var(--skin-accent);
+  font-size: 0.72rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.listener-shell .radio-home .section-heading h2.brand-display {
+  margin: 0.4rem 0 0;
+  color: var(--skin-ink);
+  font: 400 clamp(2.1rem, 4vw, 3.6rem) / 1.08 var(--skin-display);
+  letter-spacing: -0.04em;
+  text-transform: none;
+}
+.listener-shell .radio-home .text-action {
+  color: var(--skin-muted);
+  white-space: nowrap;
+}
+.listener-shell .radio-home .label-discovery {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(1rem, 3vw, 2rem);
+}
+.listener-shell .radio-home .label-discovery__card {
+  min-width: 0;
+}
+.listener-shell .radio-home .label-discovery__art {
+  display: block;
+  overflow: hidden;
+}
+.listener-shell .radio-home .label-discovery__art .artwork {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: contain;
+  background: #241e24;
+  border-radius: var(--skin-radius);
+  transition: transform 0.25s ease;
+}
+.listener-shell .radio-home .label-discovery__art:hover .artwork {
+  transform: scale(1.035);
+}
+.listener-shell .radio-home .label-discovery__details {
+  padding: 1.1rem 0 0;
+}
+.listener-shell .radio-home .label-discovery__kind {
+  font-size: 0.62rem;
+}
+.listener-shell .radio-home .label-discovery__details h3 {
+  margin: 0.55rem 0 0.2rem;
+  color: var(--skin-ink);
+  font: 500 clamp(1.35rem, 2.5vw, 2rem) / 1.05 var(--skin-display);
+}
+.listener-shell .radio-home .label-discovery__details h3 a,
+.listener-shell .radio-home .label-discovery__artist {
+  text-decoration: none;
+}
+.listener-shell .radio-home .label-discovery__artist {
+  display: inline-block;
+  color: var(--skin-muted);
+  font-size: 0.85rem;
+}
+.listener-shell .radio-home .label-discovery__details button {
+  display: flex;
+  margin-top: 1.2rem;
+  min-height: 42px;
+  padding: 0.5rem 0.8rem;
+  background: transparent;
+  color: var(--skin-ink);
+  border-color: var(--skin-line);
+  font-size: 0.72rem;
+  text-align: left;
+}
+.listener-shell .radio-home .radio-collections {
+  margin-top: 2rem;
+}
+.listener-shell .radio-home .curator-note.brand-panel-soft {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) auto;
+  gap: 1.5rem;
+  align-items: start;
+  margin: clamp(3rem, 6vw, 6rem) 0 0;
+  padding: 1.4rem 0;
+  border: 0;
+  border-top: 1px solid var(--skin-line);
+  border-bottom: 1px solid var(--skin-line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--skin-ink);
+}
+.listener-shell .radio-home .curator-note h2 {
+  margin: 0;
+  color: var(--skin-ink);
+  font: 400 clamp(1.1rem, 2vw, 1.6rem) / 1.2 var(--skin-display);
+}
+.listener-shell .radio-home .curator-note p {
+  grid-column: 2;
+  margin: -0.6rem 0 0;
+  color: var(--skin-muted);
+  font-size: 0.85rem;
+}
+.listener-shell .radio-home .curator-note .section-label {
+  color: var(--skin-accent);
+  font-size: 0.7rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+.listener-shell .radio-home .curator-note .note-signature {
+  margin: 0;
+  color: var(--skin-accent);
+  white-space: nowrap;
+}
+/* Underground: a record label poster, with heavier type and a torn-edge rhythm. */
+[data-skin="underground"] .listener-shell .radio-home {
+  --skin-paper: #151413;
+  --skin-ink: #f4eee1;
+  --skin-muted: #b8aca0;
+  --skin-line: #695c4e;
+  --skin-accent: #f1613f;
+  --skin-button-ink: #16120f;
+  --skin-display: Impact, "Arial Narrow", sans-serif;
+  --skin-feature-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+}
+[data-skin="underground"] .listener-shell .label-feature {
+  align-items: end;
+  gap: 3rem;
+  padding-top: 4rem;
+  background: repeating-linear-gradient(155deg, transparent 0 28px, #ffffff08 29px 30px);
+}
+[data-skin="underground"] .listener-shell .label-feature__art {
+  transform: rotate(-2deg) translateY(1.5rem);
+  border: 10px solid #e3d6bd;
+}
+[data-skin="underground"] .listener-shell .label-feature__art .artwork {
+  height: min(58vw, 600px);
+  max-height: 600px;
+  box-shadow: none;
+}
+[data-skin="underground"] .listener-shell .label-feature h1 {
+  font-size: clamp(4rem, 8vw, 8.8rem);
+  text-transform: uppercase;
+  letter-spacing: -0.035em;
+}
+[data-skin="underground"] .listener-shell .label-feature__artist {
+  font-family: system-ui, sans-serif;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+[data-skin="underground"] .listener-shell .section-heading h2.brand-display,
+[data-skin="underground"] .listener-shell .label-discovery__details h3,
+[data-skin="underground"] .listener-shell .curator-note h2 {
+  text-transform: uppercase;
+  letter-spacing: -0.025em;
+}
+[data-skin="underground"] .listener-shell .label-discovery__card {
+  border-top: 7px solid var(--skin-accent);
+  padding-top: 0.7rem;
+}
+/* Synth: luminous cover display and a geometric record sleeve layout. */
+[data-skin="synth"] .listener-shell .radio-home {
+  --skin-paper: #100e2a;
+  --skin-ink: #faf4ff;
+  --skin-muted: #beb4df;
+  --skin-line: #6655a0;
+  --skin-accent: #64e4dd;
+  --skin-button-ink: #11112a;
+  --skin-display: Orbitron, "Arial Black", sans-serif;
+  --skin-radius: 16px;
+}
+[data-skin="synth"] .listener-shell .label-feature {
+  background:
+    radial-gradient(circle at 80% 20%, #583398 0, transparent 52%),
+    linear-gradient(140deg, #10102c, #23124a);
+}
+[data-skin="synth"] .listener-shell .label-feature__art .artwork {
+  box-shadow:
+    0 0 0 6px var(--skin-accent),
+    0 25px 65px #d85bdb80;
+}
+[data-skin="synth"] .listener-shell .label-feature h1 {
+  font-size: clamp(2.25rem, 3.5vw, 3.6rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.06em;
+  text-shadow: 3px 3px #ac3eae;
+}
+[data-skin="synth"] .listener-shell .label-feature__artist {
+  font-family: system-ui, sans-serif;
+}
+[data-skin="synth"] .listener-shell .label-discovery__card {
+  padding: 0.8rem;
+  border: 1px solid var(--skin-line);
+  border-radius: var(--skin-radius);
+  background: #ffffff0a;
+}
+[data-skin="synth"] .listener-shell .label-discovery__details h3 {
+  font-size: clamp(1rem, 1.6vw, 1.45rem);
+  line-height: 1.35;
+}
+@media (max-width: 760px) {
+  .listener-shell .radio-home .skin-selector {
+    justify-content: flex-start;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .listener-shell .radio-home .label-feature,
+  [data-skin="underground"] .listener-shell .label-feature {
+    grid-template-columns: 1fr;
+    min-height: 0;
+    gap: 2rem;
+    padding: 2rem 1.25rem 3rem;
+  }
+  .listener-shell .radio-home .label-feature__art .artwork,
+  [data-skin="underground"] .listener-shell .label-feature__art .artwork {
+    width: 100%;
+    height: auto;
+    max-height: 58vh;
+    aspect-ratio: 1;
+    object-fit: contain;
+  }
+  [data-skin="underground"] .listener-shell .label-feature__art {
+    transform: rotate(-1deg);
+  }
+  .listener-shell .radio-home .content-layout {
+    padding: 2.5rem 1.25rem;
+  }
+  .listener-shell .radio-home .label-discovery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .listener-shell .radio-home .curator-note.brand-panel-soft {
+    grid-template-columns: 1fr;
+    gap: 0.7rem;
+  }
+  .listener-shell .radio-home .curator-note p {
+    grid-column: 1;
+    margin: 0;
+  }
+}
+@media (max-width: 480px) {
+  .listener-shell .radio-home .label-discovery {
+    grid-template-columns: 1fr;
+  }
+  .listener-shell .radio-home .label-feature h1 {
+    font-size: clamp(2.4rem, 11vw, 4rem);
+  }
+  .listener-shell .radio-home .section-heading {
+    align-items: start;
+    flex-direction: column;
+  }
+}

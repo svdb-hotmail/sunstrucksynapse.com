@@ -108,7 +108,7 @@ const items = [
     "video",
     "/assets/video/AI_pop-slop_202607190035.mp4",
     "video/mp4",
-    "/assets/thumbs/thumb-01.svg",
+    "/assets/albums/Psychedelic Sunset Over Mountain Waters-3.png",
   ),
   item(
     2,
@@ -117,7 +117,7 @@ const items = [
     "audio",
     "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3",
     "audio/mpeg",
-    "/assets/thumbs/thumb-02.svg",
+    "/assets/albums/Golden River Beneath the Giant Sun-1.png",
   ),
   item(
     3,
@@ -126,7 +126,7 @@ const items = [
     "video",
     "/assets/video/final-movie_00007_.mp4",
     "video/mp4",
-    "/assets/thumbs/thumb-03.svg",
+    "/assets/albums/Sheep-Lizard Hero Among Waterfalls.png",
   ),
   item(
     4,
@@ -135,7 +135,7 @@ const items = [
     "audio",
     "/assets/audio/The Mushroom Circle (Gnome Revolution).mp3",
     "audio/mpeg",
-    "/assets/thumbs/thumb-05.svg",
+    "/assets/albums/Neon Space Lounge with Ringed Planet.png",
   ),
   item(
     5,
@@ -144,7 +144,7 @@ const items = [
     "video",
     "/assets/video/gone_fishing.mp4",
     "video/mp4",
-    "/assets/thumbs/thumb-09.svg",
+    "/assets/albums/Snowy Twilight Onsen Retreat.png",
   ),
   item(
     6,
@@ -153,7 +153,7 @@ const items = [
     "audio",
     "/assets/audio/The Mushroom Circle (Gnome Revolution).mp3",
     "audio/mpeg",
-    "/assets/thumbs/thumb-06.svg",
+    "/assets/albums/Ethereal Underwater Geometric Halo-2.png",
   ),
 ].map((catalogueItem, index) => ({ ...catalogueItem, discovery: discovery[index] }));
 
