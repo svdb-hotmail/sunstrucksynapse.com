@@ -41,7 +41,7 @@ describe("radio listener navigation", () => {
     expect(isCatalogueNavigationEntryActive(defaultCatalogueNavigation[1], "/search")).toBe(true);
     expect(isCatalogueNavigationEntryActive(defaultCatalogueNavigation[1], "/about")).toBe(false);
   });
-  it("exposes matching destinations and a labelled queue count in both navigation surfaces", () => {
+  it("exposes Home and Explore in both navigation surfaces and Queue on mobile", () => {
     for (const Navigation of [Header, MobileNav]) {
       const markup = renderToStaticMarkup(
         <MemoryRouter initialEntries={["/search"]}>
@@ -51,7 +51,11 @@ describe("radio listener navigation", () => {
       expect(markup).toContain('href="/"');
       expect(markup).toContain('href="/search"');
       expect(markup).toMatch(/<a\b(?=[^>]*href="\/search")(?=[^>]*aria-current="page")[^>]*>/);
-      expect(markup).toContain('aria-label="Queue, 2 tracks"');
+      if (Navigation === MobileNav) {
+        expect(markup).toContain('aria-label="Queue, 2 tracks"');
+      } else {
+        expect(markup).not.toContain('aria-label="Queue, 2 tracks"');
+      }
       expect(markup).not.toContain("/#audio");
       expect(markup).not.toContain("/#video");
     }
@@ -80,9 +84,8 @@ describe("radio listener navigation", () => {
         { id: "stillith", slug: "stillith", name: "Stillith", description: null, items: [item] },
       ],
     });
-    expect(markup).toContain("Human ears.");
-    expect(markup).toContain("New frequencies.");
-    expect(markup).toContain('href="/collections/stillith"');
+    expect(markup).toContain("Featured listening");
+    expect(markup).toContain("Play the music");
     expect(markup).not.toContain('id="audio"');
     expect(markup).not.toContain('id="video"');
     expect(markup).toContain(item.description.title);
@@ -90,7 +93,7 @@ describe("radio listener navigation", () => {
   it("still offers the published catalogue without collections", () => {
     const markup = renderHome({ status: "ready", items: [item], collections: [] });
     expect(markup).toContain(item.description.title);
-    expect(markup).toContain("Start listening");
+    expect(markup).toContain("Play the music");
   });
   it("bounds homepage tracks while retaining an Explore destination", () => {
     const markup = renderHome({
@@ -98,7 +101,7 @@ describe("radio listener navigation", () => {
       items: Array.from({ length: 12 }, (_, i) => makeCatalogueItem(`track-${i}`)),
       collections: [],
     });
-    expect(markup.match(/class="media-card listener-track track-row"/g)).toHaveLength(6);
+    expect(markup.match(/class="label-discovery__card"/g)).toHaveLength(3);
     expect(markup).toContain('href="/search"');
   });
   for (const state of [
@@ -107,7 +110,7 @@ describe("radio listener navigation", () => {
   ] satisfies CatalogueLoadResult[]) {
     it(`keeps ${state.status} state actionable and cannot start missing media`, () => {
       const markup = renderHome(state);
-      expect(markup).toContain('disabled=""');
+      expect(markup).not.toContain("Play the music");
       expect(markup).not.toContain('class="media-card listener-track track-row"');
       expect(markup).toContain(
         state.status === "empty" ? "No transmissions are published yet." : "Try again later.",
