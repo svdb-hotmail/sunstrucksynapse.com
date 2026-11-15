@@ -1,3 +1,5 @@
+import type { PublicArtworkPalette } from "../services/artwork-palette";
+
 export type MediaKind = "audio" | "video";
 
 export interface Creator {
@@ -12,6 +14,7 @@ export interface Artwork {
   src: string;
   alt: string;
   playerSrc?: string;
+  palette?: PublicArtworkPalette;
 }
 
 export interface DescriptiveText {

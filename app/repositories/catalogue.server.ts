@@ -35,6 +35,11 @@ import type {
   PublicTrack,
 } from "../types/catalogue";
 import type { PublicTrackDisclosure } from "../types/submissions";
+import {
+  createArtworkPalettesRepository,
+  type ArtworkPaletteSource,
+} from "./artwork-palettes.server";
+import { ALGORITHM_VERSION, type PublicArtworkPalette } from "../services/artwork-palette";
 import { createMediaDeliveryUrl } from "../services/media-signing";
 
 export interface CatalogueRepository {
@@ -75,6 +80,10 @@ interface PublishedTrackRow {
   artworkAssetId: string | null;
   artworkStorageProvider: "static" | "r2" | null;
   artworkAltText: string | null;
+  artworkChecksumSha256: string | null;
+  artworkMimeType: string | null;
+  artworkByteSize: number | null;
+  artworkPalette?: PublicArtworkPalette;
   audioObjectKey: string | null;
   audioAssetId: string | null;
   audioStorageProvider: "static" | "r2" | null;
@@ -93,6 +102,7 @@ function artworkForRow(row: PublishedTrackRow): Artwork {
   return {
     src: row.artworkObjectKey ? publicAssetPath(row.artworkObjectKey) : "/assets/favicon.svg",
     alt: row.artworkAltText ?? `Artwork for ${row.releaseTitle}`,
+    ...(row.artworkObjectKey && row.artworkPalette ? { palette: row.artworkPalette } : {}),
   };
 }
 
@@ -294,6 +304,54 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
   db: PgDatabase<TQueryResult, typeof schema>,
   media?: { signingSecret: string },
 ): CatalogueRepository {
+  const palettesRepository = createArtworkPalettesRepository(db);
+
+  function selectedSources(
+    rows: {
+      artworkAssetId: string | null;
+      artworkObjectKey: string | null;
+      artworkStorageProvider: "static" | "r2" | null;
+      artworkChecksumSha256: string | null;
+      artworkMimeType: string | null;
+      artworkByteSize: number | null;
+    }[],
+  ) {
+    const sources = new Map<string, ArtworkPaletteSource>();
+    for (const row of rows) {
+      if (
+        row.artworkAssetId &&
+        row.artworkObjectKey &&
+        row.artworkStorageProvider &&
+        row.artworkChecksumSha256 &&
+        row.artworkMimeType &&
+        row.artworkByteSize
+      ) {
+        sources.set(row.artworkAssetId, {
+          assetId: row.artworkAssetId,
+          objectKey: row.artworkObjectKey,
+          storageProvider: row.artworkStorageProvider,
+          checksumSha256: row.artworkChecksumSha256,
+          mimeType: row.artworkMimeType,
+          byteSize: row.artworkByteSize,
+          algorithmVersion: ALGORITHM_VERSION,
+        });
+      }
+    }
+    return sources;
+  }
+
+  async function paletteFor(
+    row: Parameters<typeof selectedSources>[0][number],
+    src: string | null,
+  ) {
+    const sources = selectedSources([row]);
+    return row.artworkAssetId && src
+      ? (await palettesRepository.publicPalettes([...sources.keys()], sources)).get(
+          row.artworkAssetId,
+        )
+      : undefined;
+  }
+
   async function readPublishedRows(): Promise<PublishedTrackRow[]> {
     const rows = await db
       .select({
@@ -317,6 +375,9 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         artworkObjectKey: artworkAssets.objectKey,
         artworkAssetId: artworkAssets.id,
         artworkStorageProvider: artworkAssets.storageProvider,
+        artworkChecksumSha256: artworkAssets.checksumSha256,
+        artworkMimeType: artworkAssets.mimeType,
+        artworkByteSize: artworkAssets.byteSize,
         artworkAltText: trackArtworkAssets.altText,
         audioObjectKey: audioAssets.objectKey,
         audioAssetId: audioAssets.id,
@@ -373,9 +434,12 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         asc(tracks.position),
         asc(trackArtistCredits.position),
       );
+    const sources = selectedSources(rows);
+    const palettes = await palettesRepository.publicPalettes([...sources.keys()], sources);
     return Promise.all(
       rows.map(async (row) => ({
         ...row,
+        artworkPalette: row.artworkAssetId ? palettes.get(row.artworkAssetId) : undefined,
         artworkObjectKey:
           row.artworkStorageProvider === "r2"
             ? row.artworkAssetId && media
@@ -418,6 +482,9 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         artworkAssetId: artworkAssets.id,
         artworkObjectKey: artworkAssets.objectKey,
         artworkStorageProvider: artworkAssets.storageProvider,
+        artworkChecksumSha256: artworkAssets.checksumSha256,
+        artworkMimeType: artworkAssets.mimeType,
+        artworkByteSize: artworkAssets.byteSize,
         position: collectionItems.position,
         trackId: collectionItems.trackId,
         releaseId: collectionItems.releaseId,
@@ -443,6 +510,8 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         asc(editorialCollections.slug),
         asc(collectionItems.position),
       );
+    const sources = selectedSources(rows);
+    const palettes = await palettesRepository.publicPalettes([...sources.keys()], sources);
     const itemsById = new Map(items.map((item) => [item.id, item]));
     const collections = new Map<
       string,
@@ -493,6 +562,9 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
               ? {
                   src: artworkSrc,
                   alt: `${collection.name} artwork`,
+                  palette: collection.artworkAssetId
+                    ? palettes.get(collection.artworkAssetId)
+                    : undefined,
                 }
               : undefined,
             items: collection.items,
@@ -655,6 +727,9 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
           artworkAssetId: artworkAssets.id,
           artworkObjectKey: artworkAssets.objectKey,
           artworkStorageProvider: artworkAssets.storageProvider,
+          artworkChecksumSha256: artworkAssets.checksumSha256,
+          artworkMimeType: artworkAssets.mimeType,
+          artworkByteSize: artworkAssets.byteSize,
         })
         .from(editorialCollections)
         .leftJoin(
@@ -706,6 +781,7 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
           ? {
               src: artworkSrc,
               alt: `${collection.name} artwork`,
+              palette: await paletteFor(collection, artworkSrc),
             }
           : undefined,
         items: selected,
@@ -721,6 +797,9 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
           artworkAssetId: artworkAssets.id,
           artworkObjectKey: artworkAssets.objectKey,
           artworkStorageProvider: artworkAssets.storageProvider,
+          artworkChecksumSha256: artworkAssets.checksumSha256,
+          artworkMimeType: artworkAssets.mimeType,
+          artworkByteSize: artworkAssets.byteSize,
           artworkAltText: artistArtworkAssets.altText,
         })
         .from(artists)
@@ -768,6 +847,7 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         artwork: {
           src: artworkSrc ?? "/assets/favicon.svg",
           alt: artist.artworkAltText ?? `${artist.name} artwork`,
+          palette: await paletteFor(artist, artworkSrc),
         },
         tracks: items.filter((item) => creditedTrackIds.has(item.id)),
       };
@@ -783,6 +863,9 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
           artworkAssetId: artworkAssets.id,
           artworkObjectKey: artworkAssets.objectKey,
           artworkStorageProvider: artworkAssets.storageProvider,
+          artworkChecksumSha256: artworkAssets.checksumSha256,
+          artworkMimeType: artworkAssets.mimeType,
+          artworkByteSize: artworkAssets.byteSize,
           artworkAltText: releaseArtworkAssets.altText,
           artistId: artists.id,
           artistSlug: artists.slug,
@@ -839,6 +922,7 @@ export function createCatalogueRepository<TQueryResult extends PgQueryResultHKT>
         artwork: {
           src: artworkSrc ?? "/assets/favicon.svg",
           alt: release.artworkAltText ?? `Artwork for ${release.title}`,
+          palette: await paletteFor(release, artworkSrc),
         },
         artists: releaseRows.map((row) => ({
           id: row.artistId,

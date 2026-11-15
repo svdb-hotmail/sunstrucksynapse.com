@@ -72,3 +72,7 @@ On 2026-08-14, HTTP GET requests to `/` on both URLs returned `404` with an empt
 The repository configuration confirms that the application requires React Router server-side rendering through the Worker entry in `workers/app.ts`. Its production build contains separate client assets and a Worker server bundle rather than a standalone static `index.html`. The exact Pages build command, output directory, and deployment logs are not available through the repository or GitHub check metadata; the check links to an authenticated Cloudflare dashboard. The available evidence is therefore consistent with, but does not by itself prove, a legacy static Pages configuration that does not execute the Worker SSR entry.
 
 The Pages URLs must not be treated as working application previews. Production is deployed through the Worker build trigger, which runs `npm run build` and `npx wrangler deploy` from `main`; `npm run dev` and `npm run preview` remain the valid local Cloudflare Workers runtime checks.
+
+## Durable artwork palette deployment
+
+Use the explicit [artwork palette rollout and backfill runbook](artwork-palette-deployment.md) for migration-first private encoder/application deployment, producer activation, dry-run review and bounded write backfill. The opt-in `npm run deploy:palettes` wrapper is separate from `npm run build`; the dashboard trigger must be updated by an operator before it runs on deployment. Existing production artwork write backfills are never part of the automatic wrapper.

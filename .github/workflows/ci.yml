@@ -46,6 +46,11 @@ jobs:
       - name: Check types
         run: npm run typecheck
 
+      - name: Install audio encoder test dependency
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends ffmpeg
+
       - name: Run unit and contract tests
         run: npm run test:unit
 
@@ -54,11 +59,6 @@ jobs:
 
       - name: Build application
         run: npm run build
-
-      - name: Install audio encoder test dependency
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends ffmpeg
 
       - name: Test audio encoder
         run: npm run test:encoder

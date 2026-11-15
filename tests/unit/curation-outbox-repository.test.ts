@@ -362,4 +362,100 @@ describe("curation outbox repository", () => {
       status: "succeeded",
     });
   });
+  it("admits palette claims separately and restores busy attempts behind the active lease", async () => {
+    await repository.enqueue({
+      idempotencyKey: "palette:isolated",
+      kind: "artwork_palette_generate",
+      payload: { assetId: "isolated" },
+    });
+    await repository.enqueue({
+      idempotencyKey: "email:isolated",
+      kind: "submission_decision_email",
+      payload: {},
+    });
+    const generic = await repository.claim({
+      excludeKinds: ["artwork_palette_generate"],
+      limit: 10,
+    });
+    expect(generic.map((row) => row.kind)).toEqual(["submission_decision_email"]);
+    const [palette] = await repository.claim({ kinds: ["artwork_palette_generate"], limit: 1 });
+    expect(palette.kind).toBe("artwork_palette_generate");
+    expect(palette.attempts).toBe(1);
+    expect(
+      await repository.defer(palette.id, "90000000-0000-4000-8000-000000000001", "ENCODER_BUSY", 0),
+    ).toBe(false);
+    expect((await stored("palette:isolated"))?.attempts).toBe(1);
+    expect(await repository.defer(palette.id, palette.leaseToken, "ENCODER_BUSY", 0)).toBe(true);
+    expect(await stored("palette:isolated")).toMatchObject({
+      status: "pending",
+      attempts: 0,
+      error_code: "ENCODER_BUSY",
+    });
+    const [retried] = await repository.claim({ kinds: ["artwork_palette_generate"], limit: 1 });
+    expect(retried.attempts).toBe(1);
+    expect(await repository.fail(retried.id, retried.leaseToken, "SOURCE_UNAVAILABLE")).toBe(true);
+    expect(await stored("palette:isolated")).toMatchObject({
+      status: "failed",
+      error_code: "SOURCE_UNAVAILABLE",
+    });
+    expect(await repository.defer(retried.id, retried.leaseToken, "ENCODER_BUSY", 0)).toBe(false);
+  });
+
+  it("keeps palette jobs pending when the generic dispatcher runs", async () => {
+    await repository.enqueue({
+      idempotencyKey: "palette:generic",
+      kind: "artwork_palette_generate",
+      payload: {},
+    });
+    const bucket: MediaBucket = {
+      async put() {
+        return { size: 0 };
+      },
+      async head() {
+        return null;
+      },
+      async get() {
+        return null;
+      },
+      async delete() {},
+    };
+    await dispatchCurationOutbox(db as never, { mode: "noop", async send() {} }, bucket);
+    expect(await stored("palette:generic")).toMatchObject({ status: "pending", attempts: 0 });
+  });
+  it("leaves static backfill jobs pending and resumable while cron admits only R2", async () => {
+    await repository.enqueue({
+      idempotencyKey: "palette:static",
+      kind: "artwork_palette_generate",
+      payload: { storageProvider: "static" },
+    });
+    await repository.enqueue({
+      idempotencyKey: "palette:r2",
+      kind: "artwork_palette_generate",
+      payload: { storageProvider: "r2" },
+    });
+    const jobs = await repository.claim({
+      kinds: ["artwork_palette_generate"],
+      sourceStorageProvider: "r2",
+      limit: 1,
+    });
+    expect(jobs.map((job) => job.idempotencyKey)).toEqual(["palette:r2"]);
+    expect(await stored("palette:static")).toMatchObject({ status: "pending", attempts: 0 });
+    expect(
+      await repository.claim({
+        kinds: ["artwork_palette_generate"],
+        sourceStorageProvider: "r2",
+        limit: 1,
+      }),
+    ).toEqual([]);
+    const [resumed] = await repository.claim({
+      kinds: ["artwork_palette_generate"],
+      sourceStorageProvider: "static",
+      limit: 1,
+    });
+    expect(resumed.idempotencyKey).toBe("palette:static");
+    expect(resumed.attempts).toBe(1);
+    await expect(repository.claim({ sourceStorageProvider: "http" as "r2" })).rejects.toThrow(
+      "source storage provider",
+    );
+  });
 });

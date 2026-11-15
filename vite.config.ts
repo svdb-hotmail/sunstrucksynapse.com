@@ -5,7 +5,11 @@ import { defineConfig } from "vite";
 export default defineConfig(({ mode }) => ({
   plugins: [
     cloudflare({
-      ...(mode === "site-preview" ? { configPath: "wrangler.site-preview.jsonc" } : {}),
+      ...(mode === "site-preview"
+        ? { configPath: "wrangler.site-preview.jsonc" }
+        : process.env.SUNSYN_WRANGLER_CONFIG
+          ? { configPath: process.env.SUNSYN_WRANGLER_CONFIG }
+          : {}),
       viteEnvironment: { name: "ssr" },
     }),
     reactRouter(),

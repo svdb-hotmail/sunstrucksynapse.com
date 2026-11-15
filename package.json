@@ -19,6 +19,8 @@
     "test:e2e": "playwright test",
     "typegen": "wrangler types && react-router typegen",
     "typecheck": "npm run typegen && tsc -b",
+    "artwork:palettes:backfill": "node --env-file-if-exists=.env --import tsx scripts/backfill-artwork-palettes.ts",
+    "deploy:palettes": "node --env-file-if-exists=.env --import tsx scripts/deploy-artwork-palettes.ts",
     "db:generate": "drizzle-kit generate",
     "db:check": "drizzle-kit check",
     "db:migrate": "node --env-file-if-exists=.env --import tsx scripts/migrate.ts",

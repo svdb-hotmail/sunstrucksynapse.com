@@ -51,8 +51,10 @@ def encode_file(source, target, mime_type, expected_duration_ms):
 IMAGE_FORMATS = {"image/png": ("png_pipe", "png"), "image/jpeg": ("jpeg_pipe", "mjpeg"), "image/webp": ("webp_pipe", "webp"), "image/avif": ("mov", "av1")}
 
 
-def validate_artwork(path, mime):
+def validate_artwork(path, mime, palette=False):
     data = path.read_bytes()
+    if not 0 < len(data) <= 20 * 1024 * 1024:
+        raise ValueError("Image size out of bounds")
     # Decode errors alone do not catch PNG truncation after the pixel data.
     if mime == "image/png":
         if data[:8] != b"\x89PNG\r\n\x1a\n":
@@ -87,15 +89,91 @@ def validate_artwork(path, mime):
     if len(streams) != 1 or streams[0].get("codec_name") != codec:
         raise ValueError("Invalid cover stream")
     width, height = streams[0].get("width", 0), streams[0].get("height", 0)
-    if width != height or not 1400 <= width <= 10000:
+    if palette:
+        if not (1 <= width <= 10000 and 1 <= height <= 10000 and width * height <= 40000000):
+            raise ValueError("Invalid image dimensions")
+    elif width != height or not 1400 <= width <= 10000:
         raise ValueError("Invalid cover dimensions")
     # Fully decode pixels in the existing isolated container, never in the
     # memory-limited application Worker. Reject corruption and animation.
-    decoded = subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-xerror", "-err_detect", "explode", "-protocol_whitelist", "file,pipe", "-f", input_format, "-i", str(path), "-map", "0:v:0", "-frames:v", "2", "-f", "framemd5", "-"], capture_output=True, timeout=45, check=True)
+    decoded = subprocess.run(["ffmpeg", "-nostdin", "-v", "error", "-xerror", "-err_detect", "explode", "-protocol_whitelist", "file,pipe", "-f", input_format, "-i", str(path), "-map", "0:v:0", "-frames:v", "2", "-threads", "1", "-f", "framemd5", "-"], capture_output=True, timeout=45, check=True)
     frames = [line for line in decoded.stdout.splitlines() if line and not line.startswith(b"#")]
     if len(frames) != 1:
         raise ValueError("Use one still image")
     return {"width": width, "height": height, "mimeType": mime, "checksumSha256": hashlib.sha256(data).hexdigest(), "byteSize": len(data)}
+
+
+PALETTE_VERSION = 1
+
+
+def _color(rgb):
+    return "#" + "".join(f"{max(0, min(255, int(channel + 0.5))):02x}" for channel in rgb)
+
+
+def _blend(rgb, target, amount):
+    return [a * (1 - amount) + b * amount for a, b in zip(rgb, target)]
+
+
+def _contrast(a, b):
+    def luminance(rgb):
+        values = [v / 255 for v in rgb]
+        linear = [v / 12.92 if v <= 0.04045 else ((v + 0.055) / 1.055) ** 2.4 for v in values]
+        return sum(v * weight for v, weight in zip(linear, [0.2126, 0.7152, 0.0722]))
+    first, second = luminance(a), luminance(b)
+    return (max(first, second) + 0.05) / (min(first, second) + 0.05)
+
+
+def palette_from_rgba(pixels):
+    """Fixed 48-square sRGB sample; transparent pixels composite onto #808080.
+
+    Quantization is 32 levels/channel; equal weighted scores prefer the
+    lexicographically lowest bucket. All pixels participate in the sample.
+    """
+    if len(pixels) != 48 * 48 * 4:
+        raise ValueError("Invalid palette sample")
+    buckets = {}
+    for offset in range(0, len(pixels), 4):
+        alpha = pixels[offset + 3]
+        rgb = [(pixels[offset + i] * alpha + 128 * (255 - alpha) + 127) // 255 for i in range(3)]
+        key = tuple(value // 32 for value in rgb)
+        count, sums = buckets.get(key, (0, [0, 0, 0]))
+        buckets[key] = (count + 1, [a + b for a, b in zip(sums, rgb)])
+    candidates = []
+    for key, (count, sums) in buckets.items():
+        rgb = [value / count for value in sums]
+        # Integer score avoids floating-point tie ambiguity.
+        score = 357 * count + 4 * (max(sums) - min(sums))
+        candidates.append((score, key, rgb))
+    candidates.sort(key=lambda item: (-item[0], item[1]))
+    base = candidates[0][2]
+    vivid = next((rgb for _, _, rgb in candidates if max(rgb) - min(rgb) > 45), base)
+    accent = [int(value + 0.5) for value in _blend(vivid, [80, 52, 90], 0.25)]
+    while _contrast(accent, [255, 255, 255]) < 4.5:
+        accent = [max(0, value - 1) for value in accent]
+    return {
+        "accent": _color(accent),
+        "paperLight": _color(_blend(base, [250, 247, 241], 0.88)),
+        "surfaceLight": _color(_blend(base, [255, 255, 255], 0.94)),
+        "inkLight": "#211b24",
+        "paperDark": _color(_blend(base, [14, 16, 25], 0.84)),
+        "surfaceDark": _color(_blend(base, [30, 32, 42], 0.78)),
+        "inkDark": "#f7f3f2",
+    }
+
+
+def extract_artwork_palette(path, mime):
+    metadata = validate_artwork(path, mime, palette=True)
+    # Full input was already decoded and checked for corruption and animation.
+    # Conversion happens inside the existing isolated encoder, with a fixed
+    # sRGB output matrix and fixed sample size independent of source resolution.
+    sampled = subprocess.run([
+        "ffmpeg", "-nostdin", "-v", "error", "-xerror", "-err_detect", "explode",
+        "-protocol_whitelist", "file,pipe", "-f", IMAGE_FORMATS[mime][0], "-i", str(path),
+        "-map", "0:v:0", "-frames:v", "1", "-vf",
+        "scale=48:48:flags=area:out_color_matrix=bt709:out_range=full,format=rgba",
+        "-threads", "1", "-f", "rawvideo", "-pix_fmt", "rgba", "-"
+    ], capture_output=True, timeout=30, check=True)
+    return {**metadata, "version": PALETTE_VERSION, "colors": palette_from_rgba(sampled.stdout)}
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -104,7 +182,7 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
     def do_POST(self):
-        if self.path not in ("/encode", "/validate-artwork") or not LOCK.acquire(blocking=False):
+        if self.path not in ("/encode", "/validate-artwork", "/artwork-palette") or not LOCK.acquire(blocking=False):
             self.send_error(409)
             return
         try:
@@ -112,7 +190,7 @@ class Handler(BaseHTTPRequestHandler):
             mime = self.headers.get("Content-Type", "")
             expected_hash = self.headers.get("X-Source-Checksum", "")
             duration = int(self.headers.get("X-Source-Duration", "0"))
-            image = self.path == "/validate-artwork"
+            image = self.path in ("/validate-artwork", "/artwork-palette")
             if not 0 < size <= (20 * 1024 * 1024 if image else MAX_BYTES) or mime not in (IMAGE_FORMATS if image else FORMATS) or len(expected_hash) != 64 or any(c not in "0123456789abcdef" for c in expected_hash) or (not image and not 0 < duration <= 86400000):
                 raise ValueError("Invalid input")
             self.connection.settimeout(60)
@@ -131,7 +209,8 @@ class Handler(BaseHTTPRequestHandler):
                 if digest.hexdigest() != expected_hash:
                     raise ValueError("Source checksum mismatch")
                 if image:
-                    result = json.dumps(validate_artwork(source, mime), separators=(",", ":")).encode()
+                    metadata = extract_artwork_palette(source, mime) if self.path == "/artwork-palette" else validate_artwork(source, mime)
+                    result = json.dumps(metadata, separators=(",", ":")).encode()
                     self.send_response(200)
                     self.send_header("Content-Type", "application/json")
                     self.send_header("Content-Length", str(len(result)))

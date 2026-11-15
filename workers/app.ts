@@ -24,6 +24,7 @@ import { createCurationWorkflowRepository } from "../app/repositories/curation-w
 import { createE2eCurationWorkflowRepository } from "../app/repositories/curation-workflow-fixture.server";
 import { dispatchCurationOutbox } from "../app/services/curation-outbox-dispatch.server";
 import { createTransactionalEmailService } from "../app/services/transactional-email.server";
+import { prepareNextArtworkPalette } from "../app/services/artwork-palette-generation.server";
 import { prepareNextRelease } from "../app/services/release-preparation.server";
 
 const requestHandler = createRequestHandler(
@@ -202,7 +203,10 @@ export default {
         validatedEnv.MEDIA_BUCKET,
         now,
       ),
-      prepareNextRelease(db, validatedEnv),
+      (async () => {
+        await prepareNextRelease(db, validatedEnv);
+        await prepareNextArtworkPalette(db, validatedEnv);
+      })(),
     ]);
   },
 } satisfies ExportedHandler<Env>;

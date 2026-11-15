@@ -9,3 +9,4 @@ export * from "./enums";
 export * from "./governance";
 export * from "./submissions";
 export * from "./release-preparation";
+export * from "./artwork-palettes";

@@ -9,7 +9,6 @@ import {
   identityStyle,
   type IdentityTreatment,
 } from "~/design-system/visual-identity";
-import { useArtworkPalette } from "~/design-system/artwork-palette";
 import { SITE_NAME, SITE_URL } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { artistSeo } from "~/services/seo.server";
@@ -58,7 +57,7 @@ export default function ArtistRoute({ loaderData }: Route.ComponentProps) {
   const player = useOutletContext<PlayerOutletContext>();
   const { artist, releases } = loaderData;
   const [treatment, setTreatment] = useState<IdentityTreatment | null>(null);
-  const artworkPalette = useArtworkPalette(artist.artwork.src);
+  const artworkPalette = artist.artwork.palette;
   const activeTreatment =
     treatment ?? (artworkPalette ? "palette" : defaultIdentityTreatment(artist.slug));
 

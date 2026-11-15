@@ -52,6 +52,22 @@ describe("CI quality-gate lifecycle", () => {
     expect(workflow.split("  push:")[0]).not.toContain("branches:");
   });
 
+  it("installs FFmpeg before real decoder unit tests after the cheap checks", () => {
+    const [validationJob] = workflow.split("  quality-gate:");
+    const install = validationJob.indexOf("- name: Install audio encoder test dependency");
+    expect(install).toBeGreaterThan(-1);
+    expect(validationJob).toContain("sudo apt-get install -y --no-install-recommends ffmpeg");
+    for (const script of ["format:check", "lint", "typecheck"]) {
+      const check = validationJob.indexOf(`run: npm run ${script}`);
+      expect(check).toBeGreaterThan(-1);
+      expect(check).toBeLessThan(install);
+    }
+    for (const script of ["test:unit", "test:encoder"]) {
+      const tests = validationJob.indexOf(`run: npm run ${script}`);
+      expect(tests).toBeGreaterThan(install);
+    }
+  });
+
   it("grants minimum CodeQL permissions including actions: read and does not suppress CodeQL failure", () => {
     expect(workflow).toContain("actions: read");
     expect(workflow).toContain("contents: read");
