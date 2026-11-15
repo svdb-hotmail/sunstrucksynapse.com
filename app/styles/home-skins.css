@@ -68,14 +68,12 @@
   color: var(--skin-ink);
   font: 400 clamp(2.9rem, 5.1vw, 5rem) / 1 var(--skin-display);
   letter-spacing: -0.055em;
-  overflow-wrap: break-word;
   word-break: normal;
-  white-space: nowrap;
-  font-size: var(--fitted-title-size, inherit);
-}
-.listener-shell .radio-home .label-feature h1[data-fit="wrap"] {
   white-space: normal;
-  overflow-wrap: break-word;
+  overflow-wrap: normal;
+}
+.listener-shell .radio-home .label-feature h1[data-fit="natural-wrap"] {
+  overflow-wrap: anywhere;
 }
 .listener-shell .radio-home .label-feature__artist {
   display: inline-block;
@@ -319,18 +317,6 @@
   line-height: 1.05;
   letter-spacing: -0.06em;
   text-shadow: 3px 3px #ac3eae;
-}
-.listener-shell .radio-home .label-feature h1[data-title-size="medium"] {
-  font-size: clamp(2.4rem, 4vw, 4rem);
-}
-.listener-shell .radio-home .label-feature h1[data-title-size="compact"] {
-  font-size: clamp(2rem, 3.2vw, 3.2rem);
-}
-[data-skin="synth"] .listener-shell .label-feature h1[data-title-size="medium"] {
-  font-size: clamp(1.8rem, 2.6vw, 2.6rem);
-}
-[data-skin="synth"] .listener-shell .label-feature h1[data-title-size="compact"] {
-  font-size: clamp(1.6rem, 2.2vw, 2.2rem);
 }
 [data-skin="synth"] .listener-shell .label-feature__artist {
   font-family: system-ui, sans-serif;

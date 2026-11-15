@@ -44,21 +44,34 @@ export default function Home() {
     const title = featureTitleRef.current;
     if (!title) return;
     const fitTitle = () => {
-      title.style.removeProperty("--fitted-title-size");
+      title.style.removeProperty("font-size");
       const computed = getComputedStyle(title);
       const baseSize = Number.parseFloat(computed.fontSize);
-      const minSize = 24;
       const available = title.clientWidth;
       if (!available || !baseSize) return;
-      title.style.setProperty("--fitted-title-size", `${baseSize}px`);
-      const naturalWidth = title.scrollWidth;
-      if (naturalWidth > available) {
-        const fitted = Math.max(minSize, baseSize * (available / naturalWidth));
-        title.style.setProperty("--fitted-title-size", `${fitted}px`);
-        title.dataset.fit = fitted > minSize ? "single-line" : "wrap";
-      } else {
-        title.dataset.fit = "single-line";
+      const longestWord = Math.max(
+        ...(title.textContent ?? "").split(/\s+/).map((word) => word.length),
+      );
+      let fits = false;
+      for (let size = baseSize; size >= 16; size -= 1) {
+        title.style.setProperty("font-size", `${size}px`, "important");
+        const style = getComputedStyle(title);
+        const lineHeight = Number.parseFloat(style.lineHeight) || size;
+        const lineCount = Math.round(title.scrollHeight / lineHeight);
+        if (lineCount <= 2 && title.scrollWidth <= available + 1) {
+          fits = true;
+          break;
+        }
       }
+      if (!fits) {
+        title.style.removeProperty("font-size");
+        title.style.setProperty(
+          "font-size",
+          `${Math.max(16, Math.min(baseSize, available / Math.max(longestWord, 1)))}px`,
+          "important",
+        );
+      }
+      title.dataset.fit = fits ? "two-lines" : "natural-wrap";
     };
     const observer = new ResizeObserver(fitTitle);
     observer.observe(title);
@@ -133,17 +146,7 @@ export default function Home() {
           </Link>
           <div className="label-feature__copy">
             <span className="label-feature__eyebrow">SUNSYN / Featured listening</span>
-            <h1
-              id="feature-title"
-              ref={featureTitleRef}
-              data-title-size={
-                featured.release.title.length > 34
-                  ? "compact"
-                  : featured.release.title.length > 22
-                    ? "medium"
-                    : "regular"
-              }
-            >
+            <h1 id="feature-title" ref={featureTitleRef}>
               {featured.release.title}
             </h1>
             <Link className="label-feature__artist" to={featured.creator.href}>
