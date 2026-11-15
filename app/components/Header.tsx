@@ -2,6 +2,8 @@ import { Link, useLocation } from "react-router";
 import { SITE_NAME } from "~/config/brand";
 import { ThemeToggle } from "~/design-system/ThemeToggle";
 import { StationMark } from "~/design-system/StationMark";
+import { showSkinPicker } from "~/design-system/skin";
+import { SkinPicker } from "~/components/SkinPicker";
 import {
   defaultCatalogueNavigation,
   isCatalogueNavigationEntryActive,
@@ -41,13 +43,8 @@ export function Header({
         </Link>
       </nav>
       <div className="topbar-actions preview-label">
-        {import.meta.env.MODE === "site-preview" ? (
-          <>
-            Design preview <ThemeToggle />
-          </>
-        ) : (
-          <ThemeToggle />
-        )}
+        {showSkinPicker ? <SkinPicker /> : null}
+        <ThemeToggle />
       </div>
     </header>
   );

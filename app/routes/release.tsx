@@ -51,9 +51,6 @@ export default function ReleaseRoute({ loaderData }: Route.ComponentProps) {
   const player = useOutletContext<PlayerOutletContext>();
   const { release, canonicalUrl } = loaderData;
   const [treatment, setTreatment] = useState(defaultIdentityTreatment(release.slug));
-  const previewArtists = [
-    ...new Map(player.catalogue.items.map((track) => [track.creator.id, track.creator])).values(),
-  ];
 
   return (
     <article
@@ -65,11 +62,7 @@ export default function ReleaseRoute({ loaderData }: Route.ComponentProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(loaderData.seo.jsonLd) }}
       />
-      <IdentityPreviewControls
-        treatment={treatment}
-        onChange={setTreatment}
-        artists={previewArtists}
-      />
+      <IdentityPreviewControls treatment={treatment} onChange={setTreatment} />
       <section className="identity-hero" aria-labelledby="release-title">
         <div className="identity-hero__art">
           <img src={release.artwork.src} alt={release.artwork.alt} />

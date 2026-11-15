@@ -8,6 +8,22 @@ export interface DiscoveryFilters {
   process: string;
 }
 
+export const EXPLORE_VIEWS = ["featured", "latest", "videos", "audio"] as const;
+export type ExploreView = (typeof EXPLORE_VIEWS)[number];
+
+export function exploreItems(
+  items: CatalogueItem[],
+  view: ExploreView,
+  featuredReleaseId?: string,
+): CatalogueItem[] {
+  if (view === "featured") {
+    return featuredReleaseId ? items.filter((item) => item.release.id === featuredReleaseId) : [];
+  }
+  if (view === "videos") return items.filter((item) => item.mediaKind === "video");
+  if (view === "audio") return items.filter((item) => item.mediaKind === "audio");
+  return items;
+}
+
 function includes(value: string, query: string): boolean {
   return value.toLocaleLowerCase().includes(query);
 }

@@ -26,38 +26,6 @@
 .listener-shell .radio-home a {
   color: inherit;
 }
-.listener-shell .radio-home .skin-selector {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.65rem;
-  padding: 0.9rem clamp(1.25rem, 4vw, 3.5rem);
-  border-bottom: 1px solid var(--skin-line);
-  color: var(--skin-muted);
-  font:
-    600 0.68rem/1.2 system-ui,
-    sans-serif;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-}
-.listener-shell .radio-home .skin-selector button {
-  min-height: 36px;
-  padding: 0.45rem 0.8rem;
-  border: 1px solid var(--skin-line);
-  border-radius: var(--skin-radius);
-  background: transparent;
-  color: var(--skin-ink);
-  font:
-    600 0.72rem/1 system-ui,
-    sans-serif;
-  letter-spacing: 0.02em;
-  text-transform: capitalize;
-}
-.listener-shell .radio-home .skin-selector button[aria-pressed="true"] {
-  background: var(--skin-accent);
-  border-color: var(--skin-accent);
-  color: var(--skin-button-ink);
-}
 .listener-shell .radio-home .label-feature {
   display: grid;
   grid-template-columns: var(--skin-feature-columns);
@@ -100,6 +68,11 @@
   color: var(--skin-ink);
   font: 400 clamp(2.9rem, 5.1vw, 5rem) / 1 var(--skin-display);
   letter-spacing: -0.055em;
+  word-break: normal;
+  white-space: normal;
+  overflow-wrap: normal;
+}
+.listener-shell .radio-home .label-feature h1[data-fit="natural-wrap"] {
   overflow-wrap: anywhere;
 }
 .listener-shell .radio-home .label-feature__artist {
@@ -107,11 +80,6 @@
   font: 500 clamp(1.25rem, 2vw, 1.85rem) / 1.2 var(--skin-display);
   text-decoration: none;
   border-bottom: 1px solid var(--skin-accent);
-}
-.listener-shell .radio-home .label-feature__track {
-  margin-top: 1.5rem;
-  color: var(--skin-muted);
-  font-size: 0.9rem;
 }
 .listener-shell .radio-home .label-feature__actions {
   display: flex;
@@ -144,6 +112,12 @@
   font-size: 0.85rem;
   text-decoration-thickness: 1px;
   text-underline-offset: 0.25rem;
+}
+.listener-shell .radio-home .label-feature__actions .label-feature__another {
+  min-height: 42px;
+  padding: 0.55rem 0.8rem;
+  gap: 0.35rem;
+  font-size: 0.85rem;
 }
 .listener-shell .radio-home .content-layout {
   display: block;
@@ -297,7 +271,7 @@
   box-shadow: none;
 }
 [data-skin="underground"] .listener-shell .label-feature h1 {
-  font-size: clamp(4rem, 8vw, 8.8rem);
+  font-size: clamp(2.6rem, 6vw, 8.8rem);
   text-transform: uppercase;
   letter-spacing: -0.035em;
 }
@@ -338,7 +312,7 @@
     0 25px 65px #d85bdb80;
 }
 [data-skin="synth"] .listener-shell .label-feature h1 {
-  font-size: clamp(2.25rem, 3.5vw, 3.6rem);
+  font-size: clamp(2rem, 3vw, 3rem);
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: -0.06em;
@@ -358,11 +332,6 @@
   line-height: 1.35;
 }
 @media (max-width: 760px) {
-  .listener-shell .radio-home .skin-selector {
-    justify-content: flex-start;
-    overflow-x: auto;
-    white-space: nowrap;
-  }
   .listener-shell .radio-home .label-feature,
   [data-skin="underground"] .listener-shell .label-feature {
     grid-template-columns: 1fr;

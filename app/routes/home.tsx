@@ -1,5 +1,5 @@
 import { Link, useOutletContext } from "react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ListenerIcon } from "~/design-system/ListenerIcon";
 import { trackLabel } from "~/design-system/track-label";
@@ -24,25 +24,99 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export default function Home() {
-  const showSkinSelector =
-    import.meta.env.DEV || ["site-preview", "test"].includes(import.meta.env.MODE);
   const player = useOutletContext<PlayerOutletContext>();
   const { catalogue } = player;
   const { collection } = listeningSelection(catalogue.items, catalogue.collections);
-  const playableReleases = catalogue.items.filter(
-    (item) => item.mediaKind === "audio" && item.media,
-  );
-  const featuredReleases = [
-    ...new Map(playableReleases.map((item) => [item.release.id, item])).values(),
-  ].sort((a, b) =>
-    a.release.slug === "phase-zero-transmissions"
-      ? -1
-      : b.release.slug === "phase-zero-transmissions"
-        ? 1
-        : a.release.title.localeCompare(b.release.title),
-  );
+  const featuredTracks = catalogue.items
+    .filter((item) => item.mediaKind === "audio" && item.media)
+    .sort(
+      (a, b) =>
+        Number(b.release.slug === "phase-zero-transmissions") -
+          Number(a.release.slug === "phase-zero-transmissions") ||
+        a.release.title.localeCompare(b.release.title),
+    );
   const [featuredIndex, setFeaturedIndex] = useState(0);
-  const featured = featuredReleases[featuredIndex % featuredReleases.length];
+  const [advanceCount, setAdvanceCount] = useState(0);
+  const featureRef = useRef<HTMLElement>(null);
+  const featureTitleRef = useRef<HTMLHeadingElement>(null);
+  const featured = featuredTracks[featuredIndex % featuredTracks.length];
+  useEffect(() => {
+    const title = featureTitleRef.current;
+    if (!title) return;
+    const fitTitle = () => {
+      title.style.removeProperty("font-size");
+      const computed = getComputedStyle(title);
+      const baseSize = Number.parseFloat(computed.fontSize);
+      const available = title.clientWidth;
+      if (!available || !baseSize) return;
+      const longestWord = Math.max(
+        ...(title.textContent ?? "").split(/\s+/).map((word) => word.length),
+      );
+      let fits = false;
+      for (let size = baseSize; size >= 16; size -= 1) {
+        title.style.setProperty("font-size", `${size}px`, "important");
+        const style = getComputedStyle(title);
+        const lineHeight = Number.parseFloat(style.lineHeight) || size;
+        const lineCount = Math.round(title.scrollHeight / lineHeight);
+        if (lineCount <= 2 && title.scrollWidth <= available + 1) {
+          fits = true;
+          break;
+        }
+      }
+      if (!fits) {
+        title.style.removeProperty("font-size");
+        title.style.setProperty(
+          "font-size",
+          `${Math.max(16, Math.min(baseSize, available / Math.max(longestWord, 1)))}px`,
+          "important",
+        );
+      }
+      title.dataset.fit = fits ? "two-lines" : "natural-wrap";
+    };
+    const observer = new ResizeObserver(fitTitle);
+    observer.observe(title);
+    document.fonts?.ready.then(fitTitle);
+    fitTitle();
+    return () => observer.disconnect();
+  }, [featured?.release.title]);
+  useEffect(() => {
+    if (
+      !advanceCount ||
+      !featureRef.current ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      return;
+    const skin = document.documentElement.dataset.skin;
+    const frames: Keyframe[] =
+      skin === "underground"
+        ? [
+            { clipPath: "inset(0 100% 0 0)", opacity: 0.5 },
+            { clipPath: "inset(0 0 0 0)", opacity: 1 },
+          ]
+        : skin === "synth"
+          ? [
+              { opacity: 0, transform: "scale(0.96)" },
+              { opacity: 1, transform: "scale(1)" },
+            ]
+          : [
+              { opacity: 0, transform: "translateY(14px)" },
+              { opacity: 1, transform: "translateY(0)" },
+            ];
+    const animation = featureRef.current.animate(frames, {
+      duration: 400,
+      easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+    });
+    return () => animation.cancel();
+  }, [advanceCount]);
+  const showNextFeatured = () => {
+    if (featuredTracks.length < 2) return;
+    setFeaturedIndex(
+      (index) =>
+        (index + 1 + Math.floor(Math.random() * (featuredTracks.length - 1))) %
+        featuredTracks.length,
+    );
+    setAdvanceCount((count) => count + 1);
+  };
   const playable = catalogue.items.filter((item) => item.media && item.id !== featured?.id);
   const distinctReleases = playable.filter(
     (item, index) =>
@@ -52,42 +126,11 @@ export default function Home() {
     ...distinctReleases,
     ...playable.filter((item) => !distinctReleases.some((release) => release.id === item.id)),
   ].slice(0, 3);
-  const [skin, setSkin] = useState<"editorial" | "underground" | "synth">("editorial");
-  const identityPreviewActive = catalogue.items.some((item) =>
-    item.creator.slug.startsWith("preview-"),
-  );
-  useEffect(() => {
-    if (showSkinSelector) {
-      document.documentElement.dataset.skin = skin;
-      return () => {
-        delete document.documentElement.dataset.skin;
-      };
-    }
-  }, [showSkinSelector, skin]);
   return (
     <div className="radio-home">
-      {showSkinSelector && (
-        <div className="skin-selector" role="group" aria-label="Design direction">
-          <span>Design direction</span>
-          {(["editorial", "underground", "synth"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={skin === option}
-              onClick={() => setSkin(option)}
-            >
-              {option}
-            </button>
-          ))}
-          {import.meta.env.MODE === "test" ? (
-            <a href={identityPreviewActive ? "/?identity-preview=0" : "/?identity-preview=1"}>
-              {identityPreviewActive ? "Standard catalogue" : "Three-artist study"}
-            </a>
-          ) : null}
-        </div>
-      )}
       {featured ? (
         <section
+          ref={featureRef}
           className="label-feature"
           aria-labelledby="feature-title"
           data-identity
@@ -103,31 +146,31 @@ export default function Home() {
           </Link>
           <div className="label-feature__copy">
             <span className="label-feature__eyebrow">SUNSYN / Featured listening</span>
-            <h1 id="feature-title">{featured.release.title}</h1>
+            <h1 id="feature-title" ref={featureTitleRef}>
+              {featured.release.title}
+            </h1>
             <Link className="label-feature__artist" to={featured.creator.href}>
               {featured.creator.name}
             </Link>
-            <p className="label-feature__track">
-              Start with “{trackLabel(featured.description.title).title}”
-            </p>
             <div className="label-feature__actions">
               <button
                 type="button"
                 disabled={!featured.media}
                 onClick={() => player.playItem(featured, collection?.id)}
               >
-                <ListenerIcon name="play" /> Play the music
+                <ListenerIcon name="play" /> Play
               </button>
               <Link to={featured.release.href}>
                 Explore release <ListenerIcon name="arrow" size={16} />
               </Link>
-              {featuredReleases.length > 1 ? (
+              {featuredTracks.length > 1 ? (
                 <button
                   className="label-feature__another"
                   type="button"
-                  onClick={() => setFeaturedIndex((index) => (index + 1) % featuredReleases.length)}
+                  onClick={showNextFeatured}
+                  aria-label="Next featured song"
                 >
-                  Discover another
+                  Next <ListenerIcon name="arrow" size={16} />
                 </button>
               ) : null}
             </div>
@@ -155,8 +198,8 @@ export default function Home() {
                 <article className="label-discovery__card" key={track.id}>
                   <Link
                     className="label-discovery__art"
-                    to={track.href}
-                    aria-label={`View ${track.description.title}`}
+                    to={`${track.release.href}#track-${track.slug}`}
+                    aria-label={`View ${track.description.title} on ${track.release.title}`}
                   >
                     <Artwork artwork={track.artwork} size={360} />
                   </Link>
@@ -165,14 +208,19 @@ export default function Home() {
                       {track.release.title} / {track.mediaKind}
                     </span>
                     <h3>
-                      <Link to={track.href}>{trackLabel(track.description.title).title}</Link>
+                      <Link to={`${track.release.href}#track-${track.slug}`}>
+                        {trackLabel(track.description.title).title}
+                      </Link>
                     </h3>
                     <Link className="label-discovery__artist" to={track.creator.href}>
                       {track.creator.name}
                     </Link>
-                    <button type="button" onClick={() => player.playItem(track, collection?.id)}>
-                      <ListenerIcon name="play" size={16} /> Play “
-                      {trackLabel(track.description.title).title}”
+                    <button
+                      type="button"
+                      aria-label={`Play ${track.description.title}`}
+                      onClick={() => player.playItem(track, collection?.id)}
+                    >
+                      <ListenerIcon name="play" size={16} /> Play
                     </button>
                   </div>
                 </article>

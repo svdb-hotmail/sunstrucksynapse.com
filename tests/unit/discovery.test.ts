@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { discoveryOptions, filterCatalogue } from "../../app/services/discovery";
+import { discoveryOptions, exploreItems, filterCatalogue } from "../../app/services/discovery";
 import { makeCatalogueItem } from "../fixtures/catalogue";
 
 const ambient = {
@@ -91,5 +91,19 @@ describe("catalogue discovery", () => {
       years: [2025, 2024],
       processes: ["ai-texture", "human-performance"],
     });
+  });
+
+  it("separates featured release, audio, and video without changing latest order", () => {
+    const video = {
+      ...folk,
+      mediaKind: "video" as const,
+      media: undefined,
+      release: { ...folk.release, id: "other-release" },
+    };
+    const catalogue = [video, ambient];
+    expect(exploreItems(catalogue, "latest")).toEqual(catalogue);
+    expect(exploreItems(catalogue, "featured", ambient.release.id)).toEqual([ambient]);
+    expect(exploreItems(catalogue, "videos")).toEqual([video]);
+    expect(exploreItems(catalogue, "audio")).toEqual([ambient]);
   });
 });

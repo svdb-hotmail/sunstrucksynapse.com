@@ -86,7 +86,7 @@ describe("radio listener navigation", () => {
       ],
     });
     expect(markup).toContain("Featured listening");
-    expect(markup).toContain("Play the music");
+    expect(markup).toContain(" Play</button>");
     expect(markup).not.toContain('id="audio"');
     expect(markup).not.toContain('id="video"');
     expect(markup).toContain(item.description.title);
@@ -94,7 +94,7 @@ describe("radio listener navigation", () => {
   it("still offers the published catalogue without collections", () => {
     const markup = renderHome({ status: "ready", items: [item], collections: [] });
     expect(markup).toContain(item.description.title);
-    expect(markup).toContain("Play the music");
+    expect(markup).toContain(" Play</button>");
   });
   it("bounds homepage tracks while retaining an Explore destination", () => {
     const markup = renderHome({
@@ -104,6 +104,7 @@ describe("radio listener navigation", () => {
     });
     expect(markup.match(/class="label-discovery__card"/g)).toHaveLength(3);
     expect(markup).toContain('href="/search"');
+    expect(markup).toContain('href="/releases/test-release#track-track-');
   });
   for (const state of [
     { status: "empty", items: [], collections: [] },
@@ -111,7 +112,7 @@ describe("radio listener navigation", () => {
   ] satisfies CatalogueLoadResult[]) {
     it(`keeps ${state.status} state actionable and cannot start missing media`, () => {
       const markup = renderHome(state);
-      expect(markup).not.toContain("Play the music");
+      expect(markup).not.toContain('class="label-feature__actions"');
       expect(markup).not.toContain('class="media-card listener-track track-row"');
       expect(markup).toContain(
         state.status === "empty" ? "No transmissions are published yet." : "Try again later.",

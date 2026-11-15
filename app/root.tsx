@@ -21,6 +21,7 @@ import {
   THEME_INIT_SCRIPT,
 } from "~/design-system/theme";
 import { loadPublicCatalogue } from "~/repositories/catalogue.server";
+import { DEFAULT_SKIN, SKIN_INIT_SCRIPT } from "~/design-system/skin";
 import {
   defaultCatalogueNavigation,
   catalogueLoadingMessage,
@@ -55,6 +56,9 @@ import "./styles/listener-reference.css";
 import "./styles/queue-panel.css";
 import "./styles/home-skins.css";
 import "./styles/visual-identity.css";
+import "./styles/site-skins.css";
+import "./styles/explore.css";
+import "./styles/about-skins.css";
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", href: "/assets/favicon.svg", type: "image/svg+xml" },
@@ -78,12 +82,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { pathname } = useLocation();
 
   return (
-    <html lang="en" data-theme={DEFAULT_THEME} suppressHydrationWarning>
+    <html lang="en" data-theme={DEFAULT_THEME} data-skin={DEFAULT_SKIN} suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         <meta name="theme-color" content={themeColor} suppressHydrationWarning />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: SKIN_INIT_SCRIPT }} />
         <Meta />
         <Links />
       </head>
