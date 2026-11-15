@@ -1,6 +1,4 @@
 import { Link } from "react-router";
-import { ShareButton } from "~/components/ShareButton";
-import { SITE_URL } from "~/config/brand";
 import { trackDuration } from "~/services/listening";
 import type { CatalogueItem } from "~/types/catalogue";
 import { ListenerIcon } from "~/design-system/ListenerIcon";
@@ -16,7 +14,7 @@ interface CatalogueCardProps {
   onQueue: (item: CatalogueItem) => void;
   onPlay: (item: CatalogueItem) => void;
   position?: number;
-  simpleActions?: boolean;
+  explore?: boolean;
 }
 export function CatalogueCard({
   item,
@@ -26,13 +24,14 @@ export function CatalogueCard({
   onQueue,
   onPlay,
   position,
-  simpleActions = false,
+  explore = false,
 }: CatalogueCardProps) {
   const duration = trackDuration(item.durationMs);
   const label = trackLabel(item.description.title);
+  const destination = explore ? `${item.release.href}#track-${item.slug}` : item.href;
   return (
     <article
-      className="media-card listener-track track-row"
+      className={`media-card listener-track track-row${explore ? " explore-card" : ""}`}
       data-selected={isSelected || undefined}
     >
       <span className="track-number" aria-hidden="true">
@@ -40,18 +39,33 @@ export function CatalogueCard({
       </span>
       <Link
         className="media-card-select"
-        to={item.href}
-        aria-label={`View track: ${item.description.title}`}
+        to={destination}
+        aria-label={
+          explore
+            ? `View ${item.description.title} on ${item.release.title}`
+            : `View track: ${item.description.title}`
+        }
       >
         <Artwork artwork={item.artwork} decorative />
       </Link>
       <div className="media-card-body">
-        <Link className="media-card-title" to={item.href} aria-label={item.description.title}>
+        <Link className="media-card-title" to={destination} aria-label={item.description.title}>
           <span>{label.title}</span>
         </Link>
         <span className="media-card-description">
-          {item.creator.name}
-          {label.subtitle ? ` · ${label.subtitle}` : ""}
+          {explore ? (
+            <>
+              <Link className="media-card-artist" to={item.creator.href}>
+                {item.creator.name}
+              </Link>
+              {` · ${item.release.title}`}
+            </>
+          ) : (
+            <>
+              {item.creator.name}
+              {label.subtitle ? ` · ${label.subtitle}` : ""}
+            </>
+          )}
           {duration ? ` · ${duration}` : ""}
         </span>
         <div className="card-actions">
@@ -85,22 +99,6 @@ export function CatalogueCard({
           >
             <ListenerIcon name="plus" />
           </button>
-          {!simpleActions ? (
-            <details className="track-menu">
-              <summary role="button" aria-label={`More actions for ${item.description.title}`}>
-                <span aria-hidden="true">⋯</span>
-              </summary>
-              <div className="track-menu__content">
-                <ShareButton
-                  title={item.description.title}
-                  url={new URL(item.href, SITE_URL).href}
-                  trackId={item.id}
-                />
-                <Link to={item.href}>View track</Link>
-                <Link to={item.creator.href}>View artist</Link>
-              </div>
-            </details>
-          ) : null}
         </div>
       </div>
     </article>

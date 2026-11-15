@@ -1,25 +1,24 @@
 import { CatalogueCard } from "~/components/CatalogueCard";
+import { useLocation } from "react-router";
 import type { CatalogueItem, PlayerOutletContext } from "~/types/catalogue";
 interface EntityTrackListProps {
   tracks: CatalogueItem[];
   player: PlayerOutletContext;
   collectionId?: string;
-  simpleActions?: boolean;
 }
-export function EntityTrackList({
-  tracks,
-  player,
-  collectionId,
-  simpleActions,
-}: EntityTrackListProps) {
+export function EntityTrackList({ tracks, player, collectionId }: EntityTrackListProps) {
+  const { hash } = useLocation();
   return (
     <ol className="entity-track-list">
       {tracks.map((track, index) => (
-        <li key={track.id}>
+        <li
+          key={track.id}
+          id={`track-${track.slug}`}
+          data-targeted={hash === `#track-${track.slug}` || undefined}
+        >
           <CatalogueCard
             item={track}
             position={index + 1}
-            simpleActions={simpleActions}
             isSelected={player.selectedItemId === track.id}
             isPlaying={player.playingItemId === track.id}
             isQueued={
