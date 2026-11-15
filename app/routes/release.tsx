@@ -5,7 +5,12 @@ import { EntityTrackList } from "~/components/EntityTrackList";
 import { IdentityPreviewControls } from "~/components/IdentityPreviewControls";
 import { ShareButton } from "~/components/ShareButton";
 import { ListenerIcon } from "~/design-system/ListenerIcon";
-import { defaultIdentityTreatment, identityStyle } from "~/design-system/visual-identity";
+import {
+  defaultIdentityTreatment,
+  identityStyle,
+  type IdentityTreatment,
+} from "~/design-system/visual-identity";
+import { useArtworkPalette } from "~/design-system/artwork-palette";
 import { SITE_NAME, SITE_URL } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { releaseSeo } from "~/services/seo.server";
@@ -50,19 +55,22 @@ export const meta: Route.MetaFunction = ({ loaderData }) => {
 export default function ReleaseRoute({ loaderData }: Route.ComponentProps) {
   const player = useOutletContext<PlayerOutletContext>();
   const { release, canonicalUrl } = loaderData;
-  const [treatment, setTreatment] = useState(defaultIdentityTreatment(release.slug));
+  const [treatment, setTreatment] = useState<IdentityTreatment | null>(null);
+  const artworkPalette = useArtworkPalette(release.artwork.src);
+  const activeTreatment =
+    treatment ?? (artworkPalette ? "palette" : defaultIdentityTreatment(release.slug));
 
   return (
     <article
       className="entity-page identity-page release-showcase"
-      data-treatment={treatment}
-      style={identityStyle(release.slug)}
+      data-treatment={activeTreatment}
+      style={identityStyle(release.slug, artworkPalette)}
     >
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(loaderData.seo.jsonLd) }}
       />
-      <IdentityPreviewControls treatment={treatment} onChange={setTreatment} />
+      <IdentityPreviewControls treatment={activeTreatment} onChange={setTreatment} />
       <section className="identity-hero" aria-labelledby="release-title">
         <div className="identity-hero__art">
           <img src={release.artwork.src} alt={release.artwork.alt} />

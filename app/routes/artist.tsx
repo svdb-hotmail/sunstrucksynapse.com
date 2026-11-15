@@ -4,7 +4,12 @@ import { useState } from "react";
 import { EntityTrackList } from "~/components/EntityTrackList";
 import { IdentityPreviewControls } from "~/components/IdentityPreviewControls";
 import { ListenerIcon } from "~/design-system/ListenerIcon";
-import { defaultIdentityTreatment, identityStyle } from "~/design-system/visual-identity";
+import {
+  defaultIdentityTreatment,
+  identityStyle,
+  type IdentityTreatment,
+} from "~/design-system/visual-identity";
+import { useArtworkPalette } from "~/design-system/artwork-palette";
 import { SITE_NAME, SITE_URL } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
 import { artistSeo } from "~/services/seo.server";
@@ -52,19 +57,22 @@ export const meta: Route.MetaFunction = ({ loaderData }) => {
 export default function ArtistRoute({ loaderData }: Route.ComponentProps) {
   const player = useOutletContext<PlayerOutletContext>();
   const { artist, releases } = loaderData;
-  const [treatment, setTreatment] = useState(defaultIdentityTreatment(artist.slug));
+  const [treatment, setTreatment] = useState<IdentityTreatment | null>(null);
+  const artworkPalette = useArtworkPalette(artist.artwork.src);
+  const activeTreatment =
+    treatment ?? (artworkPalette ? "palette" : defaultIdentityTreatment(artist.slug));
 
   return (
     <article
       className="entity-page identity-page artist-showcase"
-      data-treatment={treatment}
-      style={identityStyle(artist.slug)}
+      data-treatment={activeTreatment}
+      style={identityStyle(artist.slug, artworkPalette)}
     >
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(loaderData.seo.jsonLd) }}
       />
-      <IdentityPreviewControls treatment={treatment} onChange={setTreatment} />
+      <IdentityPreviewControls treatment={activeTreatment} onChange={setTreatment} />
       <section className="identity-hero" aria-labelledby="artist-name">
         <div className="identity-hero__art">
           <img src={artist.artwork.src} alt={artist.artwork.alt} />

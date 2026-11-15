@@ -8,6 +8,7 @@ import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "~/config/brand";
 import { catalogueStateCopy } from "~/services/catalogue";
 import { listeningSelection } from "~/services/listening";
 import { identityStyle } from "~/design-system/visual-identity";
+import { useArtworkPalette } from "~/design-system/artwork-palette";
 import type { CatalogueLoadResult } from "~/types/catalogue";
 import type { PlayerOutletContext } from "~/types/catalogue";
 
@@ -40,6 +41,7 @@ export default function Home() {
   const featureRef = useRef<HTMLElement>(null);
   const featureTitleRef = useRef<HTMLHeadingElement>(null);
   const featured = featuredTracks[featuredIndex % featuredTracks.length];
+  const featuredPalette = useArtworkPalette(featured?.artwork.src);
   useEffect(() => {
     const title = featureTitleRef.current;
     if (!title) return;
@@ -135,7 +137,7 @@ export default function Home() {
           aria-labelledby="feature-title"
           data-identity
           data-treatment="palette"
-          style={identityStyle(featured.release.slug)}
+          style={identityStyle(featured.release.slug, featuredPalette)}
         >
           <Link
             className="label-feature__art"

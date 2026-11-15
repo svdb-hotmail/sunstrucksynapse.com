@@ -29,7 +29,8 @@ export const SKIN_INIT_SCRIPT = `(() => {
   const skins = ${JSON.stringify(SKINS)};
   let saved = null;
   try { saved = window.localStorage.getItem(key); } catch {}
-  const skin = skins.includes(saved) ? saved : skins[Math.floor(Math.random() * skins.length)];
+  const requested = new URLSearchParams(window.location.search).get("skin");
+  const skin = skins.includes(requested) ? requested : (skins.includes(saved) ? saved : skins[Math.floor(Math.random() * skins.length)]);
   document.documentElement.dataset.skin = skin;
   try { window.localStorage.setItem(key, skin); } catch {}
 })();`;
