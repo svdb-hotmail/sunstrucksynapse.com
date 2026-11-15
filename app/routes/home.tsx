@@ -171,9 +171,12 @@ export default function Home() {
                     <Link className="label-discovery__artist" to={track.creator.href}>
                       {track.creator.name}
                     </Link>
-                    <button type="button" onClick={() => player.playItem(track, collection?.id)}>
-                      <ListenerIcon name="play" size={16} /> Play “
-                      {trackLabel(track.description.title).title}”
+                    <button
+                      type="button"
+                      aria-label={`Play ${track.description.title}`}
+                      onClick={() => player.playItem(track, collection?.id)}
+                    >
+                      <ListenerIcon name="play" size={16} /> Play
                     </button>
                   </div>
                 </article>
