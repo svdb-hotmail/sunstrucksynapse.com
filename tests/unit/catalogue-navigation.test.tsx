@@ -104,6 +104,7 @@ describe("radio listener navigation", () => {
     });
     expect(markup.match(/class="label-discovery__card"/g)).toHaveLength(3);
     expect(markup).toContain('href="/search"');
+    expect(markup).toContain('href="/releases/test-release#track-track-');
   });
   for (const state of [
     { status: "empty", items: [], collections: [] },

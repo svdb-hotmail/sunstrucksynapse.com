@@ -156,8 +156,8 @@ export default function Home() {
                 <article className="label-discovery__card" key={track.id}>
                   <Link
                     className="label-discovery__art"
-                    to={track.href}
-                    aria-label={`View ${track.description.title}`}
+                    to={`${track.release.href}#track-${track.slug}`}
+                    aria-label={`View ${track.description.title} on ${track.release.title}`}
                   >
                     <Artwork artwork={track.artwork} size={360} />
                   </Link>
@@ -166,7 +166,9 @@ export default function Home() {
                       {track.release.title} / {track.mediaKind}
                     </span>
                     <h3>
-                      <Link to={track.href}>{trackLabel(track.description.title).title}</Link>
+                      <Link to={`${track.release.href}#track-${track.slug}`}>
+                        {trackLabel(track.description.title).title}
+                      </Link>
                     </h3>
                     <Link className="label-discovery__artist" to={track.creator.href}>
                       {track.creator.name}
