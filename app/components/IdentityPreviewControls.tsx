@@ -1,15 +1,11 @@
-import { Link } from "react-router";
 import { showIdentityPreview, type IdentityTreatment } from "~/design-system/visual-identity";
-import type { Creator } from "~/types/catalogue";
 
 export function IdentityPreviewControls({
   treatment,
   onChange,
-  artists = [],
 }: {
   treatment: IdentityTreatment;
   onChange: (next: IdentityTreatment) => void;
-  artists?: Creator[];
 }) {
   if (!showIdentityPreview) return null;
   return (
@@ -27,15 +23,6 @@ export function IdentityPreviewControls({
           </button>
         ))}
       </div>
-      {artists.length > 1 ? (
-        <nav aria-label="Preview artists">
-          {artists.map((artist) => (
-            <Link key={artist.id} to={artist.href}>
-              {artist.name}
-            </Link>
-          ))}
-        </nav>
-      ) : null}
     </div>
   );
 }

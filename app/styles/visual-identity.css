@@ -77,17 +77,12 @@
   text-transform: uppercase;
   letter-spacing: 0.15em;
 }
-.listener-shell .identity-preview-controls > div,
-.listener-shell .identity-preview-controls nav {
+.listener-shell .identity-preview-controls > div {
   display: flex;
   flex-wrap: wrap;
   gap: 0.35rem;
 }
-.listener-shell .identity-preview-controls nav {
-  margin-left: auto;
-}
-.listener-shell .identity-preview-controls button,
-.listener-shell .identity-preview-controls a {
+.listener-shell .identity-preview-controls button {
   display: inline-flex;
   align-items: center;
   min-height: 36px;
@@ -283,9 +278,6 @@
   }
   .listener-shell .identity-release-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  .listener-shell .identity-preview-controls nav {
-    margin-left: 0;
   }
 }
 @media (max-width: 480px) {

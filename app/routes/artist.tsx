@@ -54,9 +54,6 @@ export default function ArtistRoute({ loaderData }: Route.ComponentProps) {
   const player = useOutletContext<PlayerOutletContext>();
   const { artist, releases, canonicalUrl } = loaderData;
   const [treatment, setTreatment] = useState(defaultIdentityTreatment(artist.slug));
-  const previewArtists = [
-    ...new Map(player.catalogue.items.map((track) => [track.creator.id, track.creator])).values(),
-  ];
 
   return (
     <article
@@ -68,11 +65,7 @@ export default function ArtistRoute({ loaderData }: Route.ComponentProps) {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(loaderData.seo.jsonLd) }}
       />
-      <IdentityPreviewControls
-        treatment={treatment}
-        onChange={setTreatment}
-        artists={previewArtists}
-      />
+      <IdentityPreviewControls treatment={treatment} onChange={setTreatment} />
       <section className="identity-hero" aria-labelledby="artist-name">
         <div className="identity-hero__art">
           <img src={artist.artwork.src} alt={artist.artwork.alt} />
