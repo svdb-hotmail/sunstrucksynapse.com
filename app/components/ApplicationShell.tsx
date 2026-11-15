@@ -34,7 +34,6 @@ export function ApplicationShell({
       </main>
       <footer className="listener-footer site-footer">
         <span className="brand-display">SUNSYN RADIO</span>
-        <span>Independent sound. Human selection.</span>
         <Link to="/about" aria-current={pathname === "/about" ? "page" : undefined}>
           About SunSyn
         </Link>
@@ -42,11 +41,9 @@ export function ApplicationShell({
         <span className="mobile-theme">
           <ThemeToggle />
         </span>
-        <small>
-          {import.meta.env.MODE === "site-preview"
-            ? "Design preview · sample catalogue · production unchanged"
-            : "Music made with intent."}
-        </small>
+        {import.meta.env.MODE === "site-preview" ? (
+          <small>Design preview · sample catalogue · production unchanged</small>
+        ) : null}
       </footer>
       <PlayerPanel ref={playerPanelRef} {...player} />
       <MobileNav navigation={navigation} queueCount={player.queue.length} onOpenQueue={openQueue} />

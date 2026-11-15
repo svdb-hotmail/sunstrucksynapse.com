@@ -112,6 +112,9 @@
   color: var(--site-ink);
   border-color: var(--site-line);
 }
+[data-skin] .listener-shell .listener-footer {
+  padding-inline: clamp(1rem, 2vw, 1.75rem);
+}
 [data-skin] .listener-shell .content-panel {
   background: var(--site-page);
 }
