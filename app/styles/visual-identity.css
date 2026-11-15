@@ -44,10 +44,10 @@
 }
 .listener-shell .identity-page,
 .listener-shell .radio-home .label-feature[data-identity] {
-  --identity-paper: var(--color-surface-panel);
-  --identity-surface: var(--color-surface-panel);
-  --identity-ink: var(--color-content-primary);
-  --identity-accent-active: var(--color-accent-violet);
+  --identity-paper: var(--site-page, var(--color-surface-panel));
+  --identity-surface: var(--site-card, var(--color-surface-panel));
+  --identity-ink: var(--site-ink, var(--color-content-primary));
+  --identity-accent-active: var(--site-accent, var(--color-accent-violet));
   color: var(--identity-ink);
   background: var(--identity-paper);
 }
@@ -56,20 +56,20 @@
 [data-theme="light"] .listener-shell .identity-page[data-treatment="collage"],
 [data-theme="light"] .listener-shell .identity-page[data-treatment="signal"],
 [data-theme="light"] .listener-shell .radio-home .label-feature[data-treatment="palette"] {
-  --identity-paper: var(--identity-paper-light, var(--color-surface-panel));
-  --identity-surface: var(--identity-surface-light, var(--color-surface-panel));
-  --identity-ink: var(--identity-ink-light, var(--color-content-primary));
-  --identity-accent-active: var(--identity-accent, var(--color-accent-violet));
+  --identity-paper: var(--identity-paper-light, var(--site-page, var(--color-surface-panel)));
+  --identity-surface: var(--identity-surface-light, var(--site-card, var(--color-surface-panel)));
+  --identity-ink: var(--identity-ink-light, var(--site-ink, var(--color-content-primary)));
+  --identity-accent-active: var(--identity-accent, var(--site-accent, var(--color-accent-violet)));
 }
 [data-theme="dark"] .listener-shell .identity-page[data-treatment="palette"],
 [data-theme="dark"] .listener-shell .identity-page[data-treatment="expressive"],
 [data-theme="dark"] .listener-shell .identity-page[data-treatment="collage"],
 [data-theme="dark"] .listener-shell .identity-page[data-treatment="signal"],
 [data-theme="dark"] .listener-shell .radio-home .label-feature[data-treatment="palette"] {
-  --identity-paper: var(--identity-paper-dark, var(--color-surface-panel));
-  --identity-surface: var(--identity-surface-dark, var(--color-surface-panel));
-  --identity-ink: var(--identity-ink-dark, var(--color-content-primary));
-  --identity-accent-active: var(--identity-accent, var(--color-accent-violet));
+  --identity-paper: var(--identity-paper-dark, var(--site-page, var(--color-surface-panel)));
+  --identity-surface: var(--identity-surface-dark, var(--site-card, var(--color-surface-panel)));
+  --identity-ink: var(--identity-ink-dark, var(--site-ink, var(--color-content-primary)));
+  --identity-accent-active: var(--identity-accent, var(--site-accent, var(--color-accent-violet)));
 }
 .listener-shell .radio-home .label-feature[data-identity] {
   background:

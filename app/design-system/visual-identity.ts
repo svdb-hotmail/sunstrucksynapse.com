@@ -1,4 +1,4 @@
-import type { CSSProperties } from "react";
+import { paletteStyle, type ArtworkPalette } from "./artwork-palette";
 
 export type IdentityTreatment =
   | "neutral"
@@ -79,18 +79,10 @@ export const showIdentityPreview =
   import.meta.env.DEV || ["site-preview", "test"].includes(import.meta.env.MODE);
 
 /** Manual, reviewed tokens. Unknown catalogue entries use the shared neutral design. */
-export function identityStyle(slug: string): CSSProperties | undefined {
-  const palette = identities[slug];
+export function identityStyle(slug: string, artworkPalette?: ArtworkPalette | null) {
+  const palette = identities[slug] ?? artworkPalette;
   if (!palette) return undefined;
-  return {
-    "--identity-accent": palette.accent,
-    "--identity-paper-light": palette.paperLight,
-    "--identity-paper-dark": palette.paperDark,
-    "--identity-surface-light": palette.surfaceLight,
-    "--identity-surface-dark": palette.surfaceDark,
-    "--identity-ink-light": palette.inkLight,
-    "--identity-ink-dark": palette.inkDark,
-  } as CSSProperties;
+  return paletteStyle(palette);
 }
 
 export function defaultIdentityTreatment(slug: string): IdentityTreatment {
