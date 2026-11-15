@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { Search, SlidersHorizontal } from "lucide-react";
 import { data, Form, Link, useOutletContext } from "react-router";
 
 import { CatalogueCard } from "~/components/CatalogueCard";
@@ -75,6 +76,7 @@ export const meta = () => [{ title: `Search | ${SITE_NAME}` }];
 export default function SearchRoute({ loaderData }: Route.ComponentProps) {
   const player = useOutletContext<PlayerOutletContext>();
   const { filters, view, page, pageCount, total, results, options } = loaderData;
+  const [searchOpen, setSearchOpen] = useState(Boolean(filters.query));
   const active = Boolean(
     filters.query || filters.genre || filters.mood || filters.year || filters.process,
   );
@@ -115,66 +117,102 @@ export default function SearchRoute({ loaderData }: Route.ComponentProps) {
         className="listener-search"
       >
         <input type="hidden" name="view" value={view} />
-        <label htmlFor="listener-query">Search artists, releases and tracks</label>
-        <div className="listener-search__query">
-          <input id="listener-query" name="q" defaultValue={filters.query} type="search" />
-          <button type="submit">Search</button>
-        </div>
-        <details className="listener-filters">
-          <summary role="button">Filters{activeCount ? ` (${activeCount} applied)` : ""}</summary>
-          <div className="listener-filters__fields">
-            {options.genres.length || filters.genre ? (
-              <DiscoveryFacet
-                name="genre"
-                label="Genre"
-                allLabel="All genres"
-                options={options.genres}
-                selectedValue={filters.genre}
-              />
-            ) : null}
-            {options.moods.length || filters.mood ? (
-              <DiscoveryFacet
-                name="mood"
-                label="Mood"
-                allLabel="All moods"
-                options={options.moods}
-                selectedValue={filters.mood}
-              />
-            ) : null}
-            {options.years.length || filters.year ? (
-              <DiscoveryFacet
-                name="year"
-                label="Year"
-                allLabel="All years"
-                options={options.years}
-                selectedValue={filters.year}
-              />
-            ) : null}
-            {options.processes.length || filters.process ? (
-              <DiscoveryFacet
-                name="process"
-                label="Creative process"
-                allLabel="All processes"
-                options={options.processes}
-                selectedValue={filters.process}
-              />
-            ) : null}
-            <button type="submit">Apply filters</button>
+        {!searchOpen && filters.query ? (
+          <input type="hidden" name="q" value={filters.query} />
+        ) : null}
+        <div className="explore-toolbar">
+          <p className="explore-count" role="status">
+            {total
+              ? `${total} ${total === 1 ? "track" : "tracks"}${pageCount > 1 ? ` · page ${page} of ${pageCount}` : ""}`
+              : active
+                ? "No tracks match here. Clear a filter or choose another view."
+                : "No tracks in this view yet. Choose another view."}
+          </p>
+          <div className="explore-toolbar__actions">
+            <button
+              type="button"
+              className="explore-tool"
+              aria-label={searchOpen ? "Hide search" : "Show search"}
+              aria-expanded={searchOpen}
+              aria-controls="explore-search-fields"
+              onClick={() => setSearchOpen((open) => !open)}
+            >
+              <Search aria-hidden="true" size={20} />
+              {filters.query ? <span className="explore-tool__dot" aria-hidden="true" /> : null}
+            </button>
+            <details className="listener-filters">
+              <summary
+                className="explore-tool"
+                aria-label={`Filters${activeCount ? `, ${activeCount} applied` : ""}`}
+              >
+                <SlidersHorizontal aria-hidden="true" size={20} />
+                {activeCount ? <span className="explore-tool__count">{activeCount}</span> : null}
+              </summary>
+              <div className="listener-filters__fields">
+                {options.genres.length || filters.genre ? (
+                  <DiscoveryFacet
+                    name="genre"
+                    label="Genre"
+                    allLabel="All genres"
+                    options={options.genres}
+                    selectedValue={filters.genre}
+                  />
+                ) : null}
+                {options.moods.length || filters.mood ? (
+                  <DiscoveryFacet
+                    name="mood"
+                    label="Mood"
+                    allLabel="All moods"
+                    options={options.moods}
+                    selectedValue={filters.mood}
+                  />
+                ) : null}
+                {options.years.length || filters.year ? (
+                  <DiscoveryFacet
+                    name="year"
+                    label="Year"
+                    allLabel="All years"
+                    options={options.years}
+                    selectedValue={filters.year}
+                  />
+                ) : null}
+                {options.processes.length || filters.process ? (
+                  <DiscoveryFacet
+                    name="process"
+                    label="Creative process"
+                    allLabel="All processes"
+                    options={options.processes}
+                    selectedValue={filters.process}
+                  />
+                ) : null}
+                <button type="submit">Apply filters</button>
+              </div>
+            </details>
           </div>
-        </details>
+        </div>
+        {searchOpen ? (
+          <div id="explore-search-fields" className="explore-search-fields">
+            <label htmlFor="listener-query">Search artists, releases and tracks</label>
+            <div className="listener-search__query">
+              <input
+                id="listener-query"
+                name="q"
+                defaultValue={filters.query}
+                type="search"
+                autoFocus
+              />
+              <button type="submit">Search</button>
+            </div>
+          </div>
+        ) : (
+          <div id="explore-search-fields" hidden />
+        )}
         {active ? (
           <Link to={`/search?view=${view}`} preventScrollReset>
             Clear search & filters
           </Link>
         ) : null}
       </Form>
-      <p className="explore-count" role="status">
-        {total
-          ? `${total} ${total === 1 ? "track" : "tracks"}${pageCount > 1 ? ` · page ${page} of ${pageCount}` : ""}`
-          : active
-            ? "No tracks match here. Clear a filter or choose another view."
-            : "No tracks in this view yet. Choose another view."}
-      </p>
       {results.length ? (
         <ol className="explore-grid" data-view={view}>
           {results.map((item) => (
