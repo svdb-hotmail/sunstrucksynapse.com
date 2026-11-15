@@ -76,11 +76,6 @@
   text-decoration: none;
   border-bottom: 1px solid var(--skin-accent);
 }
-.listener-shell .radio-home .label-feature__track {
-  margin-top: 1.5rem;
-  color: var(--skin-muted);
-  font-size: 0.9rem;
-}
 .listener-shell .radio-home .label-feature__actions {
   display: flex;
   flex-wrap: wrap;

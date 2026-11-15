@@ -110,16 +110,13 @@ export default function Home() {
             <Link className="label-feature__artist" to={featured.creator.href}>
               {featured.creator.name}
             </Link>
-            <p className="label-feature__track">
-              Start with “{trackLabel(featured.description.title).title}”
-            </p>
             <div className="label-feature__actions">
               <button
                 type="button"
                 disabled={!featured.media}
                 onClick={() => player.playItem(featured, collection?.id)}
               >
-                <ListenerIcon name="play" /> Play the music
+                <ListenerIcon name="play" /> Play
               </button>
               <Link to={featured.release.href}>
                 Explore release <ListenerIcon name="arrow" size={16} />
