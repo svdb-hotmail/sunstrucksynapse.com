@@ -1,5 +1,5 @@
 import { Link, useOutletContext } from "react-router";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ListenerIcon } from "~/design-system/ListenerIcon";
 import { trackLabel } from "~/design-system/track-label";
@@ -27,20 +27,56 @@ export default function Home() {
   const player = useOutletContext<PlayerOutletContext>();
   const { catalogue } = player;
   const { collection } = listeningSelection(catalogue.items, catalogue.collections);
-  const playableReleases = catalogue.items.filter(
-    (item) => item.mediaKind === "audio" && item.media,
-  );
-  const featuredReleases = [
-    ...new Map(playableReleases.map((item) => [item.release.id, item])).values(),
-  ].sort((a, b) =>
-    a.release.slug === "phase-zero-transmissions"
-      ? -1
-      : b.release.slug === "phase-zero-transmissions"
-        ? 1
-        : a.release.title.localeCompare(b.release.title),
-  );
+  const featuredTracks = catalogue.items
+    .filter((item) => item.mediaKind === "audio" && item.media)
+    .sort(
+      (a, b) =>
+        Number(b.release.slug === "phase-zero-transmissions") -
+          Number(a.release.slug === "phase-zero-transmissions") ||
+        a.release.title.localeCompare(b.release.title),
+    );
   const [featuredIndex, setFeaturedIndex] = useState(0);
-  const featured = featuredReleases[featuredIndex % featuredReleases.length];
+  const [advanceCount, setAdvanceCount] = useState(0);
+  const featureRef = useRef<HTMLElement>(null);
+  const featured = featuredTracks[featuredIndex % featuredTracks.length];
+  useEffect(() => {
+    if (
+      !advanceCount ||
+      !featureRef.current ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+    )
+      return;
+    const skin = document.documentElement.dataset.skin;
+    const frames: Keyframe[] =
+      skin === "underground"
+        ? [
+            { clipPath: "inset(0 100% 0 0)", opacity: 0.5 },
+            { clipPath: "inset(0 0 0 0)", opacity: 1 },
+          ]
+        : skin === "synth"
+          ? [
+              { opacity: 0, transform: "scale(0.96)" },
+              { opacity: 1, transform: "scale(1)" },
+            ]
+          : [
+              { opacity: 0, transform: "translateY(14px)" },
+              { opacity: 1, transform: "translateY(0)" },
+            ];
+    const animation = featureRef.current.animate(frames, {
+      duration: 400,
+      easing: "cubic-bezier(0.2, 0.8, 0.2, 1)",
+    });
+    return () => animation.cancel();
+  }, [advanceCount]);
+  const showNextFeatured = () => {
+    if (featuredTracks.length < 2) return;
+    setFeaturedIndex(
+      (index) =>
+        (index + 1 + Math.floor(Math.random() * (featuredTracks.length - 1))) %
+        featuredTracks.length,
+    );
+    setAdvanceCount((count) => count + 1);
+  };
   const playable = catalogue.items.filter((item) => item.media && item.id !== featured?.id);
   const distinctReleases = playable.filter(
     (item, index) =>
@@ -54,6 +90,7 @@ export default function Home() {
     <div className="radio-home">
       {featured ? (
         <section
+          ref={featureRef}
           className="label-feature"
           aria-labelledby="feature-title"
           data-identity
@@ -87,13 +124,14 @@ export default function Home() {
               <Link to={featured.release.href}>
                 Explore release <ListenerIcon name="arrow" size={16} />
               </Link>
-              {featuredReleases.length > 1 ? (
+              {featuredTracks.length > 1 ? (
                 <button
                   className="label-feature__another"
                   type="button"
-                  onClick={() => setFeaturedIndex((index) => (index + 1) % featuredReleases.length)}
+                  onClick={showNextFeatured}
+                  aria-label="Next featured song"
                 >
-                  Discover another
+                  Next <ListenerIcon name="arrow" size={16} />
                 </button>
               ) : null}
             </div>

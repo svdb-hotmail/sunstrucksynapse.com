@@ -113,6 +113,12 @@
   text-decoration-thickness: 1px;
   text-underline-offset: 0.25rem;
 }
+.listener-shell .radio-home .label-feature__actions .label-feature__another {
+  min-height: 42px;
+  padding: 0.55rem 0.8rem;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+}
 .listener-shell .radio-home .content-layout {
   display: block;
   margin: 0;
