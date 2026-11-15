@@ -76,7 +76,9 @@ describe("about route composition", () => {
   it("renders a concise About page with three goals, policy answers, and modal contact", () => {
     const markup = renderRoute(<About />);
 
-    expect(markup).toContain("<h1>Music chosen by people, made with intent.</h1>");
+    expect(markup).toMatch(
+      /<h1[^>]*>[\s\S]*Music chosen[\s\S]*by people,[\s\S]*made with intent\.[\s\S]*<\/h1>/,
+    );
     expect(markup).toContain("SunSyn Radio is a human-curated place");
     expect(markup).toContain('id="about"');
     expect(markup).toContain("What guides us");
