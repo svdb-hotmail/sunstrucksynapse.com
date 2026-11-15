@@ -1,8 +1,8 @@
 import { sql, type SQL } from "drizzle-orm";
 import type { PgDatabase, PgQueryResultHKT } from "drizzle-orm/pg-core";
 
-import { curationOutbox } from "~/db/schema";
-import * as schema from "~/db/schema";
+import { curationOutbox } from "../db/schema";
+import * as schema from "../db/schema";
 
 export const CURATION_OUTBOX_MAX_IDEMPOTENCY_KEY_LENGTH = 200;
 export const CURATION_OUTBOX_MAX_KIND_LENGTH = 100;
@@ -224,7 +224,13 @@ export function createCurationOutboxRepository<TQueryResult extends PgQueryResul
     },
 
     async claim(
-      options: { limit?: number; leaseSeconds?: number } = {},
+      options: {
+        limit?: number;
+        leaseSeconds?: number;
+        kinds?: readonly string[];
+        excludeKinds?: readonly string[];
+        sourceStorageProvider?: "r2" | "static";
+      } = {},
     ): Promise<CurationOutboxClaimedRow[]> {
       const limit = boundedInteger(
         options.limit ?? CURATION_OUTBOX_DEFAULT_CLAIM_LIMIT,
@@ -238,11 +244,49 @@ export function createCurationOutboxRepository<TQueryResult extends PgQueryResul
         900,
         "lease duration",
       );
+      for (const kind of [...(options.kinds ?? []), ...(options.excludeKinds ?? [])]) {
+        if (
+          typeof kind !== "string" ||
+          !kind.trim() ||
+          kind.length > CURATION_OUTBOX_MAX_KIND_LENGTH
+        )
+          throw new TypeError("Curation outbox claim kind is invalid.");
+      }
+      if (
+        options.sourceStorageProvider !== undefined &&
+        options.sourceStorageProvider !== "r2" &&
+        options.sourceStorageProvider !== "static"
+      ) {
+        throw new TypeError("Curation outbox source storage provider is invalid.");
+      }
+      const admission = sql`${
+        options.kinds
+          ? options.kinds.length
+            ? sql`and kind in (${sql.join(
+                options.kinds.map((kind) => sql`${kind}`),
+                sql`, `,
+              )})`
+            : sql`and false`
+          : sql``
+      }
+        ${
+          options.excludeKinds?.length
+            ? sql`and kind not in (${sql.join(
+                options.excludeKinds.map((kind) => sql`${kind}`),
+                sql`, `,
+              )})`
+            : sql``
+        }
+        ${
+          options.sourceStorageProvider !== undefined
+            ? sql`and payload->>'storageProvider' = ${options.sourceStorageProvider}`
+            : sql``
+        }`;
       const rows = await executeRows<RawClaimedRow>(sql`
         with expired_exhausted as (
           select id
           from ${curationOutbox}
-          where status = 'processing'
+          where status = 'processing' ${admission}
             and lease_expires_at <= now()
             and attempts >= ${CURATION_OUTBOX_MAX_ATTEMPTS}
           order by lease_expires_at, id
@@ -263,7 +307,7 @@ export function createCurationOutboxRepository<TQueryResult extends PgQueryResul
         ), candidates as (
           select id
           from ${curationOutbox}
-          where attempts < ${CURATION_OUTBOX_MAX_ATTEMPTS}
+          where attempts < ${CURATION_OUTBOX_MAX_ATTEMPTS} ${admission}
             and (
               (status = 'pending' and available_at <= now())
               or (status = 'processing' and lease_expires_at <= now())
@@ -308,6 +352,38 @@ export function createCurationOutboxRepository<TQueryResult extends PgQueryResul
         createdAt: parsedDate(row.createdAt),
         updatedAt: parsedDate(row.updatedAt),
       }));
+    },
+
+    /** Busy infrastructure must not consume the terminal retry budget. */
+    async defer(
+      id: string,
+      leaseToken: string,
+      errorCode: string,
+      delaySeconds = 60,
+    ): Promise<boolean> {
+      validateUuid(id, "id");
+      validateUuid(leaseToken, "lease token");
+      const code = validateErrorCode(errorCode);
+      const delay = boundedInteger(delaySeconds, 0, 86_400, "retry delay");
+      const rows = await executeRows<IdRow>(sql`
+        update ${curationOutbox} set status='pending', attempts=greatest(attempts-1,0),
+          available_at=now()+(${delay} * interval '1 second'), completed_at=null,
+          lease_token=null, lease_expires_at=null, error_code=${code}, updated_at=now()
+        where id=${id}::uuid and status='processing' and lease_token=${leaseToken}::uuid
+          and lease_expires_at>now() returning id`);
+      return rows.length > 0;
+    },
+
+    async fail(id: string, leaseToken: string, errorCode: string): Promise<boolean> {
+      validateUuid(id, "id");
+      validateUuid(leaseToken, "lease token");
+      const code = validateErrorCode(errorCode);
+      const rows = await executeRows<IdRow>(sql`
+        update ${curationOutbox} set status='failed', completed_at=now(),
+          lease_token=null, lease_expires_at=null, error_code=${code}, updated_at=now()
+        where id=${id}::uuid and status='processing' and lease_token=${leaseToken}::uuid
+          and lease_expires_at>now() returning id`);
+      return rows.length > 0;
     },
 
     /**

@@ -44,7 +44,11 @@ export async function dispatchCurationOutbox(
 ) {
   const outbox = createCurationOutboxRepository(db);
   const workflow = createCurationWorkflowRepository(db);
-  const jobs = await outbox.claim({ limit: 10, leaseSeconds: 90 });
+  const jobs = await outbox.claim({
+    limit: 10,
+    leaseSeconds: 90,
+    excludeKinds: ["artwork_palette_generate"],
+  });
   const outcomes = await Promise.allSettled(
     jobs.map(async (job) => {
       if (job.kind === "review_audio_staging_cleanup" || job.kind === "cover_staging_cleanup") {

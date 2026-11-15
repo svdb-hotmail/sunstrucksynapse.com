@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import worker, { e2eCuratorRepository } from "../../workers/app";
 import { CuratorService } from "../../app/services/curator.server";
@@ -122,5 +122,165 @@ describe("Cloudflare Worker scheduled publication handler", () => {
     } finally {
       import.meta.env.MODE = originalMode;
     }
+  });
+});
+
+describe("production scheduled artwork palette dispatch", () => {
+  const initialMode = import.meta.env.MODE;
+  const mockedModules = [
+    "../../app/db/client.server",
+    "../../app/repositories/curator.server",
+    "../../app/repositories/analytics.server",
+    "../../app/repositories/rate-limit.server",
+    "../../app/repositories/curation-workflow.server",
+    "../../app/services/transactional-email.server",
+    "../../app/services/curation-outbox-dispatch.server",
+    "../../app/services/release-preparation.server",
+    "../../app/services/artwork-palette-generation.server",
+  ];
+
+  afterEach(() => {
+    import.meta.env.MODE = initialMode;
+    for (const module of mockedModules) vi.doUnmock(module);
+    vi.resetModules();
+  });
+
+  async function productionFixture(prepareAudio: () => Promise<unknown>) {
+    vi.resetModules();
+    import.meta.env.MODE = "production";
+    const database = { localFixture: true };
+    const mocks = {
+      createDatabase: vi.fn((_env: unknown) => database),
+      publishScheduled: vi.fn(async (_now: Date) => undefined),
+      purgeAnalytics: vi.fn(async (_before: Date) => undefined),
+      purgeRateLimits: vi.fn(async (_before: Date) => undefined),
+      abandonUploads: vi.fn(async (_now: Date) => undefined),
+      dispatch: vi.fn(async (..._args: unknown[]) => ({ claimed: 0, completed: 0 })),
+      audio: vi.fn(async (_db: unknown, _env: unknown) => prepareAudio()),
+      palette: vi.fn(async (_db: unknown, _env: unknown) => ({ state: "idle" })),
+    };
+    vi.doMock("../../app/db/client.server", () => ({ createDatabase: mocks.createDatabase }));
+    vi.doMock("../../app/repositories/curator.server", async () => ({
+      ...(await vi.importActual<Record<string, unknown>>("../../app/repositories/curator.server")),
+      createCuratorRepository: () => ({ publishScheduled: mocks.publishScheduled }),
+    }));
+    vi.doMock("../../app/repositories/analytics.server", async () => ({
+      ...(await vi.importActual<Record<string, unknown>>(
+        "../../app/repositories/analytics.server",
+      )),
+      createAnalyticsRepository: () => ({ purgeBefore: mocks.purgeAnalytics }),
+    }));
+    vi.doMock("../../app/repositories/rate-limit.server", async () => ({
+      ...(await vi.importActual<Record<string, unknown>>(
+        "../../app/repositories/rate-limit.server",
+      )),
+      createRateLimitRepository: () => ({ purgeBefore: mocks.purgeRateLimits }),
+    }));
+    vi.doMock("../../app/repositories/curation-workflow.server", async () => ({
+      ...(await vi.importActual<Record<string, unknown>>(
+        "../../app/repositories/curation-workflow.server",
+      )),
+      createCurationWorkflowRepository: () => ({
+        abandonExpiredAudioUploads: mocks.abandonUploads,
+      }),
+    }));
+    vi.doMock("../../app/services/transactional-email.server", () => ({
+      createTransactionalEmailService: () => ({ send: async () => undefined }),
+    }));
+    vi.doMock("../../app/services/curation-outbox-dispatch.server", () => ({
+      dispatchCurationOutbox: mocks.dispatch,
+    }));
+    vi.doMock("../../app/services/release-preparation.server", () => ({
+      prepareNextRelease: mocks.audio,
+    }));
+    vi.doMock("../../app/services/artwork-palette-generation.server", () => ({
+      prepareNextArtworkPalette: mocks.palette,
+    }));
+    const productionWorker = (await import("../../workers/app")).default;
+    const rawEnv = {
+      DATABASE_URL: "postgres://unused/local-fixture",
+      ACCESS_TEAM_DOMAIN: "https://fixture.cloudflareaccess.com/",
+      ACCESS_AUD: " fixture-audience ",
+      CURATOR_EMAILS: " curator@example.test ",
+      MEDIA_DELIVERY_SIGNING_SECRET: " fixture-secret ",
+      MEDIA_BUCKET: { get: async () => null },
+      AUDIO_ENCODER: { fetch: async () => Response.json({}) },
+    };
+    const controller = {
+      scheduledTime: Date.parse("2026-11-15T12:00:00Z"),
+      cron: "* * * * *",
+      noRetry() {},
+    };
+    const context = { waitUntil() {}, passThroughOnException() {} } as unknown as ExecutionContext;
+    return { productionWorker, database, mocks, rawEnv, controller, context };
+  }
+
+  it("passes validated environment to palette preparation only after audio finishes", async () => {
+    let audioStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      audioStarted = resolve;
+    });
+    let finishAudio!: () => void;
+    const released = new Promise<void>((resolve) => {
+      finishAudio = resolve;
+    });
+    const fixture = await productionFixture(async () => {
+      audioStarted();
+      await released;
+    });
+    const execution = fixture.productionWorker.scheduled(
+      fixture.controller,
+      fixture.rawEnv as unknown as Env,
+      fixture.context,
+    );
+    await started;
+    try {
+      expect(fixture.mocks.audio).toHaveBeenCalledTimes(1);
+      expect(fixture.mocks.palette).not.toHaveBeenCalled();
+      const validatedEnv = fixture.mocks.createDatabase.mock.calls[0][0];
+      expect(validatedEnv).not.toBe(fixture.rawEnv);
+      expect(Object.isFrozen(validatedEnv)).toBe(true);
+      expect(validatedEnv).toMatchObject({
+        ACCESS_TEAM_DOMAIN: "https://fixture.cloudflareaccess.com",
+        ACCESS_AUD: "fixture-audience",
+        CURATOR_EMAILS: "curator@example.test",
+        MEDIA_DELIVERY_SIGNING_SECRET: "fixture-secret",
+        MEDIA_BUCKET: fixture.rawEnv.MEDIA_BUCKET,
+        AUDIO_ENCODER: fixture.rawEnv.AUDIO_ENCODER,
+      });
+      expect(fixture.mocks.audio).toHaveBeenCalledWith(fixture.database, validatedEnv);
+    } finally {
+      finishAudio();
+    }
+    await execution;
+    const validatedEnv = fixture.mocks.createDatabase.mock.calls[0][0];
+    expect(fixture.mocks.palette).toHaveBeenCalledExactlyOnceWith(fixture.database, validatedEnv);
+    expect(fixture.mocks.abandonUploads).toHaveBeenCalledWith(
+      new Date(fixture.controller.scheduledTime),
+    );
+    expect(fixture.mocks.dispatch).toHaveBeenCalledWith(
+      fixture.database,
+      expect.any(Object),
+      fixture.rawEnv.MEDIA_BUCKET,
+      new Date(fixture.controller.scheduledTime),
+    );
+  });
+
+  it("never starts palette preparation when audio preparation throws", async () => {
+    const failure = new Error("AUDIO_PREPARATION_INTERRUPTED");
+    const fixture = await productionFixture(async () => {
+      throw failure;
+    });
+    await expect(
+      fixture.productionWorker.scheduled(
+        fixture.controller,
+        fixture.rawEnv as unknown as Env,
+        fixture.context,
+      ),
+    ).rejects.toBe(failure);
+    expect(fixture.mocks.audio).toHaveBeenCalledTimes(1);
+    expect(fixture.mocks.palette).not.toHaveBeenCalled();
+    expect(fixture.mocks.publishScheduled).toHaveBeenCalledTimes(1);
+    expect(fixture.mocks.dispatch).toHaveBeenCalledTimes(1);
   });
 });

@@ -17,7 +17,8 @@ interface EncoderEnv {
 
 export default {
   async fetch(request: Request, env: EncoderEnv) {
-    if (request.method === "POST" && new URL(request.url).pathname === "/validate-artwork") {
+    const path = new URL(request.url).pathname;
+    if (request.method === "POST" && ["/validate-artwork", "/artwork-palette"].includes(path)) {
       const size = Number(request.headers.get("content-length"));
       const mime = request.headers.get("content-type");
       const checksum = request.headers.get("x-source-checksum") ?? "";
@@ -29,7 +30,7 @@ export default {
         !/^[a-f0-9]{64}$/.test(checksum)
       )
         return new Response(null, { status: 400 });
-      return env.ENCODERS.getByName("primary").fetch("http://encoder/validate-artwork", {
+      return env.ENCODERS.getByName("primary").fetch(`http://encoder${path}`, {
         method: "POST",
         body: request.body,
         headers: {
@@ -37,7 +38,7 @@ export default {
           "content-length": String(size),
           "x-source-checksum": checksum,
         },
-        signal: AbortSignal.timeout(60_000),
+        signal: AbortSignal.timeout(90_000),
       });
     }
     if (request.method !== "POST" || new URL(request.url).pathname !== "/encode")
