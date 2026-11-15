@@ -2,6 +2,8 @@ export const SKINS = ["editorial", "underground", "synth"] as const;
 export type Skin = (typeof SKINS)[number];
 export const SKIN_STORAGE_KEY = "sunsyn-site-skin-v1";
 export const DEFAULT_SKIN: Skin = "editorial";
+export const showSkinPicker =
+  import.meta.env.DEV || ["site-preview", "test"].includes(import.meta.env.MODE);
 
 export function isSkin(value: unknown): value is Skin {
   return SKINS.some((skin) => skin === value);

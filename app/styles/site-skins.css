@@ -172,3 +172,86 @@
 [data-theme="light"][data-skin="synth"] .listener-shell .label-feature h1 {
   text-shadow: 3px 3px #b6a3de;
 }
+
+/* Compact development selector beside the lamp; production has no picker. */
+.listener-shell .skin-picker {
+  position: relative;
+  color: var(--site-ink);
+  font: 600 0.75rem/1 var(--font-family-interface);
+}
+.listener-shell .skin-picker > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 44px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--site-line);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  color: var(--site-ink);
+  cursor: pointer;
+  list-style: none;
+}
+.listener-shell .skin-picker > summary::-webkit-details-marker {
+  display: none;
+}
+.listener-shell .skin-picker > summary span {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+}
+.listener-shell .skin-picker > summary:hover,
+.listener-shell .skin-picker[open] > summary {
+  border-color: var(--site-accent);
+}
+.listener-shell .skin-picker__menu {
+  position: absolute;
+  z-index: 120;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  display: grid;
+  gap: 0.25rem;
+  width: min(220px, calc(100vw - 24px));
+  padding: 0.5rem;
+  border: 1px solid var(--site-line);
+  border-radius: var(--site-radius);
+  background: var(--site-panel);
+  box-shadow: 0 16px 36px rgb(0 0 0 / 0.22);
+}
+.listener-shell .skin-picker__menu button,
+.listener-shell .skin-picker__menu a {
+  display: block;
+  width: 100%;
+  min-height: 38px;
+  padding: 0.6rem 0.75rem;
+  border: 0;
+  border-radius: var(--site-radius);
+  background: transparent;
+  color: var(--site-ink);
+  text-align: left;
+  text-decoration: none;
+  text-transform: capitalize;
+  font: inherit;
+  cursor: pointer;
+}
+.listener-shell .skin-picker__menu button:hover,
+.listener-shell .skin-picker__menu a:hover,
+.listener-shell .skin-picker__menu button[aria-pressed="true"] {
+  background: var(--site-accent);
+  color: var(--site-button-ink);
+}
+.listener-shell .skin-picker__fixtures {
+  border-top: 1px solid var(--site-line);
+  padding-top: 0.25rem;
+}
+@media (max-width: 740px) {
+  .listener-shell[data-skin-preview="true"] .masthead .preview-label {
+    display: flex;
+    gap: 0.5rem;
+  }
+  .listener-shell[data-skin-preview="true"] .site-footer .mobile-theme {
+    display: none;
+  }
+}

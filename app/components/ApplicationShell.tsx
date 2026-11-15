@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router";
 import { Header } from "~/components/Header";
 import { MobileNav } from "~/components/MobileNav";
 import { ThemeToggle } from "~/design-system/ThemeToggle";
+import { showSkinPicker } from "~/design-system/skin";
 import { PlayerPanel, type PlayerPanelProps } from "~/components/PlayerPanel";
 import { defaultCatalogueNavigation, type CatalogueNavigationEntry } from "~/services/catalogue";
 interface ApplicationShellProps extends PlayerPanelProps {
@@ -22,6 +23,7 @@ export function ApplicationShell({
     <div
       className="app-shell listener-shell"
       data-has-player={Boolean(player.item || player.queue.length)}
+      data-skin-preview={showSkinPicker || undefined}
     >
       <a className="listener-skip" href="#listener-content">
         Skip to music

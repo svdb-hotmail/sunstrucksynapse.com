@@ -51,11 +51,6 @@
   border: 1px solid var(--identity-ink);
   color: var(--identity-ink);
 }
-.listener-shell .radio-home .skin-selector > a {
-  padding: 0.5rem 0.7rem;
-  color: inherit;
-  white-space: nowrap;
-}
 .listener-shell .identity-page {
   width: 100%;
   margin: 0;

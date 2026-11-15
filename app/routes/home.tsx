@@ -1,5 +1,5 @@
 import { Link, useOutletContext } from "react-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { ListenerIcon } from "~/design-system/ListenerIcon";
 import { trackLabel } from "~/design-system/track-label";
@@ -8,7 +8,6 @@ import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "~/config/brand";
 import { catalogueStateCopy } from "~/services/catalogue";
 import { listeningSelection } from "~/services/listening";
 import { identityStyle } from "~/design-system/visual-identity";
-import { DEFAULT_SKIN, setSkin as applySkin, type Skin } from "~/design-system/skin";
 import type { CatalogueLoadResult } from "~/types/catalogue";
 import type { PlayerOutletContext } from "~/types/catalogue";
 
@@ -25,8 +24,6 @@ export const meta: Route.MetaFunction = () => [
 ];
 
 export default function Home() {
-  const showSkinSelector =
-    import.meta.env.DEV || ["site-preview", "test"].includes(import.meta.env.MODE);
   const player = useOutletContext<PlayerOutletContext>();
   const { catalogue } = player;
   const { collection } = listeningSelection(catalogue.items, catalogue.collections);
@@ -53,41 +50,8 @@ export default function Home() {
     ...distinctReleases,
     ...playable.filter((item) => !distinctReleases.some((release) => release.id === item.id)),
   ].slice(0, 3);
-  const [skin, setSkin] = useState<Skin>(DEFAULT_SKIN);
-  const identityPreviewActive = catalogue.items.some((item) =>
-    item.creator.slug.startsWith("preview-"),
-  );
-  useEffect(() => {
-    const current = document.documentElement.dataset.skin;
-    if (current === "editorial" || current === "underground" || current === "synth") {
-      setSkin(current);
-    }
-  }, []);
   return (
     <div className="radio-home">
-      {showSkinSelector && (
-        <div className="skin-selector" role="group" aria-label="Design direction">
-          <span>Design direction</span>
-          {(["editorial", "underground", "synth"] as const).map((option) => (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={skin === option}
-              onClick={() => {
-                applySkin(option, document);
-                setSkin(option);
-              }}
-            >
-              {option}
-            </button>
-          ))}
-          {import.meta.env.MODE === "test" ? (
-            <a href={identityPreviewActive ? "/?identity-preview=0" : "/?identity-preview=1"}>
-              {identityPreviewActive ? "Standard catalogue" : "Three-artist study"}
-            </a>
-          ) : null}
-        </div>
-      )}
       {featured ? (
         <section
           className="label-feature"
