@@ -1,4 +1,47 @@
 /* Constrained, manually reviewed visual identities. Platform chrome and player stay shared. */
+.listener-shell .track-page .track-release {
+  margin: clamp(2rem, 4vw, 3rem) 0;
+}
+.listener-shell .track-page .track-release__card {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(1rem, 2vw, 1.5rem);
+  padding: clamp(1rem, 2vw, 1.5rem);
+  border: 1px solid var(--site-line);
+  border-radius: var(--site-radius);
+  background: var(--site-card);
+}
+.listener-shell .track-page .track-release__card img {
+  display: block;
+  width: 120px;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--site-radius);
+}
+.listener-shell .track-page .track-release__card h2 {
+  margin: 0 0 0.35rem;
+  line-height: 1.2;
+}
+.listener-shell .track-page .track-release__card h2 a {
+  color: var(--site-ink);
+}
+.listener-shell .track-page .track-release__card p {
+  margin: 0 0 0.8rem;
+  color: var(--site-muted);
+}
+.listener-shell .track-page .track-release__link {
+  color: var(--site-accent);
+  font-weight: 700;
+}
+@media (max-width: 480px) {
+  .listener-shell .track-page .track-release__card {
+    grid-template-columns: 80px minmax(0, 1fr);
+  }
+  .listener-shell .track-page .track-release__card img {
+    width: 80px;
+  }
+}
 .listener-shell .identity-page,
 .listener-shell .radio-home .label-feature[data-identity] {
   --identity-paper: var(--color-surface-panel);

@@ -44,7 +44,7 @@ export const meta: Route.MetaFunction = ({ loaderData }) => {
 
 export default function TrackRoute({ loaderData }: Route.ComponentProps) {
   const player = useOutletContext<PlayerOutletContext>();
-  const { item } = loaderData.track;
+  const { item, release } = loaderData.track;
 
   return (
     <article className="entity-page track-page">
@@ -92,6 +92,28 @@ export default function TrackRoute({ loaderData }: Route.ComponentProps) {
           ) : null}
         </div>
       </div>
+      {release.tracks.length > 1 ? (
+        <section className="track-release" aria-labelledby="track-release-title">
+          <p className="eyebrow">From this release</p>
+          <div className="track-release__card">
+            <Link to={release.href} aria-label={`View ${release.title}`}>
+              <img src={release.artwork.src} alt="" loading="lazy" />
+            </Link>
+            <div>
+              <h2 id="track-release-title">
+                <Link to={release.href}>{release.title}</Link>
+              </h2>
+              <p>
+                {release.artists.map((artist) => artist.name).join(", ")} · {release.tracks.length}{" "}
+                tracks
+              </p>
+              <Link className="track-release__link" to={release.href}>
+                Explore release →
+              </Link>
+            </div>
+          </div>
+        </section>
+      ) : null}
       <Link to="/">Back to catalogue</Link>
     </article>
   );
