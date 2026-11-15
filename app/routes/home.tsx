@@ -38,7 +38,34 @@ export default function Home() {
   const [featuredIndex, setFeaturedIndex] = useState(0);
   const [advanceCount, setAdvanceCount] = useState(0);
   const featureRef = useRef<HTMLElement>(null);
+  const featureTitleRef = useRef<HTMLHeadingElement>(null);
   const featured = featuredTracks[featuredIndex % featuredTracks.length];
+  useEffect(() => {
+    const title = featureTitleRef.current;
+    if (!title) return;
+    const fitTitle = () => {
+      title.style.removeProperty("--fitted-title-size");
+      const computed = getComputedStyle(title);
+      const baseSize = Number.parseFloat(computed.fontSize);
+      const minSize = 24;
+      const available = title.clientWidth;
+      if (!available || !baseSize) return;
+      title.style.setProperty("--fitted-title-size", `${baseSize}px`);
+      const naturalWidth = title.scrollWidth;
+      if (naturalWidth > available) {
+        const fitted = Math.max(minSize, baseSize * (available / naturalWidth));
+        title.style.setProperty("--fitted-title-size", `${fitted}px`);
+        title.dataset.fit = fitted > minSize ? "single-line" : "wrap";
+      } else {
+        title.dataset.fit = "single-line";
+      }
+    };
+    const observer = new ResizeObserver(fitTitle);
+    observer.observe(title);
+    document.fonts?.ready.then(fitTitle);
+    fitTitle();
+    return () => observer.disconnect();
+  }, [featured?.release.title]);
   useEffect(() => {
     if (
       !advanceCount ||
@@ -108,6 +135,7 @@ export default function Home() {
             <span className="label-feature__eyebrow">SUNSYN / Featured listening</span>
             <h1
               id="feature-title"
+              ref={featureTitleRef}
               data-title-size={
                 featured.release.title.length > 34
                   ? "compact"

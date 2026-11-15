@@ -70,6 +70,12 @@
   letter-spacing: -0.055em;
   overflow-wrap: break-word;
   word-break: normal;
+  white-space: nowrap;
+  font-size: var(--fitted-title-size, inherit);
+}
+.listener-shell .radio-home .label-feature h1[data-fit="wrap"] {
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 .listener-shell .radio-home .label-feature__artist {
   display: inline-block;
