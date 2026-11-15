@@ -18,6 +18,7 @@ export function EntityTrackList({ tracks, player, collectionId }: EntityTrackLis
         >
           <CatalogueCard
             item={track}
+            showShare
             position={index + 1}
             isSelected={player.selectedItemId === track.id}
             isPlaying={player.playingItemId === track.id}

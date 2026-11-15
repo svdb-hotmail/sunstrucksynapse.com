@@ -3,7 +3,6 @@ import { useState } from "react";
 
 import { EntityTrackList } from "~/components/EntityTrackList";
 import { IdentityPreviewControls } from "~/components/IdentityPreviewControls";
-import { ShareButton } from "~/components/ShareButton";
 import { ListenerIcon } from "~/design-system/ListenerIcon";
 import { defaultIdentityTreatment, identityStyle } from "~/design-system/visual-identity";
 import { SITE_NAME, SITE_URL } from "~/config/brand";
@@ -52,7 +51,7 @@ export const meta: Route.MetaFunction = ({ loaderData }) => {
 
 export default function ArtistRoute({ loaderData }: Route.ComponentProps) {
   const player = useOutletContext<PlayerOutletContext>();
-  const { artist, releases, canonicalUrl } = loaderData;
+  const { artist, releases } = loaderData;
   const [treatment, setTreatment] = useState(defaultIdentityTreatment(artist.slug));
 
   return (
@@ -86,7 +85,6 @@ export default function ArtistRoute({ loaderData }: Route.ComponentProps) {
             >
               <ListenerIcon name="play" /> Play artist
             </button>
-            <ShareButton title={artist.name} url={canonicalUrl} />
           </div>
         </div>
       </section>

@@ -240,6 +240,44 @@
 }
 .listener-shell .identity-tracks .track-row {
   background: var(--identity-surface);
+  padding-inline: clamp(1rem, 2vw, 1.75rem);
+}
+.listener-shell .identity-tracks .share-control {
+  position: relative;
+}
+.listener-shell .identity-tracks .share-control button {
+  width: 44px;
+  min-width: 44px;
+  padding: 0;
+  min-height: 44px;
+  border: 1px solid var(--identity-accent-active);
+  border-radius: 0.5rem;
+  background: transparent;
+  color: var(--identity-ink);
+}
+@media (max-width: 600px) {
+  .listener-shell .identity-tracks .track-row .media-card-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto;
+  }
+  .listener-shell .identity-tracks .track-row .card-actions {
+    grid-column: 1;
+    grid-row: 3;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+  }
+}
+.listener-shell .identity-tracks .share-control [role="status"] {
+  position: absolute;
+  z-index: 3;
+  top: 100%;
+  right: 0;
+  width: max-content;
+  max-width: 18rem;
+  padding: 0.4rem 0.6rem;
+  background: var(--identity-paper);
+  color: var(--identity-ink);
+  border: 1px solid var(--identity-accent-active);
 }
 .listener-shell .identity-page[data-treatment="neutral"] .identity-hero__art img {
   box-shadow: none;

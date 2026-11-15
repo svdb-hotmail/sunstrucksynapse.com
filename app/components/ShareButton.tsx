@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Share2 } from "lucide-react";
 import { recordPlaybackEvent } from "~/services/analytics.client";
 
 interface ShareButtonProps {
@@ -6,9 +7,16 @@ interface ShareButtonProps {
   url: string;
   trackId?: string;
   collectionId?: string;
+  iconOnly?: boolean;
 }
 
-export function ShareButton({ title, url, trackId, collectionId }: ShareButtonProps) {
+export function ShareButton({
+  title,
+  url,
+  trackId,
+  collectionId,
+  iconOnly = false,
+}: ShareButtonProps) {
   const [status, setStatus] = useState<string | null>(null);
 
   const share = async () => {
@@ -37,8 +45,12 @@ export function ShareButton({ title, url, trackId, collectionId }: ShareButtonPr
 
   return (
     <div className="share-control">
-      <button type="button" onClick={() => void share()}>
-        Share
+      <button
+        type="button"
+        onClick={() => void share()}
+        aria-label={iconOnly ? `Share ${title}` : undefined}
+      >
+        {iconOnly ? <Share2 size={19} aria-hidden="true" /> : "Share"}
       </button>
       {status ? (
         <span role="status" aria-live="polite">

@@ -4,6 +4,8 @@ import type { CatalogueItem } from "~/types/catalogue";
 import { ListenerIcon } from "~/design-system/ListenerIcon";
 import { trackLabel } from "~/design-system/track-label";
 import { Artwork } from "~/design-system/Artwork";
+import { ShareButton } from "~/components/ShareButton";
+import { SITE_URL } from "~/config/brand";
 
 interface CatalogueCardProps {
   item: CatalogueItem;
@@ -15,6 +17,7 @@ interface CatalogueCardProps {
   onPlay: (item: CatalogueItem) => void;
   position?: number;
   explore?: boolean;
+  showShare?: boolean;
 }
 export function CatalogueCard({
   item,
@@ -25,6 +28,7 @@ export function CatalogueCard({
   onPlay,
   position,
   explore = false,
+  showShare = false,
 }: CatalogueCardProps) {
   const duration = trackDuration(item.durationMs);
   const label = trackLabel(item.description.title);
@@ -99,6 +103,14 @@ export function CatalogueCard({
           >
             <ListenerIcon name="plus" />
           </button>
+          {showShare ? (
+            <ShareButton
+              title={item.description.title}
+              url={new URL(item.href, SITE_URL).href}
+              trackId={item.id}
+              iconOnly
+            />
+          ) : null}
         </div>
       </div>
     </article>
