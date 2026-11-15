@@ -21,6 +21,7 @@ describe("visitor skin", () => {
     const values = new Map<string, string>();
     const document = { documentElement: { dataset: {} as Record<string, string> } };
     const window = {
+      location: { search: "" },
       localStorage: {
         getItem: (key: string) => values.get(key) ?? null,
         setItem: (key: string, value: string) => values.set(key, value),
@@ -32,5 +33,9 @@ describe("visitor skin", () => {
     expect(values.get(SKIN_STORAGE_KEY)).toBe("synth");
     run(window, document, { random: () => 0, floor: Math.floor });
     expect(document.documentElement.dataset.skin).toBe("synth");
+    window.location.search = "?skin=underground";
+    run(window, document, { random: () => 0, floor: Math.floor });
+    expect(document.documentElement.dataset.skin).toBe("underground");
+    expect(values.get(SKIN_STORAGE_KEY)).toBe("underground");
   });
 });
