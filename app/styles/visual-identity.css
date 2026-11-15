@@ -10,6 +10,8 @@
 }
 [data-theme="light"] .listener-shell .identity-page[data-treatment="palette"],
 [data-theme="light"] .listener-shell .identity-page[data-treatment="expressive"],
+[data-theme="light"] .listener-shell .identity-page[data-treatment="collage"],
+[data-theme="light"] .listener-shell .identity-page[data-treatment="signal"],
 [data-theme="light"] .listener-shell .radio-home .label-feature[data-treatment="palette"] {
   --identity-paper: var(--identity-paper-light, var(--color-surface-panel));
   --identity-surface: var(--identity-surface-light, var(--color-surface-panel));
@@ -18,6 +20,8 @@
 }
 [data-theme="dark"] .listener-shell .identity-page[data-treatment="palette"],
 [data-theme="dark"] .listener-shell .identity-page[data-treatment="expressive"],
+[data-theme="dark"] .listener-shell .identity-page[data-treatment="collage"],
+[data-theme="dark"] .listener-shell .identity-page[data-treatment="signal"],
 [data-theme="dark"] .listener-shell .radio-home .label-feature[data-treatment="palette"] {
   --identity-paper: var(--identity-paper-dark, var(--color-surface-panel));
   --identity-surface: var(--identity-surface-dark, var(--color-surface-panel));
@@ -154,6 +158,7 @@
 }
 .listener-shell .identity-count {
   margin-top: 1.5rem;
+  color: var(--identity-ink);
   opacity: 0.72;
   font-size: 0.82rem;
 }
@@ -261,12 +266,103 @@
   font-family: Impact, "Arial Narrow", sans-serif;
   text-transform: uppercase;
 }
+/* Nocturne treats the release as a performance in a dark room. */
+.listener-shell .identity-page[data-treatment="nocturne"] {
+  --identity-paper: var(--identity-paper-dark, #16151b);
+  --identity-surface: var(--identity-surface-dark, #28252e);
+  --identity-ink: var(--identity-ink-dark, #f5f0eb);
+  --identity-accent-active: var(--identity-accent, #e89d74);
+}
+.listener-shell .identity-page[data-treatment="nocturne"] .identity-hero {
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr);
+  background:
+    radial-gradient(
+      ellipse at 25% 45%,
+      color-mix(in srgb, var(--identity-accent-active) 24%, transparent),
+      transparent 58%
+    ),
+    var(--identity-paper);
+}
+.listener-shell .identity-page[data-treatment="nocturne"] .identity-hero__art img {
+  box-shadow: 0 24px 70px rgb(0 0 0 / 0.55);
+}
+.listener-shell .identity-page[data-treatment="nocturne"] .identity-hero h1 {
+  font-size: clamp(3.2rem, 6vw, 6.5rem);
+  font-style: italic;
+}
+.listener-shell .identity-page[data-treatment="nocturne"] .identity-actions button:first-child {
+  color: var(--identity-paper);
+}
+/* Collage places artwork and type like a printed sleeve. */
+.listener-shell .identity-page[data-treatment="collage"] .identity-hero {
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  background:
+    linear-gradient(
+      145deg,
+      transparent 50%,
+      color-mix(in srgb, var(--identity-accent-active) 20%, transparent) 50%
+    ),
+    var(--identity-paper);
+}
+.listener-shell .identity-page[data-treatment="collage"] .identity-hero__art {
+  transform: rotate(3deg);
+}
+.listener-shell .identity-page[data-treatment="collage"] .identity-hero__art img {
+  border: clamp(10px, 2vw, 24px) solid var(--identity-surface);
+  box-shadow: -18px 18px 0 var(--identity-accent-active);
+}
+.listener-shell .identity-page[data-treatment="collage"] .identity-hero h1,
+.listener-shell .identity-page[data-treatment="collage"] .identity-section-heading h2 {
+  font-family: Impact, "Arial Narrow", sans-serif;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: -0.035em;
+}
+.listener-shell .identity-page[data-treatment="collage"] .identity-kicker {
+  display: inline-block;
+  padding: 0.35rem 0.55rem;
+  background: var(--identity-accent-active);
+  color: var(--identity-paper);
+}
+/* Signal gives electronic releases a measured, instrument-like rhythm. */
+.listener-shell .identity-page[data-treatment="signal"] .identity-hero {
+  background:
+    linear-gradient(color-mix(in srgb, var(--identity-ink) 9%, transparent) 1px, transparent 1px),
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--identity-ink) 9%, transparent) 1px,
+      transparent 1px
+    ),
+    var(--identity-paper);
+  background-size: 40px 40px;
+}
+.listener-shell .identity-page[data-treatment="signal"] .identity-hero__art {
+  padding: clamp(0.6rem, 2vw, 1.5rem);
+  border: 1px solid var(--identity-accent-active);
+  background: var(--identity-surface);
+}
+.listener-shell .identity-page[data-treatment="signal"] .identity-hero__art img {
+  box-shadow: none;
+}
+.listener-shell .identity-page[data-treatment="signal"] .identity-hero h1,
+.listener-shell .identity-page[data-treatment="signal"] .identity-section-heading h2 {
+  font-family: "Orbitron", system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+.listener-shell .identity-page[data-treatment="signal"] .identity-actions button {
+  border-radius: 0.25rem;
+}
 @media (max-width: 760px) {
   .listener-shell .identity-hero {
     grid-template-columns: 1fr;
     min-height: 0;
     padding: 1.5rem 1.25rem 2.5rem;
     gap: 2rem;
+  }
+  .listener-shell .identity-page[data-treatment="nocturne"] .identity-hero,
+  .listener-shell .identity-page[data-treatment="collage"] .identity-hero {
+    grid-template-columns: 1fr;
   }
   .listener-shell .identity-hero__art img {
     max-height: 55vh;

@@ -1,6 +1,12 @@
 import type { CSSProperties } from "react";
 
-export type IdentityTreatment = "neutral" | "palette" | "expressive";
+export type IdentityTreatment =
+  | "neutral"
+  | "palette"
+  | "expressive"
+  | "nocturne"
+  | "collage"
+  | "signal";
 
 interface IdentityPalette {
   accent: string;
