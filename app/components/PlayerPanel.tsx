@@ -471,10 +471,6 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
               <span className="idle-art">
                 <StationMark />
               </span>
-              <div>
-                <strong>Find your next frequency</strong>
-                <span>Select a track to start listening</span>
-              </div>
             </>
           )}
         </div>
