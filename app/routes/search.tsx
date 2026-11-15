@@ -176,7 +176,7 @@ export default function SearchRoute({ loaderData }: Route.ComponentProps) {
             : "No tracks in this view yet. Choose another view."}
       </p>
       {results.length ? (
-        <ol className="explore-grid">
+        <ol className="explore-grid" data-view={view}>
           {results.map((item) => (
             <li key={item.id}>
               <CatalogueCard

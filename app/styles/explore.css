@@ -150,6 +150,45 @@
 .listener-shell .explore-grid .explore-card .card-actions button[data-queued="true"] {
   opacity: 0.3;
 }
+.listener-shell .explore-grid:not([data-view="featured"]) {
+  gap: 0.75rem;
+}
+.listener-shell .explore-grid:not([data-view="featured"]) .explore-card {
+  flex-direction: row;
+  align-items: stretch;
+  min-height: 108px;
+}
+.listener-shell .explore-grid:not([data-view="featured"]) .media-card-select,
+.listener-shell .explore-grid:not([data-view="featured"]) .media-card-select .artwork {
+  width: 108px;
+  height: 100%;
+  aspect-ratio: auto;
+  flex: 0 0 108px;
+}
+.listener-shell .explore-grid:not([data-view="featured"]) .media-card-body {
+  padding: 0.7rem;
+  gap: 0.15rem;
+}
+.listener-shell .explore-grid:not([data-view="featured"]) .media-card-title {
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+.listener-shell .explore-grid:not([data-view="featured"]) .media-card-description {
+  font-size: 0.72rem;
+}
+.listener-shell .explore-grid:not([data-view="featured"]) .card-actions {
+  gap: 0.35rem;
+  padding-top: 0.35rem;
+}
+.listener-shell .explore-grid:not([data-view="featured"]) .card-actions button {
+  width: 32px;
+  min-width: 32px;
+  height: 32px;
+  min-height: 32px;
+}
+.listener-shell .explore-grid:not([data-view="featured"]) .track-format {
+  font-size: 0.55rem;
+}
 .listener-shell .explore-pages {
   display: flex;
   justify-content: space-between;
@@ -178,6 +217,16 @@
 @media (max-width: 800px) {
   .listener-shell .explore-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 650px) {
+  .listener-shell .explore-grid:not([data-view="featured"]) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .listener-shell .explore-grid:not([data-view="featured"]) .media-card-select,
+  .listener-shell .explore-grid:not([data-view="featured"]) .media-card-select .artwork {
+    width: 96px;
+    flex-basis: 96px;
   }
 }
 @media (max-width: 350px) {
