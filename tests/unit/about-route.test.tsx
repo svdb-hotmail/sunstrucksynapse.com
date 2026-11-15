@@ -116,10 +116,16 @@ describe("about route composition", () => {
     expect(markup).toContain('type="email"');
     expect(markup).toContain('name="subject"');
     expect(markup).toContain("Choose one");
-    expect(markup).toContain("The radio");
-    expect(markup).toContain("Music or artist");
-    expect(markup).toContain("Visual work");
-    expect(markup).toContain("Collaboration");
+    for (const subject of [
+      "Music",
+      "Artist",
+      "Video",
+      "Idea",
+      "Problem",
+      "Everything Else",
+    ]) {
+      expect(markup).toContain(`<option>${subject}</option>`);
+    }
     expect(markup).toContain('name="message"');
     expect(markup).toContain('rows="5"');
     expect(markup).toContain("Launch message");
