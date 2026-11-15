@@ -120,6 +120,30 @@ export function createArtworkPalettesRepository<TQueryResult extends PgQueryResu
       const result = new Map<string, PublicArtworkPalette>();
       if (assetIds.length === 0) return result;
       for (const id of assetIds) assertUuid(id);
+      // A build trigger may deploy the reader before the additive migration. Only
+      // the two new missing relations permit palette fallback; other failures surface.
+      function isUnmigratedPaletteRead(error: unknown): boolean {
+        const seen = new Set<object>();
+        let current = error;
+        while (typeof current === "object" && current !== null && !seen.has(current)) {
+          seen.add(current);
+          if (Reflect.get(current, "code") === "42P01") {
+            const table = Reflect.get(current, "table");
+            const message = Reflect.get(current, "message");
+            if (table === "artwork_palette_generations" || table === "artwork_palette_overrides")
+              return true;
+            if (
+              typeof message === "string" &&
+              /^relation "(?:public\.)?(?:artwork_palette_generations|artwork_palette_overrides)" does not exist$/.test(
+                message,
+              )
+            )
+              return true;
+          }
+          current = Reflect.get(current, "cause");
+        }
+        return false;
+      }
       const found = await rows<
         ArtworkPaletteSource & {
           overrideVersion: number | null;
@@ -137,7 +161,10 @@ export function createArtworkPalettesRepository<TQueryResult extends PgQueryResu
           [...new Set(assetIds)].map((id) => sql`${id}::uuid`),
           sql`, `,
         )})
-          and a.status='ready' and a.scope='publishable_derivative'`);
+          and a.status='ready' and a.scope='publishable_derivative'`).catch((error: unknown) => {
+        if (isUnmigratedPaletteRead(error)) return [];
+        throw error;
+      });
       for (const row of found) {
         const expected = expectedSources?.get(row.assetId);
         if (

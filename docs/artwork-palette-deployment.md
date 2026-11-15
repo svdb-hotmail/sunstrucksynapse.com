@@ -4,6 +4,8 @@ Palette generation samples the final ready publishable artwork, never an upload 
 
 No production migration, deployment, producer activation or backfill was executed while implementing this change. Cloudflare's current dashboard trigger still uses `npm run build` and `npx wrangler deploy`; the account-side settings have **not** been changed. Neither `npm run build` nor CI invokes this rollout or a write backfill.
 
+Public catalogue reads tolerate an application deploy arriving before migration `0017`: only PostgreSQL missing-relation errors naming `artwork_palette_generations` or `artwork_palette_overrides` fall back to reviewed identity/skin colors. Other database failures still surface. Requests perform no migration and retry palette reads normally after migration, so this compatibility fallback does not replace the migration-first deployment wrapper below.
+
 ## Review the target first
 
 Use Node 22.22+, installed dependencies, Python 3 and FFmpeg for local static generation. Supply `DATABASE_URL` through the approved secret mechanism; never paste it into reports. The commands print only database hostname/database, selected environment, config paths and bucket names.
