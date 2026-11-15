@@ -1,4 +1,4 @@
-import { Link, useOutletContext } from "react-router";
+import { data, Link, useOutletContext } from "react-router";
 import { useEffect, useRef, useState } from "react";
 
 import { ListenerIcon } from "~/design-system/ListenerIcon";
@@ -8,6 +8,8 @@ import { SITE_DESCRIPTION, SITE_NAME, SITE_URL } from "~/config/brand";
 import { catalogueStateCopy } from "~/services/catalogue";
 import { listeningSelection } from "~/services/listening";
 import { identityStyle } from "~/design-system/visual-identity";
+import { featuredSession } from "~/services/featured-session.server";
+import { selectFeaturedTracks } from "~/services/featured-selection";
 import type { CatalogueLoadResult } from "~/types/catalogue";
 import type { PlayerOutletContext } from "~/types/catalogue";
 
@@ -23,23 +25,26 @@ export const meta: Route.MetaFunction = () => [
   { property: "og:url", content: SITE_URL },
 ];
 
-export default function Home() {
+export function loader({ request }: Route.LoaderArgs) {
+  const session = featuredSession(request);
+  return data({ featuredSeed: session.seed }, { headers: session.headers });
+}
+
+export default function Home({ loaderData }: Partial<Route.ComponentProps>) {
   const player = useOutletContext<PlayerOutletContext>();
   const { catalogue } = player;
   const { collection } = listeningSelection(catalogue.items, catalogue.collections);
-  const featuredTracks = catalogue.items
-    .filter((item) => item.mediaKind === "audio" && item.media)
-    .sort(
-      (a, b) =>
-        Number(b.release.slug === "phase-zero-transmissions") -
-          Number(a.release.slug === "phase-zero-transmissions") ||
-        a.release.title.localeCompare(b.release.title),
-    );
+  const featuredTracks = selectFeaturedTracks(
+    catalogue.items,
+    loaderData?.featuredSeed ?? "preview",
+  );
   const [featuredIndex, setFeaturedIndex] = useState(0);
   const [advanceCount, setAdvanceCount] = useState(0);
   const featureRef = useRef<HTMLElement>(null);
   const featureTitleRef = useRef<HTMLHeadingElement>(null);
-  const featured = featuredTracks[featuredIndex % featuredTracks.length];
+  const featured = featuredTracks.length
+    ? featuredTracks[featuredIndex % featuredTracks.length]
+    : undefined;
   const featuredPalette = featured?.artwork.palette;
   useEffect(() => {
     const title = featureTitleRef.current;
@@ -245,14 +250,6 @@ export default function Home() {
             </div>
           ) : null}
         </section>
-        <aside className="curator-note brand-panel-soft" aria-labelledby="radio-idea-title">
-          <span className="section-label">The SUNSYN idea</span>
-          <h2 id="radio-idea-title">Made with new tools. Chosen by human ears.</h2>
-          <p>We find and share AI-created music worth spending time with.</p>
-          <Link to="/about" className="note-signature">
-            About the label <ListenerIcon name="arrow" size={15} />
-          </Link>
-        </aside>
       </div>
     </div>
   );

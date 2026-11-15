@@ -162,7 +162,7 @@ export default function App() {
     itemId: string;
     sequence: number;
     collectionId?: string;
-    intent?: "resume";
+    intent?: "resume" | "select";
   } | null>(null);
   const [playbackScope, setPlaybackScope] = useState<string[] | null>(null);
   const [queue, setQueue] = useState<QueueEntry[]>([]);
@@ -218,7 +218,12 @@ export default function App() {
   }, []);
 
   const requestPlayback = useCallback(
-    (item: CatalogueItem, collectionId?: string, intent?: "resume", origin?: PlaybackOrigin) => {
+    (
+      item: CatalogueItem,
+      collectionId?: string,
+      intent?: "resume" | "select",
+      origin?: PlaybackOrigin,
+    ) => {
       if (!item.media) return;
       userInteractedBeforeRestore.current = true;
       setPlayer({
@@ -286,7 +291,7 @@ export default function App() {
           requestPlayback(
             queuedItem,
             nextQueued.collectionId,
-            undefined,
+            !finished && playingItemId !== selectedItem?.id ? "select" : undefined,
             playbackScope ? player.origin : nextQueued,
           );
         }
@@ -295,7 +300,12 @@ export default function App() {
       // The queue is authoritative for a finite selection, including edits and repeats.
       if (!selectedItem || playbackScope) return;
       const nextItem = findAdjacentPlayableItem(catalogueItems, selectedItem.id, 1);
-      if (nextItem) requestPlayback(nextItem, playbackRequest?.collectionId);
+      if (nextItem)
+        requestPlayback(
+          nextItem,
+          playbackRequest?.collectionId,
+          !finished && playingItemId !== selectedItem.id ? "select" : undefined,
+        );
     },
     [
       catalogueItems,
@@ -304,6 +314,7 @@ export default function App() {
       player.origin,
       player.selectedItemId,
       playbackRequest?.collectionId,
+      playingItemId,
       queue,
       requestPlayback,
       selectedItem,
@@ -329,7 +340,12 @@ export default function App() {
         ...current.filter((entry) => !playbackScope.includes(entry.itemId)),
       ]);
     }
-    requestPlayback(previous, playbackRequest?.collectionId, undefined, player.origin);
+    requestPlayback(
+      previous,
+      playbackRequest?.collectionId,
+      playingItemId !== selectedItem.id ? "select" : undefined,
+      player.origin,
+    );
   }, [
     catalogueItems,
     itemsById,
@@ -337,6 +353,7 @@ export default function App() {
     player.origin,
     queue,
     playbackRequest?.collectionId,
+    playingItemId,
     requestPlayback,
     selectedItem,
   ]);

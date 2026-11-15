@@ -6,6 +6,7 @@ import { CatalogueCard } from "~/components/CatalogueCard";
 import { DiscoveryFacet } from "~/components/DiscoveryFacet";
 import { SITE_NAME } from "~/config/brand";
 import { cloudflareContext } from "~/config/cloudflare-context.server";
+import { featuredSession } from "~/services/featured-session.server";
 import {
   discoveryOptions,
   EXPLORE_VIEWS,
@@ -32,6 +33,7 @@ function readFilters(url: URL): DiscoveryFilters {
 
 export async function loader({ context, request }: Route.LoaderArgs) {
   const startedAt = performance.now();
+  const session = featuredSession(request);
   const items = await context.get(cloudflareContext).catalogueRepository.listPublishedTracks();
   const url = new URL(request.url);
   const filters = readFilters(url);
@@ -41,11 +43,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   );
   const view: ExploreView =
     EXPLORE_VIEWS.find((entry) => entry === requestedView) ?? (hasFilters ? "latest" : "featured");
-  // Match the deliberately selected homepage release. The repository already supplies Latest in release-date order.
-  const featuredReleaseId =
-    items.find((item) => item.release.slug === "phase-zero-transmissions")?.release.id ??
-    items[0]?.release.id;
-  const matches = exploreItems(filterCatalogue(items, filters), view, featuredReleaseId);
+  const matches = exploreItems(filterCatalogue(items, filters), view, session.seed);
   const pageSize = 24;
   const pageCount = Math.max(1, Math.ceil(matches.length / pageSize));
   const requestedPage = Number(url.searchParams.get("page"));
@@ -65,6 +63,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     },
     {
       headers: {
+        ...session.headers,
         "Server-Timing": `discovery;dur=${(performance.now() - startedAt).toFixed(1)}`,
       },
     },

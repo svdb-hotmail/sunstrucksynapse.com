@@ -32,19 +32,21 @@ export function ApplicationShell({
       <main id="listener-content" className="content-panel main-content">
         {children}
       </main>
-      <footer className="listener-footer site-footer">
-        <span className="brand-display">SUNSYN RADIO</span>
-        <Link to="/about" aria-current={pathname === "/about" ? "page" : undefined}>
-          About SunSyn
-        </Link>
-        <Link to="/privacy">Privacy</Link>
-        <span className="mobile-theme">
-          <ThemeToggle />
-        </span>
-        {import.meta.env.MODE === "site-preview" ? (
-          <small>Design preview · sample catalogue · production unchanged</small>
-        ) : null}
-      </footer>
+      {pathname !== "/search" ? (
+        <footer className="listener-footer site-footer">
+          <span className="brand-display">SUNSYN RADIO</span>
+          <Link to="/about" aria-current={pathname === "/about" ? "page" : undefined}>
+            About SunSyn
+          </Link>
+          <Link to="/privacy">Privacy</Link>
+          <span className="mobile-theme">
+            <ThemeToggle />
+          </span>
+          {import.meta.env.MODE === "site-preview" ? (
+            <small>Design preview · sample catalogue · production unchanged</small>
+          ) : null}
+        </footer>
+      ) : null}
       <PlayerPanel ref={playerPanelRef} {...player} />
       <MobileNav navigation={navigation} queueCount={player.queue.length} onOpenQueue={openQueue} />
     </div>
