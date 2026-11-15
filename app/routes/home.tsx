@@ -106,7 +106,18 @@ export default function Home() {
           </Link>
           <div className="label-feature__copy">
             <span className="label-feature__eyebrow">SUNSYN / Featured listening</span>
-            <h1 id="feature-title">{featured.release.title}</h1>
+            <h1
+              id="feature-title"
+              data-title-size={
+                featured.release.title.length > 34
+                  ? "compact"
+                  : featured.release.title.length > 22
+                    ? "medium"
+                    : "regular"
+              }
+            >
+              {featured.release.title}
+            </h1>
             <Link className="label-feature__artist" to={featured.creator.href}>
               {featured.creator.name}
             </Link>
