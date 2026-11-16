@@ -1,4 +1,5 @@
 import type { CatalogueItem } from "~/types/catalogue";
+import { selectFeaturedTracks } from "~/services/featured-selection";
 
 export interface DiscoveryFilters {
   query: string;
@@ -14,10 +15,10 @@ export type ExploreView = (typeof EXPLORE_VIEWS)[number];
 export function exploreItems(
   items: CatalogueItem[],
   view: ExploreView,
-  featuredReleaseId?: string,
+  featuredSeed = "featured",
 ): CatalogueItem[] {
   if (view === "featured") {
-    return featuredReleaseId ? items.filter((item) => item.release.id === featuredReleaseId) : [];
+    return selectFeaturedTracks(items, featuredSeed);
   }
   if (view === "videos") return items.filter((item) => item.mediaKind === "video");
   if (view === "audio") return items.filter((item) => item.mediaKind === "audio");

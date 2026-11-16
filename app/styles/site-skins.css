@@ -114,6 +114,26 @@
 }
 [data-skin] .listener-shell .listener-footer {
   padding-inline: clamp(1rem, 2vw, 1.75rem);
+  gap: clamp(1.25rem, 3vw, 2.5rem);
+  min-height: 5.25rem;
+  font-size: clamp(0.95rem, 1.1vw, 1.125rem);
+}
+[data-skin] .listener-shell .listener-footer > .brand-display {
+  font-family: var(--font-family-interface);
+  font-size: clamp(1rem, 1.2vw, 1.25rem);
+  font-weight: 700;
+  letter-spacing: 0.035em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+[data-skin] .listener-shell .listener-footer > a {
+  white-space: nowrap;
+}
+@media (max-width: 560px) {
+  [data-skin] .listener-shell .listener-footer {
+    flex-wrap: wrap;
+    row-gap: 0.5rem;
+  }
 }
 [data-skin] .listener-shell .content-panel {
   background: var(--site-page);

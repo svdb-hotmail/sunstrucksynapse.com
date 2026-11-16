@@ -21,10 +21,12 @@ export function Contact() {
           Subject
           <select name="subject" required defaultValue="">
             <option value="">Choose one</option>
-            <option>The radio</option>
-            <option>Music or artist</option>
-            <option>Visual work</option>
-            <option>Collaboration</option>
+            <option>Music</option>
+            <option>Artist</option>
+            <option>Video</option>
+            <option>Idea</option>
+            <option>Problem</option>
+            <option>Everything Else</option>
           </select>
         </label>
         <label>
