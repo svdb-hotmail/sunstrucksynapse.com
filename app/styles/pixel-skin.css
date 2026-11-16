@@ -50,12 +50,16 @@
   background-size: 16px 16px;
 }
 [data-skin="pixel"] .listener-shell .label-feature__art {
+  position: relative;
+  isolation: isolate;
   padding: 8px;
   border: 4px solid var(--site-line);
   background: var(--site-panel);
   box-shadow: 12px 12px 0 var(--site-accent);
 }
 [data-skin="pixel"] .listener-shell .label-feature__art .artwork {
+  position: relative;
+  z-index: 1;
   box-shadow: none;
 }
 [data-skin="pixel"] .listener-shell .label-feature__artist {
@@ -67,7 +71,7 @@
 [data-skin="pixel"] .listener-shell .label-discovery__details h3 {
   font-family: var(--site-display);
   font-weight: 900;
-  letter-spacing: -0.065em;
+  letter-spacing: 0.035em;
   line-height: 1.08;
 }
 [data-skin="pixel"] .listener-shell .label-feature h1 {
@@ -120,12 +124,16 @@
   background-size: 16px 16px;
 }
 [data-skin="pixel"] .listener-shell .identity-hero__art {
+  position: relative;
+  isolation: isolate;
   padding: 8px;
   border: 4px solid var(--site-line);
   background: var(--site-panel);
   box-shadow: 12px 12px 0 var(--site-accent);
 }
 [data-skin="pixel"] .listener-shell .identity-hero__art img {
+  position: relative;
+  z-index: 1;
   box-shadow: none;
 }
 [data-skin="pixel"] .listener-shell .identity-hero h1,
@@ -133,7 +141,7 @@
 [data-skin="pixel"] .listener-shell .identity-release-card span {
   font-family: var(--site-display);
   font-weight: 900;
-  letter-spacing: -0.055em;
+  letter-spacing: 0.035em;
   overflow-wrap: normal;
   word-break: normal;
 }
@@ -147,6 +155,26 @@
 [data-skin="pixel"] .listener-shell .identity-tracks .track-row {
   border: 2px solid var(--site-line);
   margin-block: 8px;
+}
+[data-skin="pixel"] .listener-shell .label-feature__art::before,
+[data-skin="pixel"] .listener-shell .identity-hero__art::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: -32px;
+  pointer-events: none;
+  background-image: var(--pixel-art-url);
+  background-size: cover;
+  background-position: center;
+  image-rendering: pixelated;
+  opacity: 0.48;
+  mask-image:
+    radial-gradient(ellipse, #000 43%, transparent 76%),
+    repeating-conic-gradient(#000 0% 25%, transparent 0% 50%);
+  mask-size:
+    100% 100%,
+    12px 12px;
+  mask-composite: intersect;
 }
 @media (max-width: 760px) {
   [data-skin="pixel"] .listener-shell .label-feature__art,
