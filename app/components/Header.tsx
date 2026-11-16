@@ -4,6 +4,7 @@ import { ThemeToggle } from "~/design-system/ThemeToggle";
 import { StationMark } from "~/design-system/StationMark";
 import { showSkinPicker } from "~/design-system/skin";
 import { SkinPicker } from "~/components/SkinPicker";
+import { AppVersionBadge } from "~/components/AppVersionBadge";
 import {
   defaultCatalogueNavigation,
   isCatalogueNavigationEntryActive,
@@ -42,9 +43,12 @@ export function Header({
           About
         </Link>
       </nav>
-      <div className="topbar-actions preview-label">
-        {showSkinPicker ? <SkinPicker /> : null}
-        <ThemeToggle />
+      <div className="topbar-utilities">
+        <AppVersionBadge />
+        <div className="topbar-actions preview-label">
+          {showSkinPicker ? <SkinPicker /> : null}
+          <ThemeToggle />
+        </div>
       </div>
     </header>
   );

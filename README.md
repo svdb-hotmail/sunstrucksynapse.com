@@ -76,6 +76,12 @@ sunstrucksynapse.com/
     `-- cloudflare-setup.md
 ```
 
+## Product versions and updates
+
+The version badge opens user-facing release notes; `/updates` contains the full
+numbered history. See [maintaining product releases](docs/product-releases.md) for
+versioning, writing notes, and the matching production Storybook components.
+
 ## Local development
 
 Node.js 22.22 or later and npm are required. Install the lockfile-controlled dependency graph:
