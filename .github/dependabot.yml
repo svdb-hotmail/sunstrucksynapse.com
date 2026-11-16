@@ -12,6 +12,9 @@ updates:
       react-router:
         patterns: ["react-router", "@react-router/*"]
         update-types: [minor, patch]
+      storybook:
+        patterns: ["storybook", "@storybook/*"]
+        update-types: [minor, patch]
       production:
         dependency-type: production
         update-types: [minor, patch]
