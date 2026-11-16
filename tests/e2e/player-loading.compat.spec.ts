@@ -13,7 +13,7 @@ test("restored paused media stays idle until playback is requested", async ({ pa
     );
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Start listening", exact: true }).click();
+  await page.locator(".label-feature").getByRole("button", { name: "Play", exact: true }).click();
   const audio = page.locator("audio");
   await expect
     .poll(() => audio.evaluate((media: HTMLMediaElement) => !media.paused && media.currentTime > 0))

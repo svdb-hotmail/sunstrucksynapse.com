@@ -59,37 +59,27 @@ export function SubmissionEditor({
   savedCoverUrl?: string | null;
   onSave: (form: FormData) => void;
 }) {
-  const [revision, setRevision] = useState(data.revision);
+  const revision = savedRevision ?? data.revision;
   const [preparing, setPreparing] = useState(false);
   const [localError, setLocalError] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [permission, setPermission] = useState(false);
+  const [cover, setCover] = useState<{
+    revision: string;
+    editable: boolean;
+    file: File | null;
+    permission: boolean;
+    preview: string | null;
+  }>({ revision, editable: data.editable, file: null, permission: false, preview: null });
+  if (cover.revision !== revision || cover.editable !== data.editable) {
+    setCover({ revision, editable: data.editable, file: null, permission: false, preview: null });
+  }
+  const { file, permission, preview } = cover;
   const coverInput = useRef<HTMLInputElement>(null);
-  const [preview, setPreview] = useState<string | null>(null);
   useEffect(() => {
-    if (savedRevision) {
-      setRevision(savedRevision);
-      setFile(null);
-      setPermission(false);
-      if (coverInput.current) coverInput.current.value = "";
-    }
-  }, [savedRevision]);
+    if (coverInput.current) coverInput.current.value = "";
+  }, [revision, data.editable]);
   useEffect(() => {
-    if (!data.editable) {
-      setFile(null);
-      setPermission(false);
-      if (coverInput.current) coverInput.current.value = "";
-    }
-  }, [data.editable]);
-  useEffect(() => {
-    if (!file) {
-      setPreview(null);
-      return;
-    }
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+    if (preview) return () => URL.revokeObjectURL(preview);
+  }, [preview]);
   const coverUrl = (data.editable ? preview : null) ?? savedCoverUrl ?? data.coverUrl;
   const busy = pending || preparing;
   const discoveryEditable = data.editable || data.discoveryEditable === true;
@@ -172,8 +162,14 @@ export function SubmissionEditor({
                 name="cover"
                 accept={COVER_MIME_TYPES.join(",")}
                 onChange={(e) => {
-                  setFile(e.currentTarget.files?.[0] ?? null);
-                  setPermission(false);
+                  const file = e.currentTarget.files?.[0] ?? null;
+                  setCover({
+                    revision,
+                    editable: data.editable,
+                    file,
+                    permission: false,
+                    preview: file ? URL.createObjectURL(file) : null,
+                  });
                 }}
               />
             </label>
@@ -190,7 +186,7 @@ export function SubmissionEditor({
                 name="artworkPermission"
                 disabled={!data.editable}
                 checked={permission}
-                onChange={(e) => setPermission(e.currentTarget.checked)}
+                onChange={(e) => setCover({ ...cover, permission: e.currentTarget.checked })}
                 value="yes"
                 required={data.editable && Boolean(file)}
               />{" "}
