@@ -39,6 +39,7 @@ export function ApplicationShell({
             About SunSyn
           </Link>
           <Link to="/privacy">Privacy</Link>
+          <Link to="/updates">What’s new</Link>
           <span className="mobile-theme">
             <ThemeToggle />
           </span>

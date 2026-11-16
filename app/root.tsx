@@ -59,6 +59,7 @@ import "./styles/visual-identity.css";
 import "./styles/site-skins.css";
 import "./styles/explore.css";
 import "./styles/about-skins.css";
+import "./styles/product-releases.css";
 
 export const links: Route.LinksFunction = () => [
   { rel: "icon", href: "/assets/favicon.svg", type: "image/svg+xml" },

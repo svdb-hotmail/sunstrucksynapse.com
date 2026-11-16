@@ -11,6 +11,7 @@ const routes = [
   route("collections/:collectionSlug", "routes/collection.tsx"),
   route("search", "routes/search.tsx"),
   route("about", "routes/about.tsx"),
+  route("updates", "routes/updates.tsx"),
   route("api/events", "routes/api-events.ts"),
   route("privacy", "routes/privacy.tsx"),
   route("submission-terms", "routes/submission-terms.tsx"),
