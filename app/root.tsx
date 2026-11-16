@@ -375,7 +375,7 @@ export default function App() {
   );
   const hasNext = Boolean(
     findNextPlayableQueueEntry(queue, (id) => itemsById.get(id)) ||
-      (!playbackScope && selectedItem && findAdjacentPlayableItem(scopedItems, selectedItem.id, 1)),
+    (!playbackScope && selectedItem && findAdjacentPlayableItem(scopedItems, selectedItem.id, 1)),
   );
 
   const outletContext: PlayerOutletContext = {

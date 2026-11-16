@@ -338,8 +338,7 @@ test("retains hash-scroll coverage and preserves the player through the About ro
     Element.prototype.scrollIntoView = function (options) {
       const calls =
         (Reflect.get(globalThis, "__hashScrollCalls") as
-          | { id: string; behavior: ScrollBehavior | null }[]
-          | undefined) ?? [];
+          { id: string; behavior: ScrollBehavior | null }[] | undefined) ?? [];
       calls.push({
         id: this.id,
         behavior: typeof options === "object" ? (options.behavior ?? null) : null,
@@ -357,8 +356,7 @@ test("retains hash-scroll coverage and preserves the player through the About ro
     await page.evaluate(() =>
       (
         Reflect.get(globalThis, "__hashScrollCalls") as
-          | { id: string; behavior: ScrollBehavior | null }[]
-          | undefined
+          { id: string; behavior: ScrollBehavior | null }[] | undefined
       )?.some((call) => call.id === "catalogue" && call.behavior === "auto"),
     ),
   ).toBe(true);

@@ -12,10 +12,7 @@ import { CuratorBadge, CuratorButton } from "./CuratorPrimitives";
 import type { CuratorReviewView } from "./types";
 
 export type ReviewCriterion =
-  | "artisticQuality"
-  | "originalityIntent"
-  | "productionReadiness"
-  | "editorialFit";
+  "artisticQuality" | "originalityIntent" | "productionReadiness" | "editorialFit";
 export type ReviewGrade = "A" | "B" | "C";
 export type ReviewScores = Record<ReviewCriterion, number | null>;
 type ReviewContextTab = "metadata" | "rights" | "activity" | "files";
