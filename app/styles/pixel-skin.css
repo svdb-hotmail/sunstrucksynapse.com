@@ -1,0 +1,156 @@
+/* Pixel is a visual direction, not a filter on the catalogue artwork. */
+@font-face {
+  font-family: "Pixelify Sans";
+  src: url("../design-system/fonts/pixelify-sans-700.ttf") format("truetype");
+  font-weight: 700 900;
+  font-style: normal;
+  font-display: swap;
+}
+[data-skin="pixel"] .listener-shell {
+  --site-page: #e9e4d2;
+  --site-panel: #f8f2df;
+  --site-card: #fff9e9;
+  --site-ink: #242536;
+  --site-muted: #57576b;
+  --site-line: #27293c;
+  --site-accent: #b53753;
+  --site-button-ink: #fff9e9;
+  --site-display: "Pixelify Sans", "Courier New", monospace;
+  --site-radius: 0px;
+}
+[data-theme="dark"][data-skin="pixel"] .listener-shell {
+  --site-page: #171728;
+  --site-panel: #22243a;
+  --site-card: #2d3048;
+  --site-ink: #f7eccf;
+  --site-muted: #c1bcae;
+  --site-line: #8b81a3;
+  --site-accent: #f0a052;
+  --site-button-ink: #171728;
+}
+[data-skin="pixel"] .listener-shell .radio-home {
+  --skin-paper: var(--site-page);
+  --skin-ink: var(--site-ink);
+  --skin-muted: var(--site-muted);
+  --skin-line: var(--site-line);
+  --skin-accent: var(--site-accent);
+  --skin-button-ink: var(--site-button-ink);
+  --skin-display: var(--site-display);
+  --skin-radius: 0px;
+}
+[data-skin="pixel"] .listener-shell .label-feature {
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--site-line) 12%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(color-mix(in srgb, var(--site-line) 12%, transparent) 1px, transparent 1px),
+    var(--site-page);
+  background-size: 16px 16px;
+}
+[data-skin="pixel"] .listener-shell .label-feature__art {
+  padding: 8px;
+  border: 4px solid var(--site-line);
+  background: var(--site-panel);
+  box-shadow: 12px 12px 0 var(--site-accent);
+}
+[data-skin="pixel"] .listener-shell .label-feature__art .artwork {
+  box-shadow: none;
+}
+[data-skin="pixel"] .listener-shell .label-feature__artist {
+  font-family: var(--site-display);
+  font-weight: 700;
+}
+[data-skin="pixel"] .listener-shell .label-feature h1,
+[data-skin="pixel"] .listener-shell .section-heading h2,
+[data-skin="pixel"] .listener-shell .label-discovery__details h3 {
+  font-family: var(--site-display);
+  font-weight: 900;
+  letter-spacing: -0.065em;
+  line-height: 1.08;
+}
+[data-skin="pixel"] .listener-shell .label-feature h1 {
+  font-size: clamp(2rem, 4vw, 4.6rem);
+  overflow-wrap: normal;
+  word-break: normal;
+}
+[data-skin="pixel"] .listener-shell .label-feature__eyebrow,
+[data-skin="pixel"] .listener-shell .identity-kicker {
+  font-family: var(--site-display);
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+[data-skin="pixel"] .listener-shell .label-discovery__card,
+[data-skin="pixel"] .listener-shell .media-card {
+  border-radius: 0;
+  box-shadow: 5px 5px 0 var(--site-line);
+}
+[data-skin="pixel"] .listener-shell button,
+[data-skin="pixel"] .listener-shell .skin-picker > summary {
+  border-radius: 0;
+}
+[data-skin="pixel"] .listener-shell .label-feature__actions button:first-child,
+[data-skin="pixel"] .listener-shell .identity-actions button:first-child {
+  box-shadow: 5px 5px 0 var(--site-line);
+}
+[data-skin="pixel"] .listener-shell .label-feature__actions button:first-child:active,
+[data-skin="pixel"] .listener-shell .identity-actions button:first-child:active {
+  transform: translate(3px, 3px);
+  box-shadow: 2px 2px 0 var(--site-line);
+}
+[data-theme][data-skin="pixel"] .listener-shell .identity-page {
+  --identity-paper: var(--site-page);
+  --identity-surface: var(--site-card);
+  --identity-ink: var(--site-ink);
+  --identity-accent-active: var(--site-accent);
+}
+[data-skin="pixel"] .listener-shell .identity-preview-controls {
+  display: none;
+}
+[data-skin="pixel"] .listener-shell .identity-hero {
+  background:
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--site-line) 13%, transparent) 1px,
+      transparent 1px
+    ),
+    linear-gradient(color-mix(in srgb, var(--site-line) 13%, transparent) 1px, transparent 1px),
+    var(--site-page);
+  background-size: 16px 16px;
+}
+[data-skin="pixel"] .listener-shell .identity-hero__art {
+  padding: 8px;
+  border: 4px solid var(--site-line);
+  background: var(--site-panel);
+  box-shadow: 12px 12px 0 var(--site-accent);
+}
+[data-skin="pixel"] .listener-shell .identity-hero__art img {
+  box-shadow: none;
+}
+[data-skin="pixel"] .listener-shell .identity-hero h1,
+[data-skin="pixel"] .listener-shell .identity-section-heading h2,
+[data-skin="pixel"] .listener-shell .identity-release-card span {
+  font-family: var(--site-display);
+  font-weight: 900;
+  letter-spacing: -0.055em;
+  overflow-wrap: normal;
+  word-break: normal;
+}
+[data-skin="pixel"] .listener-shell .identity-hero h1 {
+  font-size: clamp(2.3rem, 4.5vw, 5.2rem);
+}
+[data-skin="pixel"] .listener-shell .identity-release-card img {
+  border: 4px solid var(--site-line);
+  box-shadow: 6px 6px 0 var(--site-accent);
+}
+[data-skin="pixel"] .listener-shell .identity-tracks .track-row {
+  border: 2px solid var(--site-line);
+  margin-block: 8px;
+}
+@media (max-width: 760px) {
+  [data-skin="pixel"] .listener-shell .label-feature__art,
+  [data-skin="pixel"] .listener-shell .identity-hero__art {
+    box-shadow: 6px 6px 0 var(--site-accent);
+  }
+}
