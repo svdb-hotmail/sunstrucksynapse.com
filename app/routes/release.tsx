@@ -115,7 +115,6 @@ export default function ReleaseRoute({ loaderData }: Route.ComponentProps) {
       <section className="identity-tracks" aria-labelledby="release-tracks-title">
         <div className="identity-section-heading">
           <h2 id="release-tracks-title">Track list</h2>
-          <Link to="/">Back to SUNSYN</Link>
         </div>
         <EntityTrackList tracks={release.tracks} player={player} />
       </section>

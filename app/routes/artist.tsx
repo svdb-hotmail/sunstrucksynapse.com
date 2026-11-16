@@ -115,7 +115,6 @@ export default function ArtistRoute({ loaderData }: Route.ComponentProps) {
         <section className="identity-tracks" aria-labelledby="artist-tracks-title">
           <div className="identity-section-heading">
             <h2 id="artist-tracks-title">Listen</h2>
-            <Link to="/">Back to SUNSYN</Link>
           </div>
           <EntityTrackList tracks={artist.tracks} player={player} />
         </section>

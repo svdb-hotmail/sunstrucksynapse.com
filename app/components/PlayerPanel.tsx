@@ -22,7 +22,7 @@ export interface PlayerPanelProps {
     itemId: string;
     sequence: number;
     collectionId?: string;
-    intent?: "resume";
+    intent?: "resume" | "select";
   } | null;
   view?: "player" | "queue" | null;
   onViewChange?: (view: "player" | "queue" | null) => void;
@@ -173,6 +173,9 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
     };
     if (playbackRequest.intent === "resume") {
       void coordinator.handleNativePlay();
+      return;
+    }
+    if (playbackRequest.intent === "select") {
       return;
     }
     trackedPlayback.current.collectionId = playbackRequest.collectionId;
@@ -442,6 +445,23 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
       data-active={Boolean(item)}
       data-dock-visible={Boolean(item || queue.length)}
     >
+      {item?.media && item.mediaKind === "video" ? (
+        <div className="inline-video">
+          <video
+            key={item.id}
+            ref={mediaRef as React.RefObject<HTMLVideoElement>}
+            aria-label={`${item.description.title} video player`}
+            poster={item.media.poster}
+            controls
+            controlsList="nodownload noplaybackrate"
+            disablePictureInPicture
+            playsInline
+            {...mediaProps}
+          >
+            <source src={activeMediaSrc ?? item.media.src} type={item.media.mimeType} />
+          </video>
+        </div>
+      ) : null}
       <div className="player-dock transport brand-topbar" aria-label="Playback controls">
         <div className="transport-track">
           {item ? (
@@ -461,9 +481,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
               />
               <span>
                 <strong>{item.description.title}</strong>
-                <small>
-                  {isPlaying ? "Playing" : "Paused"} · {item.creator.name}
-                </small>
+                <small>{item.creator.name}</small>
               </span>
             </button>
           ) : (
@@ -590,21 +608,7 @@ export const PlayerPanel = forwardRef<HTMLElement, PlayerPanelProps>(function Pl
               >
                 <source src={activeMediaSrc ?? item.media.src} type={item.media.mimeType} />
               </audio>
-            ) : (
-              <video
-                key={item.id}
-                ref={mediaRef as React.RefObject<HTMLVideoElement>}
-                aria-label={`${item.description.title} video player`}
-                poster={item.media.poster}
-                controls
-                controlsList="nodownload noplaybackrate"
-                disablePictureInPicture
-                playsInline
-                {...mediaProps}
-              >
-                <source src={activeMediaSrc ?? item.media.src} type={item.media.mimeType} />
-              </video>
-            )}
+            ) : null}
           </div>
           <div className="dock-progress">
             <span>{formatTime(currentTime)}</span>
