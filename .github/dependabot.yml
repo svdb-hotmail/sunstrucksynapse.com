@@ -9,6 +9,9 @@ updates:
       timezone: Europe/Brussels
     open-pull-requests-limit: 5
     groups:
+      react-router:
+        patterns: ["react-router", "@react-router/*"]
+        update-types: [minor, patch]
       production:
         dependency-type: production
         update-types: [minor, patch]
