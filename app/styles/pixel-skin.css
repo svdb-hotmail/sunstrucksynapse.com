@@ -39,15 +39,7 @@
   --skin-radius: 0px;
 }
 [data-skin="pixel"] .listener-shell .label-feature {
-  background:
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--site-line) 12%, transparent) 1px,
-      transparent 1px
-    ),
-    linear-gradient(color-mix(in srgb, var(--site-line) 12%, transparent) 1px, transparent 1px),
-    var(--site-page);
-  background-size: 16px 16px;
+  background: var(--site-page);
 }
 [data-skin="pixel"] .listener-shell .label-feature__art {
   position: relative;
@@ -61,6 +53,11 @@
   position: relative;
   z-index: 1;
   box-shadow: none;
+}
+[data-skin="pixel"] .listener-shell .label-feature__copy,
+[data-skin="pixel"] .listener-shell .identity-hero__copy {
+  position: relative;
+  z-index: 1;
 }
 [data-skin="pixel"] .listener-shell .label-feature__artist {
   font-family: var(--site-display);
@@ -113,15 +110,7 @@
   display: none;
 }
 [data-skin="pixel"] .listener-shell .identity-hero {
-  background:
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--site-line) 13%, transparent) 1px,
-      transparent 1px
-    ),
-    linear-gradient(color-mix(in srgb, var(--site-line) 13%, transparent) 1px, transparent 1px),
-    var(--site-page);
-  background-size: 16px 16px;
+  background: var(--site-page);
 }
 [data-skin="pixel"] .listener-shell .identity-hero__art {
   position: relative;
@@ -161,15 +150,15 @@
   content: "";
   position: absolute;
   z-index: 0;
-  inset: -32px;
+  inset: -44px -96px -44px -28px;
   pointer-events: none;
   background-image: var(--pixel-art-url);
   background-size: cover;
   background-position: center;
   image-rendering: pixelated;
-  opacity: 0.48;
+  opacity: 0.38;
   mask-image:
-    radial-gradient(ellipse, #000 43%, transparent 76%),
+    radial-gradient(ellipse 68% 68% at 42% 50%, #000 43%, transparent 86%),
     repeating-conic-gradient(#000 0% 25%, transparent 0% 50%);
   mask-size:
     100% 100%,
