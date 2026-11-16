@@ -1,17 +1,21 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useSyncExternalStore } from "react";
 import { Link } from "react-router";
-import { DEFAULT_SKIN, setSkin as applySkin, SKINS, type Skin } from "~/design-system/skin";
+import { DEFAULT_SKIN, isSkin, setSkin as applySkin, SKINS } from "~/design-system/skin";
+
+function subscribeSkin(changed: () => void) {
+  const observer = new MutationObserver(changed);
+  observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-skin"] });
+  return () => observer.disconnect();
+}
+
+function currentSkin() {
+  const skin = document.documentElement.dataset.skin;
+  return isSkin(skin) ? skin : DEFAULT_SKIN;
+}
 
 export function SkinPicker() {
-  const [skin, setSkin] = useState<Skin>(DEFAULT_SKIN);
+  const skin = useSyncExternalStore(subscribeSkin, currentSkin, () => DEFAULT_SKIN);
   const menu = useRef<HTMLDetailsElement>(null);
-
-  useEffect(() => {
-    const current = document.documentElement.dataset.skin;
-    if (current === "editorial" || current === "underground" || current === "synth") {
-      setSkin(current);
-    }
-  }, []);
 
   return (
     <details className="skin-picker" ref={menu}>
@@ -27,7 +31,6 @@ export function SkinPicker() {
             aria-pressed={skin === option}
             onClick={() => {
               applySkin(option, document);
-              setSkin(option);
               menu.current?.removeAttribute("open");
             }}
           >

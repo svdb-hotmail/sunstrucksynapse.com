@@ -1,10 +1,10 @@
 import { expect, test } from "@playwright/test";
-import { createServer, type ViteDevServer } from "vite";
+import { createServer, normalizePath, type ViteDevServer } from "vite";
 import path from "node:path";
 
 let server: ViteDevServer;
 let origin: string;
-const moduleId = path.resolve("__submission-editor-smoke.jsx");
+const moduleId = normalizePath(path.resolve("__submission-editor-smoke.jsx"));
 const harness = `
 import React, {useState} from 'react';
 import {createRoot} from 'react-dom/client';

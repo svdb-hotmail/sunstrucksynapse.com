@@ -31,10 +31,9 @@ import type {
   CatalogueItem,
   PlaybackOrigin,
   PlayerOutletContext,
-  PlayerState,
   QueueEntry,
 } from "~/types/catalogue";
-import { persistPlayerToStorage, restorePlayerFromStorage } from "~/utils/player-storage";
+import { usePlayerSession } from "~/utils/use-player-session";
 import {
   appendAlbumQueue,
   findAdjacentPlayableItem,
@@ -152,75 +151,33 @@ export default function App() {
   );
   const playerPanelRef = useRef<HTMLElement>(null);
   const playbackSequence = useRef(0);
-  const persistenceEnabled = useRef(true);
-  const userInteractedBeforeRestore = useRef(false);
-  const [hasRestoredPlayer, setHasRestoredPlayer] = useState(false);
-  const [player, setPlayer] = useState<PlayerState>({
-    selectedItemId: null,
-  });
+  const { player, setPlayer, playbackScope, setPlaybackScope, queue, setQueue } =
+    usePlayerSession(catalogueItems);
   const [playbackRequest, setPlaybackRequest] = useState<{
     itemId: string;
     sequence: number;
     collectionId?: string;
     intent?: "resume";
   } | null>(null);
-  const [playbackScope, setPlaybackScope] = useState<string[] | null>(null);
-  const [queue, setQueue] = useState<QueueEntry[]>([]);
   const selectedItem = player.selectedItemId
     ? findCatalogueItem(catalogueItems, player.selectedItemId)
     : undefined;
 
-  useEffect(() => {
-    let storage: Storage | null = null;
-    try {
-      storage = window.localStorage;
-    } catch {
-      persistenceEnabled.current = false;
-    }
-    const restored = restorePlayerFromStorage(storage, catalogueItems, null);
-    persistenceEnabled.current = restored.persistenceAvailable;
-    if (!userInteractedBeforeRestore.current) {
-      setPlayer({ selectedItemId: restored.player.selectedItemId, origin: restored.player.origin });
-      setPlaybackScope(restored.player.playbackScope ?? null);
-      setQueue(restored.player.queue);
-    }
-    setHasRestoredPlayer(true);
-  }, [catalogueItems]);
-
-  useEffect(() => {
-    if (!hasRestoredPlayer || !persistenceEnabled.current) {
-      return;
-    }
-    let storage: Storage | null = null;
-    try {
-      storage = window.localStorage;
-    } catch {
-      persistenceEnabled.current = false;
-      return;
-    }
-    persistenceEnabled.current = persistPlayerToStorage(
-      storage,
-      player.selectedItemId,
-      queue,
-      playbackScope,
-      player.origin,
-    );
-  }, [hasRestoredPlayer, player.selectedItemId, player.origin, queue, playbackScope]);
-
   const [playingItemId, setPlayingItemId] = useState<string | null>(null);
   const [sessionHistory, setSessionHistory] = useState<QueueEntry[]>([]);
   const [view, setView] = useState<"player" | "queue" | null>(null);
-  const selectItem = useCallback((item: CatalogueItem) => {
-    userInteractedBeforeRestore.current = true;
-    setPlayer({ selectedItemId: item.id });
-    setPlaybackRequest(null);
-    setPlaybackScope(null);
-  }, []);
+  const selectItem = useCallback(
+    (item: CatalogueItem) => {
+      setPlayer({ selectedItemId: item.id });
+      setPlaybackRequest(null);
+      setPlaybackScope(null);
+    },
+    [setPlayer, setPlaybackScope],
+  );
 
   const requestPlayback = useCallback(
     (item: CatalogueItem, collectionId?: string, intent?: "resume", origin?: PlaybackOrigin) => {
       if (!item.media) return;
-      userInteractedBeforeRestore.current = true;
       setPlayer({
         selectedItemId: item.id,
         origin: origin
@@ -240,17 +197,15 @@ export default function App() {
         intent,
       });
     },
-    [],
+    [setPlayer],
   );
 
   const changeQueue = (next: QueueEntry[]) => {
-    userInteractedBeforeRestore.current = true;
     setQueue(next);
     setPlaybackScope(reconcilePlaybackScope(playbackScope, player.selectedItemId, next));
   };
 
   const clearQueueAndPlayback = () => {
-    userInteractedBeforeRestore.current = true;
     setQueue([]);
     setPlaybackScope(null);
     playerPanelRef.current?.querySelector<HTMLMediaElement>("audio, video")?.pause();
@@ -303,10 +258,12 @@ export default function App() {
       playbackScope,
       player.origin,
       player.selectedItemId,
-      playbackRequest?.collectionId,
+      playbackRequest,
       queue,
       requestPlayback,
       selectedItem,
+      setQueue,
+      setPlaybackScope,
     ],
   );
 
@@ -339,6 +296,7 @@ export default function App() {
     playbackRequest?.collectionId,
     requestPlayback,
     selectedItem,
+    setQueue,
   ]);
 
   const queueItem = (item: CatalogueItem, collectionId?: string) => {

@@ -47,7 +47,7 @@ export default tseslint.config(
     },
     rules: {
       ...react.configs.flat.recommended.rules,
-      ...reactHooks.configs["flat/recommended"].rules,
+      ...reactHooks.configs.flat.recommended.rules,
       "react/react-in-jsx-scope": "off",
     },
     settings: {

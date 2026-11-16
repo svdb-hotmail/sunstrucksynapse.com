@@ -6,6 +6,7 @@ import { CuratorShell } from "./CuratorShell";
 import { SubmissionQueue, type QueueFilter } from "./SubmissionQueue";
 import { ReviewWorkspace, type ReviewScores, type ReviewGrade } from "./ReviewWorkspace";
 import type { CuratorQueueItemView, CuratorReviewView } from "./types";
+import { useHydrated } from "~/utils/use-hydrated";
 
 const emptyScores: ReviewScores = {
   artisticQuality: null,
@@ -15,7 +16,12 @@ const emptyScores: ReviewScores = {
 };
 type Draft = { scores: ReviewScores; grade: ReviewGrade | null; rationale: string };
 
-function ReviewDraft({
+function ReviewDraft(props: Parameters<typeof RestoredReviewDraft>[0]) {
+  const hydrated = useHydrated();
+  return hydrated ? <RestoredReviewDraft {...props} /> : <p>Loading review draft…</p>;
+}
+
+function RestoredReviewDraft({
   review,
   actor,
   busy,
@@ -31,25 +37,25 @@ function ReviewDraft({
   close: () => void;
 }) {
   const key = `sunsyn:review-draft:${actor}:${review.submission.id}`;
-  const [restored, setRestored] = useState(false);
-  const [draft, setDraft] = useState<Draft>({ scores: emptyScores, grade: null, rationale: "" });
-  useEffect(() => {
+  const [draft, setDraft] = useState<Draft>(() => {
     try {
       const stored = sessionStorage.getItem(key);
-      if (stored) setDraft(JSON.parse(stored) as Draft);
+      if (stored) return JSON.parse(stored) as Draft;
     } catch {
       /* Storage may be unavailable. */
     }
-    setRestored(true);
-  }, [key]);
+    return { scores: emptyScores, grade: null, rationale: "" };
+  });
   const [storageError, setStorageError] = useState(false);
-  useEffect(() => {
+  const updateDraft = (next: Draft) => {
+    setDraft(next);
     try {
-      if (restored) sessionStorage.setItem(key, JSON.stringify(draft));
+      sessionStorage.setItem(key, JSON.stringify(next));
+      setStorageError(false);
     } catch {
       setStorageError(true);
     }
-  }, [draft, key, restored]);
+  };
   return (
     <ReviewWorkspace
       review={review}
@@ -64,10 +70,10 @@ function ReviewDraft({
           : undefined)
       }
       onScore={(criterion, score) =>
-        setDraft((d) => ({ ...d, scores: { ...d.scores, [criterion]: score } }))
+        updateDraft({ ...draft, scores: { ...draft.scores, [criterion]: score } })
       }
-      onGrade={(grade) => setDraft((d) => ({ ...d, grade }))}
-      onRationale={(rationale) => setDraft((d) => ({ ...d, rationale }))}
+      onGrade={(grade) => updateDraft({ ...draft, grade })}
+      onRationale={(rationale) => updateDraft({ ...draft, rationale })}
       onLater={close}
       onAskArtist={(claimKey, message) => submit({ intent: "clarify", claimKey, message })}
       onFinish={() =>
@@ -114,6 +120,11 @@ export function ProductionQueue({
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [query, setQuery] = useState(data.filter.query);
+  const [serverQuery, setServerQuery] = useState(data.filter.query);
+  if (serverQuery !== data.filter.query) {
+    setServerQuery(data.filter.query);
+    setQuery(data.filter.query);
+  }
   const filter = data.filter.queue;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const evidence = useFetcher<{ error?: string; grantUrl?: string; expiresAt?: string }>();
@@ -191,9 +202,6 @@ export function ProductionQueue({
             : "?flash=no-ready-submissions",
       );
   }, [busy, fetcher.data, navigate, data.identity.id]);
-  useEffect(() => {
-    setQuery(data.filter.query);
-  }, [data.filter.query]);
   useEffect(() => {
     if (query === data.filter.query) return;
     const timer = window.setTimeout(() => {
