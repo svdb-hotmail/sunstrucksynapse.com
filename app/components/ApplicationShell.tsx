@@ -20,6 +20,7 @@ export function ApplicationShell({
   const openQueue = () => player.onViewChange?.(player.view === "queue" ? null : "queue");
   const { pathname } = useLocation();
   const hideFooter =
+    pathname === "/" ||
     pathname === "/search" ||
     pathname === "/about" ||
     pathname.startsWith("/artists/") ||

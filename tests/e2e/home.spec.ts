@@ -375,8 +375,8 @@ test("retains hash-scroll coverage and preserves the player through the About ro
     .poll(() => audio.evaluate((element: HTMLMediaElement) => element.paused))
     .toBe(false);
   await page
-    .locator(".listener-footer")
-    .getByRole("link", { name: "About SunSyn", exact: true })
+    .getByRole("navigation", { name: "Primary" })
+    .getByRole("link", { name: "About" })
     .click();
 
   await expect(page).toHaveURL(/\/about$/);
@@ -406,8 +406,9 @@ test("keeps the intermediate header visible without horizontal overflow", async 
   await expect(page.locator("header .theme-toggle__label")).toBeHidden();
   await expect(page.locator(".subscribe")).toHaveCount(0);
   await expect(
-    page.locator(".listener-footer").getByRole("link", { name: "About SunSyn" }),
+    page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "About" }),
   ).toBeVisible();
+  await expect(page.locator(".site-footer")).toHaveCount(0);
   expect(
     await page.evaluate(() => document.body.scrollWidth <= document.documentElement.clientWidth),
   ).toBe(true);

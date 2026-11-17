@@ -6,7 +6,7 @@ test("desktop navigation reaches Home, Explore, and About without duplicate subp
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "Primary", exact: true });
   await expect(nav.getByRole("link")).toHaveText(["Home", "Explore", "About"]);
-  await expect(page.locator(".site-footer")).toBeVisible();
+  await expect(page.locator(".site-footer")).toHaveCount(0);
 
   await nav.getByRole("link", { name: "Explore" }).click();
   await expect(page).toHaveURL(/\/search$/);
@@ -54,5 +54,5 @@ test("desktop navigation reaches Home, Explore, and About without duplicate subp
 
   await nav.getByRole("link", { name: "Home" }).click();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.locator(".site-footer")).toBeVisible();
+  await expect(page.locator(".site-footer")).toHaveCount(0);
 });
