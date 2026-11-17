@@ -6,6 +6,13 @@
   font-style: normal;
   font-display: swap;
 }
+@font-face {
+  font-family: "Jersey 20";
+  src: url("../design-system/fonts/jersey20-regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
 [data-skin="pixel"] .listener-shell {
   --site-page: #e9e4d2;
   --site-panel: #f8f2df;
@@ -16,6 +23,7 @@
   --site-accent: #b53753;
   --site-button-ink: #fff9e9;
   --site-display: "Pixelify Sans", "Courier New", monospace;
+  --site-hero-display: "Jersey 20", "Pixelify Sans", monospace;
   --site-radius: 0px;
 }
 [data-theme="dark"][data-skin="pixel"] .listener-shell {
@@ -72,6 +80,8 @@
   line-height: 1.08;
 }
 [data-skin="pixel"] .listener-shell .label-feature h1 {
+  font-family: var(--site-hero-display);
+  font-weight: 400;
   font-size: clamp(2rem, 4vw, 4.6rem);
   overflow-wrap: normal;
   word-break: normal;
@@ -135,6 +145,8 @@
   word-break: normal;
 }
 [data-skin="pixel"] .listener-shell .identity-hero h1 {
+  font-family: var(--site-hero-display);
+  font-weight: 400;
   font-size: clamp(2.3rem, 4.5vw, 5.2rem);
 }
 [data-skin="pixel"] .listener-shell .identity-release-card img {
