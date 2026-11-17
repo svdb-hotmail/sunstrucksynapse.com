@@ -42,6 +42,13 @@ export function Header({
           About
         </Link>
       </nav>
+      <Link
+        className="mobile-about-link"
+        to="/about"
+        aria-current={pathname === "/about" ? "page" : undefined}
+      >
+        About
+      </Link>
       <div className="topbar-actions preview-label">
         {showSkinPicker ? <SkinPicker /> : null}
         <ThemeToggle />

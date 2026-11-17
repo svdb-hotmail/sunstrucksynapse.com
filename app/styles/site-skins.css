@@ -278,3 +278,22 @@
     display: none;
   }
 }
+[data-skin] .listener-shell .mobile-about-link {
+  display: none;
+}
+@media (max-width: 760px) {
+  [data-skin] .listener-shell .mobile-about-link {
+    display: inline-flex;
+    align-items: center;
+    margin-left: auto;
+    min-height: 44px;
+    color: var(--site-ink);
+    font:
+      600 0.8rem/1 system-ui,
+      sans-serif;
+    text-decoration: none;
+  }
+  [data-skin] .listener-shell .mobile-about-link[aria-current="page"] {
+    color: var(--site-accent);
+  }
+}
