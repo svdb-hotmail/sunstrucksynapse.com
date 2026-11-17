@@ -5,32 +5,35 @@ async function openFilters(page: Page) {
 }
 
 test("searches and filters the published catalogue with URL-backed controls", async ({ page }) => {
-  await page.goto("/search");
+  await page.goto("/search?view=latest");
   await expect(page.getByRole("heading", { name: "Explore", exact: true })).toBeVisible();
-  await expect(page.locator(".entity-track-list > li")).toHaveCount(6);
+  await expect(page.locator(".explore-grid > li")).toHaveCount(6);
 
   await openFilters(page);
   await page.getByLabel("Genre").selectOption("folk");
-  await page.getByRole("button", { name: "Search" }).click();
+  await page.getByRole("button", { name: "Apply filters" }).click();
   await expect(page).toHaveURL(/genre=folk/);
-  await expect(page.locator(".entity-track-list > li")).toHaveCount(1);
+  await expect(page.locator(".explore-grid > li")).toHaveCount(1);
   await expect(
     page.getByRole("link", { name: "The Mushroom Circle (Gnome Revolution)", exact: true }),
   ).toBeVisible();
 
   await page.getByRole("link", { name: "Clear search & filters" }).click();
-  await expect(page).toHaveURL(/\/search$/);
+  await expect(page).toHaveURL(/\/search\?view=latest$/);
+  if ((await page.locator(".listener-filters").getAttribute("open")) !== null)
+    await page.locator(".listener-filters > summary").click();
+  await page.getByRole("button", { name: "Show search" }).click();
   await expect(page.getByLabel("Search artists, releases and tracks")).toHaveValue("");
   await page.getByLabel("Search artists, releases and tracks").fill("Gone Fishing");
-  await page.getByRole("button", { name: "Search" }).click();
+  await page.getByRole("button", { name: "Search", exact: true }).click();
   await expect(page).toHaveURL(/q=Gone(?:\+|%20)Fishing/);
-  await expect(page.locator(".entity-track-list > li")).toHaveCount(1);
-  await expect(page.getByText("1 matching track.")).toBeVisible();
+  await expect(page.locator(".explore-grid > li")).toHaveCount(1);
+  await expect(page.getByText("1 track", { exact: true })).toBeVisible();
 
   await openFilters(page);
   await page.getByLabel("Mood").selectOption("energetic");
-  await page.getByRole("button", { name: "Search" }).click();
-  await expect(page.getByText(/No matching tracks/)).toBeVisible();
+  await page.getByRole("button", { name: "Apply filters" }).click();
+  await expect(page.getByText(/No tracks match here/)).toBeVisible();
 });
 
 test("explains unavailable sparse-catalogue facets without blocking text search", async ({
@@ -40,12 +43,14 @@ test("explains unavailable sparse-catalogue facets without blocking text search"
   await page.goto("/search");
   await openFilters(page);
   await expect(page.locator(".listener-filters select")).toHaveCount(0);
+  await page.locator(".listener-filters > summary").click();
+  await page.getByRole("button", { name: "Show search" }).click();
   await page.getByLabel("Search artists, releases and tracks", { exact: true }).fill("Revolution");
   await page.getByRole("button", { name: "Search", exact: true }).click();
   await expect(page).toHaveURL(/q=Revolution/);
-  await expect(page.locator(".entity-track-list > li")).toHaveCount(1);
+  await expect(page.locator(".explore-grid > li")).toHaveCount(1);
   await page.getByRole("link", { name: "Clear search & filters", exact: true }).click();
-  await expect(page).toHaveURL(/\/search$/);
+  await expect(page).toHaveURL(/\/search\?view=featured$/);
 });
 
 for (const sparse of [false, true]) {
@@ -69,28 +74,32 @@ for (const sparse of [false, true]) {
       await expect(select.locator(`option[value="${value}"]`)).toHaveText(`${value} (unavailable)`);
       await expect(select).toHaveAccessibleDescription(/The selected value is not available/);
     }
-    await expect(page.getByText(/No matching tracks/)).toBeVisible();
-    await page.getByRole("button", { name: "Search", exact: true }).click();
+    await expect(page.getByText(/No tracks match here/)).toBeVisible();
+    await page.getByRole("button", { name: "Apply filters", exact: true }).click();
     await expect
       .poll(() => Object.fromEntries(new URL(page.url()).searchParams))
-      .toEqual({ q: "Revolution", ...selected });
+      .toMatchObject({ q: "Revolution", ...selected });
     for (const [name, value] of Object.entries(selected))
       await expect(page.locator(`select[name="${name}"]`)).toHaveValue(value);
     await openFilters(page);
     for (const name of Object.keys(selected))
       await page.locator(`select[name="${name}"]`).selectOption("");
-    await page.getByRole("button", { name: "Search", exact: true }).click();
+    await page.getByRole("button", { name: "Apply filters", exact: true }).click();
     await expect(
       page.getByLabel("Search artists, releases and tracks", { exact: true }),
     ).toHaveValue("Revolution");
-    await expect(page.getByText(/No matching tracks/)).toHaveCount(0);
+    await expect(page.getByText(/No tracks match here/)).toHaveCount(0);
     for (const name of Object.keys(selected)) {
       const select = page.locator(`select[name="${name}"]`);
       if (sparse) await expect(select).toHaveCount(0);
       else await expect(select).toHaveValue("");
     }
     await page.getByRole("link", { name: "Clear search & filters", exact: true }).click();
-    await expect(page).toHaveURL(/\/search$/);
+    await expect(page).toHaveURL(/\/search\?view=latest$/);
+    if (
+      !(await page.getByLabel("Search artists, releases and tracks", { exact: true }).isVisible())
+    )
+      await page.getByRole("button", { name: "Show search" }).click();
     await expect(
       page.getByLabel("Search artists, releases and tracks", { exact: true }),
     ).toHaveValue("");

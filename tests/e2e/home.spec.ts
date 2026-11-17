@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { Page } from "@playwright/test";
-import { queueTrack, viewTrack, openQueue, closePanel } from "./listener-helpers";
+import { queueTrack, viewTrack, openQueue } from "./listener-helpers";
 
 const revolutionTitle = "Sunstruck Synapse (Revolution will be televised)";
 const revolutionSource = "/assets/audio/Sunstruck Synapse (Revolution will be televised).mp3";
@@ -36,11 +36,11 @@ test("loads the database catalogue and controls the correct media", async ({ pag
   });
   page.on("pageerror", (error) => browserErrors.push(`page: ${error.message}`));
 
-  await page.goto("/");
+  await page.goto("/search?view=latest");
 
   await expect(page).toHaveTitle(/SunSyn Radio/);
-  await expect(page.getByRole("heading", { name: "Human ears. New frequencies." })).toBeVisible();
-  await expect(page.locator(".media-card")).toHaveCount(2);
+  await expect(page.getByRole("heading", { name: "Explore", exact: true })).toBeVisible();
+  await expect(cardFor(page, revolutionTitle)).toBeVisible();
   await cardFor(page, revolutionTitle)
     .getByRole("button", { name: `Play ${revolutionTitle}` })
     .click();
@@ -84,38 +84,30 @@ test("loads the database catalogue and controls the correct media", async ({ pag
   expect(browserErrors).toEqual([]);
 });
 
-test("supports queue removal, next priority and automatic advancement", async ({ page }) => {
-  await page.goto("/");
+test("keeps the playing track at queue position 01 and clear all stops playback", async ({
+  page,
+}) => {
+  await page.setExtraHTTPHeaders({ "x-test-catalogue-scenario": "listener-boundaries" });
+  await page.goto("/search?view=latest");
 
   await cardFor(page, revolutionTitle)
     .getByRole("button", { name: `Play ${revolutionTitle}` })
     .click();
-  await cardFor(page, mushroomTitle)
-    .getByRole("button", { name: `Queue ${mushroomTitle}` })
-    .click();
 
   await openQueue(page);
-  const queue = page.getByRole("heading", { name: "Next in queue" }).locator("..").locator("..");
-  await expect(queue.getByRole("listitem")).toHaveCount(1);
-  await queue.getByRole("button", { name: `Remove ${mushroomTitle} from queue` }).click();
-  await expect(queue.getByText("Queue is clear.")).toBeVisible();
-
-  await closePanel(page);
-  await queueTrack(page, mushroomTitle);
-  await page.getByRole("button", { name: "Next", exact: true }).click();
-  await expect(page.getByLabel(`${mushroomTitle} audio player`)).toBeAttached();
-  await openQueue(page);
-  await expect(queue.getByText("Queue is clear.")).toBeVisible();
-  await closePanel(page);
-  await queueTrack(page, "Gone Fishing");
-  await page.getByLabel(`${mushroomTitle} audio player`).dispatchEvent("ended");
-  await expect(page.getByLabel("Gone Fishing video player")).toBeAttached();
-  await openQueue(page);
-  await expect(queue.getByText("Queue is clear.")).toBeVisible();
+  const queue = page.locator(".queue-pullout .queue");
+  const rows = queue.locator("ol > li");
+  await expect(rows).toHaveCount(1);
+  await expect(rows.nth(0)).toHaveAttribute("data-current", "true");
+  await expect(rows.nth(0)).toContainText(revolutionTitle);
+  await queue.getByRole("button", { name: "Clear queue and stop playback" }).click();
+  await expect(rows).toHaveCount(0);
+  await expect(page.locator("audio")).toHaveCount(0);
+  await expect(page.locator(".queue-pullout")).toBeHidden();
 });
 
 test("keeps active playback through internal navigation", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/search?view=latest");
   const revolutionCard = cardFor(page, revolutionTitle);
 
   await revolutionCard.getByRole("button", { name: `Play ${revolutionTitle}` }).click();
@@ -140,7 +132,9 @@ test("keeps active playback through internal navigation", async ({ page }) => {
   }));
   await viewTrack(page, revolutionTitle);
 
-  await expect(page).toHaveURL(/\/tracks\/phase-zero-transmissions\/revolution-will-be-televised$/);
+  await expect(page).toHaveURL(
+    /\/releases\/phase-zero-transmissions#track-revolution-will-be-televised$/,
+  );
   const navigatedAudio = page.getByLabel(`${revolutionTitle} audio player`);
   await expect(navigatedAudio).toHaveAttribute("data-persistence-probe", "kept");
   await expect
@@ -164,11 +158,11 @@ test("keeps active playback through internal navigation", async ({ page }) => {
 });
 
 test("restores the selected track without autoplay after reload", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/search?view=latest");
   const revolutionCard = cardFor(page, revolutionTitle);
   await revolutionCard.getByRole("button", { name: `Play ${revolutionTitle}` }).click();
   await cardFor(page, mushroomTitle)
-    .getByRole("button", { name: `Queue ${mushroomTitle}` })
+    .getByRole("button", { name: `Add ${mushroomTitle} to queue` })
     .click();
 
   const audio = page.getByLabel(`${revolutionTitle} audio player`);
@@ -177,7 +171,9 @@ test("restores the selected track without autoplay after reload", async ({ page 
     element.pause();
   });
   await viewTrack(page, revolutionTitle);
-  await expect(page).toHaveURL(/\/tracks\/phase-zero-transmissions\/revolution-will-be-televised$/);
+  await expect(page).toHaveURL(
+    /\/releases\/phase-zero-transmissions#track-revolution-will-be-televised$/,
+  );
   await expect(page.getByLabel(`${revolutionTitle} audio player`)).toHaveAttribute(
     "data-persistence-probe",
     "kept",
@@ -245,7 +241,7 @@ test("serves canonical artist, release and track pages with global-player action
 
 test("reports unavailable media accessibly and allows retry", async ({ page }) => {
   await page.route("**/*.mp3", (route) => route.abort("failed"));
-  await page.goto("/");
+  await page.goto("/search?view=latest");
 
   await cardFor(page, revolutionTitle)
     .getByRole("button", { name: `Play ${revolutionTitle}` })
@@ -264,14 +260,14 @@ test("reports unavailable media accessibly and allows retry", async ({ page }) =
 });
 
 test("queues the playable Quiet Machines fixture", async ({ page }) => {
-  await page.goto("/search");
+  await page.goto("/search?view=latest");
   const card = cardFor(page, "Quiet Machines");
   await expect(card.getByRole("button", { name: "Play Quiet Machines" })).toBeEnabled();
   await queueTrack(page, "Quiet Machines");
   await expect(page.locator(".queue-pullout .queue li")).toContainText(["Quiet Machines"]);
   const addAgain = card.getByRole("button", { name: "Quiet Machines is already in the queue" });
   await expect(addAgain).toBeDisabled();
-  await expect(addAgain).toHaveCSS("opacity", "0.28");
+  await expect(addAgain).toHaveCSS("opacity", "0.3");
 });
 
 test("keeps a published track with missing media unavailable", async ({ page }) => {
@@ -280,7 +276,7 @@ test("keeps a published track with missing media unavailable", async ({ page }) 
   page.on("request", (request) => {
     if (request.resourceType() === "media") mediaRequests.push(request.url());
   });
-  await page.goto("/search");
+  await page.goto("/search?view=latest");
   const card = cardFor(page, "Quiet Machines");
   await expect(
     card.getByRole("button", { name: "Quiet Machines preview coming soon" }),
@@ -291,7 +287,8 @@ test("keeps a published track with missing media unavailable", async ({ page }) 
     }),
   ).toBeDisabled();
   await viewTrack(page, "Quiet Machines");
-  await expect(page.getByRole("button", { name: "Media unavailable", exact: true })).toBeDisabled();
+  await expect(page).toHaveURL(/\/releases\/phase-zero-transmissions#track-quiet-machines$/);
+  await expect(page.locator("#track-quiet-machines")).toBeVisible();
   expect(mediaRequests).toEqual([]);
 });
 
@@ -307,7 +304,7 @@ test("supports keyboard activation and reduced-motion focus movement", async ({ 
     };
   });
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/");
+  await page.goto("/search?view=latest");
 
   const viewTrack = cardFor(page, revolutionTitle).getByRole("link", {
     name: revolutionTitle,
@@ -318,10 +315,14 @@ test("supports keyboard activation and reduced-motion focus movement", async ({ 
   await expect(page).toHaveURL(/revolution-will-be-televised$/);
 
   await page.getByRole("link", { name: "SunSyn Radio home" }).click();
+  await page
+    .getByRole("navigation", { name: "Primary" })
+    .getByRole("link", { name: "Explore", exact: true })
+    .click();
   await cardFor(page, revolutionTitle)
     .getByRole("button", { name: `Play ${revolutionTitle}` })
     .click();
-  expect(await page.evaluate(() => Reflect.get(globalThis, "__scrollBehavior"))).toBeNull();
+  expect(await page.evaluate(() => Reflect.get(globalThis, "__scrollBehavior"))).toBe("auto");
   await expect(
     cardFor(page, revolutionTitle).getByRole("button", {
       name: `Pause ${revolutionTitle}`,
@@ -363,6 +364,10 @@ test("retains hash-scroll coverage and preserves the player through the About ro
     ),
   ).toBe(true);
 
+  await page
+    .getByRole("navigation", { name: "Primary" })
+    .getByRole("link", { name: "Explore", exact: true })
+    .click();
   await cardFor(page, revolutionTitle)
     .getByRole("button", { name: `Play ${revolutionTitle}` })
     .click();

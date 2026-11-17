@@ -16,7 +16,7 @@ test("plays an album in order, retains playback through navigation and stops at 
         .map((element) => element.querySelector(".media-card-title")!.getAttribute("aria-label")!),
     );
   expect(playable.length).toBeGreaterThan(1);
-  await page.getByRole("button", { name: "Play album", exact: true }).click();
+  await page.getByRole("button", { name: "Play release", exact: true }).click();
   const panel = page.locator(".player-panel"),
     nowPlaying = panel.locator(".dock-track strong"),
     media = panel.locator("audio,video");
@@ -25,7 +25,10 @@ test("plays an album in order, retains playback through navigation and stops at 
     .poll(() => media.evaluate((a: HTMLMediaElement) => a.currentTime))
     .toBeGreaterThan(0);
   const beforeNavigation = await media.evaluate((a: HTMLMediaElement) => a.currentTime);
-  await page.getByRole("link", { name: "Back to catalogue" }).click();
+  await page
+    .getByRole("navigation", { name: "Primary" })
+    .getByRole("link", { name: "Home" })
+    .click();
   await expect(nowPlaying).toHaveText(playable[0]);
   await expect
     .poll(() => media.evaluate((a: HTMLMediaElement) => a.currentTime))
@@ -35,8 +38,8 @@ test("plays an album in order, retains playback through navigation and stops at 
     .getByRole("link", { name: "Explore", exact: true })
     .click();
   await page
-    .locator(".album-shelf")
-    .getByRole("link", { name: /Phase Zero Transmissions/ })
+    .locator('.explore-grid .media-card-title[href^="/releases/phase-zero-transmissions"]')
+    .first()
     .click();
   for (let index = 0; index < playable.length; index++) {
     await expect(nowPlaying).toHaveText(playable[index]);
@@ -60,7 +63,10 @@ test("plays an album in order, retains playback through navigation and stops at 
   await expect.poll(() => media.evaluate((a: HTMLMediaElement) => a.ended)).toBe(true);
   await expect(nowPlaying).toHaveText(playable.at(-1)!);
   await expect(panel.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
-  await page.getByRole("link", { name: "Back to catalogue" }).click();
+  await page
+    .getByRole("navigation", { name: "Primary" })
+    .getByRole("link", { name: "Home" })
+    .click();
   await expect(nowPlaying).toHaveText(playable.at(-1)!);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     "href",

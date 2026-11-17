@@ -24,7 +24,7 @@ test("mobile queue stays above the player, resizes, and exposes history", async 
   await expect(remove.locator("svg")).toBeVisible();
   await expect(remove).not.toHaveText("Remove");
   await remove.click();
-  await expect(drawer.getByText("Queue is clear.", { exact: false })).toBeVisible();
+  await expect(drawer.locator(".queue li")).toHaveCount(0);
 
   await drawer.getByRole("tab", { name: /History/ }).click();
   await expect(drawer.getByText("Tracks you finish listening to will appear here.")).toBeVisible();
