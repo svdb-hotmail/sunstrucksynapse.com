@@ -8,11 +8,13 @@ export function trackCard(page: Page, title: string) {
     .first();
 }
 export async function queueTrack(page: Page, title: string) {
-  if (new URL(page.url()).pathname === "/" && !(await trackCard(page, title).count()))
-    await page
-      .getByRole("navigation", { name: "Primary", exact: true })
-      .getByRole("link", { name: "Explore", exact: true })
-      .click();
+  if (!(await trackCard(page, title).count())) {
+    const mobileNavigation = page.getByRole("navigation", { name: "Mobile navigation" });
+    const navigation = (await mobileNavigation.isVisible())
+      ? mobileNavigation
+      : page.getByRole("navigation", { name: "Primary", exact: true });
+    await navigation.getByRole("link", { name: "Explore", exact: true }).click();
+  }
   const card = trackCard(page, title);
   await expect(card).toBeVisible();
   await card.getByRole("button", { name: `Add ${title} to queue`, exact: true }).click();
@@ -21,9 +23,24 @@ export async function viewTrack(page: Page, title: string) {
   await trackCard(page, title).getByRole("link", { name: title, exact: true }).click();
 }
 export async function openQueue(page: Page) {
-  await page.getByRole("button", { name: /^Queue, \d+ tracks?$/ }).click();
+  const drawer = page.locator(".queue-pullout");
+  if (await drawer.isVisible()) return;
+  const mobileQueue = page.getByRole("button", { name: /^Queue, \d+ tracks?$/ });
+  if (await mobileQueue.isVisible()) {
+    await mobileQueue.click();
+    return;
+  }
+  await page.getByRole("button", { name: /^Open queue in dock, \d+ tracks$/ }).click();
 }
 export async function closePanel(page: Page) {
+  const mobileHandle = page.getByRole("button", {
+    name: "Resize queue; click to close",
+    exact: true,
+  });
+  if (await mobileHandle.isVisible()) {
+    await mobileHandle.click();
+    return;
+  }
   const queueClose = page.getByRole("button", { name: "Close queue", exact: true });
   if (await queueClose.isVisible()) await queueClose.click();
   else await page.getByRole("button", { name: "Close listening panel", exact: true }).click();

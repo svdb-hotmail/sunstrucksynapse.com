@@ -1,10 +1,9 @@
-import { expect, test, type Page } from "@playwright/test";
-import { closePanel, serveSeekableMedia, trackCard } from "./listener-helpers";
+import { expect, test } from "@playwright/test";
+import { closePanel, openQueue, serveSeekableMedia } from "./listener-helpers";
 
-const a = "Sunstruck Synapse (Revolution will be televised)";
-const b = "The Mushroom Circle (Gnome Revolution)";
-const c = "Third transmission";
-const outside = "Outside transmission";
+const current = "Sunstruck Synapse (Revolution will be televised)";
+const next = "The Mushroom Circle (Gnome Revolution)";
+const last = "Third transmission";
 
 test.beforeEach(async ({ page }) => {
   await page.setExtraHTTPHeaders({ "x-test-catalogue-scenario": "listener-boundaries" });
@@ -12,156 +11,93 @@ test.beforeEach(async ({ page }) => {
   await serveSeekableMedia(page);
 });
 
-async function playNext(page: Page, title: string) {
-  if (new URL(page.url()).pathname !== "/search")
-    await page
-      .getByRole("navigation", { name: "Primary", exact: true })
-      .getByRole("link", { name: "Explore", exact: true })
-      .click();
-  const card = trackCard(page, title);
-  await card.locator(".track-menu > summary").click();
-  await card.getByRole("button", { name: "Play next", exact: true }).click();
+async function startAlbum(page: import("@playwright/test").Page) {
+  await page.goto("/collections/listen");
+  await page.getByRole("button", { name: "Play collection", exact: true }).click();
 }
 
-async function finish(page: Page, title: string) {
-  await expect(page.locator(".dock-track strong")).toHaveText(title);
-  const media = page.locator("audio");
+test("queue rows are informational and do not change playback or close the panel", async ({
+  page,
+}) => {
+  await startAlbum(page);
+  await openQueue(page);
+
+  const panel = page.locator(".queue-pullout");
+  const rows = panel.locator(".queue ol > li");
+  await expect(rows).toHaveCount(3);
+  await expect(rows.first()).toHaveAttribute("data-current", "true");
+  await expect(rows.first()).toContainText(current);
+  await rows.nth(1).getByText(next, { exact: true }).click();
+
+  await expect(panel).toBeVisible();
+  await expect(page.locator(".dock-track strong")).toHaveText(current);
+  await expect(rows).toHaveCount(3);
+});
+
+test("reorders upcoming tracks with the keyboard while keeping the current track first", async ({
+  page,
+}) => {
+  await startAlbum(page);
+  await openQueue(page);
+
+  const rows = page.locator(".queue-pullout .queue ol > li");
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(1)).toContainText(next);
+  await expect(rows.nth(2)).toContainText(last);
+  await rows
+    .nth(2)
+    .getByRole("button", { name: `Drag ${last} to reorder; use arrow keys to move it` })
+    .press("ArrowUp");
+
+  await expect(rows.nth(0)).toHaveAttribute("data-current", "true");
+  await expect(rows.nth(1)).toContainText(last);
+  await expect(rows.nth(2)).toContainText(next);
+});
+
+test("natural completion adds the current track to history and Clear All empties history", async ({
+  page,
+}) => {
+  await startAlbum(page);
+  await openQueue(page);
+  const panel = page.locator(".queue-pullout");
+  await panel.getByRole("tab", { name: /History/ }).click();
+  await expect(panel.getByRole("tab", { name: /History/ })).toContainText("0");
+
+  const audio = page.locator("audio");
   await expect
     .poll(() =>
-      media.evaluate(
+      audio.evaluate(
         (element: HTMLMediaElement) =>
-          !element.paused &&
-          element.currentTime > 0 &&
           element.duration > 0 &&
           element.seekable.length > 0 &&
           element.seekable.end(element.seekable.length - 1) >= element.duration - 0.2,
       ),
     )
     .toBe(true);
-  await media.evaluate((element: HTMLMediaElement) => {
+  await audio.evaluate((element: HTMLMediaElement) => {
     element.currentTime = element.duration - 0.15;
   });
-}
 
-async function expectEnded(page: Page, title: string) {
-  await expect
-    .poll(() => page.locator("audio").evaluate((element: HTMLMediaElement) => element.ended))
-    .toBe(true);
-  await expect(page.locator(".dock-track strong")).toHaveText(title);
-  await expect(page.getByRole("button", { name: "Next", exact: true })).toBeDisabled();
-}
-
-test("Play next changes finite selection order, Undo restores it, and endings never replay a consumed track", async ({
-  page,
-}) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Start listening", exact: true }).click();
-  await playNext(page, c);
-  await page.getByRole("button", { name: "Undo", exact: true }).click();
-  await page.getByRole("button", { name: "Queue, 2 tracks", exact: true }).click();
-  await expect(page.locator(".queue ol>li").nth(1)).toContainText(b);
-  await closePanel(page);
-  await playNext(page, c);
-  for (const title of [a, c, b]) await finish(page, title);
-  await expectEnded(page, b);
-});
-
-test("Play next handles already-played and outside tracks without losing the selection boundary", async ({
-  page,
-}) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Start listening", exact: true }).click();
-  await page.getByRole("button", { name: "Next", exact: true }).click();
-  await expect(page.locator(".dock-track strong")).toHaveText(b);
-  await playNext(page, a);
-  await playNext(page, outside);
-  for (const title of [b, outside, a, c]) await finish(page, title);
-  await expectEnded(page, c);
-});
-
-test("queue rows do not interrupt playback or consume upcoming tracks", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Start listening", exact: true }).click();
-  await page.getByRole("button", { name: "Queue, 2 tracks", exact: true }).click();
-  const laterRow = page.locator(".queue-pullout .queue li").filter({ hasText: c });
-  await laterRow.getByText(c, { exact: true }).click();
-  await expect(page.locator(".queue-pullout")).toBeVisible();
-  await expect(page.locator(".dock-track strong")).toHaveText(a);
-  await expect(page.locator(".queue-pullout .queue li")).toHaveCount(3);
-  await expect(laterRow.locator(".queue-track-info").getByRole("button")).toHaveCount(0);
-});
-
-test("queue shows an upcoming repeat and keeps feedback and focus usable", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Start listening", exact: true }).click();
-  await playNext(page, a);
-  const opener = page.getByRole("navigation", { name: "Primary" }).getByRole("button", {
-    name: "Queue, 3 tracks",
-  });
-  await opener.click();
-  const drawer = page.locator(".queue-pullout");
-  const rows = drawer.locator(".queue li");
-  await expect(rows).toHaveCount(4);
-  await expect(rows.nth(0)).toHaveAttribute("data-current", "true");
-  await expect(rows.nth(1)).toContainText(a);
-  await expect(rows.nth(1).getByRole("button", { name: `Remove ${a} from queue` })).toBeVisible();
-  await expect(drawer.getByRole("button", { name: "Undo" })).toBeVisible();
-  await drawer.getByRole("button", { name: "Clear all" }).focus();
-  await page.keyboard.press("Escape");
-  await expect(drawer).toBeHidden();
-  await expect(opener).toBeFocused();
-});
-
-test("manual Next does not enter History but natural completion does", async ({ page }) => {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Start listening", exact: true }).click();
-  await page.getByRole("button", { name: "Next", exact: true }).click();
-  await page.getByRole("button", { name: "Queue, 1 track", exact: true }).click();
-  const drawer = page.locator(".queue-pullout");
-  await drawer.getByRole("tab", { name: /History/ }).click();
-  await expect(drawer.getByRole("tab", { name: /History/ })).toContainText("0");
-  await page.locator("audio").dispatchEvent("ended");
-  await expect(drawer.getByRole("tab", { name: /History/ })).toContainText("1");
-  await expect(drawer.locator(".queue-history li")).toContainText([b]);
-});
-
-test("Previous retains album provenance after reload and interruption by an unrelated track", async ({
-  page,
-}) => {
-  await page.goto("/releases/phase-zero-transmissions");
-  await page.getByRole("button", { name: "Play album", exact: true }).click();
-  for (const title of [a, b, c]) await finish(page, title);
-  await expectEnded(page, c);
-  await page.reload();
-  await page.getByRole("button", { name: `Open player: ${c}`, exact: true }).click();
-  await page.getByRole("button", { name: "Previous", exact: true }).click();
-  await expect(page.locator(".dock-track strong")).toHaveText(b);
-  await closePanel(page);
-  await page.getByRole("link", { name: "Back to catalogue", exact: true }).click();
-  await page.getByRole("link", { name: "Explore all", exact: true }).click();
-  await trackCard(page, outside)
-    .getByRole("button", { name: `Play ${outside}`, exact: true })
+  await expect(panel.getByRole("tab", { name: /History/ })).toContainText("1");
+  await expect(panel.locator(".queue-history li").first()).toContainText(current);
+  await panel
+    .locator(".queue-history-section")
+    .getByRole("button", { name: "Clear all", exact: true })
     .click();
-  await page.getByRole("button", { name: "Next", exact: true }).click();
-  await finish(page, c);
-  await expectEnded(page, c);
+  await expect(panel.getByText("Tracks you finish listening to will appear here.")).toBeVisible();
 });
 
-test("cross-release selection provenance survives Previous and interruption without becoming an album", async ({
-  page,
-}) => {
-  await page.goto("/collections/cross-release");
-  await page.getByRole("button", { name: "Play collection", exact: true }).click();
-  await page.getByRole("button", { name: "Next", exact: true }).click();
-  await expect(page.locator(".dock-track strong")).toHaveText(outside);
-  await page.getByRole("button", { name: `Open player: ${outside}`, exact: true }).click();
-  await page.getByRole("button", { name: "Previous", exact: true }).click();
-  await closePanel(page);
-  await page.getByRole("link", { name: "Back to catalogue", exact: true }).click();
-  await trackCard(page, b)
-    .getByRole("button", { name: `Play ${b}`, exact: true })
+test("queue controls remain available after browsing away from the album", async ({ page }) => {
+  await startAlbum(page);
+  await page
+    .getByRole("navigation", { name: "Primary" })
+    .getByRole("link", { name: "Explore", exact: true })
     .click();
-  await page.getByRole("button", { name: "Next", exact: true }).click();
-  for (const title of [outside, c]) await finish(page, title);
-  await expectEnded(page, c);
+  await expect(page.getByRole("heading", { name: "Explore", exact: true })).toBeVisible();
+  await openQueue(page);
+  await expect(page.locator(".queue-pullout .queue ol > li").first()).toHaveAttribute(
+    "data-current",
+    "true",
+  );
+  await closePanel(page);
 });

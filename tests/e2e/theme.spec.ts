@@ -25,6 +25,10 @@ test.describe("SunSyn Radio theme", () => {
       "aria-pressed",
       "true",
     );
+    await page
+      .getByRole("navigation", { name: "Primary" })
+      .getByRole("link", { name: "Explore" })
+      .click();
     const artistCard = page
       .locator(".media-card")
       .filter({
@@ -125,7 +129,7 @@ test.describe("SunSyn Radio theme", () => {
     const mushroomTitle = "The Mushroom Circle (Gnome Revolution)";
 
     await page.emulateMedia({ colorScheme: "dark" });
-    await page.goto("/");
+    await page.goto("/releases/phase-zero-transmissions");
 
     const revolutionCard = page
       .locator(".media-card")
@@ -154,8 +158,9 @@ test.describe("SunSyn Radio theme", () => {
       page.getByRole("button", { name: `Open player: ${revolutionTitle}`, exact: true }),
     ).toBeVisible();
     await openQueue(page);
-    await expect(
-      page.getByRole("button", { name: `Play ${mushroomTitle} from queue` }),
-    ).toBeVisible();
+    await expect(page.locator(".queue-pullout .queue li")).toContainText([
+      revolutionTitle,
+      mushroomTitle,
+    ]);
   });
 });

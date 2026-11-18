@@ -12,8 +12,13 @@ test("restored paused media stays idle until playback is requested", async ({ pa
       true,
     );
   });
-  await page.goto("/");
-  await page.getByRole("button", { name: "Start listening", exact: true }).click();
+  await page.goto("/releases/phase-zero-transmissions");
+  await page
+    .getByRole("button", {
+      name: "Play Sunstruck Synapse (Revolution will be televised)",
+      exact: true,
+    })
+    .click();
   const audio = page.locator("audio");
   await expect
     .poll(() => audio.evaluate((media: HTMLMediaElement) => !media.paused && media.currentTime > 0))
@@ -48,8 +53,13 @@ test("signed playback shows loading while delivery is pending and clears it when
       }),
     });
   });
-  await page.goto("/");
-  await page.getByRole("button", { name: "Start listening", exact: true }).click();
+  await page.goto("/releases/phase-zero-transmissions");
+  await page
+    .getByRole("button", {
+      name: "Play Sunstruck Synapse (Revolution will be televised)",
+      exact: true,
+    })
+    .click();
   await expect(page.locator(".listener-feedback .player-loading")).toBeVisible();
   releaseSigning();
   const audio = page.locator("audio");
