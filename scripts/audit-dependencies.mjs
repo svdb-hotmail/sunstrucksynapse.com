@@ -1,5 +1,10 @@
 import { spawnSync } from "node:child_process";
 
+/** @typedef {"info" | "low" | "moderate" | "high" | "critical"} Severity */
+/** @typedef {{ url?: string, severity: string }} Advisory */
+/** @typedef {{ via: Array<string | Advisory> }} Vulnerability */
+/** @typedef {{ vulnerabilities: Record<string, Vulnerability>, metadata: { vulnerabilities: Record<Severity, number> } }} AuditReport */
+
 // Picomatch has no published fix yet. This exception is limited to its one
 // reviewed advisory and must be removed once a patched release is available.
 const ignoredAdvisories = new Map([
@@ -16,6 +21,7 @@ if (audit.error) {
   process.exit(1);
 }
 
+/** @type {AuditReport} */
 let report;
 try {
   report = JSON.parse(audit.stdout);
@@ -31,13 +37,16 @@ if (!vulnerabilities || !report.metadata?.vulnerabilities) {
   process.exit(1);
 }
 
+/** @type {Record<Severity, number>} */
 const severityRank = { info: 0, low: 1, moderate: 2, high: 3, critical: 4 };
 const ignored = new Set();
 
+/** @param {Advisory} advisory */
 function advisoryId(advisory) {
   return advisory.url?.match(/GHSA-[\w-]+$/i)?.[0]?.toUpperCase();
 }
 
+/** @param {string} packageName @param {Set<string>} [visiting] @returns {Severity} */
 function effectiveSeverity(packageName, visiting = new Set()) {
   if (visiting.has(packageName)) return "low";
 
@@ -45,6 +54,7 @@ function effectiveSeverity(packageName, visiting = new Set()) {
   if (!vulnerability) return "low";
 
   const nextVisiting = new Set(visiting).add(packageName);
+  /** @type {Severity} */
   let highest = "low";
 
   for (const source of vulnerability.via) {
@@ -60,8 +70,9 @@ function effectiveSeverity(packageName, visiting = new Set()) {
       continue;
     }
 
-    if (severityRank[source.severity] > severityRank[highest]) {
-      highest = source.severity;
+    const sourceSeverity = /** @type {Severity} */ (source.severity);
+    if (severityRank[sourceSeverity] > severityRank[highest]) {
+      highest = sourceSeverity;
     }
   }
 
