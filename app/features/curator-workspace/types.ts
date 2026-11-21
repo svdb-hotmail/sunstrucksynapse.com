@@ -10,11 +10,7 @@ export type CuratorSection =
   | "settings";
 
 export type CuratorReadiness =
-  | "completed"
-  | "ready"
-  | "needs_audio"
-  | "needs_information"
-  | "flagged";
+  "completed" | "ready" | "needs_audio" | "needs_information" | "flagged";
 
 export type CuratorRightsState = "attested" | "needs_review" | "blocked";
 

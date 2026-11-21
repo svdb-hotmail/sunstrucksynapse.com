@@ -11,8 +11,7 @@ import {
 } from "~/repositories/curation-workflow.server";
 
 export type ReviewAudioResult<T> =
-  | { ok: true; value: T }
-  | { ok: false; status: 400 | 404 | 409 | 413 | 503; message: string };
+  { ok: true; value: T } | { ok: false; status: 400 | 404 | 409 | 413 | 503; message: string };
 
 export type ReviewAudioRepository = Pick<
   CurationWorkflowRepository,

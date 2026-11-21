@@ -3,12 +3,7 @@ import type { PublicArtworkPalette } from "../services/artwork-palette";
 import { identityPalette, reviewedIdentityPalettes } from "./reviewed-identities";
 
 export type IdentityTreatment =
-  | "neutral"
-  | "palette"
-  | "expressive"
-  | "nocturne"
-  | "collage"
-  | "signal";
+  "neutral" | "palette" | "expressive" | "nocturne" | "collage" | "signal";
 
 export const showIdentityPreview =
   import.meta.env.DEV || ["site-preview", "test"].includes(import.meta.env.MODE);
