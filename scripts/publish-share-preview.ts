@@ -15,9 +15,12 @@ import { createCatalogueRepository } from "../app/repositories/catalogue.server"
 import { SHARE_PREVIEW_TYPE, trackSharePreview } from "../app/services/track-share-preview";
 import { encodeSharePreview } from "./encode-share-preview";
 
-const [releaseSlug, trackSlug, extra] = process.argv.slice(2);
-if (!releaseSlug || !trackSlug || extra) {
-  throw new Error("Usage: npm run share-preview:publish -- <release-slug> <track-slug>");
+const [releaseSlug, trackSlug, option, ...extra] = process.argv.slice(2);
+const replace = option === "--replace";
+if (!releaseSlug || !trackSlug || (option && !replace) || extra.length) {
+  throw new Error(
+    "Usage: npm run share-preview:publish -- <release-slug> <track-slug> [--replace]",
+  );
 }
 
 function requiredEnv(name: string) {
@@ -73,7 +76,7 @@ const storage = new AwsClient({
 });
 const objectUrl = `https://${account}.r2.cloudflarestorage.com/${bucket}/${preview.key}`;
 const existing = await storage.fetch(objectUrl, { method: "HEAD" });
-if (existing.ok && existing.headers.get("content-type") === SHARE_PREVIEW_TYPE) {
+if (!replace && existing.ok && existing.headers.get("content-type") === SHARE_PREVIEW_TYPE) {
   console.log("A share preview already exists for these selected media.");
 } else {
   if (existing.status !== 404 && !existing.ok) {

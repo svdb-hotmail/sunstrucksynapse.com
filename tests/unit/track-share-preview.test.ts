@@ -72,14 +72,15 @@ describe("track share previews", () => {
 
     const tags = await metadata();
     expect(tags).toContainEqual({ property: "og:video", content: SITE_URL + preview.path });
-    expect(tags).toContainEqual({ name: "twitter:card", content: "player" });
-    expect(tags).toContainEqual({ property: "og:type", content: "music.song" });
+    expect(tags).toContainEqual({ property: "og:type", content: "video.other" });
     expect(tags).toContainEqual({
       property: "og:url",
       content: `${SITE_URL}/tracks/${params.releaseSlug}/${params.trackSlug}`,
     });
     head.mockResolvedValueOnce(null);
-    expect(await metadata()).not.toEqual(
+    const fallback = await metadata();
+    expect(fallback).toContainEqual({ property: "og:type", content: "music.song" });
+    expect(fallback).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ property: "og:video" })]),
     );
     head.mockRejectedValueOnce(new Error("R2 unavailable"));

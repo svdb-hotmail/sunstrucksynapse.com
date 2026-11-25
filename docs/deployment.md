@@ -91,8 +91,9 @@ and `MEDIA_DELIVERY_SIGNING_SECRET`, and the account, bucket and scoped R2
 credentials from `.env.example`. The command takes up to the first 30 seconds
 of the selected listening source, using its audio stream if the source is a
 video. It uploads the clip to the existing private media bucket. Run it again
-when the selected audio or cover changes. Source files and previews stay out
-of Git.
+when the selected audio or cover changes. If static media was replaced at the
+same URL, append `--replace` to regenerate its clip. Source files and previews
+stay out of Git.
 
 The track page includes the player metadata only when the matching preview
 exists. Tracks without a preview retain their cover-art card. To verify a

@@ -42,7 +42,7 @@ export const meta: Route.MetaFunction = ({ loaderData }) => {
     { title: `${item.description.title} | ${SITE_NAME}` },
     { name: "description", content: description },
     { tagName: "link", rel: "canonical", href: data.canonicalUrl },
-    { property: "og:type", content: "music.song" },
+    { property: "og:type", content: data.shareVideo ? "video.other" : "music.song" },
     { property: "og:title", content: item.description.title },
     { property: "og:description", content: description },
     { property: "og:url", content: data.canonicalUrl },
@@ -52,7 +52,6 @@ export const meta: Route.MetaFunction = ({ loaderData }) => {
     },
     ...(data.shareVideo
       ? [
-          { name: "twitter:card", content: "player" },
           { property: "og:video", content: data.shareVideo.url },
           { property: "og:video:type", content: SHARE_PREVIEW_TYPE },
           { property: "og:video:width", content: String(SHARE_PREVIEW_SIZE) },
