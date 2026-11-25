@@ -7,6 +7,7 @@ const routes = [
   route("artists/:artistSlug", "routes/artist.tsx"),
   route("releases/:releaseSlug", "routes/release.tsx"),
   route("tracks/:releaseSlug/:trackSlug", "routes/track.tsx"),
+  route("tracks/:releaseSlug/:trackSlug/share/:previewFile", "routes/track-share-preview.ts"),
   route("tracks/:releaseSlug/:trackSlug/disclosure", "routes/track-disclosure.tsx"),
   route("collections/:collectionSlug", "routes/collection.tsx"),
   route("search", "routes/search.tsx"),

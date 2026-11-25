@@ -76,3 +76,26 @@ The Pages URLs must not be treated as working application previews. Production i
 ## Durable artwork palette deployment
 
 Use the explicit [artwork palette rollout and backfill runbook](artwork-palette-deployment.md) for migration-first private encoder/application deployment, producer activation, dry-run review and bounded write backfill. The opt-in `npm run deploy:palettes` wrapper is separate from `npm run build`; the dashboard trigger must be updated by an operator before it runs on deployment. Existing production artwork write backfills are never part of the automatic wrapper.
+
+## Track sharing previews
+
+A public track can have a short cover-art video for Discord. Run this command
+for each published track cleared for an off-site excerpt:
+
+```bash
+npm run share-preview:publish -- <release-slug> <track-slug>
+```
+
+Use an operator environment with FFmpeg, the target catalogue's `DATABASE_URL`
+and `MEDIA_DELIVERY_SIGNING_SECRET`, and the account, bucket and scoped R2
+credentials from `.env.example`. The command takes up to the first 30 seconds
+of the selected listening source, using its audio stream if the source is a
+video. It uploads the clip to the existing private media bucket. Run it again
+when the selected audio or cover changes. Source files and previews stay out
+of Git.
+
+The track page includes the player metadata only when the matching preview
+exists. Tracks without a preview retain their cover-art card. To verify a
+rollout, paste the canonical track URL into Discord, play the video in the
+message, and open the same shared URL to confirm full playback on SunSyn. Use
+a fresh query string if Discord still shows an older preview.
