@@ -1,7 +1,7 @@
 import { SITE_URL } from "~/config/brand";
 import type { CatalogueItem, PublicEditorialCollection } from "~/types/catalogue";
 export function publicSitemap(items: CatalogueItem[], collections: PublicEditorialCollection[]) {
-  const paths = new Set(["/", "/about", "/privacy"]);
+  const paths = new Set(["/", "/about", "/privacy", "/updates"]);
   for (const item of items) {
     paths.add(item.href);
     paths.add(item.release.href);

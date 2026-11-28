@@ -56,7 +56,7 @@ test("keeps signed playback active through loader refresh and refreshes only on 
     },
   );
 
-  await page.goto("/");
+  await page.goto("/search?view=latest");
   const card = page
     .locator(".media-card")
     .filter({ has: page.getByRole("link", { name: revolutionTitle, exact: true }) })
@@ -86,7 +86,9 @@ test("keeps signed playback active through loader refresh and refreshes only on 
   });
 
   await card.getByRole("link", { name: revolutionTitle, exact: true }).click();
-  await expect(page).toHaveURL(/\/tracks\/phase-zero-transmissions\/revolution-will-be-televised$/);
+  await expect(page).toHaveURL(
+    /\/releases\/phase-zero-transmissions#track-revolution-will-be-televised$/,
+  );
   await expect(audio).toHaveAttribute("data-loader-refresh-probe", "kept");
   await expect(audio).toHaveAttribute("data-load-start-count", beforeRefresh.loadStartCount!);
   expect(await audio.evaluate((element: HTMLMediaElement) => element.currentSrc)).toBe(
@@ -114,6 +116,7 @@ test("keeps signed playback active through loader refresh and refreshes only on 
       exact: true,
     })
     .click();
+  await page.getByRole("button", { name: "Show search", exact: true }).click();
   await page.getByLabel("Search artists, releases and tracks", { exact: true }).fill("Revolution");
   await page.getByRole("button", { name: "Search", exact: true }).click();
   await expect(page).toHaveURL(/q=Revolution/);

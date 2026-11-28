@@ -371,3 +371,24 @@
     align-items: stretch;
   }
 }
+[data-skin="pixel"] .listener-shell .about-hero h1 {
+  font-family: var(--site-hero-display);
+  font-weight: 400;
+  font-size: clamp(3.2rem, 5.8vw, 6.75rem);
+  letter-spacing: 0.015em;
+  overflow-wrap: normal;
+}
+[data-skin="pixel"] .listener-shell .about-hero h1 em {
+  font-weight: 400;
+}
+[data-skin="pixel"] .listener-shell .about-page .section-title h2,
+[data-skin="pixel"] .listener-shell .about-page .contact-launch h2 {
+  font-family: var(--site-hero-display);
+  font-weight: 400;
+  letter-spacing: 0.015em;
+}
+@media (max-width: 650px) {
+  [data-skin="pixel"] .listener-shell .about-hero h1 {
+    font-size: clamp(2.8rem, 11vw, 4.8rem);
+  }
+}

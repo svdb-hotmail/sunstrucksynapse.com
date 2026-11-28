@@ -1,5 +1,6 @@
-export const SKINS = ["editorial", "underground", "synth"] as const;
+export const SKINS = ["editorial", "underground", "synth", "pixel"] as const;
 export type Skin = (typeof SKINS)[number];
+const RANDOM_SKINS = SKINS.slice(0, 3);
 export const SKIN_STORAGE_KEY = "sunsyn-site-skin-v1";
 export const DEFAULT_SKIN: Skin = "editorial";
 export const showSkinPicker =
@@ -11,7 +12,9 @@ export function isSkin(value: unknown): value is Skin {
 
 export function chooseSkin(saved: unknown, random: number): Skin {
   if (isSkin(saved)) return saved;
-  return SKINS[Math.min(SKINS.length - 1, Math.max(0, Math.floor(random * SKINS.length)))];
+  return RANDOM_SKINS[
+    Math.min(RANDOM_SKINS.length - 1, Math.max(0, Math.floor(random * RANDOM_SKINS.length)))
+  ];
 }
 
 export function setSkin(skin: Skin, document: Document) {
@@ -27,10 +30,11 @@ export function setSkin(skin: Skin, document: Document) {
 export const SKIN_INIT_SCRIPT = `(() => {
   const key = ${JSON.stringify(SKIN_STORAGE_KEY)};
   const skins = ${JSON.stringify(SKINS)};
+  const randomSkins = ${JSON.stringify(RANDOM_SKINS)};
   let saved = null;
   try { saved = window.localStorage.getItem(key); } catch {}
   const requested = new URLSearchParams(window.location.search).get("skin");
-  const skin = skins.includes(requested) ? requested : (skins.includes(saved) ? saved : skins[Math.floor(Math.random() * skins.length)]);
+  const skin = skins.includes(requested) ? requested : (skins.includes(saved) ? saved : randomSkins[Math.floor(Math.random() * randomSkins.length)]);
   document.documentElement.dataset.skin = skin;
   try { window.localStorage.setItem(key, skin); } catch {}
 })();`;

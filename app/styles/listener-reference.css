@@ -1293,6 +1293,9 @@
   .listener-shell .masthead .preview-label {
     display: none;
   }
+  .listener-shell[data-no-footer="true"] .masthead .preview-label {
+    display: flex;
+  }
   .listener-shell .site-footer .mobile-theme {
     display: block;
   }

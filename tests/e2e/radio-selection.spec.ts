@@ -4,12 +4,14 @@ test("radio selection plays only its published audio order, retains the queue on
   page,
 }) => {
   await serveSeekableMedia(page);
-  await page.goto("/");
-  await page.getByRole("button", { name: "Start listening", exact: true }).click();
+  await page.setExtraHTTPHeaders({ "x-test-catalogue-scenario": "listener-boundaries" });
+  await page.goto("/collections/listen");
+  await page.getByRole("button", { name: "Play collection", exact: true }).click();
   const nowPlaying = page.locator(".dock-track strong"),
     audio = page.locator("audio");
   const first = "Sunstruck Synapse (Revolution will be televised)",
-    last = "The Mushroom Circle (Gnome Revolution)";
+    second = "The Mushroom Circle (Gnome Revolution)",
+    last = "Third transmission";
   await expect(nowPlaying).toHaveText(first);
   await expect
     .poll(() => audio.evaluate((e: HTMLMediaElement) => !e.paused && e.currentTime > 0))
@@ -18,7 +20,7 @@ test("radio selection plays only its published audio order, retains the queue on
   await expect(nowPlaying).toHaveText(first);
   await expect.poll(() => audio.evaluate((e: HTMLMediaElement) => e.paused)).toBe(true);
   await page.getByRole("button", { name: "Play", exact: true }).click();
-  for (const title of [first, last]) {
+  for (const title of [first, second, last]) {
     await expect(nowPlaying).toHaveText(title);
     await expect
       .poll(() =>
