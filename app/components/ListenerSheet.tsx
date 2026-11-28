@@ -6,11 +6,15 @@ export function ListenerSheet({
   title,
   onClose,
   children,
+  closeLabel = "Close listening panel",
+  className = "",
 }: {
   open: boolean;
   title: string;
   onClose: () => void;
   children: React.ReactNode;
+  closeLabel?: string;
+  className?: string;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
@@ -41,7 +45,7 @@ export function ListenerSheet({
   return (
     <dialog
       ref={ref}
-      className="listener-sheet"
+      className={`listener-sheet ${className}`.trim()}
       aria-labelledby={titleId}
       onCancel={(event) => {
         event.preventDefault();
@@ -61,7 +65,7 @@ export function ListenerSheet({
     >
       <div className="listener-sheet__heading">
         <h2 id={titleId}>{title}</h2>
-        <button type="button" onClick={onClose} aria-label="Close listening panel">
+        <button type="button" onClick={onClose} aria-label={closeLabel}>
           ×
         </button>
       </div>

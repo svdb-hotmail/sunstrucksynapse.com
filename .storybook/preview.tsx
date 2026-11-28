@@ -9,6 +9,7 @@ import "~/styles/sdp2.css";
 import "~/styles/listener-brand.css";
 import "~/styles/listener-controls.css";
 import "~/styles/listener-reference.css";
+import "~/styles/product-releases.css";
 
 type Theme = "light" | "dark";
 
