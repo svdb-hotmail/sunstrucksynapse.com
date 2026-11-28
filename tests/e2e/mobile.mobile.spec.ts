@@ -4,12 +4,14 @@ test("completes the listener flow without horizontal overflow on mobile", async 
   await serveSeekableMedia(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  const nav = page.getByRole("navigation", { name: "Primary" });
+  const nav = page.getByRole("navigation", { name: "Mobile navigation" });
   await expect(nav).toBeVisible();
-  await nav.getByRole("link", { name: "Listen", exact: true }).click();
-  await expect(page.getByRole("button", { name: "Start listening", exact: true })).toBeInViewport();
+  await nav.getByRole("link", { name: "Home", exact: true }).click();
+  await expect(
+    page.locator(".label-feature__actions").getByRole("button", { name: "Play" }),
+  ).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await nav.getByRole("link", { name: "Explore", exact: true }).click();
+  await page.goto("/search?view=latest");
   await queueTrack(page, "Gone Fishing");
   const title = "The Mushroom Circle (Gnome Revolution)";
   await trackCard(page, title)

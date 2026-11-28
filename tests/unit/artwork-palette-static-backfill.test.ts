@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdtemp, mkdir, rm, symlink, writeFile } from "node:fs/promises";
+import { mkdtemp, mkdir, realpath, rm, symlink, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -94,7 +94,10 @@ describe("static artwork source confinement", () => {
       expect(await decodeStaticArtwork({ ...source, objectKey }, publicDirectory)).toEqual(colors);
       expect(localDecoder.invoke).toHaveBeenCalledWith(
         "python3",
-        expect.arrayContaining([path.join(publicDirectory, "artwork.png"), source.mimeType]),
+        expect.arrayContaining([
+          await realpath(path.join(publicDirectory, "artwork.png")),
+          source.mimeType,
+        ]),
         expect.objectContaining({ timeout: 45_000, maxBuffer: 16_384 }),
       );
     },

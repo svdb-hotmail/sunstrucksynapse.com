@@ -4,14 +4,13 @@ import { serveSeekableMedia } from "./listener-helpers";
 test("supports the critical listener journey across browser engines", async ({ page }) => {
   await serveSeekableMedia(page);
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/");
+  await page.goto("/releases/phase-zero-transmissions");
 
   await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
-  const play = page
-    .getByRole("button", {
-      name: "Play Sunstruck Synapse (Revolution will be televised)",
-    })
-    .first();
+  const track = page
+    .locator("#track-revolution-will-be-televised")
+    .getByRole("button", { name: "Play Sunstruck Synapse (Revolution will be televised)" });
+  const play = track;
   await play.focus();
   await expect(play).toBeFocused();
   await play.press("Enter");

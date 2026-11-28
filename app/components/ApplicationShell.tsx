@@ -19,11 +19,18 @@ export function ApplicationShell({
 }: ApplicationShellProps) {
   const openQueue = () => player.onViewChange?.(player.view === "queue" ? null : "queue");
   const { pathname } = useLocation();
+  const hideFooter =
+    pathname === "/" ||
+    pathname === "/search" ||
+    pathname === "/about" ||
+    pathname.startsWith("/artists/") ||
+    pathname.startsWith("/releases/");
   return (
     <div
       className="app-shell listener-shell"
       data-has-player={Boolean(player.item || player.queue.length)}
       data-skin-preview={showSkinPicker || undefined}
+      data-no-footer={hideFooter || undefined}
     >
       <a className="listener-skip" href="#listener-content">
         Skip to music
@@ -32,19 +39,22 @@ export function ApplicationShell({
       <main id="listener-content" className="content-panel main-content">
         {children}
       </main>
-      <footer className="listener-footer site-footer">
-        <span className="brand-display">SUNSYN RADIO</span>
-        <Link to="/about" aria-current={pathname === "/about" ? "page" : undefined}>
-          About SunSyn
-        </Link>
-        <Link to="/privacy">Privacy</Link>
-        <span className="mobile-theme">
-          <ThemeToggle />
-        </span>
-        {import.meta.env.MODE === "site-preview" ? (
-          <small>Design preview · sample catalogue · production unchanged</small>
-        ) : null}
-      </footer>
+      {!hideFooter ? (
+        <footer className="listener-footer site-footer">
+          <span className="brand-display">SUNSYN RADIO</span>
+          <Link to="/about" aria-current={pathname === "/about" ? "page" : undefined}>
+            About SunSyn
+          </Link>
+          <Link to="/privacy">Privacy</Link>
+          <Link to="/updates">What’s new</Link>
+          <span className="mobile-theme">
+            <ThemeToggle />
+          </span>
+          {import.meta.env.MODE === "site-preview" ? (
+            <small>Design preview · sample catalogue · production unchanged</small>
+          ) : null}
+        </footer>
+      ) : null}
       <PlayerPanel ref={playerPanelRef} {...player} />
       <MobileNav navigation={navigation} queueCount={player.queue.length} onOpenQueue={openQueue} />
     </div>

@@ -12,14 +12,13 @@ for (const theme of ["dark", "light"] as const) {
       await page.setViewportSize({ width, height: width === 320 ? 568 : 900 });
       await page.goto("/");
       await page.evaluate(() => document.fonts.ready);
-      await expect(
-        page.getByRole("button", { name: "Start listening", exact: true }),
-      ).toBeInViewport();
+      const featuredPlay = page.locator(".label-feature__actions button").first();
+      await expect(featuredPlay).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
         true,
       );
       const contrast = await page
-        .locator(".listener-primary")
+        .locator(".label-feature__actions button")
         .first()
         .evaluate((element) => {
           const style = getComputedStyle(element);
@@ -39,8 +38,8 @@ for (const theme of ["dark", "light"] as const) {
           return (Math.max(text, background) + 0.05) / (Math.min(text, background) + 0.05);
         });
       expect(contrast).toBeGreaterThanOrEqual(4.5);
-      await page.getByRole("button", { name: "Start listening", exact: true }).focus();
-      const focus = await page.locator(".listener-primary").evaluate((element) => {
+      await featuredPlay.focus();
+      const focus = await featuredPlay.evaluate((element) => {
         const style = getComputedStyle(element);
         return { width: parseFloat(style.outlineWidth), style: style.outlineStyle };
       });
@@ -89,10 +88,10 @@ for (const theme of ["dark", "light"] as const) {
       theme,
     );
     await page.goto("/");
+    await page.locator(".label-feature__actions button").first().click();
     const dockPlay = page.locator(".transport .dock-play");
     await dockPlay.hover();
     expect(await contrastOf(dockPlay, "color")).toBeGreaterThanOrEqual(3);
-    await page.getByRole("button", { name: "Start listening", exact: true }).click();
     await page.getByRole("button", { name: /^Open player:/ }).click();
     const fullPlay = page.locator(".player-transport .dock-play");
     await fullPlay.hover();
@@ -102,6 +101,7 @@ for (const theme of ["dark", "light"] as const) {
       .getByRole("navigation", { name: "Primary", exact: true })
       .getByRole("link", { name: "Explore", exact: true })
       .click();
+    await page.getByRole("button", { name: "Show search" }).click();
     const field = page.getByRole("searchbox");
     await expect(field).toBeVisible();
     expect(await contrastOf(field, "borderTopColor")).toBeGreaterThanOrEqual(3);

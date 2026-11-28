@@ -4,6 +4,7 @@ import { Link } from "react-router";
 
 import { ThemeToggle } from "~/design-system/ThemeToggle";
 import { StationMark } from "~/design-system/StationMark";
+import { AppVersionBadge } from "~/components/AppVersionBadge";
 
 import type { CuratorIdentityView, CuratorNavigationItem, CuratorSection } from "./types";
 
@@ -88,7 +89,10 @@ export function CuratorShell({
           ) : (
             <span className="curator-overline">Curator workspace</span>
           )}
-          <ThemeToggle />
+          <div className="topbar-utilities">
+            <AppVersionBadge />
+            <ThemeToggle />
+          </div>
           <div className="curator-identity" aria-label={`Curator account: ${identity.name}`}>
             <span aria-hidden="true">{identity.initials}</span>
             <span>

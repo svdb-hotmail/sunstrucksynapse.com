@@ -1,5 +1,6 @@
 {
   "name": "sunstruck-synapse-radio",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -26,6 +27,7 @@
     "db:migrate": "node --env-file-if-exists=.env --import tsx scripts/migrate.ts",
     "db:seed": "node --env-file-if-exists=.env --import tsx scripts/seed.ts",
     "db:validate:local": "node --import tsx scripts/validate-database.ts",
+    "share-preview:publish": "node --env-file-if-exists=.env --import tsx scripts/publish-share-preview.ts",
     "catalogue:export": "node --env-file-if-exists=.env --import tsx scripts/export-catalogue.ts",
     "catalogue:audit": "node --env-file-if-exists=.env --import tsx scripts/audit-beta-readiness.ts",
     "ci": "npm run format:check && npm run lint && npm run typecheck && npm run test:unit && npm run test:encoder && npm run db:validate:local && npm run build",

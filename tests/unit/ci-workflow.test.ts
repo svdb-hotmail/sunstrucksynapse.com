@@ -75,7 +75,7 @@ describe("CI quality-gate lifecycle", () => {
     expect(workflow).not.toContain("continue-on-error");
     const [qualityJob, securityJob] = workflow.split("  quality-gate:");
     expect(qualityJob).not.toContain("github/codeql-action");
-    expect(securityJob).toContain("npm audit --audit-level=high");
+    expect(securityJob).toContain("run: node scripts/audit-dependencies.mjs");
     // Preserve the CodeQL analysis key used by the repository's merge rules.
     expect(securityJob).toContain("github/codeql-action/analyze@v4");
     expect(securityJob).toContain("name: security");

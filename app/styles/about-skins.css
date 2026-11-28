@@ -37,7 +37,7 @@
   max-width: none;
   margin: 0;
   color: var(--about-ink);
-  font: 500 clamp(3.4rem, 6.4vw, 7.5rem) / 0.99 var(--site-display);
+  font: 500 clamp(3.2rem, 5.8vw, 6.75rem) / 0.99 var(--site-display);
   letter-spacing: -0.06em;
   overflow-wrap: anywhere;
 }
@@ -188,6 +188,9 @@
   max-width: 16ch;
   color: var(--site-ink);
   font: 600 clamp(2rem, 4vw, 4rem) / 1.05 var(--site-display);
+  /* Impact is exceptionally condensed on some desktop platforms; avoid the
+     aggressive global negative tracking that makes its letters collide. */
+  letter-spacing: 0;
 }
 .listener-shell .about-page .contact-launch p:last-child {
   color: var(--site-muted);
@@ -200,6 +203,105 @@
   font:
     700 0.9rem system-ui,
     sans-serif;
+}
+.listener-shell .contact-dialog .contact h2 {
+  font-size: clamp(2rem, 3.4vw, 3.5rem);
+  line-height: 1.05;
+  letter-spacing: 0;
+}
+.listener-shell .privacy-page {
+  width: min(100% - 2 * clamp(1.25rem, 5vw, 5rem), 1120px);
+  margin: clamp(2rem, 6vw, 5rem) auto clamp(4rem, 9vw, 8rem);
+  padding: 0;
+  color: var(--site-ink);
+}
+.listener-shell .privacy-page__header {
+  max-width: 780px;
+  padding: 0 0 clamp(2rem, 5vw, 4rem);
+  border-bottom: 1px solid var(--site-line);
+}
+.listener-shell .privacy-page__header .eyebrow {
+  margin: 0 0 1.2rem;
+  color: var(--site-accent);
+  font:
+    700 0.72rem/1.3 system-ui,
+    sans-serif;
+  letter-spacing: 0.17em;
+  text-transform: uppercase;
+}
+.listener-shell .privacy-page__header h1 {
+  margin: 0;
+  color: var(--site-ink);
+  font: 500 clamp(3rem, 8vw, 6.5rem) / 0.98 var(--site-display);
+  letter-spacing: -0.035em;
+}
+.listener-shell .privacy-page__intro {
+  max-width: 48ch;
+  margin: 1.25rem 0 0;
+  color: var(--site-muted);
+  font-size: clamp(1rem, 1.5vw, 1.25rem);
+  line-height: 1.55;
+}
+.listener-shell .privacy-page__updated {
+  margin: 1.5rem 0 0;
+  color: var(--site-muted);
+  font:
+    600 0.72rem/1.4 system-ui,
+    sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.listener-shell .privacy-page__sections {
+  max-width: 900px;
+  counter-reset: privacy-section;
+}
+.listener-shell .privacy-page__sections section {
+  display: grid;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(0, 1.3fr);
+  gap: clamp(1rem, 4vw, 4rem);
+  padding: clamp(1.5rem, 3vw, 2.5rem) 0;
+  border-bottom: 1px solid var(--site-line);
+  counter-increment: privacy-section;
+}
+.listener-shell .privacy-page__sections h2 {
+  margin: 0;
+  color: var(--site-ink);
+  font: 600 clamp(1.15rem, 2vw, 1.6rem) / 1.2 var(--site-display);
+  letter-spacing: -0.015em;
+}
+.listener-shell .privacy-page__sections h2::before {
+  display: block;
+  margin-bottom: 0.7rem;
+  color: var(--site-accent);
+  content: "0" counter(privacy-section);
+  font:
+    700 0.68rem/1 system-ui,
+    sans-serif;
+  letter-spacing: 0.12em;
+}
+.listener-shell .privacy-page__sections p {
+  max-width: 68ch;
+  margin: 0;
+  color: var(--site-muted);
+  font-size: 1rem;
+  line-height: 1.75;
+}
+.listener-shell .privacy-page__sections a,
+.listener-shell .privacy-page__footer a {
+  color: var(--site-accent);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+.listener-shell .privacy-page__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  max-width: 900px;
+  padding-top: 1.5rem;
+  font:
+    700 0.78rem/1.4 system-ui,
+    sans-serif;
+  letter-spacing: 0.04em;
 }
 [data-skin="underground"] .listener-shell .about-page {
   --about-stage: #1b1714;
@@ -267,5 +369,26 @@
   .listener-shell .about-page .contact-launch {
     flex-direction: column;
     align-items: stretch;
+  }
+}
+[data-skin="pixel"] .listener-shell .about-hero h1 {
+  font-family: var(--site-hero-display);
+  font-weight: 400;
+  font-size: clamp(3.2rem, 5.8vw, 6.75rem);
+  letter-spacing: 0.015em;
+  overflow-wrap: normal;
+}
+[data-skin="pixel"] .listener-shell .about-hero h1 em {
+  font-weight: 400;
+}
+[data-skin="pixel"] .listener-shell .about-page .section-title h2,
+[data-skin="pixel"] .listener-shell .about-page .contact-launch h2 {
+  font-family: var(--site-hero-display);
+  font-weight: 400;
+  letter-spacing: 0.015em;
+}
+@media (max-width: 650px) {
+  [data-skin="pixel"] .listener-shell .about-hero h1 {
+    font-size: clamp(2.8rem, 11vw, 4.8rem);
   }
 }
