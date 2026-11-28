@@ -73,7 +73,14 @@ export default function ArtistRoute({ loaderData }: Route.ComponentProps) {
       />
       <IdentityPreviewControls treatment={activeTreatment} onChange={setTreatment} />
       <section className="identity-hero" aria-labelledby="artist-name">
-        <div className="identity-hero__art">
+        <div
+          className="identity-hero__art"
+          style={
+            {
+              "--pixel-art-url": `url(${JSON.stringify(artist.artwork.src)})`,
+            } as React.CSSProperties
+          }
+        >
           <img src={artist.artwork.src} alt={artist.artwork.alt} />
         </div>
         <div className="identity-hero__copy">

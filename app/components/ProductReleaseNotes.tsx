@@ -14,12 +14,14 @@ export function ProductReleaseNotes({
 }) {
   const Heading = heading;
   const GroupHeading = heading === "h2" ? "h3" : "h4";
-  const date = new Intl.DateTimeFormat("en-GB", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(`${release.date}T00:00:00Z`));
+  const date = release.date
+    ? new Intl.DateTimeFormat("en-GB", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC",
+      }).format(new Date(`${release.date}T00:00:00Z`))
+    : null;
   return (
     <article className="product-release" id={permalink ? `release-${release.version}` : undefined}>
       <header>
@@ -29,7 +31,7 @@ export function ProductReleaseNotes({
           ) : (
             <span className="product-release__version">v{release.version}</span>
           )}
-          <time dateTime={release.date}>{date}</time>
+          {release.date && date ? <time dateTime={release.date}>{date}</time> : null}
           {current ? <span className="product-release__current">Current version</span> : null}
         </p>
         <Heading>{release.title}</Heading>

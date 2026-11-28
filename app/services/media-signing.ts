@@ -20,10 +20,13 @@ export async function createMediaDeliveryUrl(
   secret: string,
   now = new Date(),
 ): Promise<string> {
+  return origin + (await createSignedMediaPath(`/media/${kind}/${assetId}`, secret, now));
+}
+
+export async function createSignedMediaPath(path: string, secret: string, now = new Date()) {
   const expires = Math.floor(now.getTime() / 1000) + 300;
-  const path = `/media/${kind}/${assetId}`;
   const signature = await hmac(secret, `${path}:${expires}`);
-  return `${origin}${path}?expires=${expires}&signature=${signature}`;
+  return `${path}?expires=${expires}&signature=${signature}`;
 }
 
 export async function verifyMediaSignature(

@@ -129,3 +129,16 @@ button.app-version-badge:hover {
     border-radius: var(--radius-lg);
   }
 }
+@media (max-width: 400px) {
+  .listener-shell[data-skin-preview="true"] .masthead {
+    height: auto;
+    flex-wrap: wrap;
+    row-gap: var(--space-1);
+    padding-block: var(--space-2);
+  }
+
+  .listener-shell[data-skin-preview="true"] .masthead .topbar-utilities {
+    flex-basis: 100%;
+    justify-content: flex-end;
+  }
+}

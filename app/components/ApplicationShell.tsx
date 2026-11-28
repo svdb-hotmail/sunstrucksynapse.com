@@ -19,11 +19,18 @@ export function ApplicationShell({
 }: ApplicationShellProps) {
   const openQueue = () => player.onViewChange?.(player.view === "queue" ? null : "queue");
   const { pathname } = useLocation();
+  const hideFooter =
+    pathname === "/" ||
+    pathname === "/search" ||
+    pathname === "/about" ||
+    pathname.startsWith("/artists/") ||
+    pathname.startsWith("/releases/");
   return (
     <div
       className="app-shell listener-shell"
       data-has-player={Boolean(player.item || player.queue.length)}
       data-skin-preview={showSkinPicker || undefined}
+      data-no-footer={hideFooter || undefined}
     >
       <a className="listener-skip" href="#listener-content">
         Skip to music
@@ -32,7 +39,7 @@ export function ApplicationShell({
       <main id="listener-content" className="content-panel main-content">
         {children}
       </main>
-      {pathname !== "/search" ? (
+      {!hideFooter ? (
         <footer className="listener-footer site-footer">
           <span className="brand-display">SUNSYN RADIO</span>
           <Link to="/about" aria-current={pathname === "/about" ? "page" : undefined}>

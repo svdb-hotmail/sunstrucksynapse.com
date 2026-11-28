@@ -16,7 +16,8 @@ from music releases in the catalogue.
 2. Update the version with `npm version patch --no-git-tag-version` (or `minor`,
    or a specific version). This updates `package.json` and `package-lock.json`.
 3. Prepend the matching entry to `app/data/product-releases.ts`: version, date,
-   short title, summary and grouped notes. Keep all previous entries. Their
+   short title, summary and grouped notes. Use the publication date when known.
+   Set the date to `null` while the publication date is unknown. Keep all previous entries. Their
    anchors and historical notes must continue to work.
 4. Explain what people can do or what has improved. Use plain language. Avoid
    commit messages, ticket numbers, dependency versions and internal tooling.

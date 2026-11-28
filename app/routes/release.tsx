@@ -71,7 +71,14 @@ export default function ReleaseRoute({ loaderData }: Route.ComponentProps) {
       />
       <IdentityPreviewControls treatment={activeTreatment} onChange={setTreatment} />
       <section className="identity-hero" aria-labelledby="release-title">
-        <div className="identity-hero__art">
+        <div
+          className="identity-hero__art"
+          style={
+            {
+              "--pixel-art-url": `url(${JSON.stringify(release.artwork.src)})`,
+            } as React.CSSProperties
+          }
+        >
           <img src={release.artwork.src} alt={release.artwork.alt} />
         </div>
         <div className="identity-hero__copy">

@@ -147,6 +147,11 @@ export default function Home({ loaderData }: Partial<Route.ComponentProps>) {
             className="label-feature__art"
             to={featured.release.href}
             aria-label={`View ${featured.release.title}`}
+            style={
+              {
+                "--pixel-art-url": `url(${JSON.stringify(featured.artwork.src)})`,
+              } as React.CSSProperties
+            }
           >
             <Artwork artwork={featured.artwork} size={620} />
           </Link>

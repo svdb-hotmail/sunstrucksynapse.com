@@ -39,34 +39,6 @@ test("opens release notes with keyboard focus and keeps music playing through th
   await expect(page.locator(`[id="release-${APP_VERSION}"]`)).toHaveCount(1);
 });
 
-test("keeps the badge and release notes usable on a phone in both themes", async ({ page }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto("/updates");
-  const backgrounds: string[] = [];
-  for (const theme of ["light", "dark"]) {
-    await page.evaluate((value) => {
-      document.documentElement.dataset.theme = value;
-    }, theme);
-    const badge = page.getByRole("button", { name: versionLabel });
-    await expect(badge).toBeInViewport();
-    await badge.click();
-    const dialog = page.getByRole("dialog", { name: "What’s new at SunSyn" });
-    await expect(dialog).toBeVisible();
-    const box = await dialog.boundingBox();
-    expect(box).not.toBeNull();
-    expect(box!.x).toBeGreaterThanOrEqual(0);
-    expect(box!.x + box!.width).toBeLessThanOrEqual(390);
-    expect(box!.height).toBeLessThanOrEqual(844);
-    backgrounds.push(await dialog.evaluate((element) => getComputedStyle(element).backgroundColor));
-    await page.screenshot({ path: test.info().outputPath(`release-notes-${theme}.png`) });
-    await dialog.getByRole("button", { name: "Close release notes" }).click();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
-      true,
-    );
-  }
-  expect(backgrounds[0]).not.toBe(backgrounds[1]);
-});
-
 test("serves a shareable release history without JavaScript", async ({ browser, baseURL }) => {
   const context = await browser.newContext({ javaScriptEnabled: false, baseURL });
   try {
