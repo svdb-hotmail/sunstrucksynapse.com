@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { QueueEntry } from "~/types/catalogue";
+import { useHydrated } from "~/utils/use-hydrated";
 
 export function QueuePanel({
   open,
@@ -19,7 +20,7 @@ export function QueuePanel({
   feedback?: React.ReactNode;
   children: React.ReactNode;
 }) {
-  const [mounted, setMounted] = useState(false);
+  const mounted = useHydrated();
   const [height, setHeight] = useState(320);
   const [bottom, setBottom] = useState(0);
   const [list, setList] = useState<"queue" | "history">("queue");
@@ -27,15 +28,15 @@ export function QueuePanel({
   const panel = useRef<HTMLElement>(null);
   const opener = useRef<HTMLElement | null>(null);
   const closeRef = useRef(onClose);
-  closeRef.current = onClose;
   const drag = useRef<{ y: number; height: number; moved: boolean } | null>(null);
   const previous = useRef(new Set(queue.map((entry) => entry.itemId)));
   const suppressClick = useRef(false);
   useEffect(() => {
-    setMounted(true);
-  }, []);
+    closeRef.current = onClose;
+  }, [onClose]);
   useEffect(() => {
     if (!open || !mounted) return;
+    const panelElement = panel.current;
     opener.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !event.defaultPrevented) {
@@ -47,7 +48,7 @@ export function QueuePanel({
     return () => {
       document.removeEventListener("keydown", closeOnEscape);
       if (
-        !panel.current?.contains(document.activeElement) &&
+        !panelElement?.contains(document.activeElement) &&
         document.activeElement !== document.body
       )
         return;
