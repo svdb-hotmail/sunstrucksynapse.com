@@ -58,7 +58,7 @@
     "@storybook/addon-a11y": "10.6.5",
     "@storybook/addon-docs": "10.6.5",
     "@storybook/react-vite": "10.6.5",
-    "@types/node": "22.18.11",
+    "@types/node": "26.6.10",
     "@types/react": "19.3.3",
     "@types/react-dom": "19.3.0",
     "drizzle-kit": "0.31.10",
